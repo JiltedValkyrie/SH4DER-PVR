@@ -8,7 +8,7 @@
 /* The maths is sh4der_lens.h (host tested). This file is the PVR side: the grain tile (8 KB VRAM, the only memory the lens
    takes), four polygon headers and one vertex strip per overlay. Per frame, TA: the vignette 9 bands x 66 vertices (594, 288
    triangles), the grain 8 vertices, a hit 4 per wedge, the flash 4. Layers: vignette 1 (multiply), grain 2 (multiply, boost), flash
-   1 (additive or alpha): the full-screen fills are ESTIMATE, not measured. Compiles to nothing off the Dreamcast. */
+   1 (additive or alpha). The full-screen fill costs are estimates, not measured. Compiles to nothing off the Dreamcast. */
 
 #ifdef _arch_dreamcast
 
@@ -24,13 +24,15 @@ static sh4der_lens_spokes_t spokes;   /* the vignette's rim table, set by sh4der
 static sh4der_lens_vig_t vig;    /* the shape (the screen size) */
 static int vig_ok;
 
-/* A vertex on the TR list, z the autosort key. */
+/* Write one vertex with pvr_prim. Used on the TR list only. z is the key the TR autosort uses; oargb is the offset colour
+   (0 when unused). */
 static void vtx(float x, float y, float z, uint32_t argb, uint32_t oargb, uint32_t flags, float u, float v_) {
     pvr_vertex_t p = { 0 };
     p.flags = flags; p.x = x; p.y = y; p.z = z; p.u = u; p.v = v_; p.argb = argb; p.oargb = oargb;
     pvr_prim(&p, sizeof(p));
 }
 
+/* Settings shared by every lens header: no depth test or write, no culling, Gouraud. The caller sets the blend. */
 static void cxt_lens(pvr_poly_cxt_t *c) {
     c->depth.comparison = PVR_DEPTHCMP_ALWAYS;   /* an overlay: no depth test, no depth write */
     c->depth.write = PVR_DEPTHWRITE_DISABLE;
@@ -38,7 +40,9 @@ static void cxt_lens(pvr_poly_cxt_t *c) {
     c->gen.shading = PVR_SHADE_GOURAUD;
 }
 
-/* Make the grain tile and the headers once per PVR start. 0 when VRAM is short (the lens draws what it can). */
+/* Make the grain tile and the six poly headers once per PVR start. Returns 1 when ready, 0 when VRAM is short; the lens then
+   draws what it can. The tile is ARGB4444 texels, loaded one row at a time with pvr_txr_load. The headers, all on the TR list:
+   grain multiply, grain boost, vignette multiply, wedge alpha, flash alpha, flash additive. Blends are set at each compile. */
 int sh4der_lens_init(void) {
     const uint32_t t = SH4DER_LENS_GRAIN_TILE, texels = t * t;
     uint16_t row[SH4DER_LENS_GRAIN_TILE] __attribute__((aligned(32)));
@@ -95,13 +99,16 @@ void sh4der_lens_forget(void) {
     vig_ok = 0;
 }
 
-/* The vignette: the rim table once per screen (sh4der_lens_vig_default + this), then one band a strip per draw. */
+/* Build the vignette's rim table for a w x h screen. Maths only, so any list. Call again when the screen size changes.
+   Returns 1 when the table is ready. */
 int sh4der_lens_vignette_setup(float w, float h) {
     sh4der_lens_vig_default(&vig, w, h);
     vig_ok = sh4der_lens_vig_spokes(&vig, &spokes);
     return vig_ok;
 }
 
+/* Draw the vignette on the TR list. One header (blend src DESTCOLOR, dst ZERO, so the vertex colour multiplies the frame),
+   then one strip per band of the rim table. Untextured. Draws nothing until sh4der_lens_vignette_setup has returned 1. */
 void sh4der_lens_vignette_draw(void) {
     sh4der_lens_vtx_t band[2 * (SH4DER_LENS_VIG_SPOKES + 1)];
     const unsigned per = 2u * (spokes.n + 1u);
@@ -117,7 +124,9 @@ void sh4der_lens_vignette_draw(void) {
     }
 }
 
-/* The grain: the tile offset this frame over the w x h screen, the multiply then the boost (both full screen). */
+/* Draw the grain on the TR list: the tile at this frame's offset over the w x h screen. Two quads, both full screen: the
+   multiply first (vertex colour is the amplitude a, offset colour is 1 - a), then the boost (vertex colour is the boost).
+   Draws nothing when the tile is missing (no VRAM at init). */
 void sh4der_lens_grain(uint32_t frame, float w, float h) {
     float uv[4];
     const uint32_t a = (uint32_t)(SH4DER_LENS_GRAIN_AMP * 255.0f + 0.5f);
@@ -138,7 +147,8 @@ void sh4der_lens_grain(uint32_t frame, float w, float h) {
     vtx(w, h, SH4DER_LENS_Z_GRAIN, bo, 0u, PVR_CMD_VERTEX_EOL, 0.0f, 0.0f);
 }
 
-/* The damage wedges: one quad each, alpha ramped by age. */
+/* Draw the hit wedges (damage indicators) on the TR list with alpha blend (src SRCALPHA, dst INVSRCALPHA). One quad per
+   slot that is on; the alpha comes from the slot's age. Slots that are off are skipped. */
 void sh4der_lens_hits_draw(const sh4der_lens_hit_t *slots, unsigned n, float w, float h) {
     unsigned i, j;
     sh4der_lens_vtx_t q[4];
@@ -151,7 +161,8 @@ void sh4der_lens_hits_draw(const sh4der_lens_hit_t *slots, unsigned n, float w, 
     }
 }
 
-/* The flash: one full-screen layer at its level, colour rgb, additive or alpha. Nothing when the level is 0. */
+/* Draw the flash on the TR list: one full-screen quad at its level and colour rgb. additive picks the ONE / ONE header,
+   otherwise the alpha header. Nothing is drawn when the level is 0. */
 void sh4der_lens_flash_draw(const sh4der_lens_flash_t *f, const float rgb[3], int additive, float w, float h) {
     const uint32_t c = sh4der_lens_flash_argb(f->level, rgb, additive);
     if (!(f->level > 0.0f)) return;

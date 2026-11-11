@@ -3,10 +3,10 @@
    test/ca_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of the frame texture's sizes and of the chromatic aberration's maths: the two
-   sizes and their video memory, the shortfall in KB, no shift in the centre, the shipped
-   split in the corner, green half of red, blue unmoved, every sample inside the picture,
-   texel-centre texture coordinates.
+   Host check of the chromatic aberration: the two frame texture sizes and their
+   video memory, the shortfall in KB, no shift in the centre, the split in the corner
+   (green half of red, blue unmoved), samples kept inside the picture, and texel-centre
+   texture coordinates.
 */
 
 #include <math.h>
@@ -24,6 +24,7 @@ static int fail(const char *msg) {
 
 static int near(float a, float b, float tol) { return fabsf(a - b) <= tol; }
 
+/* Checks the two frame sizes and texture sizes, the video memory in bytes, and the shortfall in KB. */
 static int sizes(void) {
     sh4der_ca_size_t full, half;
     sh4der_ca_size(0, &full);
@@ -41,6 +42,8 @@ static int sizes(void) {
     return 0;
 }
 
+/* Checks the split at several strengths: no shift at the centre, the offset in the corner, green half of red,
+   blue fixed, and no push without a strength or a screen. */
 static int split(void) {
     const float w = 640.0f, h = 480.0f, inv = 4.0f / (w * w + h * h);
     float strength;
@@ -78,6 +81,7 @@ static int split(void) {
     return 0;
 }
 
+/* Checks the texel-centre coordinates at both ends, clamping past the picture, and the one-channel ARGB values. */
 static int coords(void) {
     sh4der_ca_size_t s;
     float u, v;

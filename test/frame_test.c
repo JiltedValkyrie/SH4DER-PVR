@@ -18,8 +18,10 @@ static int fail(const char *msg) {
     return 1;
 }
 
+/* Packs 8-bit red, green and blue into one RGB565 pixel. */
 static uint16_t pack(unsigned r8, unsigned g8, unsigned b8) { return (uint16_t)(((r8 >> 3) << 11) | ((g8 >> 2) << 5) | (b8 >> 3)); }
 
+/* Checks the history stamp: each id survives RGB565 and back, and the ring cycles through all eight slots. */
 static int stamp(void) {
     sh4der_frame_hist_t h;
     unsigned id, seen = 0;
@@ -40,6 +42,7 @@ static int stamp(void) {
     return seen == 255u ? 0 : fail("every stamp used");
 }
 
+/* Checks the darker-of-two pixel, the gain taken off a read (clamped at white), and the looked-at term. */
 static int pixels(void) {
     uint16_t px[3] = { pack(128, 128, 128), pack(255, 255, 255), pack(16, 200, 40) };
     if (sh4der_frame_min565(pack(255, 0, 80), pack(40, 200, 255)) != pack(40, 0, 80))
@@ -59,12 +62,13 @@ static int pixels(void) {
     return 0;
 }
 
+/* Checks the glow curve (default and straight, never falling) and the glow taken off a read. */
 static int glow_helpers(void) {
     uint8_t lut[256];
     uint16_t grid[4] = { pack(200, 200, 200), pack(40, 40, 40), pack(200, 200, 200), pack(0, 0, 0) };
     const uint16_t map[4] = { pack(100, 100, 100), pack(255, 255, 255), 0, 0 }, small[1] = { pack(40, 40, 40) };
     int i;
-    sh4der_glow_curve(lut, SH4DER_GLOW_THRESHOLD, 1);   /* the shipped curve */
+    sh4der_glow_curve(lut, SH4DER_GLOW_THRESHOLD, 1);   /* the default curve */
     {
         uint8_t ref[256];
         sh4der_glow_lut(ref);

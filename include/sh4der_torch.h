@@ -28,16 +28,31 @@
     about the principal point, of radius focal x tan(half angle), at any distance.
     sh4der_torch_radii gives the two radii (x and y differ only by the squeeze).
 
-    Darkness gate: sh4der_torch_gate_step with the baked luminance (the
-    flashlight's own low-passed sample), not the frame read: the carve darkens the
+    Darkness gate: sh4der_torch_gate_step with the baked luminance (a low-passed
+    sample of the baked light), not the frame read: the carve darkens the
     frame, so a gate read from the frame would feed back on itself.
 
     Mesh: sh4der_torch_boost_mesh and sh4der_torch_carve_mesh write strips (one
     band per strip, EOL on each band's last vertex); the KOS draw code is in
     src/sh4der_torch.c. The client draws both layers under its own look
-    (z below the look's layers, see the plan).
+    (z below the look's layers).
+
+    Recommended settings (the author's own game):
+    - The near light a vertex takes: radius 6.0 world units, strength 0.85,
+      tint 0.94 green and 0.82 blue (a warm white).
+    - The circle's edge at about 22 degrees off the view axis (cosine
+      squared 0.8597); the reach fade from SH4DER_TORCH_FOG_NEAR to a reach
+      of 5.0 world units.
+    - The carve by the place's darkness: full up to a baked luminance of
+      0.30, none from 0.80 (SH4DER_TORCH_DARK_LO, SH4DER_TORCH_DARK_HI). In
+      daylight the lamp then adds light and darkens nothing. Keep lo under
+      hi.
+    - Rise 0.2 s, fall 0.8 s (SH4DER_TORCH_RISE_S, SH4DER_TORCH_FALL_S).
+    - One world unit in that game is about 3 metres: scale the distances to
+      your own units.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_TORCH_H
@@ -55,13 +70,13 @@ extern "C" {
 #define SH4DER_TORCH_BOOST       0.6f    /**< \brief Core boost at the centre (x (1 + this) at full power, plus HOT). */
 #define SH4DER_TORCH_HOT         0.4f    /**< \brief Extra hot centre, linear to 0 at HOT_U. */
 #define SH4DER_TORCH_HOT_U       0.2f    /**< \brief Radius (share of the edge) the hot centre reaches. */
-#define SH4DER_TORCH_TINT_G      0.96f   /**< \brief Green share of the boost (FLASHLIGHT_TINT_G). */
-#define SH4DER_TORCH_TINT_B      0.88f   /**< \brief Blue share of the boost (FLASHLIGHT_TINT_B). */
+#define SH4DER_TORCH_TINT_G      0.96f   /**< \brief Green share of the boost. */
+#define SH4DER_TORCH_TINT_B      0.88f   /**< \brief Blue share of the boost. */
 #define SH4DER_TORCH_MUL_OUT     0.35f   /**< \brief Carve level outside the edge at full darkness. */
 #define SH4DER_TORCH_EDGE_IN     0.9f    /**< \brief Carve starts (share of the edge radius). */
 #define SH4DER_TORCH_EDGE_OUT    1.0f    /**< \brief Carve full (the edge). */
 #define SH4DER_TORCH_UMAX        1.6f    /**< \brief Carve mesh reaches this share (screen corners at 1.25). */
-#define SH4DER_TORCH_NEAR_K      0.425f  /**< \brief Near add at the eye, x gate x power (FLASHLIGHT_STRENGTH). */
+#define SH4DER_TORCH_NEAR_K      0.425f  /**< \brief Near add at the eye, x gate x power. */
 #define SH4DER_TORCH_NEAR_WU     7.0f    /**< \brief Near add reach, world units. */
 #define SH4DER_TORCH_FOG_NEAR    2.0f    /**< \brief Reach fade starts at this depth, world units. */
 #define SH4DER_TORCH_FOG_FAR     6.0f    /**< \brief Reach fully black at this depth (x gate x power). */
@@ -71,8 +86,8 @@ extern "C" {
 #define SH4DER_TORCH_GATE_DOWN_S 1.0f    /**< \brief Gate time constant toward off. */
 #define SH4DER_TORCH_DARK_LO     0.30f   /**< \brief Baked luminance up to which the carve is full (sh4der_torch_dark). */
 #define SH4DER_TORCH_DARK_HI     0.80f   /**< \brief Baked luminance from which there is no carve (daylight). */
-#define SH4DER_TORCH_RISE_S      0.2f    /**< \brief Power: seconds to full (flashlight: 6 ticks at 30 Hz). */
-#define SH4DER_TORCH_FALL_S      0.8f    /**< \brief Power: seconds to none (flashlight: 24 ticks at 30 Hz). */
+#define SH4DER_TORCH_RISE_S      0.2f    /**< \brief Power: seconds to full (6 ticks at 30 Hz). */
+#define SH4DER_TORCH_FALL_S      0.8f    /**< \brief Power: seconds to none (24 ticks at 30 Hz). */
 #define SH4DER_TORCH_SPOKES      16      /**< \brief Spokes of both meshes (the unit table in sh4der_torch.c is 16). */
 #define SH4DER_TORCH_RINGS       5       /**< \brief Boost bands, centre to edge. */
 #define SH4DER_TORCH_BANDS       4       /**< \brief Carve bands, edge feather to UMAX. */
@@ -120,7 +135,7 @@ static inline float sh4der_torch_smooth_(float x, float e0, float e1) {
 #endif
 }
 
-/** \brief tan of a half angle from its cos^2 (the flashlight's cos2 constants): sqrt((1 - c2) / c2). c2 in (0, 1]. */
+/** \brief tan of a half angle from its cos^2 (for a cone's cos2 constant): sqrt((1 - c2) / c2). c2 in (0, 1]. */
 static inline float sh4der_torch_tan_of_cos2(float c2) {
     if (!(c2 < 1.0f))
         return 0.0f;   /* 0 degrees (and the root of 0 is not taken: FSRRA of 0 is not a number) */
@@ -168,14 +183,14 @@ static inline float sh4der_torch_near(float dist2, float k) {
     return sh4der_torch_near_at(dist2, k, SH4DER_TORCH_NEAR_K, 1.0f / (SH4DER_TORCH_NEAR_WU * SH4DER_TORCH_NEAR_WU));
 }
 
-/** \brief The view depth fog table entry i stands for, for a far depth (the atmofog layout, atmofog_entry_depth). */
+/** \brief The view depth fog table entry i stands for, for a far depth (exponent i >> 4, mantissa i & 15, with the implicit 1). */
 static inline float sh4der_torch_entry_depth(unsigned i, float far_depth) {
     const float s = (float)(1u << (i >> 4)) * (float)((i & 15u) + 16u) * (1.0f / 16.0f);
     return sh4der_div_(far_depth, s);
 }
 
 /** \brief One fog table entry bent toward black: table T (the fog amount at its depth), reach k = gate x power.
-    Result 1 - (1 - T)(1 - R), R = k x smoothstep(FOG_NEAR, FOG_FAR, depth). Exact for black fog; see the plan for a tinted one. */
+    Result 1 - (1 - T)(1 - R), R = k x smoothstep(FOG_NEAR, FOG_FAR, depth). Exact for black fog; a tinted fog is not covered here. */
 static inline float sh4der_torch_fog_bend(float table, float depth, float k) {
     const float r = k * sh4der_torch_smooth_(depth, SH4DER_TORCH_FOG_NEAR, SH4DER_TORCH_FOG_FAR);
     return 1.0f - (1.0f - table) * (1.0f - r);
@@ -195,7 +210,7 @@ static inline void sh4der_torch_gate_reset(sh4der_torch_gate_t *g) {
     g->on = 0;
 }
 
-/** \brief One frame: lum is the baked luminance of the near vertices (flashlight lum_avg, torch-invariant), dt seconds.
+/** \brief One frame: lum is the baked luminance of the near vertices (a low-passed average of the baked light), dt seconds.
     Switches on below ON_LO, off above OFF_HI (between them it holds), eases d toward the switch. Returns d (0..1). */
 static inline float sh4der_torch_gate_step_scaled(sh4der_torch_gate_t *g, float lum, float dt, float scale) {
     float tau, target;
@@ -216,7 +231,7 @@ static inline float sh4der_torch_gate_step_scaled(sh4der_torch_gate_t *g, float 
     sensitivity: scale the gate by the same number so the carve comes on with the light. */
 static inline float sh4der_torch_gate_step(sh4der_torch_gate_t *g, float lum, float dt) { return sh4der_torch_gate_step_scaled(g, lum, dt, 1.0f); }
 
-/** \brief The power ramp: p (0..1) toward on or off, linear in dt (the flashlight's per-tick ramp at 30 Hz). */
+/** \brief The power ramp: p (0..1) toward on or off, linear in dt (a per-tick ramp at 30 Hz). */
 static inline float sh4der_torch_power_step(float p, int on, float dt) {
     if (dt <= 0.0f)
         return p;

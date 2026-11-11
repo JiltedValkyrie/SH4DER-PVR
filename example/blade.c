@@ -3,7 +3,7 @@
    example/blade.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   One sword blade, one frame: the shipped tuning at the top of a pulse,
+   One glowing blade, one frame: the default tuning at the top of a pulse,
    three vertices and their packed colours.
 */
 
@@ -11,7 +11,7 @@
 #include "sh4der_blade.h"
 
 int main(void) {
-    /* blade vertices in the blade node's space: x along the blade */
+    /* blade vertices in the blade's own space: x along the blade */
     static const float blade[3][3] = {{0.20f, 0.0f, 0.06f}, {0.20f, 0.0f, -0.05f}, {0.33f, 0.0f, 0.01f}};
     static const float cyan[3] = {0.35f, 0.82f, 1.0f};   /* the blade texture's average, brightest channel 1 */
     sh4der_blade_params_t params;
@@ -20,7 +20,7 @@ int main(void) {
     unsigned i;
 
     sh4der_blade_params_default(&params);
-    /* tick 48 + this sword's phase (0 here); fade = 1 - active camouflage */
+    /* tick 48 + this instance's phase (0 here); fade = 1 minus a cloak level, 1 for none */
     if (!sh4der_blade_prepare(&frame, &params, 48, 1.0f))
         return 1;
     sh4der_blade_argb(&frame, cyan, 0xff, blade[0], sizeof blade[0], argb, sizeof argb[0], 3);

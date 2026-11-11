@@ -3,9 +3,10 @@
    test/torch_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of the flashlight hotspot: the cone's screen radii, the boost and carve profiles, the near add, the fog bend (against
-   the composed product for black fog), the darkness gate (hysteresis, no flip under a 0.13 .. 0.21 wobble, the ramp times), the power
-   ramp (the flashlight's per-tick rates at 30 Hz), and both meshes (strip layout, eol, colours at the edges, coverage of the corners).
+   Host check of the flashlight hotspot: cone radii, boost and carve profiles,
+   the near add, the fog bend, the darkness gate (hysteresis, ramp times), the
+   power ramp at 30 Hz, and both meshes (strip layout, eol, edge colours,
+   corner coverage).
 */
 
 #include <math.h>
@@ -21,6 +22,7 @@ static int fail(const char *msg) {
     return 1;
 }
 
+/* Cone radii: tan of the cone angle from cos squared, the 320 px edge, and a squeezed core. */
 static int radii(void) {
     float rx, ry;
     if (fabsf(sh4der_torch_tan_of_cos2(0.75f) - 1.0f / sqrtf(3.0f)) > 1e-4f)
@@ -29,7 +31,7 @@ static int radii(void) {
         return fail("tan of 14 degrees");
     if (sh4der_torch_tan_of_cos2(1.0f) != 0.0f)
         return fail("tan of 0");
-    /* the reference: focal 320 / tan 30 degrees (the campaign's default half field), the edge at 320 px */
+    /* the reference: focal 320 / tan 30 degrees (a 30 degree half field), the edge at 320 px */
     sh4der_torch_radii(320.0f / tanf(0.5235988f), 320.0f / tanf(0.5235988f), 1.0f / sqrtf(3.0f), &rx, &ry);
     if (fabsf(rx - 320.0f) > 0.1f || fabsf(ry - 320.0f) > 0.1f)
         return fail("edge radius 320 px");
@@ -39,6 +41,7 @@ static int radii(void) {
     return 0;
 }
 
+/* The boost and carve profiles over the radius, and no carve in daylight. */
 static int profiles(void) {
     float u, prev = 2.0f;
     if (fabsf(sh4der_torch_boost_at(0.0f, 1.0f) - 1.0f) > 1e-6f)
@@ -62,6 +65,7 @@ static int profiles(void) {
     return 0;
 }
 
+/* The near add (distance form and near_at), the fog table layout, and the fog bend. */
 static int near_and_fog(void) {
     const float r2 = SH4DER_TORCH_NEAR_WU * SH4DER_TORCH_NEAR_WU;
     unsigned i;
@@ -69,7 +73,7 @@ static int near_and_fog(void) {
         return fail("near: distance only, 0 past the reach");
     if (fabsf(sh4der_torch_near(r2 * 0.25f, 1.0f) - SH4DER_TORCH_NEAR_K * 0.75f) > 1e-5f || sh4der_torch_near(0.0f, 0.0f) != 0.0f)
         return fail("near: linear, gated");
-    {   /* near = near_at with the shipped strength and reach; near_at takes its own, linear, 0 past its reach */
+    {   /* near = near_at with the library's own strength and reach; near_at takes its own, linear, 0 past its reach */
         const float inv = 1.0f / r2;
         unsigned j;
         for (j = 0; j <= 20; j++) {
@@ -105,6 +109,7 @@ static int near_and_fog(void) {
     return 0;
 }
 
+/* The darkness gate: thresholds, hysteresis with no pump inside the band, and ramps up and down. */
 static int gate(void) {
     sh4der_torch_gate_t g;
     int i;
@@ -136,6 +141,7 @@ static int gate(void) {
     return 0;
 }
 
+/* The power ramp: full in 0.2 s and gone in 0.8 s at 30 Hz, and no change when paused. */
 static int power(void) {
     float p = 0.0f;
     int i;
@@ -154,6 +160,7 @@ static uint8_t red(uint32_t c) { return (uint8_t)(c >> 16); }
 static uint8_t green(uint32_t c) { return (uint8_t)(c >> 8); }
 static int near8(uint32_t got, float want) { return fabsf((float)red(got) - want * 255.0f) <= 1.5f; }
 
+/* The boost and carve meshes: strip sizes, eol per strip, edge colours and positions, corner coverage, daylight. */
 static int meshes(void) {
     static sh4der_torch_vert_t bv[SH4DER_TORCH_VERTS], cv[SH4DER_TORCH_VERTS];
     const unsigned band_n = 2 * (SH4DER_TORCH_SPOKES + 1);

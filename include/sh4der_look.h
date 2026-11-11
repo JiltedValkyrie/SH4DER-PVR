@@ -33,7 +33,23 @@
     frame's x. A fast exp is off by percents at x = 0.01 .. 0.04, which is a
     whole factor in a step.
 
+    Recommended settings (the author's own game and demo disc):
+    - Eye strength 0.25: scale the shipped numbers by it, so the eye is felt
+      and not seen:
+          transient = SH4DER_LOOK_TRANSIENT x 0.25
+          open      = SH4DER_LOOK_OPEN x 0.25
+          gain_hi   = 1 + (SH4DER_LOOK_GAIN_HI - 1) x 0.25      (1.125)
+          gain_lo   = 1 - (1 - SH4DER_LOOK_GAIN_LO) x 0.25      (0.9375)
+      At any strength clamp gain_hi to 2.0 at most and gain_lo to 0.4 at
+      least: RGB565 bands past that.
+    - Into light 2 s, into dark 6 s (SH4DER_LOOK_LIGHT_S, SH4DER_LOOK_DARK_S).
+    - Hold the eye (skip the step) while a flashlight is lit: the eye
+      opening against its own lamp reads as a fault.
+    - Hand the step the read with the gain of the frame it saw taken off
+      (sh4der_frame.h's stamp and history), or the eye chases itself.
+
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_LOOK_H
@@ -73,8 +89,8 @@ enum {
 };
 
 typedef struct sh4der_look_layer {
-    uint8_t kind;
-    float rgb[3];
+    uint8_t kind;               /**< \brief SH4DER_LOOK_MULTIPLY, _BOOST, _ADD or _INVERT. */
+    float rgb[3];               /**< \brief Colour of the layer, 0..1 per channel (see the kind). */
 } sh4der_look_layer_t;
 
 /** \brief The grade: per channel gain and lift (-1..1), contrast about 0.5, and the eye's gain on top. Neutral: 1, 0, 1, 1. */
@@ -88,15 +104,15 @@ typedef struct sh4der_look_grade {
 typedef struct sh4der_look_params {
     float light_s, dark_s;    /**< \brief Seconds to 95 %, toward brighter and darker. */
     float transient, open;    /**< \brief See SH4DER_LOOK_TRANSIENT, SH4DER_LOOK_OPEN. */
-    float gain_lo, gain_hi;
+    float gain_lo, gain_hi;   /**< \brief Lowest and highest gain the eye gives. */
 } sh4der_look_params_t;
 
 /** \brief One eye. Zero it (or sh4der_look_eye_reset) for a new place: the first step adapts at once. */
 typedef struct sh4der_look_eye {
     float adapted;   /**< \brief Adapted level, natural log of luma. */
     float gain_ln;   /**< \brief The gain last given, log. */
-    float gain;
-    int ready;
+    float gain;      /**< \brief The gain last given, linear. */
+    int ready;       /**< \brief 0 until the first step. */
 } sh4der_look_eye_t;
 
 /** \brief The bins' logs, made once (sh4der_look_bins). */
@@ -131,6 +147,7 @@ static inline unsigned sh4der_look_luma565(unsigned p) {
     return (77u * r + 150u * g + 29u * b) >> 10;   /* at most 62 */
 }
 
+/** \brief Fill the bins' logs. Once at load. */
 static inline void sh4der_look_bins(sh4der_look_bins_t *t) {
     int i;
     for (i = 0; i < SH4DER_LOOK_BINS; i++)
@@ -151,12 +168,14 @@ static inline float sh4der_look_log_average(const sh4der_look_bins_t *t, const u
 /** \brief The first-order step toward a target over dt with time constant tau. */
 static inline float sh4der_look_step_(float tau, float dt) { return dt > 0.0f ? sh4der_div_(dt, tau + dt) : 0.0f; }
 
+/** \brief The shipped eye and limits (the SH4DER_LOOK_* values). */
 static inline void sh4der_look_params_default(sh4der_look_params_t *p) {
     p->light_s = SH4DER_LOOK_LIGHT_S; p->dark_s = SH4DER_LOOK_DARK_S;
     p->transient = SH4DER_LOOK_TRANSIENT; p->open = SH4DER_LOOK_OPEN;
     p->gain_lo = SH4DER_LOOK_GAIN_LO; p->gain_hi = SH4DER_LOOK_GAIN_HI;
 }
 
+/** \brief Zero the eye for a new place: the next step adapts at once. */
 static inline void sh4der_look_eye_reset(sh4der_look_eye_t *e) { e->adapted = 0.0f; e->gain_ln = 0.0f; e->gain = 1.0f; e->ready = 0; }
 
 /** \brief One frame: `read_ln` is the log-average of the frame on screen (drawn with the gain this eye gave last), dt seconds.

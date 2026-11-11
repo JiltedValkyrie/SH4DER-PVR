@@ -2,51 +2,68 @@
 
 Graphics effects for the Sega Dreamcast: screen post-processing and per-vertex light, on a machine with no shaders.
 
-The SH-4 does the thinking a shader would do: it reads the finished frame back on a small grid, measures it, builds small maps and lights vertices. The PVR does the drawing it is good at: blended full-screen layers, small filtered textures, the fog table. Nothing here is brute force.
+The SH-4 (the Dreamcast's main CPU) does the thinking a shader would do: it reads the finished frame back on a small grid, measures it, builds small maps and lights vertices. The PVR (the Dreamcast's graphics chip) does the drawing it is good at: blended full-screen layers, small filtered textures, the fog table. Nothing here is brute force.
 
 Two kinds of effect, each a module of its own (take one header or all of them):
 
-- **Screen effects** (look, frame, glow, torch, warp, trail, taa, lens, focus, visor) are drawn over the finished frame as a few layers. Some use a little video memory: the bloom's two maps are 17 KB together. An effect that uses the whole frame as a texture (warp) needs a frame texture: about 640 KB at 640 x 480, about 160 KB at 320 x 240.
-- **Per-vertex effects** (blade, holo, bloom, ao) change the vertex colours you were already going to write: no extra polygons, no video memory.
+- **Screen effects** (look, frame, glow, torch, warp, trail, taa, lens, focus, visor) are drawn over the finished frame as a few layers. Some use a little video memory: the glow's two maps are 17 KB together. An effect that uses the whole frame as a texture (warp) needs a frame texture: about 640 KB at 640 x 480, about 160 KB at 320 x 240.
+- **Per-vertex effects** (blade, holo, bloom, ao) change the vertex colours you were already going to write: no extra polygons (the bloom adds 24 triangles), no video memory.
 
-It needs [KallistiOS](https://github.com/KallistiOS/KallistiOS) for the drawing and [SH4ZAM](https://github.com/gyrovorbis/sh4zam) for the maths.
+It needs [KallistiOS](https://github.com/KallistiOS/KallistiOS) (the Dreamcast's operating system, used here for the drawing) and [SH4ZAM](https://github.com/gyrovorbis/sh4zam) (a maths library for the SH-4) for the maths.
 
 Repository: [github.com/JiltedValkyrie/SH4DER-PVR](https://github.com/JiltedValkyrie/SH4DER-PVR). In code the names keep the library's first name: the `sh4der_` prefix, `sh4der_core.h`, `SH4DER_CORE_NO_SH4ZAM`, `libsh4der_core.a`.
 
 **[SH4DOW-DC](sh4dow-dc) is included**, in the `sh4dow-dc` folder: the soft self-shadow library, whole, with its own README, tests and license. Use its shadows next to these effects; one download holds both. The soft edge of every effect here is SH4DOW-DC's own column feather (`sh4dow_feather_in_`), called from `sh4dow_dc.h`, not copied. Put `sh4dow-dc/include` on the include path next to `include`. `SH4DER_CORE_NO_SH4ZAM` also sets `SH4DOW_DC_NO_SH4ZAM`, so both take the same path.
 
+## Add it to a project
+
+What you need:
+
+- **KallistiOS** for the Dreamcast build. Only the drawing files (the `.c` files that call the PVR) use it; the headers do not.
+- **SH4ZAM 0.10 or later** for the Dreamcast build. The effects use its square root, sine and cosine instructions (FSRRA and FSCA).
+- **SH4DOW-DC**, already in the `sh4dow-dc` folder. The effect headers include its header, so its `include` folder must be on your include path.
+
+Two ways in:
+
+1. **Use the built library.** Run `make dc SH4ZAM=/path/to/sh4zam` with the KallistiOS environment set up. It writes `build/libsh4der_core.a`. Put `include` and `sh4dow-dc/include` on your include path, with SH4ZAM's `include` folder too, then link `build/libsh4der_core.a`. The `make dc` rule uses SH4ZAM's include path only; link SH4ZAM in your own build, as SH4ZAM's own documentation describes.
+2. **Compile the sources in your own makefile.** Take `src/sh4der_core.c` and the `.c` files of the effects you use from `src`, and compile them with the flags the Makefile uses for the Dreamcast build (its `DC_FLAGS`): `-O3 -Wall -Wextra -Iinclude -I<sh4dow-dc>/include -I<sh4zam>/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno`, with `kos-cc` as the compiler.
+
+For a host tool, or a game without SH4ZAM, compile with `-DSH4DER_CORE_NO_SH4ZAM`. This runs the same steps as plain C, and it also sets `SH4DOW_DC_NO_SH4ZAM`. The PVR drawing code in the `.c` files sits inside `_arch_dreamcast` guards, so a host build compiles it to nothing.
+
+Start with the blade effect: it has a complete example under [First effect](#first-effect) in its section below.
+
 ## Effects
 
-| Effect | Header | What it does | Drawn | Shipped on |
+| Effect | Header | What it does | Drawn | Status |
 | --- | --- | --- | --- | --- |
-| blade | `sh4der_blade.h` | Light tubes orbit an axis, a blocker runs through them, a pulse breathes over both | untextured, additive | Halo: Dreamcast Evolved's energy sword |
-| holo | `sh4der_holo.h` | A light inside a translucent body follows the body's own breathing | alpha blended, texture × colour | a hologram's chest |
-| bloom | `sh4der_bloom.h` | A soft glow round a blade: a feathered ribbon facing the camera and a feathered disc at the tip, 24 triangles | untextured, additive | the energy sword's halo |
-| look | `sh4der_look.h` | An eye that adapts to the frame both ways, a grade (a straight line per channel), glare in the fog | full-screen untextured layers (multiply, add, invert); the fog table | research: a test image's look rows |
-| frame | `sh4der_frame.h` | The frame on screen read back on a grid, a stamp on every frame so a read knows which frame it saw, the gain and glow taken off a read | the scan-out; a 4 x 4 pixel block | research: the demo disc |
-| taa | `sh4der_taa.h` | Temporal AA maths: jitter, history weight, pan shift | the frame before as layers | research: none yet |
-| glow | `sh4der_glow.h` | Screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun | a 128 x 64 RGB565 map, additive quads | research: none yet |
-| warp | `sh4der_warp.h` | The frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither | a screen grid mesh over the frame texture | research: none yet |
-| trail | `sh4der_trail.h` | The frame before over this one through the front-buffer copy (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend | full-screen layers, a 128 B mask | research: none yet |
-| lens | `sh4der_lens.h` | Overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash | vertex-colour meshes, a 64 x 64 grain tile | research: none yet |
-| focus | `sh4der_focus.h` | Fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp | a 128 x 64 map, one alpha mesh | research: none yet |
-| visor | `sh4der_visor.h` | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out | the look effect's layers, small tiles | research: none yet |
-| torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table | research: none yet |
-| ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | research: none yet |
-| ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture, 640 KB or 160 KB; three small meshes | the demo disc |
-| shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | the demo disc |
+| blade | `sh4der_blade.h` | Light tubes orbit an axis, a blocker runs through them, a pulse breathes over both | untextured, additive | used in a released game |
+| holo | `sh4der_holo.h` | A light inside a translucent body follows the body's own breathing (the slow rise and fall of the chest) | alpha blended, texture × colour | used in a released game |
+| bloom | `sh4der_bloom.h` | A soft glow round a blade: a feathered ribbon facing the camera and a feathered disc at the tip, 24 triangles | untextured, additive | used in a released game |
+| look | `sh4der_look.h` | An eye (the brightness the frame has adapted to) that moves toward the frame both ways, a grade (a straight line per channel), glare in the fog | full-screen untextured layers (multiply, add, invert); the fog table (fog colour and density by depth) | run on the demo disc (emulator) |
+| frame | `sh4der_frame.h` | The frame on screen read back on a grid, a stamp on every frame so a read knows which frame it saw, the gain and glow taken off a read | the scan-out (the picture the video output sends to the screen); a 4 x 4 pixel block | run on the demo disc (emulator) |
+| taa | `sh4der_taa.h` | Temporal anti-aliasing maths: jitter, history weight, pan shift | the frame before as layers | run on the demo disc (emulator) |
+| glow | `sh4der_glow.h` | Screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun | a 128 x 64 RGB565 map, additive quads | run on the demo disc (emulator) |
+| warp | `sh4der_warp.h` | The frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither | a screen grid mesh over the frame texture | maths tested only |
+| trail | `sh4der_trail.h` | The frame before over this one through a copy of the front buffer, the picture already on screen (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend | full-screen layers, a 128 B mask | maths tested only |
+| lens | `sh4der_lens.h` | Overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash | vertex-colour meshes, a 64 x 64 grain tile | maths tested only |
+| focus | `sh4der_focus.h` | Fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp | a 128 x 64 map, one alpha mesh | maths tested only |
+| visor | `sh4der_visor.h` | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out | the look effect's layers, small tiles | maths tested only |
+| torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table | run on the demo disc (emulator) |
+| ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | maths tested only |
+| ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | run on the demo disc (emulator) |
+| shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | run on the demo disc (emulator) |
 
 All of them include `sh4der_core.h`, the shared parts:
-- **The feather.** SH4DOW-DC's column feather, with the core answered before any square root.
+- **The feather.** SH4DOW-DC's column feather (a soft edge: full inside, fading to nothing outside), with the core answered before any square root.
 - **The shapes.** A tube (a soft column of light orbiting the axis) and a blocker (a soft ball on a helix along it).
-- **The breath tracker.** A pose's own breathing turned into 0 (out) .. 1 (in).
-- **The glint.** A soft quad's brightness by camera depth.
+- **The breath tracker.** Reads a pose's own breathing (how far its chest moves in an idle loop) and turns it into 0 (out) .. 1 (in).
+- **The glint.** A soft flare quad at a light, with brightness set by camera depth.
 - **The colour ramp.** EDGE and CORE from a texture's average colour; a vertex of level k takes mix(EDGE, CORE, k²) × k, so dim parts read saturated and peaks white-hot.
 - **The SH4ZAM steps.** Distances, clamps, sines, cosines and roots, with a plain C mirror for host tools.
 
 ## The blade effect
 
-It was made for the energy sword: the two blade parts (two additive material groups of one model) get the effect, coloured with their texture's average colour. The sword has no animated bone of its own, so the effect runs in the blade node's space: x along the blade.
+It was made for a glowing blade on a model: the two blade parts (two additive material groups of one model) get the effect, coloured with their texture's average colour. A blade node has no animated bone of its own, so the effect runs in the blade node's space: x along the blade.
 
 - **Axis.** The line x, at (y, z) = `axis`. Pass vertices in that space.
 - **Tube.**
@@ -62,13 +79,13 @@ It was made for the energy sword: the two blade parts (two additive material gro
 - **Intensity.**
   - intensity = min(1, glow·(`floor` + (1 − `floor`)·tube)·mask)·fade
   - `floor` is what a vertex gets with no tube near.
-  - fade is your 0..1, for example 1 − active camouflage.
+  - fade is your 0..1, for example 1 − a cloak level.
   - Ripples along the axis (off by default): with `ripple_depth` > 0 the intensity is multiplied by 1 − `ripple_depth`·½(1 − cos(2π·`ripple_freq`·x − 2π·frac(`pulses`·u))): `ripple_freq` cycles a unit along the axis, travelling one ripple a pulse.
 - **Point light.** `frame->light` = (1 − `light_swing`·(1 − pulse))·fade. Use it for a point light that breathes with the glow, or set `light_swing` to 0 for a constant light.
 
 `turns`, `passes` and `pulses` are whole numbers, so the period closes.
 
-### Quick start
+### First effect
 
 ```c
 /* SH4DER-PVR: the blade effect
@@ -76,7 +93,7 @@ It was made for the energy sword: the two blade parts (two additive material gro
    example/blade.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   One sword blade, one frame: the shipped tuning at the top of a pulse,
+   One glowing blade, one frame: the default tuning at the top of a pulse,
    three vertices and their packed colours.
 */
 
@@ -84,7 +101,7 @@ It was made for the energy sword: the two blade parts (two additive material gro
 #include "sh4der_blade.h"
 
 int main(void) {
-    /* blade vertices in the blade node's space: x along the blade */
+    /* blade vertices in the blade's own space: x along the blade */
     static const float blade[3][3] = {{0.20f, 0.0f, 0.06f}, {0.20f, 0.0f, -0.05f}, {0.33f, 0.0f, 0.01f}};
     static const float cyan[3] = {0.35f, 0.82f, 1.0f};   /* the blade texture's average, brightest channel 1 */
     sh4der_blade_params_t params;
@@ -93,7 +110,7 @@ int main(void) {
     unsigned i;
 
     sh4der_blade_params_default(&params);
-    /* tick 48 + this sword's phase (0 here); fade = 1 - active camouflage */
+    /* tick 48 + this instance's phase (0 here); fade = 1 minus a cloak level, 1 for none */
     if (!sh4der_blade_prepare(&frame, &params, 48, 1.0f))
         return 1;
     sh4der_blade_argb(&frame, cyan, 0xff, blade[0], sizeof blade[0], argb, sizeof argb[0], 3);
@@ -124,7 +141,7 @@ static inline float sh4der_blade_intensity(const sh4der_blade_frame_t *frame, fl
 
 `sh4der_blade_argb_ramp` colours each vertex on the ramp (see the shared parts), `sh4der_blade_argb` with one colour.
 
-1. Call `sh4der_blade_prepare` once per instance per frame, with the game tick plus the instance's phase. The game uses 57 × the object's index, as the original game offsets object functions, so a squad's swords do not pulse together. On bad params it returns 0 and leaves a dark frame: every intensity 0, light 0.
+1. Call `sh4der_blade_prepare` once per instance per frame, with the tick plus the instance's phase. Use 57 × the object's index as the phase, so a squad's blades do not pulse together. On bad params it returns 0 and leaves a dark frame: every intensity 0, light 0.
 2. Then call `sh4der_blade_intensity` per vertex, or `sh4der_blade_shade` / `sh4der_blade_argb` over a run. Strides are byte steps.
 3. Draw the group's triangles additively with that colour. The library does not touch your texture or your draw.
 
@@ -132,11 +149,11 @@ Which parts get the effect is your choice, made once at load: for example a mask
 
 ### Blade tuning
 
-The shipped sword values, from `sh4der_blade_params_default`. Lengths are in vertex units (the original game's world units on the sword's node). The period is in ticks (30 a second).
+The default blade values, from `sh4der_blade_params_default`. Lengths are in vertex units (the source model's world units on the blade node). The period is in ticks (30 a second).
 
 | Name | Default | Meaning |
 | --- | --- | --- |
-| SH4DER_BLADE_PERIOD | 192 | Ticks a period: one turn of tube A, 6.4 s. The original glow widget turns at 1 radian a second, 188.5 ticks a turn |
+| SH4DER_BLADE_PERIOD | 192 | Ticks a period: one turn of tube A, 6.4 s. The source model's glow turns at 1 radian a second, 188.5 ticks a turn |
 | SH4DER_BLADE_PULSES | 2 | Glow pulses a period. They peak when tube A crosses a prong |
 | SH4DER_BLADE_GLOW_BASE | 0.55 | Glow at the bottom of a pulse |
 | SH4DER_BLADE_GLOW_AMP | 0.45 | Glow added at the top |
@@ -152,7 +169,7 @@ The shipped sword values, from `sh4der_blade_params_default`. Lengths are in ver
 | SH4DER_BLADE_B_OUTER | 0.028 | Tube B edge |
 | SH4DER_BLADE_B_WEIGHT | 0.6 | Tube B brightness |
 | SH4DER_BLADE_B_PHASE | 0.25 | Tube B start, in turns |
-| SH4DER_BLADE_K_X0 | -0.10 | Blocker pass start (behind the hilt) |
+| SH4DER_BLADE_K_X0 | -0.10 | Blocker pass start (behind the blade's base) |
 | SH4DER_BLADE_K_X1 | 0.40 | Blocker pass end (past the tips) |
 | SH4DER_BLADE_K_RHO | 0.030 | Blocker helix radius |
 | SH4DER_BLADE_K_INNER | 0.020 | Blocker core |
@@ -187,7 +204,7 @@ A light inside a translucent body (a hologram's chest) that follows the body's o
 
 The core never goes out: at breath out it is still 0.60 of its strength. So the vertex level is 0.558 (out) .. 0.620 (in) away from the core and 0.798 .. 1.000 at its centre.
 
-**The glint.** The original game's lens flare on the same light: a soft additive quad at the chest marker, half size 0.10 x 0.15 (radius 0.025 x scale 4, 6), brightness 0.4 within 3 units of the camera, fading to nothing at 6.5 (`sh4der_glint(depth, fade)`). Draw it 0.0075 toward the viewer, depth tested, no depth write: the world in front of it hides it per pixel. The texture and tint are your data.
+**The glint.** A lens flare on the same light: a soft additive quad at the chest marker, half size 0.10 x 0.15 (radius 0.025 x scale 4, 6), brightness 0.4 within 3 units of the camera, fading to nothing at 6.5 (`sh4der_glint(depth, fade)`). Draw it 0.0075 toward the viewer, depth tested, no depth write: the world in front of it hides it per pixel. The texture and tint are your data.
 
 ### Calls
 
@@ -208,7 +225,7 @@ On bad params `sh4der_holo_prepare` returns 0 and leaves a clear table (every en
 
 ### Holo tuning
 
-The shipped values, from `sh4der_holo_params_default`. Lengths are in vertex units (the bind model's world units).
+The default values, from `sh4der_holo_params_default`. Lengths are in vertex units (the bind model's world units).
 
 | Name | Default | Meaning |
 | --- | --- | --- |
@@ -233,7 +250,7 @@ The PVR has no post-process blur. A few untextured polygons added over the frame
 
 - **The ribbon.** One strip along the blade, facing the camera about the blade's axis (its width runs along x × (eye − axis)).
   - 3 rows: the root, the blade tip, and a tail past the tip at level 0, so the ribbon ends inside the disc and not on an edge.
-  - 5 columns: edge, mid, centre, mid, edge, with the feather across (0, 0.62, 1, 0.62, 0 for the shipped width).
+  - 5 columns: edge, mid, centre, mid, edge, with the feather across (0, 0.62, 1, 0.62, 0 for the default width).
   - A vertex's level is feather × fade × (glow × along × (`tube_floor` + (1 − `tube_floor`) × tube) + `boost` × knot). Here along is `root`, `tip`, then 0; tube is the blade's own tubes at that point, so the swirl brightens that side; and knot is the blocker's feather along the axis, scaled by the row's along level, so the bloom brightens where it passes (the opposite of its mask on the blade) and the root and the tail stay at 0.
 - **The disc.** A feathered disc facing the camera: the centre at `peak` and 8 rim vertices at 0, none on the blade's axis (eight sides read round, no flat across the tip). At the tip it is a lens flare: its peak is multiplied by `flare_floor` + (1 − `flare_floor`) × smoothstep((cos − `flare_cos`) / (1 − `flare_cos`)), cos being the blade's direction against the way to the eye, so it is full when the tip points at the camera and subtle side-on. `sh4der_bloom_disc` is general (a centre, a radius, a peak) for any glow point; `sh4der_bloom_disc_n` takes a rim count (16 is round), and `sh4der_bloom_disc_feather` adds a soft-edge share: an inner ring at the peak out to (1 − feather) × radius, then a band down to 0 at the rim (1: soft from the centre, 0: a hard edge), 3 × rim triangles.
 - **The colour.** The same ramp as the blade: mix(EDGE, CORE, min(level, 1)²) × level, each channel clamped.
@@ -273,7 +290,7 @@ void sh4der_bloom_argb(const sh4der_bloom_mesh_t *mesh, const float edge[3], con
 | SH4DER_BLOOM_HALF_WIDTH | 0.0875 | Ribbon half width (2.5 × tube A's edge) |
 | SH4DER_BLOOM_INNER | 0.012 | Full level within this distance of the axis |
 | SH4DER_BLOOM_ROOT | 0.0 | Ribbon level at the root: 0, so the ribbon fades in from the blade's base with no edge |
-| SH4DER_BLOOM_TIP | 0.90 | Ribbon level at the blade tip: way more at the top |
+| SH4DER_BLOOM_TIP | 0.90 | Ribbon level at the blade tip: the ribbon brightens toward it |
 | SH4DER_BLOOM_TUBE_FLOOR | 0.5 | Share of the ribbon with no tube near |
 | SH4DER_BLOOM_BOOST | 0.4 | Level the blocker's knot adds |
 | SH4DER_BLOOM_BOOST_REACH | 0.10 | The knot's reach along the axis |
@@ -296,7 +313,7 @@ void sh4der_bloom_argb(const sh4der_bloom_mesh_t *mesh, const float edge[3], con
 | SH4DER_BLOOM_MAX_DISC_PEAK | 1.8 | Its centre level (clamped white) |
 | SH4DER_BLOOM_MAX_FLARE_FLOOR | 0.5 | Its side-on share |
 
-**Cost.** 24 vertices and 24 triangles a sword (the tip disc has 8 rim vertices: it reads round). For each, one tube evaluation per ribbon vertex and one normalise for the disc. No texture, no video memory.
+**Cost.** 24 vertices and 24 triangles a blade (the tip disc has 8 rim vertices: it reads round). For each, one tube evaluation per ribbon vertex and one normalise for the disc. No texture, no video memory.
 
 ## The look effect
 
@@ -322,7 +339,7 @@ uint32_t sh4der_look_argb(const sh4der_look_layer_t *l);
 void sh4der_look_glare(float t, float rgb[3], float *table, unsigned n);
 ```
 
-Draw the layers untextured over the whole frame, under the HUD, depth always, no depth write: MULTIPLY src ZERO and the source colour in the destination slot, BOOST src destination colour and dst ONE, ADD ONE / ONE, INVERT white with src inverse destination colour and dst ZERO.
+Draw the layers untextured over the whole frame, under the HUD (the on-screen display), depth always, no depth write: MULTIPLY src ZERO and the source colour in the destination slot, BOOST src destination colour and dst ONE, ADD ONE / ONE, INVERT white with src inverse destination colour and dst ZERO.
 
 ### Look tuning
 
@@ -363,7 +380,7 @@ Draw the layers untextured over the whole frame, under the HUD, depth always, no
 
 ## The glow effect (research)
 
-`sh4der_glow.h`, `src/sh4der_glow.c` (the KOS PVR drawing, Dreamcast only): screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun. Not booted yet: every cost in its plan is an estimate.
+`sh4der_glow.h`, `src/sh4der_glow.c` (the KOS PVR drawing, Dreamcast only): screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun. Not run on hardware yet: every cost here is an estimate.
 
 ### Glow tuning
 
@@ -394,7 +411,7 @@ Draw the layers untextured over the whole frame, under the HUD, depth always, no
 
 ## The warp effect (research)
 
-`sh4der_warp.h`, `src/sh4der_warp.c` (the KOS PVR drawing, Dreamcast only): the frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither. Not booted yet: every cost in its plan is an estimate.
+`sh4der_warp.h`, `src/sh4der_warp.c` (the KOS PVR drawing, Dreamcast only): the frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither. Not run on hardware yet: every cost here is an estimate.
 
 ### Warp tuning
 
@@ -426,7 +443,7 @@ Draw the layers untextured over the whole frame, under the HUD, depth always, no
 
 ## The trail effect (research)
 
-`sh4der_trail.h`, `src/sh4der_trail.c` (the KOS PVR drawing, Dreamcast only): the frame before over this one through the front-buffer copy (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend. Not booted yet: every cost in its plan is an estimate.
+`sh4der_trail.h`, `src/sh4der_trail.c` (the KOS PVR drawing, Dreamcast only): the frame before over this one through a copy of the front buffer, the picture already on screen (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend. Not run on hardware yet: every cost here is an estimate.
 
 ### Trail tuning
 
@@ -443,7 +460,7 @@ Draw the layers untextured over the whole frame, under the HUD, depth always, no
 
 ## The lens effect (research)
 
-`sh4der_lens.h`, `src/sh4der_lens.c` (the KOS PVR drawing, Dreamcast only): overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash. Not booted yet: every cost in its plan is an estimate.
+`sh4der_lens.h`, `src/sh4der_lens.c` (the KOS PVR drawing, Dreamcast only): overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash. Not run on hardware yet: every cost here is an estimate.
 
 ### Lens tuning
 
@@ -488,7 +505,7 @@ Draw the layers untextured over the whole frame, under the HUD, depth always, no
 
 ## The focus effect (research)
 
-`sh4der_focus.h`, `src/sh4der_focus.c` (the KOS PVR drawing, Dreamcast only): fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp. Not booted yet: every cost in its plan is an estimate.
+`sh4der_focus.h`, `src/sh4der_focus.c` (the KOS PVR drawing, Dreamcast only): fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp. Not run on hardware yet: every cost here is an estimate.
 
 ### Focus tuning
 
@@ -512,7 +529,7 @@ Draw the layers untextured over the whole frame, under the HUD, depth always, no
 
 ## The visor effect (research)
 
-`sh4der_visor.h`, `src/sh4der_visor.c` (the KOS PVR drawing, Dreamcast only): visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out. Not booted yet: every cost in its plan is an estimate.
+`sh4der_visor.h`, `src/sh4der_visor.c` (the KOS PVR drawing, Dreamcast only): visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out. Not run on hardware yet: every cost here is an estimate.
 
 ### Visor tuning
 
@@ -568,7 +585,7 @@ unsigned sh4der_torch_boost_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], float cx, float cy, float rx, float ry, float k);
 ```
 
-`sh4der_torch_near_at` takes its own strength and reach (`inv_r2` = 1 / reach^2); `sh4der_torch_near` is it with the shipped values. Both meshes write `SH4DER_TORCH_VERTS` vertices at most.
+`sh4der_torch_near_at` takes its own strength and reach (`inv_r2` = 1 / reach^2); `sh4der_torch_near` is it with the default values. Both meshes write `SH4DER_TORCH_VERTS` vertices at most.
 
 ### Torch tuning
 
@@ -601,7 +618,7 @@ unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 
 ## The ao effect (research)
 
-`sh4der_ao.h`: small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map. Not booted yet: every cost in its plan is an estimate.
+`sh4der_ao.h`: small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map. Not run on hardware yet: every cost here is an estimate.
 
 ### Ao tuning
 
@@ -657,7 +674,7 @@ if (sh4der_ca_begin(&ca, 0) == 0) {        /* in place of pvr_scene_begin() */
 - **Two scenes a frame.** The world's scene and the screen's scene: the frame's time must hold both.
 - **KOS path.** `pvr_scene_begin_rtt` with a size, a `PVR_TXRFMT_X32_STRIDE` texture, the vertices by direct render (`pvr_dr_target`, `pvr_dr_commit`).
 
-`test/ca_test.c`: the two sizes and their video memory, the shortfall in KB, no shift in the centre, the shipped split in the corner, green half of red, blue unmoved, every sample inside the picture, texel-centre coordinates. Run on the demo disc; not yet in a game.
+`test/ca_test.c`: the two sizes and their video memory, the shortfall in KB, no shift in the centre, the default split in the corner, green half of red, blue unmoved, every sample inside the picture, texel-centre coordinates. Run on the demo disc; not yet in a game.
 
 ## The shadow shafts
 
@@ -691,7 +708,7 @@ if (light_on_screen && toward > 0.01f) {
 
 ## The frame read
 
-`sh4der_frame.h`, `src/sh4der_frame.c`: the look and the glow work from the frame the CPU reads off the screen, and that frame is one or two frames old, which of the two changing from frame to frame. An effect that takes "last frame's" gain or glow off the read corrects the wrong frame and pulses. So every frame carries a stamp: `sh4der_frame_next` numbers it (0..7) and keeps the eye's gain and the glow's strength it is drawn with; `sh4der_frame_stamp_draw` lays a small block of that number's colour at the top left; `sh4der_frame_read` samples the screen on the grid and reads the stamp back, so the client takes off exactly what the read frame carried (`sh4der_frame_degain`, the glow's `sh4der_glow_unfeed`). The read gives two grids: one sample a cell for the eye, and the darker of two samples a cell for the glow, so one hot pixel alone in its cell (a texture's grain, a letter's stroke) lights nothing. `sh4der_frame_hot` is how hard a light is looked at: a client grows and whitens its sun by it. An emulator shows the CPU a black screen unless it copies the drawn frame into video memory (its framebuffer emulation).
+`sh4der_frame.h`, `src/sh4der_frame.c`: the look and the glow work from the frame the CPU reads off the screen, and that frame is one or two frames old, and which one changes from frame to frame. An effect that takes "last frame's" gain or glow off the read corrects the wrong frame and pulses. So every frame carries a stamp: `sh4der_frame_next` numbers it (0..7) and keeps the eye's gain and the glow's strength it is drawn with; `sh4der_frame_stamp_draw` lays a small block of that number's colour at the top left; `sh4der_frame_read` samples the screen on the grid and reads the stamp back, so the client takes off exactly what the read frame carried (`sh4der_frame_degain`, the glow's `sh4der_glow_unfeed`). The read gives two grids: one sample a cell for the eye, and the darker of two samples a cell for the glow, so one hot pixel alone in its cell (a texture's grain, a letter's stroke) lights nothing. `sh4der_frame_hot` is how hard a light is looked at: a client grows and whitens its sun by it. An emulator shows the CPU a black screen unless it copies the drawn frame into video memory (its framebuffer emulation).
 
 ### Calls
 
@@ -715,11 +732,36 @@ float sh4der_frame_hot(float facing);
 | SH4DER_FRAME_HISTORY | 8 | Frames of history kept |
 | SH4DER_FRAME_HOT_FROM | 0.85 | Cosine off the view axis from which a faced sun grows |
 
+## Recommended settings
+
+The numbers the author's own game and demo disc use, found by eye. Each header repeats its own under "Recommended settings".
+
+| Effect | Setting | Why |
+| --- | --- | --- |
+| Eye (`sh4der_look.h`) | strength 0.25: transient and open x 0.25, gain 0.9375 .. 1.125; clamp any strength to gain 0.4 .. 2.0; into light 2 s, into dark 6 s; held while a flashlight is lit | felt, not seen; RGB565 bands past the clamps |
+| Bloom (`sh4der_glow.h`) | straight ramp from threshold 0.80 (`sh4der_glow_curve(lut, 0.80f, 0)`); strength 1.00 x 0.45, radius 0.5; `keep` 128; strength / the eye's gain when that is under 1 | only lights and the sun glow; no pulse from an old read |
+| Rays (`sh4der_glow.h`) | strength 1.00, 6 copies, only with the sun in front | the longest, smoothest streak |
+| Shadow shafts (`sh4der_shafts.h`) | strength 0.50, off by default; range 0.25 .. 3.00 | stronger reads as a second shadow |
+| Chromatic aberration (`sh4der_ca.h`) | strength 1.00 = 3 pixels in the corner; range 0.25 .. 4.00; 640 x 480; off by default, silent when memory is short | 12 pixels is a damaged lens |
+| Temporal blend (`sh4der_taa.h`) | dynamic: old frame 0.675 with the camera still, 0.30 moving, mixed by turning and walking speed, never over 0.9, history kept; only with the 320 x 240 frame texture | still pictures smooth, moving pictures do not ghost; 320 KB instead of 1,280 KB |
+| Flashlight (`sh4der_torch.h`) | near light radius 6.0 world units, strength 0.85, tint 0.94 / 0.82; edge about 22 degrees; reach 5.0; carve full under luminance 0.30, none from 0.80 | a warm lamp that darkens nothing in daylight |
+| Soft shadows (`sh4dow-dc`) | self-shadow on the 4 characters nearest the camera; foot cones under every two-legged character | the cost stays flat as a crowd grows |
+
+The temporal blend's weight, as the demo computes it each frame:
+
+```c
+const float still  = clamp(SH4DER_TAA_WEIGHT_HI * 0.90f, 0.0f, 0.9f);              /* 0.675 */
+const float moving = 0.30f;
+const float f = fminf(out.weight / SH4DER_TAA_WEIGHT_HI,                            /* 1 not turning .. 0 turning fast */
+                      1.0f - saturate(walk_speed / walk_full));                     /* 1 standing .. 0 walking */
+out.weight = out.cut ? 0.0f : lerp(moving, still, f);                               /* no smoothing over time */
+```
+
 ## Shared tuning
 
 | Name | Default | Meaning |
 | --- | --- | --- |
-| SH4DER_BREATH_WINDOW | 90 | Frames the breath tracker remembers (one 3.0 s idle loop); a tracker is 364 bytes |
+| SH4DER_BREATH_WINDOW | 90 | Frames the breath tracker remembers (90 frames, 3.0 s); a tracker is 364 bytes |
 | SH4DER_BREATH_SPAN | 0.0013 | Least chest travel that counts as a full breath |
 | SH4DER_GLINT_RADIUS | 0.025 | Glint quad radius before the scale |
 | SH4DER_GLINT_SCALE_X | 4.0 | Horizontal scale (half width 0.10) |
@@ -728,8 +770,8 @@ float sh4der_frame_hot(float facing);
 | SH4DER_GLINT_NEAR | 3.0 | Full glint within this camera depth |
 | SH4DER_GLINT_FAR | 6.5 | No glint from this camera depth |
 | SH4DER_GLINT_OFFSET | 0.0075 | Glint quad moved this far toward the viewer |
-| SH4DER_RAMP_EDGE_SAT | 1.6 | EDGE saturation factor (the energy sword's blue texels: saturation 0.55) |
-| SH4DER_RAMP_CORE_SAT | 0.25 | CORE saturation factor (its white-hot texels: saturation 0.09) |
+| SH4DER_RAMP_EDGE_SAT | 1.6 | EDGE saturation factor (the blade texture's blue texels: saturation 0.55) |
+| SH4DER_RAMP_CORE_SAT | 0.25 | CORE saturation factor (the same texture's white-hot texels: saturation 0.09) |
 
 ```c
 void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float core[3]);
@@ -740,7 +782,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 ## Adding an effect
 
 1. Write `include/sh4der_<name>.h` and `src/sh4der_<name>.c` (or, as the look effect, the header alone with inline calls). Include `sh4der_core.h`, prefix every name `sh4der_<name>_` / `SH4DER_<NAME>_`, and use the shared steps: the feather, the shapes, the SH4ZAM helpers. Do not copy SH4DOW-DC or SH4ZAM code in.
-2. Write `test/<name>_test.c`: the shipped numbers, the bad params, both paths.
+2. Write `test/<name>_test.c`: the default numbers, the bad params, both paths.
 3. Add the source to `SRC` and `HDR` in the Makefile, and the test to `TESTS`.
 4. Add a row to the effect table above and a tuning table: a test checks that every tuning macro of every header is in a table with the same value.
 
@@ -756,8 +798,8 @@ make test-dc SH4ZAM=/path/to/sh4zam  # Dreamcast: build/*_test.elf
 Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-dc`). The Dreamcast build wants SH4ZAM's include path and these flags: `-ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno`, and defines neither `SH4DER_CORE_NO_SH4ZAM` nor `SH4DOW_DC_NO_SH4ZAM`. The library needs no KallistiOS header. Use SH4ZAM as a library, 0.10 or later.
 
 - `test/core_test.c`: the feather equals SH4DOW-DC's over a grid, the core before the root (a vertex on a tube's line, a zero core), the SH4ZAM steps and their mirror, the breath tracker's and glint's refusals.
-- `test/blade_test.c`: the shipped numbers at fixed ticks and points; every early-out against a plain formula over 200,000 random vertices, ticks and fades; the period closing with no seam; the fade; bad params; the shade and packed-colour loops.
-- `test/bloom_test.c`: the shipped levels and positions for the game and MAX WHITE presets; the colour ramp; MAX WHITE keeping its structure; the counts (24 triangles, every vertex used); the ribbon and the disc facing three eyes; the feathered edges and more at the top; bad params.
+- `test/blade_test.c`: the default numbers at fixed ticks and points; every early-out against a plain formula over 200,000 random vertices, ticks and fades; the period closing with no seam; the fade; bad params; the shade and packed-colour loops.
+- `test/bloom_test.c`: the default levels and positions for the default and MAX WHITE presets; the colour ramp; MAX WHITE keeping its structure; the counts (24 triangles, every vertex used); the ribbon and the disc facing three eyes; the feathered edges and more at the top; bad params.
 - `test/glow_test.c`: the threshold curve and the RGB565 pack, the shrink, the halo split, the darken balance, the ray series, the sun fade.
 - `test/warp_test.c`: the ring, column and wobble offsets, the edge clamp, the radial scales and weights, the pixel grid, the dither tile.
 - `test/trail_test.c`: the weights by speed, the even pixel shifts, the copy passes, a cut, the RGB565 drift model.
@@ -771,7 +813,7 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 - `test/frame_test.c`: the stamp there and back through RGB565, the history ring, the darker of two pixels, a gain taken off, the looked-at term, the glow taken off a read, the weight table from a threshold.
 - `test/taa_test.c`: the Halton values, the jitter centred over a cycle, a known turn's shift in pixels, the weight falling with speed, a cut.
 - `test/look_test.c`: the luma bins and the log average; the eye into light (over-bright, then settled by LIGHT_S) and into dark (darker, then slow); the log and exp series against the C library; every grade layer list against clamp(A x + B) over a ramp; the layer colour; the glare.
-- `test/holo_test.c`: the shipped weights and table entries, the breath tracker over a breathing chest that then leans, a table that never gets darker with more weight or more breath, the fade, bad params, the glint by depth.
+- `test/holo_test.c`: the default weights and table entries, the breath tracker over a breathing chest that then leans, a table that never gets darker with more weight or more breath, the fade, bad params, the glint by depth.
 
 ## What a caller must keep
 
@@ -781,10 +823,14 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 
 ## Credits and license
 
-SH4DER-PVR is by Jilted Valkyrie, 2026. GitHub: [JiltedValkyrie](https://github.com/JiltedValkyrie). The line the game shows: `SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie`.
+SH4DER-PVR is by Jilted Valkyrie, 2026. GitHub: [JiltedValkyrie](https://github.com/JiltedValkyrie). The copyright line to show in a client's credits: `SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie`.
 
 SH4DOW-DC, by the same author, is included in the `sh4dow-dc` folder under its own license ([sh4dow-dc/LICENSE](sh4dow-dc/LICENSE)).
 
 Dreamcast math: [SH4ZAM](https://github.com/gyrovorbis/sh4zam), Copyright (c) 2025, 2026 Falco Girgis, MIT. Keep that notice with the library.
+
+Drawing: [KallistiOS](https://github.com/KallistiOS/KallistiOS), under its own license.
+
+The effects' maths, the PVR paths and the tests were written with Cortana (Claude, an AI by Anthropic), the project's graphics engineer.
 
 The license is in [LICENSE](LICENSE). It uses the same terms as SH4DOW-DC.

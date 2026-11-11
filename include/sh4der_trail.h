@@ -21,7 +21,7 @@
 
     Preconditions, set once per load (sh4der_trail_setup): 640 x 480, no
     AA 2X, dithering off, vertical scale 1.0. The stride register is shared
-    with the render to a texture (FRAME PLANE): never both at once.
+    with the render to a texture (sh4der_ca.h): never both at once.
 
     Layers per frame: keep (1), mask (1), two per copy. Each layer is a
     full-screen translucent quad, z from the caller's base upward (z .. z + 1 +
@@ -37,6 +37,7 @@
     is under _arch_dreamcast.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_TRAIL_H
@@ -74,7 +75,7 @@ typedef struct sh4der_trail_frame {
 /** \brief One camera's motion state. Zero it with sh4der_trail_reset at load. */
 typedef struct sh4der_trail {
     float yaw, pitch;   /**< \brief Last frame's camera angles, radians. */
-    unsigned frame;
+    unsigned frame;     /**< \brief Frames stepped. */
     int ready;          /**< \brief 0 until the first step. */
 } sh4der_trail_t;
 
@@ -89,6 +90,7 @@ static inline float sh4der_trail_weight(float s2) {
     return sh4der_lerp_(SH4DER_TRAIL_WEIGHT_LO, SH4DER_TRAIL_WEIGHT_HI, t);
 }
 
+/** \brief Zero the motion state. The next step is a cut: no history that frame. */
 static inline void sh4der_trail_reset(sh4der_trail_t *t) { t->yaw = 0.0f; t->pitch = 0.0f; t->frame = 0; t->ready = 0; }
 
 /** \brief One frame: the camera's yaw and pitch (radians), the focal lengths (pixels). Fills `out`, then remembers the angles.
@@ -145,8 +147,8 @@ static inline void sh4der_trail_step(sh4der_trail_t *t, float yaw, float pitch, 
 
 /** \brief The source of the copies: the frame on screen, as the copy's texture (front buffer, its 64-bit half). */
 typedef struct sh4der_trail_src {
-    pvr_ptr_t fb;
-    int hi_chip;
+    pvr_ptr_t fb;       /**< \brief The front buffer in VRAM: the copies' source. */
+    int hi_chip;        /**< \brief Which 64-bit half of the front buffer the copy reads (set by sh4der_trail_src_get). */
     int flat;   /**< \brief 1: no chip offsets on the copy (a setup where they shift the picture instead; set after sh4der_trail_src_get). */
 } sh4der_trail_src_t;
 

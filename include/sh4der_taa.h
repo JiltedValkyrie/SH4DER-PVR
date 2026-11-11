@@ -29,10 +29,33 @@
       sh4der_taa_add_argb is the history's colour at weight, both alpha 0 (the
       layers the feedback path draws, the same blend the copy passes use).
 
+    Order, per frame: sh4der_taa_step once (it fills the jitter, the shift and
+    the weight). Apply the jitter to the projection, draw the scene, then the
+    history layers, if the weight is not 0.
+
     Yaw turning right and pitch looking up are positive. A client whose yaw
     turns the other way passes the negated delta.
 
+    Recommended settings (the author's own game and demo disc):
+    - Dynamic weight, not one fixed number. Camera still: the old frame's
+      share is 0.675 (0.90 x SH4DER_TAA_WEIGHT_HI). Camera moving: 0.30.
+      Between the two, mix by the slower of two measures:
+          f = min(out.weight / SH4DER_TAA_WEIGHT_HI,          (turning)
+                  1 - saturate(walk_speed / walk_full))        (walking)
+          weight = out.cut ? 0 : lerp(0.30, still, f)
+      with walk_full the walking speed at which the camera counts as moving
+      (the demo: 1.5 world units a second, a little over half its walking
+      pace). No smoothing over time: the weight follows the camera at once.
+    - Never above 0.9: past it a ghost lasts ten frames and more.
+    - Keep the blended result as the next frame's history (it accumulates:
+      a ghost lasts about 1 / (1 - weight) frames, 3 at 0.675). Blending only
+      the one frame before is sharper in motion and flickers more at rest.
+    - A cut (out.cut) blends nothing that frame.
+    - Use it with the 320 x 240 frame texture (sh4der_ca.h): two history
+      textures are 320 KB there, 1,280 KB at 640 x 480.
+
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_TAA_H

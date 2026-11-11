@@ -18,6 +18,7 @@ static const float unit_s[SH4DER_TORCH_SPOKES + 1] = {
 
 typedef enum { BAND_BOOST, BAND_CARVE } band_kind_t;
 
+/* Pack three floats (clamped to 0..1) into an opaque ARGB8888 colour. */
 static uint32_t argb_of(float r, float g, float b) {
     const uint32_t R = (uint32_t)(sh4der_sat_(r) * 255.0f + 0.5f), G = (uint32_t)(sh4der_sat_(g) * 255.0f + 0.5f),
                    B = (uint32_t)(sh4der_sat_(b) * 255.0f + 0.5f);
@@ -53,10 +54,14 @@ static unsigned band(sh4der_torch_vert_t *out, float cx, float cy, float rx, flo
     return n;
 }
 
+/* Boost mesh with the hot spot at SH4DER_TORCH_HOT_U and the given green and blue tint. Writes into out[] and returns the
+   vertex count. Maths only, so any list. */
 unsigned sh4der_torch_boost_mesh_tint(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], float cx, float cy, float rx, float ry, float power, float tint_g, float tint_b) {
     return sh4der_torch_boost_mesh_core(out, cx, cy, rx, ry, power, tint_g, tint_b, SH4DER_TORCH_HOT_U);
 }
 
+/* Boost mesh: SH4DER_TORCH_RINGS bands from the centre out, each band written by band(). hot_u is passed to
+   sh4der_torch_boost_at_u as the hot spot position. Writes into out[] and returns the vertex count. Maths only, so any list. */
 unsigned sh4der_torch_boost_mesh_core(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], float cx, float cy, float rx, float ry, float power, float tint_g, float tint_b, float hot_u) {
     unsigned n = 0, k;
     for (k = 0; k < SH4DER_TORCH_RINGS; k++) {
@@ -66,14 +71,18 @@ unsigned sh4der_torch_boost_mesh_core(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS
     return n;
 }
 
+/* Boost mesh with the default tint (SH4DER_TORCH_TINT_G and SH4DER_TORCH_TINT_B). Maths only. */
 unsigned sh4der_torch_boost_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], float cx, float cy, float rx, float ry, float power) {
     return sh4der_torch_boost_mesh_tint(out, cx, cy, rx, ry, power, SH4DER_TORCH_TINT_G, SH4DER_TORCH_TINT_B);
 }
 
+/* Carve mesh out to SH4DER_TORCH_UMAX, the grey (equal r, g, b) bands of carve_mesh_to. Maths only. */
 unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], float cx, float cy, float rx, float ry, float k) {
     return sh4der_torch_carve_mesh_to(out, cx, cy, rx, ry, k, SH4DER_TORCH_UMAX);
 }
 
+/* Carve mesh from the feather start out to umax, in SH4DER_TORCH_BANDS bands. Writes into out[] and returns the vertex
+   count. Maths only, so any list. */
 unsigned sh4der_torch_carve_mesh_to(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], float cx, float cy, float rx, float ry, float k, float umax) {
     /* feather start, edge, then uniform out to umax: BANDS bands */
     float cu[SH4DER_TORCH_BANDS + 1];
@@ -87,8 +96,8 @@ unsigned sh4der_torch_carve_mesh_to(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS],
 }
 
 #ifdef _arch_dreamcast
-/* KOS: the two headers (TR list, blend per layer as sh4der_look.h's kinds) and the strip draw. Compile-checked only on the
-   host path; the header by pvr_prim, the vertices by direct render. */
+/* KOS: the two headers (TR list, blend per layer as the look kinds in sh4der_look.h) and the strip draw. Only built for the
+   Dreamcast. The header goes in by pvr_prim, the vertices by direct render. */
 #include <dc/pvr.h>
 
 /* hdr[0]: carve, MULTIPLY (src ZERO, dst DESTCOLOR); hdr[1]: boost, BOOST (src DESTCOLOR, dst ONE). Fog off, no depth write. */
@@ -109,7 +118,8 @@ void sh4der_torch_headers(pvr_poly_hdr_t hdr[2]) {
     }
 }
 
-/* One mesh: each band a strip (EOL on its last vertex), one header for the layer. z: the layer's depth in the TR sort. */
+/* Draw one mesh on the TR list: each band a strip (EOL on its last vertex), one header for the layer. hdr is one of the two
+   from sh4der_torch_headers. z is the layer's depth in the TR sort. n = 0 draws nothing. */
 void sh4der_torch_draw(const pvr_poly_hdr_t *hdr, const sh4der_torch_vert_t *v, unsigned n, float z) {
     unsigned i;
     if (!n)

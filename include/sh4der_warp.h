@@ -10,7 +10,8 @@
              heat haze column, an underwater wobble, a radial speed blur and a
              pixelate / dither pass.
 
-    The frame is the plane's target (320 x 240 in a 512 x 256 RGB565 texture).
+    The frame is rendered into a 512 x 256 RGB565 texture, its 320 x 240
+    picture in the top left.
     Every warp draws that texture through a mesh or a set of copies:
 
     - Warp: a grid of cells (SH4DER_WARP_GRID_X x _Y, or the fine grid). Each
@@ -28,10 +29,15 @@
       4 x 4 ordered pattern multiplied over the frame (a screen door, not a
       palette: the PVR has no per-pixel quantiser).
 
+    Order, per frame: fill a sh4der_warp_frame_t, then for each grid row call
+    sh4der_warp_row (the mesh), or use sh4der_warp_blur_scale and
+    sh4der_warp_blur_weight (the copies), or the pixelate and dither helpers.
+
     The draw code for the mesh and the copies is in src/sh4der_warp.c (KOS,
     under _arch_dreamcast). This header is the numbers: host tested.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_WARP_H
@@ -44,11 +50,11 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning (ESTIMATE: tune on a gallery image)
+/** \name Shipped tuning (estimates: not yet tuned on a real frame)
     @{ */
-#define SH4DER_WARP_FRAME_W     320      /**< \brief The frame's width, pixels (the plane). */
+#define SH4DER_WARP_FRAME_W     320      /**< \brief The frame's width, pixels. */
 #define SH4DER_WARP_FRAME_H     240      /**< \brief The frame's height, pixels. */
-#define SH4DER_WARP_TEX_W       512      /**< \brief The texture's width (the plane's target). */
+#define SH4DER_WARP_TEX_W       512      /**< \brief The texture's width. */
 #define SH4DER_WARP_TEX_H       256      /**< \brief The texture's height. */
 #define SH4DER_WARP_SOURCES     4        /**< \brief Warp sources a frame holds. */
 #define SH4DER_WARP_GRID_X      20       /**< \brief Coarse grid: cells across (16 pixels). */
@@ -80,7 +86,7 @@ enum {
 
 /** \brief One source. `strength` (0..1) is the caller's envelope (fade in and out); `age` is seconds since it started. */
 typedef struct sh4der_warp_src {
-    uint8_t kind;
+    uint8_t kind;               /**< \brief SH4DER_WARP_RING, _HAZE or _WOBBLE. */
     float cx, cy;               /**< \brief Ring centre, frame pixels. */
     float x0, y0, x1, y1;       /**< \brief Haze rect, frame pixels. */
     float age;                  /**< \brief Seconds. */
@@ -89,7 +95,7 @@ typedef struct sh4der_warp_src {
 
 /** \brief The sources of one frame. Offsets sum; sources past SH4DER_WARP_SOURCES are not read. */
 typedef struct sh4der_warp_frame {
-    unsigned n;
+    unsigned n;                 /**< \brief Sources in use (SH4DER_WARP_SOURCES at most). */
     sh4der_warp_src_t src[SH4DER_WARP_SOURCES];
 } sh4der_warp_frame_t;
 
@@ -160,7 +166,7 @@ static inline void sh4der_warp_ring_(const sh4der_warp_src_t *s, float x, float 
     out[1] = k * ey;
 }
 
-/* The sample position of pixel (x, y): the frame's own point plus every source's offset, each sample clamped to the
+/** \brief The sample position of pixel (x, y): the frame's own point plus every source's offset, each sample clamped to the
    frame's middle (0.5 .. W - 0.5), so the edge repeats and no black is pulled in. `wave` holds each source's row term. */
 static inline void sh4der_warp_point(const sh4der_warp_frame_t *f, const float wave[SH4DER_WARP_SOURCES], float x, float y, float out[2]) {
     float sx = x, sy = y, d[2];
@@ -182,7 +188,7 @@ static inline void sh4der_warp_point(const sh4der_warp_frame_t *f, const float w
     out[1] = sh4der_warp_clampf_(sy, 0.5f, (float)SH4DER_WARP_FRAME_H - 0.5f);
 }
 
-/* Grid row j (0 .. ny) of an nx x ny grid, nx + 1 vertices: positions on the grid (integer division: exact for the shipped
+/** \brief Grid row j (0 .. ny) of an nx x ny grid, nx + 1 vertices: positions on the grid (integer division: exact for the shipped
    grids, 320 / 20 = 16, 240 / 15 = 16, 320 / 40 = 8, 240 / 30 = 8) and the warped UVs. The geometry does not move: only the
    sample does. nx <= SH4DER_WARP_FINE_X. */
 static inline void sh4der_warp_row(const sh4der_warp_frame_t *f, unsigned nx, unsigned ny, unsigned j, sh4der_warp_vtx_t out[]) {

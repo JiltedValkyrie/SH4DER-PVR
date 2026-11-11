@@ -1,6 +1,8 @@
 # SH4DER-PVR: how to call it
 
-This folder is the whole library, with SH4ZAM and KallistiOS (the drawing code) as its outside dependencies. SH4DOW-DC is included (`sh4dow-dc`, its `include` on the path): the soft shadows, and the column feather every effect uses. No game header, no game data. Halo: Dreamcast Evolved is one client: the blade effect on the energy sword's blades, the holo effect on Cortana's chest. Tune the game in the game, and change the maths here, once.
+This folder is the whole library, with SH4ZAM (the maths) and KallistiOS (the drawing code) as its outside dependencies. SH4DOW-DC is included (`sh4dow-dc`, its `include` on the path): the soft shadows, and the column feather every effect uses.
+
+There is no game header and no game data here. The example client is `example/blade.c`: the blade effect on a glowing blade model. The holo effect is for a hologram's chest. Where the tuning lives: each header's `SH4DER_*` macros, with their default values in the tuning tables of `README.md`. Keep tuning values in the client, and change the maths here, once.
 
 ## Files
 
@@ -39,7 +41,7 @@ On the Dreamcast, the square roots, sines and cosines are FSRRA and FSCA inside 
 ## Call order: blade
 
 1. Pick the vertices: the material groups (shaders) you chose, in the effect's space, with x along the axis.
-2. Call `sh4der_blade_prepare` once per instance per frame. Pass `tick` plus that instance's phase, and `fade` (1 − active camouflage, or 1).
+2. Call `sh4der_blade_prepare` once per instance per frame. Pass `tick` plus that instance's phase, and `fade` (1 − a cloak level, or 1).
 3. Call `sh4der_blade_argb` with the group's colour (its texture's average, brightest channel 1), or call `sh4der_blade_intensity` per vertex in your own loop. Draw the group additively with that colour.
 4. `frame.light` is the point-light intensity for that instance, fade included.
 

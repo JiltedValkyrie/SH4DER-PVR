@@ -3,10 +3,10 @@
    test/bloom_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check: the shipped levels and positions at fixed ticks for the game and
-   the MAX WHITE presets (tools/sh4der_bloom_storyboard.py bloom_ref), the
-   colour ramp, the MAX WHITE blade keeping its structure, the counts, the
-   ribbon and the disc facing the eye, the feather across, bad params.
+   Host check of the bloom effect: pinned levels and positions at fixed ticks for
+   the default and white presets, the colour ramp, the white blade keeping its
+   structure, the counts, the ribbon and disc facing the eye, the disc feather,
+   and bad params.
 */
 
 #include <math.h>
@@ -27,9 +27,10 @@ static int near(float a, float b, float tol) {
     return fabsf(a - b) <= tol;
 }
 
-static const float eye[3] = { 0.15f, -2.0f, 0.008f };   /* the storyboard's side view */
+static const float eye[3] = { 0.15f, -2.0f, 0.008f };   /* the side view the pins were taken from */
 
-/* bloom_ref pins: levels of vertices 6, 7, 8 (the blade-tip row), 12 (tail centre), 15 (disc centre, side-on: the flare's floor), 16 (rim). */
+/* Checks vertex levels and positions at fixed ticks against pinned values from an offline reference script (bloom_ref).
+   Vertices: 6, 7, 8 are the blade-tip row, 12 the tail centre, 15 the disc centre (side-on: the flare's floor), 16 the rim. */
 static int shipped(void) {
     static const struct { int max; uint32_t tick; float lv[6]; } pin[] = {
         { 0, 0, { 0.24481f, 0.24750f, 0.15300f, 0.00000f, 0.07425f, 0.00000f } },
@@ -73,6 +74,7 @@ static int shipped(void) {
     return 0;
 }
 
+/* Checks the colour ramp at half way, at the white and black ends, and that it clamps. */
 static int ramp(void) {
     static const float avg[3] = { 0.652f, 0.889f, 1.0f }, edge_want[3] = { 0.44320f, 0.82240f, 1.0f }, core_want[3] = { 0.91300f, 0.97225f, 1.0f };
     static const float half_want[3] = { 0.28033f, 0.42993f, 0.5f };
@@ -98,7 +100,7 @@ static int ramp(void) {
     return 0;
 }
 
-/* MAX WHITE keeps its structure: across the blade at the top of a pulse the intensity is not flat, the blocker's knot is at full. */
+/* The white preset keeps its structure: across the blade at the top of a pulse the intensity is not flat, and the blocker's knot is at full. */
 static int white_structure(void) {
     sh4der_blade_params_t bp;
     sh4der_blade_frame_t f;
@@ -122,6 +124,7 @@ static int white_structure(void) {
     return 0;
 }
 
+/* Checks the vertex and triangle counts, that every index is in range and used, the disc and ribbon facing three eyes, the levels, and the ARGB pack. */
 static int geometry(void) {
     sh4der_blade_params_t bp;
     sh4der_blade_frame_t f;
@@ -278,6 +281,7 @@ static int feathered_disc(void) {
     return 0;
 }
 
+/* Checks that each invalid bloom param set is refused and gives a dark mesh, and that a blocker depth past -1 is refused. */
 static int bad_params(void) {
     sh4der_blade_params_t bp;
     sh4der_blade_frame_t f;

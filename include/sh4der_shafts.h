@@ -18,6 +18,9 @@
     - The draw: the map over the screen, multiplied (texel x frame), its
       texture coordinates scaled about the light so the copy lies further
       from the light than what cast it (sh4der_glow_ray_uv, per vertex).
+    - Order, per frame: sh4der_shafts_map on the read, then sh4der_shafts_upload,
+      then sh4der_shafts_draw. The light's screen point (su, sv) goes to the
+      map and the draw; the draw's scale is sh4der_shafts_scale(strength).
     - No light in view: the client clears the map once and draws nothing.
 
     Cost: the map and its texture are the glow's size, 128 x 64 RGB565 =
@@ -28,7 +31,15 @@
     the smooth step is SH4DOW-DC's sh4dow_smooth01, the one both libraries
     share.
 
+    Recommended settings (the author's own game and demo disc):
+    - Strength 0.50, off by default: a strong shade reads as a second,
+      wrong shadow. Useful range 0.25 .. 3.00.
+    - Draw it under the eye's layers and the glow (the demo: z 425, the
+      eye from 435, the glow at 447).
+    - Clear the map once when the light leaves the view, not every frame.
+
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_SHAFTS_H

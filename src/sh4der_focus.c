@@ -11,6 +11,8 @@
 
 #ifdef _arch_dreamcast
 
+/* Allocates the blur texture (SH4DER_FOCUS_TEX_BYTES) and compiles its header for the translucent list: SRC_ALPHA / INV_SRC_ALPHA
+   blend, no culling. Returns -1 when the texture allocation fails, 0 otherwise. Call once at setup. */
 int sh4der_focus_init(sh4der_focus_gpu_t *g) {
     pvr_poly_cxt_t cxt;
 
@@ -27,10 +29,15 @@ int sh4der_focus_init(sh4der_focus_gpu_t *g) {
     return 0;
 }
 
+/* Copies the blurred frame into the focus texture: SH4DER_FOCUS_TEX_BYTES bytes of linear RGB565. Call before sh4der_focus_submit
+   for the frame. */
 void sh4der_focus_upload(sh4der_focus_gpu_t *g, const uint16_t *blurred) {
     pvr_txr_load(blurred, g->tex, SH4DER_FOCUS_TEX_BYTES);
 }
 
+/* Submits the focus mesh into the translucent list, with the header from init. It is a grid of SH4DER_FOCUS_GRID_Y strips, each of
+   SH4DER_FOCUS_GRID_X + 1 columns of two vertices. Each vertex comes from sh4der_focus_vertex (position, texture coordinates and
+   colour; the colour's alpha is the blur amount). z is the list's depth value. Call between the translucent list's begin and end. */
 void sh4der_focus_submit(const sh4der_focus_gpu_t *g, const sh4der_focus_mask_t *m, float z) {
     unsigned i, j, k;
     pvr_vertex_t pv;

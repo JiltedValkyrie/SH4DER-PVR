@@ -3,10 +3,10 @@
    test/core_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of the shared parts: the feather is SH4DOW-DC's (the
-   dependency), the core answers before any root (d2 = 0, a zero core), the
-   SH4ZAM steps and their plain C mirror (fraction of a negative, lerp,
-   divide, saturate), and the breath tracker's and glint's refusals.
+   Host check of the shared parts: the falloff matches sh4dow-dc's feather, the
+   core answers before any root (d2 = 0, a zero core), the SH4ZAM steps match their
+   plain C mirror (fraction of a negative, lerp, divide, saturate), and the breath
+   tracker and glint refuse bad input.
 */
 
 #include <math.h>
@@ -50,6 +50,7 @@ static int feather_is_sh4dow(void) {
     return 0;
 }
 
+/* Checks the SH4ZAM steps against their plain C results: fraction, lerp, divide, clamps, lengths and bit tests. */
 static int steps(void) {
     if (!near(sh4der_frac_(-0.25f), 0.75f, 1e-6f) || !near(sh4der_frac_(2.5f), 0.5f, 1e-6f) || sh4der_frac_(3.0f) != 0.0f)
         return fail("fraction");
@@ -64,6 +65,7 @@ static int steps(void) {
     return 0;
 }
 
+/* Checks that a NaN breath is not remembered and that glint refuses a negative, NaN or far depth. */
 static int refusals(void) {
     sh4der_breath_t b = { { 0 }, 0, 0 };
 

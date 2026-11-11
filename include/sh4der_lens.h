@@ -32,6 +32,7 @@
     the screen origin at the top left.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_LENS_H
@@ -78,7 +79,7 @@ extern "C" {
 #define SH4DER_LENS_FLASH_PEAK   0.35f  /**< \brief Highest level a hit reaches (0..1). */
 #define SH4DER_LENS_FLASH_ATTACK_S 0.03f /**< \brief Level follows the target with this time constant. */
 #define SH4DER_LENS_FLASH_DECAY_S  0.25f /**< \brief The target falls with this time constant. */
-#define SH4DER_LENS_FLASH_R      0.60f  /**< \brief Shield pop colour (blue-white). */
+#define SH4DER_LENS_FLASH_R      0.60f  /**< \brief Flash colour (blue-white). */
 #define SH4DER_LENS_FLASH_G      0.80f
 #define SH4DER_LENS_FLASH_B      1.00f
 #define SH4DER_LENS_Z_VIG        430.0f /**< \brief Autosort z of each overlay (TR list). Under HUD (1000). */
@@ -100,9 +101,9 @@ typedef struct sh4der_lens_vtx {
 typedef struct sh4der_lens_vig {
     float w, h;             /**< \brief Screen size, pixels. */
     float kx;               /**< \brief Metric x scale: lerp(h / w, 1, ROUND). */
-    float inner, outer, strength;
-    float tint[3];
-    unsigned spokes, rings;
+    float inner, outer, strength;   /**< \brief Radii and depth, as the SH4DER_LENS_VIG_* values. */
+    float tint[3];                  /**< \brief Multiplier per channel at full (1 = neutral). */
+    unsigned spokes, rings;         /**< \brief Mesh size: spokes round the screen, rings across the falloff. */
 } sh4der_lens_vig_t;
 
 /** \brief A damage wedge: unit screen direction it comes from (x right, y down), its age in seconds, on. */
@@ -174,13 +175,10 @@ static inline uint32_t sh4der_lens_vig_argb(const sh4der_lens_vig_t *v, float m)
     return sh4der_lens_argb_(1.0f, m * v->tint[0], m * v->tint[1], m * v->tint[2]);
 }
 
-/** \brief The vignette as strips: rings+1 bands of 2 x (spokes+1) vertices (A_j, B_j per spoke, the spoke 0 repeated last).
-    Band b is a triangle strip from ring b to ring b+1, the last band runs from the outer ring to the screen edge. A ring b
-    lies at metric radius min(INNER + (OUTER - INNER) b / rings, edge): the edge is where a spoke leaves the screen.
-    Returns the vertex count (0 when cap is short or the shape is out of range). */
+/** \brief The spoke table: `n` spokes, and each spoke's rim point (px[j], py[j]) from the screen centre, in pixels. */
 typedef struct sh4der_lens_spokes {
     unsigned n;
-    float px[SH4DER_LENS_SPOKES_MAX + 1], py[SH4DER_LENS_SPOKES_MAX + 1];   /* each spoke's rim point, from the centre */
+    float px[SH4DER_LENS_SPOKES_MAX + 1], py[SH4DER_LENS_SPOKES_MAX + 1];   /* each spoke's rim point, from the centre, pixels */
 } sh4der_lens_spokes_t;
 
 /** \brief The spoke table (once per screen size): spoke j's rim point, the rim a circumscribing polygon at 1.1 x the corner's

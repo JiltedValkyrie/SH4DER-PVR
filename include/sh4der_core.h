@@ -20,11 +20,15 @@
     - A breath tracker: a pose's own breathing turned into 0 (out) .. 1 (in).
     - A glint: a soft quad's brightness by camera depth.
 
+    Order: sh4der_ramp_colours once at load. sh4der_breath_push once a frame
+    per instance; its result goes to the effect's prepare step.
+
     The square roots, sines, cosines, distances and clamps are SH4ZAM. Define
     SH4DER_CORE_NO_SH4ZAM to build the same steps in plain C (it also sets
     SH4DOW_DC_NO_SH4ZAM, so both libraries take the same path).
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_CORE_H
@@ -54,11 +58,11 @@ extern "C" {
 
 /** \name The breath tracker (sh4der_breath_push())
     @{ */
-#define SH4DER_BREATH_WINDOW 90     /**< \brief Frames the breath tracker remembers (one 3.0 s idle loop). */
+#define SH4DER_BREATH_WINDOW 90     /**< \brief Frames the breath tracker remembers (3.0 s at 30 Hz). */
 #define SH4DER_BREATH_SPAN 0.0013f  /**< \brief Least chest travel that counts as a full breath. */
 /** @} */
 
-/** \name The glint: the original game's lens flare on a light (sh4der_glint())
+/** \name The glint: a lens flare on a light (sh4der_glint())
     A soft additive quad at a marker: half size radius x scale, its
     brightness full within NEAR of the camera and gone past FAR.
     @{ */
@@ -74,8 +78,8 @@ extern "C" {
 /** \name The colour ramp (sh4der_ramp_colours(), sh4der_ramp_())
     From a texture's average colour: EDGE is its hue at saturation x EDGE_SAT,
     CORE at x CORE_SAT, both at full value. A vertex of level k takes
-    mix(EDGE, CORE, k^2) x k: dim parts saturated, peaks white-hot (the
-    energy sword's own texels run from saturation 0.55 to 0.09).
+    mix(EDGE, CORE, k^2) x k: dim parts saturated, peaks white-hot (a glowing blade's
+    own texels run from saturation 0.55 to 0.09).
     @{ */
 #define SH4DER_RAMP_EDGE_SAT   1.6f    /**< \brief EDGE saturation factor. */
 #define SH4DER_RAMP_CORE_SAT   0.25f   /**< \brief CORE saturation factor. */
@@ -105,8 +109,8 @@ typedef struct sh4der_blocker {
 
 /** \brief One instance's breath tracker. Zero it (or sh4der_breath_reset) before the first push. */
 typedef struct sh4der_breath {
-    float ring[SH4DER_BREATH_WINDOW];
-    uint16_t head, count;
+    float ring[SH4DER_BREATH_WINDOW];   /**< \brief The last frames' raw signals, as a ring buffer. */
+    uint16_t head, count;               /**< \brief Ring write position; frames held, up to the window. */
 } sh4der_breath_t;
 
 /** \brief The breath signal of one pose: (chest - pelvis origin) . pelvis forward

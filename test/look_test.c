@@ -22,6 +22,7 @@ static int fail(const char *msg) {
     return 1;
 }
 
+/* Checks the luma of 565 pixels, the log average of one bin and of a half-black frame, and the no-sample case. */
 static int luma_and_average(void) {
     sh4der_look_bins_t t;
     uint16_t hist[SH4DER_LOOK_BINS] = { 0 };
@@ -51,6 +52,8 @@ static float run(sh4der_look_eye_t *e, const sh4der_look_params_t *p, float lum,
     return g;
 }
 
+/* Checks the eye: middle grey reads 1, a dark room opens up, a bright step is over-bright at once and then settles,
+   the ln and exp series, and reset. */
 static int eye(void) {
     sh4der_look_params_t p;
     sh4der_look_eye_t e;
@@ -100,6 +103,7 @@ static int eye(void) {
     return 0;
 }
 
+/* Checks the layer count, that the layers give clamp(A x + B) per channel, and the layer ARGB pack. */
 static int grade(void) {
     static const sh4der_look_grade_t cases[] = {
         { { 1, 1, 1 }, { 0, 0, 0 }, 1.0f, 1.0f },          /* neutral: no layer */
@@ -137,6 +141,7 @@ static int grade(void) {
     return 0;
 }
 
+/* Checks that zero glare changes nothing, and full glare leans white and thickens where there is fog. */
 static int glare(void) {
     float rgb[3] = { 0.2f, 0.4f, 0.6f }, table[4] = { 0.0f, 0.2f, 0.5f, 1.0f };
     sh4der_look_glare(0.0f, rgb, table, 4);

@@ -9,10 +9,13 @@
 
 #define TWO_PI 6.28318530718f
 
+/* True when a tube or blocker edge is usable: both finite, inner >= 0 and outer > inner. */
 static int soft_edge(float inner, float outer) {
     return sh4der_finite_(inner) && sh4der_finite_(outer) && inner >= 0.0f && outer > inner;
 }
 
+/* Fills p with the default blade: two tubes (tube[0], tube[1]) and one blocker. The values come from SH4DER_BLADE_* in the header.
+   blocker[1] is a copy of blocker[0]; blocker_count stays 1. Maths only: no PVR calls. */
 void sh4der_blade_params_default(sh4der_blade_params_t *p) {
     sh4der_tube_t *a = &p->tube[0], *b = &p->tube[1];
     sh4der_blocker_t *k = &p->blocker[0];
@@ -30,7 +33,7 @@ void sh4der_blade_params_default(sh4der_blade_params_t *p) {
     p->fade_x1 = SH4DER_BLADE_FADE_X1;
     p->light_swing = SH4DER_BLADE_LIGHT_SWING;
     p->ripple_freq = 0.0f;
-    p->ripple_depth = 0.0f;   /* no ripples: the shipped sword */
+    p->ripple_depth = 0.0f;   /* no ripples in the default tuning */
     a->rho = SH4DER_BLADE_A_RHO;
     a->inner = SH4DER_BLADE_A_INNER;
     a->outer = SH4DER_BLADE_A_OUTER;
@@ -55,6 +58,8 @@ void sh4der_blade_params_default(sh4der_blade_params_t *p) {
     p->blocker[1] = *k;
 }
 
+/* Fills p as sh4der_blade_params_default does, then with the WHITE glow, floor and blocker depth (SH4DER_BLADE_WHITE_*): a whiter
+   variant of the same blade. */
 void sh4der_blade_params_white(sh4der_blade_params_t *p) {
     sh4der_blade_params_default(p);
     p->glow_base = SH4DER_BLADE_WHITE_GLOW_BASE;
@@ -63,6 +68,9 @@ void sh4der_blade_params_white(sh4der_blade_params_t *p) {
     p->blocker[0].depth = p->blocker[1].depth = SH4DER_BLADE_WHITE_K_DEPTH;
 }
 
+/* Returns 1 when p can be prepared: non-NULL, a non-zero period, tube and blocker counts within SH4DER_TUBE_MAX and SH4DER_BLOCKER_MAX,
+   and every value finite and in range (unit values 0..1, fade_x1 > fade_x0). Each tube needs a usable edge. Each blocker needs a usable
+   edge, a depth in -1..1 and passes other than 0. Otherwise returns 0. */
 int sh4der_blade_params_valid(const sh4der_blade_params_t *p) {
     int i;
 
@@ -90,6 +98,10 @@ int sh4der_blade_params_valid(const sh4der_blade_params_t *p) {
     return 1;
 }
 
+/* Computes the frame state for one blade from tick (the caller's tick counter) and p: the pulse (0..1), glow, light, the tube and
+   blocker positions, and the fade (clamped to 0..1, NaN gives 0). The whole cycle repeats every p->period ticks. Writes into f and
+   returns 1. For invalid p it zeroes f and returns 0. Call once per instance per frame, before the shade or argb calls. Maths only:
+   no PVR calls, any list. */
 int sh4der_blade_prepare(sh4der_blade_frame_t *f, const sh4der_blade_params_t *p, uint32_t tick, float fade) {
     float u, s, c;
     int i;
@@ -145,6 +157,8 @@ int sh4der_blade_prepare(sh4der_blade_frame_t *f, const sh4der_blade_params_t *p
     return 1;
 }
 
+/* One intensity per vertex, 0..1, written to out. xyz holds x, y, z floats with xyz_stride bytes between vertices. Maths only: the
+   caller uses the values in its own draw. */
 void sh4der_blade_shade(const sh4der_blade_frame_t *f, const float *xyz, size_t xyz_stride, float *out, unsigned count) {
     const uint8_t *v = (const uint8_t *)xyz;
     unsigned i;
@@ -160,6 +174,8 @@ static uint32_t channel(float c, float k) {
     return (uint32_t)(sh4der_sat_(c * k) * 255.0f + 0.5f);   /* c and k are 0..1 (k from sh4der_blade_intensity, c the caller's colour) */
 }
 
+/* Packed ARGB words for count vertices: rgb scaled by each vertex's intensity, alpha a. xyz and out take strides in bytes. No PVR
+   calls: the caller picks the list and blend. */
 void sh4der_blade_argb(const sh4der_blade_frame_t *f, const float rgb[3], uint8_t a, const float *xyz, size_t xyz_stride,
                        uint32_t *out, size_t out_stride, unsigned count) {
     const uint8_t *v = (const uint8_t *)xyz;
@@ -174,6 +190,8 @@ void sh4der_blade_argb(const sh4der_blade_frame_t *f, const float rgb[3], uint8_
     }
 }
 
+/* As sh4der_blade_argb, but each vertex colour is the ramp between edge and core (sh4der_ramp_) at that vertex's intensity. No PVR
+   calls. */
 void sh4der_blade_argb_ramp(const sh4der_blade_frame_t *f, const float edge[3], const float core[3], uint8_t a, const float *xyz,
                             size_t xyz_stride, uint32_t *out, size_t out_stride, unsigned count) {
     const uint8_t *v = (const uint8_t *)xyz;

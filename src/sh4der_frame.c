@@ -9,6 +9,10 @@
 
 #ifdef _arch_dreamcast
 
+/* Reads the frame on screen, from the PVR frame-buffer address (masked to PVR RAM size). This is not the render target, which may be
+   half drawn. raw gets a GRID_X x GRID_Y grid of RGB565 samples. dark, if not NULL, gets the min565 of each sample and its neighbour
+   3 right and 3 down. Returns the stamp id at pixel (1, 1). Reads nothing and returns 0 when fb_w or fb_h is below 2. Reads go
+   straight to video memory. */
 unsigned sh4der_frame_read(uint16_t raw[SH4DER_FRAME_GRID_X * SH4DER_FRAME_GRID_Y], uint16_t *dark, unsigned fb_w, unsigned fb_h) {
     /* The scan-out register: the frame the screen shows now (the render target may be half drawn). */
     const uintptr_t frame = PVR_GET(PVR_FB_ADDR) & (PVR_RAM_SIZE - 1u);
@@ -30,6 +34,9 @@ unsigned sh4der_frame_read(uint16_t raw[SH4DER_FRAME_GRID_X * SH4DER_FRAME_GRID_
     return sh4der_frame_stamp_id(fb[fb_w + 1u]);   /* the block's pixel (1, 1) */
 }
 
+/* Draws the stamp block in the top-left corner: SH4DER_FRAME_STAMP_PX square, at depth z, in the colour for id. It goes in the
+   translucent list with blend ONE / ZERO, so the block replaces what is under it. Depth always passes. The header is compiled on the
+   first call and kept in static storage. Vertices come from KOS direct render. */
 void sh4der_frame_stamp_draw(unsigned id, float z) {
     static pvr_poly_hdr_t hdr;
     static int ready;

@@ -9,6 +9,8 @@
 
 #ifdef _arch_dreamcast
 
+/* Make the shaft texture (RGB565, SH4DER_GLOW_TEX_W x SH4DER_GLOW_TEX_H) and its header. The header is on the TR list,
+   bilinear, with src ZERO and dst DESTCOLOR. Returns 0 on success, -1 when g is NULL or video memory is short. */
 int sh4der_shafts_init(sh4der_shafts_gpu_t *g) {
     pvr_poly_cxt_t c;
     if (!g)
@@ -28,6 +30,7 @@ int sh4der_shafts_init(sh4der_shafts_gpu_t *g) {
     return 0;
 }
 
+/* Free the shaft texture and clear the pointer. Safe with NULL, or after an earlier shutdown. */
 void sh4der_shafts_shutdown(sh4der_shafts_gpu_t *g) {
     if (g && g->tex) {
         pvr_mem_free(g->tex);
@@ -35,16 +38,21 @@ void sh4der_shafts_shutdown(sh4der_shafts_gpu_t *g) {
     }
 }
 
+/* Load a RGB565 map into the shaft texture. Does nothing when g, its texture or map is NULL. Call it before
+   sh4der_shafts_draw for the frame that uses the map. */
 void sh4der_shafts_upload(const sh4der_shafts_gpu_t *g, const uint16_t *map) {
     if (g && g->tex && map)
         pvr_txr_load(map, g->tex, SH4DER_GLOW_TEX_W * SH4DER_GLOW_TEX_H * 2);
 }
 
+/* Draw the shafts over the w x h screen at depth z, on the TR list, with the header from init. The mesh is
+   SH4DER_GLOW_MESH_Y strips. Each strip's header goes in with pvr_prim, then its vertices are written by direct render.
+   Texture coordinates come from sh4der_glow_ray_uv; the header's uv clamp keeps samples at the map's edge. */
 void sh4der_shafts_draw(const sh4der_shafts_gpu_t *g, float su, float sv, float scale, float w, float h, float z) {
     int gx, gy, e;
     if (!g || !g->tex)
         return;
-    for (gy = 0; gy < SH4DER_GLOW_MESH_Y; gy++) {   /* the copy's texture coordinates are clamped at the map's edge per vertex */
+    for (gy = 0; gy < SH4DER_GLOW_MESH_Y; gy++) {
         pvr_prim((void *)&g->hdr, sizeof(g->hdr));
         for (gx = 0; gx <= SH4DER_GLOW_MESH_X; gx++)
             for (e = 0; e < 2; e++) {

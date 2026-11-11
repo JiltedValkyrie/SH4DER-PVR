@@ -13,7 +13,7 @@
     No clock, no flicker term, no vertex movement: the alpha the table carries
     is constant (the fade), so the fill stays steady.
 
-    The breath comes from the pose the game already skins with, through the
+    The breath comes from the pose the model is skinned with, through the
     shared breath tracker (sh4der_core.h: sh4der_breath_raw, sh4der_breath_push).
 
     The core rides the body, so each vertex's weight is taken once, at load,
@@ -22,9 +22,14 @@
     breath; per vertex the colour is one table load (sh4der_holo_argb). Draw
     the body alpha blended with its texture modulated by that colour.
 
+    Order: sh4der_holo_weights once at load. Per frame: sh4der_breath_push,
+    then sh4der_holo_prepare with the breath, then sh4der_holo_shade or
+    sh4der_holo_argb per vertex.
+
     The falloff is SH4DOW-DC's column feather (sh4der_core.h).
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_HOLO_H
