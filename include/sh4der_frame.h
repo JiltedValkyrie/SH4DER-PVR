@@ -34,6 +34,7 @@
     sh4der_frame_degain takes a gain off a grid (the glow wants the scene, not
     the scene times the eye). sh4der_frame_hot is the sun's "looked at" term.
 
+    Version: v0.50
     The effect: lets a program see its own finished picture. The frame on
       screen is read back on a small grid, and every frame carries a small mark
       so a read knows which frame it saw.

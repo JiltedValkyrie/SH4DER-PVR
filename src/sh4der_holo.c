@@ -1,6 +1,7 @@
 /* SH4DER-PVR: the holo effect
 
    sh4der_holo.c
+   Version: v1.00
    The effect: makes a translucent body look lit from inside. A soft light in
      the chest brightens as the body breathes in and dims as it breathes out,
      read from the body's own animation.

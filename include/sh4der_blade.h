@@ -31,6 +31,7 @@
     The tube and blocker shapes, the feather (SH4DOW-DC's, required) and the
     SH4ZAM steps are SH4DER-PVR's shared parts (sh4der_core.h).
 
+    Version: v1.00
     The effect: makes a flat, see-through blade look filled with moving
       energy. Bright streaks circle inside it, a dark knot travels along it, and
       the whole blade breathes brighter and dimmer. All of it is done in the

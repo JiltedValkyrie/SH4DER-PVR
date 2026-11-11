@@ -1,6 +1,7 @@
 /* SH4DER-PVR: the glow effect, Dreamcast draw code
 
    sh4der_glow.c
+   Version: v0.50
    The effect: makes bright things spill light. Lamps and the sun bleed a soft
      glow over what is round them, and the sun throws streaks of light across
      the screen (god rays).

@@ -36,6 +36,7 @@
     The maths is the host side (inline, both SH4ZAM and plain C). The KOS side
     is under _arch_dreamcast.
 
+    Version: v0.10
     The effect: smears the picture along the camera's motion, so a fast turn
       blurs. The frame before is laid over this one, moved by how far the camera
       turned.

@@ -36,6 +36,7 @@
     Yaw turning right and pitch looking up are positive. A client whose yaw
     turns the other way passes the negated delta.
 
+    Version: v0.50
     The effect: smooths jagged edges over time. The picture is shifted a
       fraction of a pixel each frame and each frame is blended with the ones
       before, so an edge averages out.

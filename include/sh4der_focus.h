@@ -30,6 +30,7 @@
     The client draws the mesh (src/sh4der_focus.c, Dreamcast only) after the
     frame and before the HUD.
 
+    Version: v0.10
     The effect: keeps one part of the picture sharp and lets the rest go soft,
       as a camera focused on a face does. The soft part is a small blurred copy
       of the frame.

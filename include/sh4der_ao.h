@@ -26,6 +26,7 @@
     The divisions and clamps are SH4ZAM (through the core), the luma sums are
     integer. Define SH4DER_CORE_NO_SH4ZAM for the plain C path.
 
+    Version: v0.10
     The effect: darkens the creases where surfaces meet and the places where
       things touch, so shapes read as solid instead of flat.
     Developed for: Halo: Dreamcast Evolved.

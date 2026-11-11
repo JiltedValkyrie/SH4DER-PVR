@@ -1,6 +1,7 @@
 /* SH4DER-PVR: the frame texture and chromatic aberration, Dreamcast side
 
    sh4der_ca.c
+   Version: v0.50
    The effect: splits the picture's colours toward the screen's edges, as a
      cheap lens does: red, green and blue fringes in the corners, none in the
      middle. To do it the game is first drawn into a texture, which this module

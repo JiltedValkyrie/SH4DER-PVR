@@ -1,6 +1,7 @@
 /* SH4DER-PVR: the lens effects, the KallistiOS draw
 
    sh4der_lens.c
+   Version: v0.10
    The effect: adds what a camera lens and film add to a picture: darker
      corners, moving grain, a marker that points at where a hit came from, a
      white flash. None of it reads the frame.

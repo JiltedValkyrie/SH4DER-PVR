@@ -1,6 +1,7 @@
 /* SH4DER-PVR: frame warps, the KOS draw code
 
    sh4der_warp.c
+   Version: v0.10
    The effect: bends the finished picture. A ring ripples outward, air
      shimmers with heat, water wobbles, a blur streams from the centre, the
      picture breaks into big square pixels.

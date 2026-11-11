@@ -31,6 +31,7 @@
     Default tuning is SH4DER_LENS_* below. Screen units: pixels, y down,
     the screen origin at the top left.
 
+    Version: v0.10
     The effect: adds what a camera lens and film add to a picture: darker
       corners, moving grain, a marker that points at where a hit came from, a
       white flash. None of it reads the frame.

@@ -1,6 +1,7 @@
 /* SH4DER-PVR: visor modes, KOS draw code
 
    sh4der_visor.c
+   Version: v0.10
    The effect: shows the world as through a device: green night vision, amber,
      or a heat picture, with grain and scanlines, fading in and out.
    Developed for: Halo: Dreamcast Evolved.

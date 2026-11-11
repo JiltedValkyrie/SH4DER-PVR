@@ -1,6 +1,7 @@
 /* SH4DER-PVR: shadow shafts, Dreamcast side
 
    sh4der_shafts.c
+   Version: v0.50
    The effect: makes things that stand between the camera and a light seem to
      throw shade toward the viewer. The picture's dark shapes cast a darker copy
      of themselves, pushed away from the light.
