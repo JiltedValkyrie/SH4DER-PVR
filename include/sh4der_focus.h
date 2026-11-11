@@ -30,6 +30,13 @@
     The client draws the mesh (src/sh4der_focus.c, Dreamcast only) after the
     frame and before the HUD.
 
+    The effect: keeps one part of the picture sharp and lets the rest go soft,
+      as a camera focused on a face does. The soft part is a small blurred copy
+      of the frame.
+    Developed for: close-ups in Halo: Dreamcast Evolved's cinematics.
+    Use it for: dialogue close-ups, a blurred game behind a pause menu, the
+      soft rim of a sniper scope, a tilt-shift toy look.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -44,7 +51,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_FOCUS_SRC_W     80      /**< \brief Sample grid across (the grid sh4der_look reads). */
 #define SH4DER_FOCUS_SRC_H     60      /**< \brief Sample grid down. */

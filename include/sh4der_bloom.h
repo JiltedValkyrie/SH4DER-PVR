@@ -28,6 +28,13 @@
     SH4DER_BLOOM_TRIS triangles of sh4der_bloom_tris additively (src alpha /
     one), depth tested, no depth write, with the blade.
 
+    The effect: puts a soft halo of light round a bright blade, so it seems to
+      light the air about it. It does not read the frame: a few feathered
+      polygons are added over the picture, 24 triangles.
+    Developed for: the glow round the energy sword in Halo: Dreamcast Evolved.
+    Use it for: a cheap glow round one bright thing: a blade, a laser bolt, a
+      lamp, a muzzle flash, a pick-up.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -48,7 +55,7 @@ extern "C" {
 #define SH4DER_BLOOM_VERTS  24                    /**< \brief ROWS x COLS + 1 + RIM. */
 #define SH4DER_BLOOM_TRIS   24                    /**< \brief (ROWS-1) x (COLS-1) x 2 + RIM: the budget, 24 for one blade. */
 
-/** \name Shipped tuning: a glowing blade (sh4der_bloom_params_default())
+/** \name Default tuning: a glowing blade (sh4der_bloom_params_default())
     Lengths in the blade's own units (its node space).
     @{ */
 #define SH4DER_BLOOM_X0          -0.065f  /**< \brief Ribbon root along the axis: the blade's base, at level ROOT (0: no edge). */

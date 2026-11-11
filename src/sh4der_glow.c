@@ -1,6 +1,14 @@
 /* SH4DER-PVR: the glow effect, Dreamcast draw code
 
    sh4der_glow.c
+   The effect: makes bright things spill light. Lamps and the sun bleed a soft
+     glow over what is round them, and the sun throws streaks of light across
+     the screen (god rays).
+   Developed for: the sun and the lamps in Halo: Dreamcast Evolved, proven on
+     the demo disc.
+   Use it for: sun rays through a window or between trees, glowing lamps, neon
+     signs, lava, head lamps at night, a white-hot explosion.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 */

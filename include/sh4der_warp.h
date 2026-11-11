@@ -36,6 +36,15 @@
     The draw code for the mesh and the copies is in src/sh4der_warp.c (KOS,
     under _arch_dreamcast). This header is the numbers: host tested.
 
+    The effect: bends the finished picture. A ring ripples outward, air
+      shimmers with heat, water wobbles, a blur streams from the centre, the
+      picture breaks into big square pixels.
+    Developed for: explosions, heat, water and speed in Halo: Dreamcast
+      Evolved.
+    Use it for: an explosion's shockwave, haze over a fire or an exhaust,
+      underwater levels, a boost blur in a racing game, a retro pixel wipe
+      between scenes.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -50,7 +59,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning (estimates: not yet tuned on a real frame)
+/** \name Default tuning
     @{ */
 #define SH4DER_WARP_FRAME_W     320      /**< \brief The frame's width, pixels. */
 #define SH4DER_WARP_FRAME_H     240      /**< \brief The frame's height, pixels. */

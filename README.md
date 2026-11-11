@@ -34,24 +34,24 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 
 ## Effects
 
-| Effect | Header | What it does | Drawn | Status |
-| --- | --- | --- | --- | --- |
-| blade | `sh4der_blade.h` | Light tubes orbit an axis, a blocker runs through them, a pulse breathes over both | untextured, additive | used in a released game |
-| holo | `sh4der_holo.h` | A light inside a translucent body follows the body's own breathing (the slow rise and fall of the chest) | alpha blended, texture × colour | used in a released game |
-| bloom | `sh4der_bloom.h` | A soft glow round a blade: a feathered ribbon facing the camera and a feathered disc at the tip, 24 triangles | untextured, additive | used in a released game |
-| look | `sh4der_look.h` | An eye (the brightness the frame has adapted to) that moves toward the frame both ways, a grade (a straight line per channel), glare in the fog | full-screen untextured layers (multiply, add, invert); the fog table (fog colour and density by depth) | run on the demo disc (emulator) |
-| frame | `sh4der_frame.h` | The frame on screen read back on a grid, a stamp on every frame so a read knows which frame it saw, the gain and glow taken off a read | the scan-out (the picture the video output sends to the screen); a 4 x 4 pixel block | run on the demo disc (emulator) |
-| taa | `sh4der_taa.h` | Temporal anti-aliasing maths: jitter, history weight, pan shift | the frame before as layers | run on the demo disc (emulator) |
-| glow | `sh4der_glow.h` | Screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun | a 128 x 64 RGB565 map, additive quads | run on the demo disc (emulator) |
-| warp | `sh4der_warp.h` | The frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither | a screen grid mesh over the frame texture | maths tested only |
-| trail | `sh4der_trail.h` | The frame before over this one through a copy of the front buffer, the picture already on screen (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend | full-screen layers, a 128 B mask | maths tested only |
-| lens | `sh4der_lens.h` | Overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash | vertex-colour meshes, a 64 x 64 grain tile | maths tested only |
-| focus | `sh4der_focus.h` | Fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp | a 128 x 64 map, one alpha mesh | maths tested only |
-| visor | `sh4der_visor.h` | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out | the look effect's layers, small tiles | maths tested only |
-| torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table | run on the demo disc (emulator) |
-| ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | maths tested only |
-| ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | run on the demo disc (emulator) |
-| shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | run on the demo disc (emulator) |
+| Effect | Header | What it does | Drawn |
+| --- | --- | --- | --- |
+| blade | `sh4der_blade.h` | Light tubes orbit an axis, a blocker runs through them, a pulse breathes over both | untextured, additive |
+| holo | `sh4der_holo.h` | A light inside a translucent body follows the body's own breathing (the slow rise and fall of the chest) | alpha blended, texture × colour |
+| bloom | `sh4der_bloom.h` | A soft glow round a blade: a feathered ribbon facing the camera and a feathered disc at the tip, 24 triangles | untextured, additive |
+| look | `sh4der_look.h` | An eye (the brightness the frame has adapted to) that moves toward the frame both ways, a grade (a straight line per channel), glare in the fog | full-screen untextured layers (multiply, add, invert); the fog table (fog colour and density by depth) |
+| frame | `sh4der_frame.h` | The frame on screen read back on a grid, a stamp on every frame so a read knows which frame it saw, the gain and glow taken off a read | the scan-out (the picture the video output sends to the screen); a 4 x 4 pixel block |
+| taa | `sh4der_taa.h` | Temporal anti-aliasing maths: jitter, history weight, pan shift | the frame before as layers |
+| glow | `sh4der_glow.h` | Screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun | a 128 x 64 RGB565 map, additive quads |
+| warp | `sh4der_warp.h` | The frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither | a screen grid mesh over the frame texture |
+| trail | `sh4der_trail.h` | The frame before over this one through a copy of the front buffer, the picture already on screen (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend | full-screen layers, a 128 B mask |
+| lens | `sh4der_lens.h` | Overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash | vertex-colour meshes, a 64 x 64 grain tile |
+| focus | `sh4der_focus.h` | Fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp | a 128 x 64 map, one alpha mesh |
+| visor | `sh4der_visor.h` | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out | the look effect's layers, small tiles |
+| torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table |
+| ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map |
+| ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes |
+| shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh |
 
 All of them include `sh4der_core.h`, the shared parts:
 - **The feather.** SH4DOW-DC's column feather (a soft edge: full inside, fading to nothing outside), with the core answered before any square root.
@@ -362,9 +362,9 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 
 **Cost.** The read: 4,800 uncached 16-bit loads and a 64-bin count a frame. The eye: one log and one exp series a frame. The grade: 0 to 6 full-screen quads (4 vertices each), no texture, no video memory.
 
-## The temporal AA maths (research)
+## The temporal AA maths
 
-`sh4der_taa.h`: a sub-pixel jitter of the projection each frame (Halton 2, 3, `SH4DER_TAA_PHASES` phases, centred) and the frame before laid over this one at a weight. No motion vectors on the PVR: the weight falls with the camera's speed in pixels, a pan shifts the old frame whole, a turn past `SH4DER_TAA_CUT_RAD` in one frame is a cut (no history). Header only, research: no client draws it yet.
+`sh4der_taa.h`: a sub-pixel jitter of the projection each frame (Halton 2, 3, `SH4DER_TAA_PHASES` phases, centred) and the frame before laid over this one at a weight. No motion vectors on the PVR: the weight falls with the camera's speed in pixels, a pan shifts the old frame whole, a turn past `SH4DER_TAA_CUT_RAD` in one frame is a cut (no history). Header only.
 
 ### TAA tuning
 
@@ -378,9 +378,9 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 | SH4DER_TAA_CUT_RAD | 0.35 | A turn of this many radians in one frame is a cut |
 | SH4DER_TAA_JITTER_AMP | 1.0 | Scale on the jitter |
 
-## The glow effect (research)
+## The glow effect
 
-`sh4der_glow.h`, `src/sh4der_glow.c` (the KOS PVR drawing, Dreamcast only): screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun. Not run on hardware yet: every cost here is an estimate.
+`sh4der_glow.h`, `src/sh4der_glow.c` (the KOS PVR drawing, Dreamcast only): screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun.
 
 ### Glow tuning
 
@@ -409,9 +409,9 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 | SH4DER_GLOW_MESH_Y | 6 | Cells down a ray or shaft copy |
 | SH4DER_GLOW_SUN_EDGE | 0.25 | Sun this far off screen (screen heights): no rays |
 
-## The warp effect (research)
+## The warp effect
 
-`sh4der_warp.h`, `src/sh4der_warp.c` (the KOS PVR drawing, Dreamcast only): the frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither. Not run on hardware yet: every cost here is an estimate.
+`sh4der_warp.h`, `src/sh4der_warp.c` (the KOS PVR drawing, Dreamcast only): the frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither.
 
 ### Warp tuning
 
@@ -441,9 +441,9 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 | SH4DER_WARP_PIXEL_CELL | 16 | Pixelate block, frame pixels (divides 320 and 240) |
 | SH4DER_WARP_DITHER | 0.25 | Dither pattern: the darkest share at full |
 
-## The trail effect (research)
+## The trail effect
 
-`sh4der_trail.h`, `src/sh4der_trail.c` (the KOS PVR drawing, Dreamcast only): the frame before over this one through a copy of the front buffer, the picture already on screen (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend. Not run on hardware yet: every cost here is an estimate.
+`sh4der_trail.h`, `src/sh4der_trail.c` (the KOS PVR drawing, Dreamcast only): the frame before over this one through a copy of the front buffer, the picture already on screen (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend.
 
 ### Trail tuning
 
@@ -458,9 +458,9 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 | SH4DER_TRAIL_CUT_RAD | 0.35 | A turn of this many radians in one frame is a cut: no history |
 | SH4DER_TRAIL_MASK_BYTES | 128 | The mask's size in VRAM |
 
-## The lens effect (research)
+## The lens effect
 
-`sh4der_lens.h`, `src/sh4der_lens.c` (the KOS PVR drawing, Dreamcast only): overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash. Not run on hardware yet: every cost here is an estimate.
+`sh4der_lens.h`, `src/sh4der_lens.c` (the KOS PVR drawing, Dreamcast only): overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash.
 
 ### Lens tuning
 
@@ -503,9 +503,9 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 | SH4DER_LENS_SPOKES_MAX | 32 | Spokes the maths takes at most |
 | SH4DER_LENS_RINGS_MAX | 16 | Rings the maths takes at most |
 
-## The focus effect (research)
+## The focus effect
 
-`sh4der_focus.h`, `src/sh4der_focus.c` (the KOS PVR drawing, Dreamcast only): fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp. Not run on hardware yet: every cost here is an estimate.
+`sh4der_focus.h`, `src/sh4der_focus.c` (the KOS PVR drawing, Dreamcast only): fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp.
 
 ### Focus tuning
 
@@ -527,9 +527,9 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 | SH4DER_FOCUS_RECT_H | 80.0 | Subject rect half height, pixels |
 | SH4DER_FOCUS_Z | 1.0 | Mesh depth (the list's sort value is the client's) |
 
-## The visor effect (research)
+## The visor effect
 
-`sh4der_visor.h`, `src/sh4der_visor.c` (the KOS PVR drawing, Dreamcast only): visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out. Not run on hardware yet: every cost here is an estimate.
+`sh4der_visor.h`, `src/sh4der_visor.c` (the KOS PVR drawing, Dreamcast only): visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out.
 
 ### Visor tuning
 
@@ -616,9 +616,9 @@ unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 | SH4DER_TORCH_RINGS | 5 | Boost bands, centre to edge |
 | SH4DER_TORCH_BANDS | 4 | Carve bands, edge feather to UMAX |
 
-## The ao effect (research)
+## The ao effect
 
-`sh4der_ao.h`: small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map. Not run on hardware yet: every cost here is an estimate.
+`sh4der_ao.h`: small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map.
 
 ### Ao tuning
 
@@ -674,7 +674,7 @@ if (sh4der_ca_begin(&ca, 0) == 0) {        /* in place of pvr_scene_begin() */
 - **Two scenes a frame.** The world's scene and the screen's scene: the frame's time must hold both.
 - **KOS path.** `pvr_scene_begin_rtt` with a size, a `PVR_TXRFMT_X32_STRIDE` texture, the vertices by direct render (`pvr_dr_target`, `pvr_dr_commit`).
 
-`test/ca_test.c`: the two sizes and their video memory, the shortfall in KB, no shift in the centre, the default split in the corner, green half of red, blue unmoved, every sample inside the picture, texel-centre coordinates. Run on the demo disc; not yet in a game.
+`test/ca_test.c`: the two sizes and their video memory, the shortfall in KB, no shift in the centre, the default split in the corner, green half of red, blue unmoved, every sample inside the picture, texel-centre coordinates.
 
 ## The shadow shafts
 
@@ -704,7 +704,7 @@ if (light_on_screen && toward > 0.01f) {
 - **Eased.** Each upload moves a texel half way: the read is a frame or two old and carries its own shade.
 - **Needs the frame read.** Where the read sees black (an emulator without full framebuffer emulation), the whole frame counts as dark and casts: gate it as the eye and the glow are gated.
 
-`test/shafts_test.c`: the turn toward the light, the depth and its cap, what casts, near and far, a texel easing half way, the map from a read, the copy's scale. Run on the demo disc; not yet in a game.
+`test/shafts_test.c`: the turn toward the light, the depth and its cap, what casts, near and far, a texel easing half way, the map from a read, the copy's scale.
 
 ## The frame read
 

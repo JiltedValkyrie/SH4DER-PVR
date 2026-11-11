@@ -1,6 +1,13 @@
 /* SH4DER-PVR: fake depth of field, KOS draw code
 
    sh4der_focus.c
+   The effect: keeps one part of the picture sharp and lets the rest go soft,
+     as a camera focused on a face does. The soft part is a small blurred copy
+     of the frame.
+   Developed for: close-ups in Halo: Dreamcast Evolved's cinematics.
+   Use it for: dialogue close-ups, a blurred game behind a pause menu, the
+     soft rim of a sniper scope, a tilt-shift toy look.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE.
 

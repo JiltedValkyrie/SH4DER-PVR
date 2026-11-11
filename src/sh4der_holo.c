@@ -1,6 +1,13 @@
 /* SH4DER-PVR: the holo effect
 
    sh4der_holo.c
+   The effect: makes a translucent body look lit from inside. A soft light in
+     the chest brightens as the body breathes in and dims as it breathes out,
+     read from the body's own animation.
+   Developed for: a hologram character in Halo: Dreamcast Evolved.
+   Use it for: holograms, ghosts, jellyfish, a reactor core seen through a
+     translucent shell: any inner light that should follow a body's motion.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE.
 */

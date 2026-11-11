@@ -28,6 +28,13 @@
 
     The falloff is SH4DOW-DC's column feather (sh4der_core.h).
 
+    The effect: makes a translucent body look lit from inside. A soft light in
+      the chest brightens as the body breathes in and dims as it breathes out,
+      read from the body's own animation.
+    Developed for: a hologram character in Halo: Dreamcast Evolved.
+    Use it for: holograms, ghosts, jellyfish, a reactor core seen through a
+      translucent shell: any inner light that should follow a body's motion.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -43,7 +50,7 @@ extern "C" {
 
 #define SH4DER_HOLO_LEVELS     64      /**< \brief Weight steps (table entries). */
 
-/** \name Shipped tuning: a hologram's chest core (sh4der_holo_params_default())
+/** \name Default tuning: a hologram's chest core (sh4der_holo_params_default())
     Lengths in vertex units (the bind model's world units).
     @{ */
 #define SH4DER_HOLO_GLOW_BASE  0.90f   /**< \brief Body level factor, breath out. */

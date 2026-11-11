@@ -1,6 +1,15 @@
 /* SH4DER-PVR: frame warps, the KOS draw code
 
    sh4der_warp.c
+   The effect: bends the finished picture. A ring ripples outward, air
+     shimmers with heat, water wobbles, a blur streams from the centre, the
+     picture breaks into big square pixels.
+   Developed for: explosions, heat, water and speed in Halo: Dreamcast
+     Evolved.
+   Use it for: an explosion's shockwave, haze over a fire or an exhaust,
+     underwater levels, a boost blur in a racing game, a retro pixel wipe
+     between scenes.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 */

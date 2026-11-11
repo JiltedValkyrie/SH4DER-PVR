@@ -34,6 +34,15 @@
     sh4der_frame_degain takes a gain off a grid (the glow wants the scene, not
     the scene times the eye). sh4der_frame_hot is the sun's "looked at" term.
 
+    The effect: lets a program see its own finished picture. The frame on
+      screen is read back on a small grid, and every frame carries a small mark
+      so a read knows which frame it saw.
+    Developed for: the SH4DER demo disc, so the eye and the glow could read
+      the frame without pulsing (the frame on screen is one or two frames old).
+    Use it for: anything that must know what is on screen: automatic exposure,
+      a bloom source, ambient light from the picture's average colour, rumble or
+      music driven by brightness.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -48,7 +57,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_FRAME_GRID_X   80   /**< \brief Samples across the frame (the look's and the glow's grid). */
 #define SH4DER_FRAME_GRID_Y   60   /**< \brief Samples down the frame. */

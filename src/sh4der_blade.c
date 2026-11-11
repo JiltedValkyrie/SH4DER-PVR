@@ -1,6 +1,14 @@
 /* SH4DER-PVR: the blade effect
 
    sh4der_blade.c
+   The effect: makes a flat, see-through blade look filled with moving energy.
+     Bright streaks circle inside it, a dark knot travels along it, and the
+     whole blade breathes brighter and dimmer. All of it is done in the vertex
+     colours the model already has.
+   Developed for: the energy sword in Halo: Dreamcast Evolved.
+   Use it for: any glowing blade or beam: a plasma sword, a magic staff, a
+     neon tube, an engine's exhaust plume, a force-field wall.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE.
 */

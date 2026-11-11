@@ -36,6 +36,13 @@
     Yaw turning right and pitch looking up are positive. A client whose yaw
     turns the other way passes the negated delta.
 
+    The effect: smooths jagged edges over time. The picture is shifted a
+      fraction of a pixel each frame and each frame is blended with the ones
+      before, so an edge averages out.
+    Developed for: softer edges at 640 x 480 in Halo: Dreamcast Evolved.
+    Use it for: smoother edges where the camera rests: cutscenes, menus with a
+      3D backdrop, a photo mode, strategy and puzzle games.
+
     Recommended settings (the author's own game and demo disc):
     - Dynamic weight, not one fixed number. Camera still: the old frame's
       share is 0.675 (0.90 x SH4DER_TAA_WEIGHT_HI). Camera moving: 0.30.
@@ -68,7 +75,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_TAA_PHASES      8       /**< \brief Jitter phases in a cycle (Halton 2, 3). */
 #define SH4DER_TAA_WEIGHT_HI   0.75f   /**< \brief History weight while the camera is still. */

@@ -1,6 +1,13 @@
 /* SH4DER-PVR: the lens effects, the KallistiOS draw
 
    sh4der_lens.c
+   The effect: adds what a camera lens and film add to a picture: darker
+     corners, moving grain, a marker that points at where a hit came from, a
+     white flash. None of it reads the frame.
+   Developed for: Halo: Dreamcast Evolved.
+   Use it for: a horror game's dark corners, film grain in a cutscene, damage
+     direction markers in a shooter, lightning or a flash grenade.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 */
@@ -8,7 +15,7 @@
 /* The maths is sh4der_lens.h (host tested). This file is the PVR side: the grain tile (8 KB VRAM, the only memory the lens
    takes), four polygon headers and one vertex strip per overlay. Per frame, TA: the vignette 9 bands x 66 vertices (594, 288
    triangles), the grain 8 vertices, a hit 4 per wedge, the flash 4. Layers: vignette 1 (multiply), grain 2 (multiply, boost), flash
-   1 (additive or alpha). The full-screen fill costs are estimates, not measured. Compiles to nothing off the Dreamcast. */
+   1 (additive or alpha). Compiles to nothing off the Dreamcast. */
 
 #ifdef _arch_dreamcast
 

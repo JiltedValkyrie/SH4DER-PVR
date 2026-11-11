@@ -34,6 +34,12 @@
     sh4der_look_solve for the grade layers, then the draws for the parts the
     mode uses (a fade of 0 skips them).
 
+    The effect: shows the world as through a device: green night vision,
+      amber, or a heat picture, with grain and scanlines, fading in and out.
+    Developed for: Halo: Dreamcast Evolved.
+    Use it for: night-vision goggles, a thermal scope, a security-camera or
+      old-monitor look, a robot's point of view.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -50,7 +56,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_VISOR_FADE_IN_S    0.25f   /**< \brief Seconds from off to on. */
 #define SH4DER_VISOR_FADE_OUT_S   0.40f   /**< \brief Seconds from on to off. */

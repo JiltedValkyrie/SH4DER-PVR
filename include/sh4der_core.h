@@ -27,6 +27,13 @@
     SH4DER_CORE_NO_SH4ZAM to build the same steps in plain C (it also sets
     SH4DOW_DC_NO_SH4ZAM, so both libraries take the same path).
 
+    The effect: nothing on screen of its own. It holds what the effects share:
+      the soft edge, the tube and blocker shapes, a breathing tracker, a colour
+      ramp and the maths helpers, so each effect is a few lines.
+    Developed for: the first two effects made for Halo: Dreamcast Evolved: the
+      energy sword's blades and a hologram's inner light.
+    Use it for: the base of a per-vertex effect of your own.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
