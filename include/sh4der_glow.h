@@ -30,7 +30,11 @@
 
     The CPU path (sh4der_glow_upload) builds the map from the grid and loads
     it with pvr_txr_load. The GPU path (render the frame small, multiply it
-    with itself) is costed in PLAN_GLOW.md; the maths here is the same.
+    with itself) is an alternative with the same maths.
+
+    Order, per frame: sh4der_glow_upload (it returns map_mean), then
+    sh4der_glow_draw_halo for the darken and the bloom, then
+    sh4der_glow_draw_rays or sh4der_glow_draw_shaft if wanted.
 
     Every step here is integer or a short series; the luma weights are the
     look's (Rec. 601, 77 / 150 / 29). The smooth step on 0..1 is SH4DOW-DC's
@@ -39,7 +43,28 @@
     do not need). The rest goes through SH4ZAM's saturate / divide / length
     (sh4der_core.h).
 
+    Recommended settings (the author's own game and demo disc):
+    - Curve: the straight ramp from a threshold of 0.80,
+      sh4der_glow_curve(lut, 0.80f, 0). The shipped squared ramp from 0.62
+      lets mid-bright walls glow; 0.80 keeps the glow to lights and the sun.
+      Useful threshold range 0.20 .. 0.90.
+    - Bloom strength 1.00 x SH4DER_GLOW_STRENGTH (0.45), radius
+      SH4DER_GLOW_RADIUS (0.5). Above 1 draw it in passes of at most 1 each
+      (the demo: up to 3). When an eye (sh4der_look.h) has closed down, gain
+      under 1, divide the strength by that gain: the glare grows as it does
+      in an eye.
+    - Rays strength 1.00, 6 copies (the most), only while the sun is in
+      front of the camera.
+    - keep = 128: each upload moves the map half way to the new one. The
+      read is a frame or two old; without the ease a bright spot pulses.
+    - Take the frame's own glow and gain off the read before building the
+      map (sh4der_glow_unfeed, sh4der_frame_degain), or the glow feeds
+      itself.
+    - Keep anything that must not glow (a HUD) under the threshold, or draw
+      it after the glow.
+
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_GLOW_H
@@ -161,7 +186,7 @@ static inline void sh4der_glow_shrink4(const uint16_t *src, unsigned src_stride,
         }
 }
 
-/** \brief Mean luma (0..1) of n RGB565 texels: the map's Mg in the darken balance. */
+/** \brief Mean luma (0..1) of n RGB565 texels: the map_mean for sh4der_glow_darken. */
 static inline float sh4der_glow_mean_luma(const uint16_t *px, unsigned n) {
     unsigned long sum = 0;
     unsigned i;
@@ -262,7 +287,7 @@ int sh4der_glow_init(sh4der_glow_t *g);
 void sh4der_glow_free(sh4der_glow_t *g);
 
 /** \brief Each frame, after the list's wait: grid (GRID_X x GRID_Y RGB565, the frame's luma read) to the map and the shrink.
-    Returns the map's mean luma (0..1), the Mg of sh4der_glow_darken. */
+    Returns the map's mean luma (0..1), the map_mean argument of sh4der_glow_darken. */
 float sh4der_glow_upload(sh4der_glow_t *g, const uint16_t grid[SH4DER_GLOW_GRID_X * SH4DER_GLOW_GRID_Y]);
 
 /** \brief The darken layer and the bloom over the rectangle (x, y, w, h), layers at z, z + 0.25, z + 0.5 (autosort). */

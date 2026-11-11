@@ -20,7 +20,7 @@
 
     THERMAL cannot be a per-channel line. A thermal ramp (cold blue, red,
     white-hot) maps luma to colour, and a per-channel line sees each channel
-    on its own. So THERMAL draws a CPU map instead: the look read's grid
+    on its own. So THERMAL draws a CPU map instead: the grid sh4der_look reads
     (80 x 60 RGB565) through a 64-entry luma LUT (sh4der_visor_lut) into a
     128 x 64 texture, drawn full screen over the frame with the fade as its
     alpha. The map is 80 x 60 samples of the previous frame, the coarse grid a
@@ -30,7 +30,12 @@
     Fade: sh4der_visor_fade eases an amount 0..1 with smoothstep over
     SH4DER_VISOR_FADE_IN_S (in) or SH4DER_VISOR_FADE_OUT_S (out).
 
+    Order, per frame: sh4der_visor_fade for the amount, sh4der_visor_grade and
+    sh4der_look_solve for the grade layers, then the draws for the parts the
+    mode uses (a fade of 0 skips them).
+
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_VISOR_H
@@ -85,7 +90,7 @@ static const float sh4der_visor_thermal_stops[3][3] = {
 /** \brief A visor mode, as its named parts. */
 typedef struct sh4der_visor_desc {
     float gain[3], lift[3];   /**< \brief Grade: per channel line (see sh4der_look_grade_t). */
-    float contrast, exposure;
+    float contrast, exposure;   /**< \brief Grade: contrast about 0.5, exposure. See sh4der_look_grade_t. */
     float grain;              /**< \brief Grain depth, 0..1 (baked into the tile). */
     float bloom;              /**< \brief Bloom amount, 0..1 (the client's bloom pass). */
     float vignette;           /**< \brief Vignette strength, 0..1. */
@@ -206,6 +211,7 @@ typedef struct sh4der_visor_fade {
     float t;
 } sh4der_visor_fade_t;
 
+/** \brief One frame of the fade: `on` 1 eases toward on, 0 toward off, over `dt` seconds. Returns the smoothstep of t (0..1). */
 static inline float sh4der_visor_fade(sh4der_visor_fade_t *f, int on, float dt) {
     if (on)
         f->t = sh4der_sat_(f->t + sh4der_div_(dt, SH4DER_VISOR_FADE_IN_S));

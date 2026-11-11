@@ -22,6 +22,7 @@ static int fail(const char *msg) {
     return 1;
 }
 
+/* Checks the sharp mask for the disc, band and rect shapes: sharp inside, blurred past the feather. */
 static int mask_shapes(void) {
     sh4der_focus_mask_t m;
     sh4der_focus_mask_default(&m, SH4DER_FOCUS_DISC);
@@ -42,6 +43,7 @@ static int mask_shapes(void) {
     return 0;
 }
 
+/* Checks the mesh: count, bounds, one end-of-line per strip, and alpha (blur) 0 at the centre and 255 at a corner. */
 static int mesh(void) {
     static sh4der_focus_vtx_t v[SH4DER_FOCUS_VERTS];
     sh4der_focus_mask_t m;
@@ -65,6 +67,7 @@ static int mesh(void) {
     return 0;
 }
 
+/* Checks that div9 is the exact integer divide by 9 for every sum from 0 to 567. */
 static int division(void) {
     unsigned t;
     for (t = 0; t <= 567u; t++)
@@ -72,6 +75,7 @@ static int division(void) {
     return 0;
 }
 
+/* Checks the 3 x 3 box blur: flat stays flat, an impulse spreads to 1/9 per tap, the edge clamps, and the padding repeats the edge. */
 static int blur(void) {
     static uint16_t src[SH4DER_FOCUS_SRC_W * SH4DER_FOCUS_SRC_H];
     static uint16_t dst[SH4DER_FOCUS_TEX_W * SH4DER_FOCUS_TEX_H];

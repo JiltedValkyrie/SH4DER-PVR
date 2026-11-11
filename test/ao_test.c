@@ -3,11 +3,9 @@
    test/ao_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of the small-scale AO maths: the edge's concave amount (a right-angle
-   wall on a floor, a flat floor, a convex edge), the vertex factor on a room corner
-   mesh, the screen cavity on synthetic grids (a dark ledge over a bright floor, a
-   bright wall over a dark floor, a corner, noise), and the multiply texel. Prints
-   the numbers and a small ASCII patch of the ledge case.
+   Host check of the small-scale AO maths: the edge's concave amount, the crease
+   factor, the vertex factor on a corner mesh, the screen cavity on synthetic luma
+   grids, and the texel map. Prints the numbers and an ASCII patch of the ledge case.
 */
 
 #include <stdio.h>
@@ -27,6 +25,7 @@ static int near(float a, float b, float tol) { return (a > b ? a - b : b - a) <=
 
 /* --- crease ---------------------------------------------------------------- */
 
+/* Checks the edge's concave amount (the sine of the rise angle) and the crease factor's clamp and midpoint. */
 static int crease(void) {
     const float up[3] = { 0.0f, 1.0f, 0.0f };
     const float p[3] = { 0.0f, 0.0f, 0.0f };
@@ -55,6 +54,7 @@ static int crease(void) {
 
 typedef struct { float p[3]; } vtx_t;
 
+/* Checks the vertex factors on a two-face corner: only the two vertices of the shared edge darken. */
 static int corner_mesh(void) {
     /* A (0,0,0)  B (4,0,0)  C (4,0,4)  D (0,0,4)  E (0,3,4)  F (0,3,0). Floor (A,B,C) (A,C,D); wall (A,D,E) (A,E,F). */
     const vtx_t v[6] = { { { 0, 0, 0 } }, { { 4, 0, 0 } }, { { 4, 0, 4 } }, { { 0, 0, 4 } }, { { 0, 3, 4 } }, { { 0, 3, 0 } } };
@@ -84,6 +84,7 @@ static int corner_mesh(void) {
 static uint8_t luma_buf[W * H];
 static float mul_buf[W * H];
 
+/* Prints one summary line for mul_buf: the texels below 0.9, and the darkest value. */
 static void stats(const char *name) {
     unsigned n = 0, dark = 0, i;
     float lo = 1.0f;
@@ -95,6 +96,7 @@ static void stats(const char *name) {
     printf("ao screen %-16s texels darkened (below 0.9) %5u of %u (%.1f %%), darkest %.3f\n", name, dark, n, 100.0f * dark / n, lo);
 }
 
+/* Checks the cavity on five synthetic scenes (dark ledge, bright wall, flat step, noise, flat grey) and the texel map. */
 static int screen(void) {
     unsigned x, y, i;
     uint32_t s = 12345u;

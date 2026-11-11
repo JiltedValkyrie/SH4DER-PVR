@@ -12,22 +12,26 @@
     The PVR has no depth read-back, so there is no real depth of field. This
     header is the maths for the fake:
 
-    - The blurred copy: the look read's grid (SH4DER_FOCUS_SRC_W x _H, RGB565,
-      the same samples sh4der_look reads, so no second read) is box-blurred on
+    - The blurred copy: the grid sh4der_look reads (SH4DER_FOCUS_SRC_W x _H, RGB565,
+      the same samples, so no second read) is box-blurred on
       the CPU (sh4der_focus_box565) into a power-of-two texture
       (SH4DER_FOCUS_TEX_W x _H, linear, RGB565). The grid sits in its top-left.
     - The mask: sh4der_focus_sharp is 1 where the frame stays sharp (a disc
-      for a scope or zoom, a band for tilt-shift, a rect for a cutscene
+      for a scope or zoom, a band for tilt-shift, a rect for a close-up
       subject) and falls to 0 over SH4DER_FOCUS_FEATHER pixels.
     - The mesh: sh4der_focus_vertex gives one vertex of a strip mesh over the
       frame. Its alpha is the blur amount, 1 - sharp, so the translucent
       textured mesh is blurred where the mask is 0 and sharp where it is 1.
       It is drawn with blend SRC_ALPHA, INV_SRC_ALPHA over the sharp frame.
 
+    Order, per frame: sh4der_focus_box565 on the grid, sh4der_focus_upload,
+    then sh4der_focus_submit.
+
     The client draws the mesh (src/sh4der_focus.c, Dreamcast only) after the
     frame and before the HUD.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_FOCUS_H
@@ -42,7 +46,7 @@ extern "C" {
 
 /** \name Shipped tuning
     @{ */
-#define SH4DER_FOCUS_SRC_W     80      /**< \brief Sample grid across (the look read's grid). */
+#define SH4DER_FOCUS_SRC_W     80      /**< \brief Sample grid across (the grid sh4der_look reads). */
 #define SH4DER_FOCUS_SRC_H     60      /**< \brief Sample grid down. */
 #define SH4DER_FOCUS_TEX_W     128     /**< \brief Blur texture width (PVR: power of 2; the grid is the top-left). */
 #define SH4DER_FOCUS_TEX_H     64      /**< \brief Blur texture height (power of 2). */
@@ -70,18 +74,18 @@ extern "C" {
 enum {
     SH4DER_FOCUS_DISC,   /**< \brief Sharp inside a disc: scope, zoom. */
     SH4DER_FOCUS_BAND,   /**< \brief Sharp inside a horizontal band: tilt-shift. */
-    SH4DER_FOCUS_RECT    /**< \brief Sharp inside a rect: cutscene subject. */
+    SH4DER_FOCUS_RECT    /**< \brief Sharp inside a rect: close-up subject. */
 };
 
 /** \brief The sharp region. Disc: hw = radius. Band: hh = half height. Rect: hw, hh = half sizes. Centre (cx, cy) in pixels. */
 typedef struct sh4der_focus_mask {
-    int shape;
-    float cx, cy;
-    float hw, hh;
+    int shape;                  /**< \brief SH4DER_FOCUS_DISC, _BAND or _RECT. */
+    float cx, cy;               /**< \brief Centre, screen pixels. */
+    float hw, hh;               /**< \brief Disc: hw is the radius. Band: hh is the half height. Rect: the half sizes. Pixels. */
     float feather;   /**< \brief Falloff width, pixels (> 0). */
 } sh4der_focus_mask_t;
 
-/** \brief The mask's shipped shapes. */
+/** \brief The default mask for `shape` (SH4DER_FOCUS_DISC, _BAND or _RECT), centred on the frame, at the shipped sizes and feather. */
 static inline void sh4der_focus_mask_default(sh4der_focus_mask_t *m, int shape) {
     m->shape = shape;
     m->cx = SH4DER_FOCUS_SCREEN_W * 0.5f;
@@ -91,7 +95,7 @@ static inline void sh4der_focus_mask_default(sh4der_focus_mask_t *m, int shape) 
     m->feather = SH4DER_FOCUS_FEATHER;
 }
 
-/** \brief The sharp weight 0..1 at screen pixel (x, y). Each shape is a column feather (sh4der_feather_) on the squared distance. */
+/** \brief The sharp weight 0..1 at screen pixel (x, y), y down from the top left. Each shape is a column feather (sh4der_feather_) on the squared distance. */
 static inline float sh4der_focus_sharp(const sh4der_focus_mask_t *m, float x, float y) {
     const float dx = x - m->cx, dy = y - m->cy;
     switch (m->shape) {
@@ -106,9 +110,9 @@ static inline float sh4der_focus_sharp(const sh4der_focus_mask_t *m, float x, fl
 
 /** \brief A vertex of the focus mesh. eol: last vertex of its strip (one grid row). */
 typedef struct sh4der_focus_vtx {
-    float x, y, u, v;
+    float x, y, u, v;   /**< \brief Screen pixels (x, y), then blur texture coordinates (u, v). At the far edge (u, v) reach SRC / TEX, not 1. */
     uint32_t argb;   /**< \brief White, alpha = blur amount (ARGB8888). */
-    int eol;
+    int eol;         /**< \brief 1: last vertex of its grid row. */
 } sh4der_focus_vtx_t;
 
 /** \brief Vertex k (0 or 1: grid row j or j + 1) of column i in row j. Strips go (i, j), (i, j + 1), (i + 1, j) ... so the

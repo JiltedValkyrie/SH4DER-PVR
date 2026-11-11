@@ -11,7 +11,7 @@
 
 #include <dc/video.h>
 
-/* The column mask: 8 x 8 ARGB1555, alpha 1 on even columns, 0 on odd, black, pre-twiddled (the feed route's table). */
+/* The column mask: 8 x 8 ARGB1555, alpha 1 on even columns, 0 on odd, black, pre-twiddled for the PVR's texture layout. */
 static const uint16_t trail_mask_data[SH4DER_TRAIL_MASK_BYTES / 2] __attribute__((aligned(4))) = {
     0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000,
     0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000,
@@ -19,6 +19,9 @@ static const uint16_t trail_mask_data[SH4DER_TRAIL_MASK_BYTES / 2] __attribute__
     0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000,
 };
 
+/* Set up the trail: copy the column mask into video memory, turn dithering off, set the vertical scale to 1.0.
+   Returns the mask texture, or NULL when video memory is short (sh4der_trail_mask then draws nothing). Uses the PVR,
+   so call it after the PVR is up. */
 pvr_ptr_t sh4der_trail_setup(void) {
     pvr_ptr_t mask = pvr_mem_malloc(SH4DER_TRAIL_MASK_BYTES);
     if (!mask) return NULL;
@@ -28,6 +31,8 @@ pvr_ptr_t sh4der_trail_setup(void) {
     return mask;
 }
 
+/* Read the front buffer into s: its address, the 64-bit half it maps to, and a texture stride of 640 for the copy passes.
+   Call it before sh4der_trail_draw or sh4der_trail_draw_taa, so the copies read the buffer that holds the last frame. */
 void sh4der_trail_src_get(sh4der_trail_src_t *s) {
     s->fb = pvr_get_front_buffer();
     s->flat = 0;
@@ -46,6 +51,7 @@ static void trail_quad_hdr(pvr_poly_cxt_t *c, pvr_poly_hdr_t *hdr, int src, int 
     pvr_poly_compile(hdr, c);
 }
 
+/* Draw a full-screen quad of one flat colour on the TR list, untextured, with the given blend factors. */
 static void trail_flat(int src, int dst, uint32_t argb, float z) {
     pvr_poly_cxt_t c;
     pvr_poly_hdr_t hdr;
@@ -63,11 +69,15 @@ static void trail_flat(int src, int dst, uint32_t argb, float z) {
     }
 }
 
+/* First pass of the trail: a full-screen colour quad on the TR list. The alpha byte of argb is cleared before the quad is
+   drawn. z is the depth in the TR sort. */
 void sh4der_trail_keep(uint32_t argb, float z) {
     /* DESTCOLOR in the destination slot is the source colour: the frame x the colour per channel; alpha 0 clears the old destination alpha */
     trail_flat(PVR_BLEND_ZERO, PVR_BLEND_DESTCOLOR, argb & 0x00ffffffu, z);
 }
 
+/* Second pass of the trail: the column mask, repeated over the screen (UVs run 0 .. 80 across and 0 .. 60 down, so the 8 x 8 mask repeats), on the TR list.
+   Textured (ARGB1555, 8 x 8, point sampled, REPLACE). Draws nothing when mask is NULL. */
 void sh4der_trail_mask(pvr_ptr_t mask, float z) {
     pvr_poly_cxt_t c;
     pvr_poly_hdr_t hdr;
@@ -117,12 +127,16 @@ static void trail_copy_pass(const sh4der_trail_src_t *s, int odd, int dx, int dy
         }
 }
 
+/* Copy the history moved by (dx, dy): the even-column pass at z, then the odd-column pass at z + 1. argb's alpha
+   byte is cleared, so the passes leave the mask's alpha alone. */
 void sh4der_trail_copy(const sh4der_trail_src_t *s, int dx, int dy, uint32_t argb, float z) {
     const uint32_t col = argb & 0x00ffffffu;   /* alpha 0: the passes leave the mask's alpha as it is */
     trail_copy_pass(s, 0, dx, dy, col, z);
     trail_copy_pass(s, 1, dx, dy, col, z + 1.0f);
 }
 
+/* The full trail on the TR list, in this order: keep at z, mask at z + 1, then up to SH4DER_TRAIL_COPIES copies at
+   z + 2 + 2k. Draws nothing when weight is 0 or copies is 0 or less. Call sh4der_trail_src_get first. */
 void sh4der_trail_draw(const sh4der_trail_src_t *s, pvr_ptr_t mask, const sh4der_trail_frame_t *f, float z) {
     if (!(f->weight > 0.0f) || f->copies <= 0) return;
     sh4der_trail_keep(sh4der_taa_keep_argb(f->weight), z);
@@ -131,6 +145,8 @@ void sh4der_trail_draw(const sh4der_trail_src_t *s, pvr_ptr_t mask, const sh4der
         sh4der_trail_copy(s, f->dx[k], f->dy[k], sh4der_taa_add_argb(f->copy_w), z + 2.0f + 2.0f * (float)k);
 }
 
+/* The TAA form of the trail: keep at z, mask at z + 1, then one copy at z + 2, moved by copy_px. Draws nothing when
+   weight is 0 or cut is set. Call sh4der_trail_src_get first. */
 void sh4der_trail_draw_taa(const sh4der_trail_src_t *s, pvr_ptr_t mask, const sh4der_taa_frame_t *f, float z) {
     if (!(f->weight > 0.0f) || f->cut) return;
     sh4der_trail_keep(sh4der_taa_keep_argb(f->weight), z);

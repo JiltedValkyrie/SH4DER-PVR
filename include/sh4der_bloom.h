@@ -17,7 +17,7 @@
       axis. 3 rows (the root, the blade tip, a tail past the tip at 0) by 5
       columns (edge, mid, centre, mid, edge), the feather across. Each vertex
       takes the blade's own tubes at that point (the swirl brightens that side),
-      the pulse, and a boost where the blocker passes (the energy knot).
+      the pulse, and a boost where the blocker passes (the bright knot).
     - The disc: a feathered disc facing the camera (centre and RIM rim vertices,
       one pointing down the blade): the tip bloom, a lens flare: full when the
       tip points at the eye, a low floor side-on. sh4der_bloom_disc() is
@@ -29,6 +29,7 @@
     one), depth tested, no depth write, with the blade.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_BLOOM_H
@@ -45,10 +46,10 @@ extern "C" {
 #define SH4DER_BLOOM_RIM    8                     /**< \brief Tip disc rim vertices (8: no hexagonal flat beyond the tip). */
 #define SH4DER_BLOOM_DISC_MAX 24                  /**< \brief Rim vertices sh4der_bloom_disc_n() takes at most (a round glow: 16). */
 #define SH4DER_BLOOM_VERTS  24                    /**< \brief ROWS x COLS + 1 + RIM. */
-#define SH4DER_BLOOM_TRIS   24                    /**< \brief (ROWS-1) x (COLS-1) x 2 + RIM: the budget, 24 a sword. */
+#define SH4DER_BLOOM_TRIS   24                    /**< \brief (ROWS-1) x (COLS-1) x 2 + RIM: the budget, 24 for one blade. */
 
-/** \name Shipped tuning: the game's sword (sh4der_bloom_params_default())
-    Lengths in the blade's units (Halo world units on the sword's node).
+/** \name Shipped tuning: a glowing blade (sh4der_bloom_params_default())
+    Lengths in the blade's own units (its node space).
     @{ */
 #define SH4DER_BLOOM_X0          -0.065f  /**< \brief Ribbon root along the axis: the blade's base, at level ROOT (0: no edge). */
 #define SH4DER_BLOOM_X1          0.35f    /**< \brief The blade tip along the axis (the disc's centre). */
@@ -99,7 +100,7 @@ typedef struct sh4der_bloom_mesh {
 /** \brief The triangles: the ribbon's 16 (row-major quads), then the disc's 6 (centre = vertex 15). */
 extern const uint8_t sh4der_bloom_tris[SH4DER_BLOOM_TRIS][3];
 
-/** \brief The game's sword (the SH4DER_BLOOM_* values). */
+/** \brief The default blade bloom tuning (the SH4DER_BLOOM_* values). */
 void sh4der_bloom_params_default(sh4der_bloom_params_t *params);
 
 /** \brief The MAX WHITE test (the SH4DER_BLOOM_MAX_* values over the default). */
@@ -109,7 +110,13 @@ void sh4der_bloom_params_max(sh4der_bloom_params_t *params);
 int sh4der_bloom_params_valid(const sh4der_bloom_params_t *params);
 
 /** \brief A feathered disc facing `eye`: xyz[0] the centre at level `peak`, xyz[1..RIM] the rim at 0.
-    Any glow point (the tip bloom, a chest light). */
+    Any glow point (the tip bloom, a light on a hologram's chest).
+    \param xyz Output: 1 + RIM positions. xyz[0] is the centre.
+    \param level Output: one level per position (the rim is 0).
+    \param centre Disc centre, in the blade's space.
+    \param radius Disc radius, same units.
+    \param eye Camera position, same space: the disc faces it.
+    \param peak Level at the centre. */
 void sh4der_bloom_disc(float xyz[][3], float level[], const float centre[3], float radius, const float eye[3], float peak);
 
 /** \brief The same disc with `rim` rim vertices (3..SH4DER_BLOOM_DISC_MAX; clamped): rounder, rim triangles

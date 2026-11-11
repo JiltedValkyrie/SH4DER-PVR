@@ -3,10 +3,9 @@
    test/blade_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check: the shipped sword numbers at fixed ticks and points (the
-   storyboard's reference maths), the early-outs against a plain formula
-   with none, the period closing, the fade, bad params, and the shade and
-   packed-colour loops against the per-vertex call.
+   Host check of the blade effect: pinned numbers at fixed ticks and points, the
+   early-outs against a plain formula, the period closing, the fade, the ripples,
+   bad params, the shade and packed-colour loops, and the tube and blocker centres.
 */
 
 #include <math.h>
@@ -79,7 +78,8 @@ static float reference(const sh4der_blade_params_t *p, uint32_t tick, float fade
     }
 }
 
-/* tools/sh4der_storyboard.py sh4der_ref, rounded to 4 places. */
+/* Checks the default blade at fixed ticks and points against pinned values from an offline reference script
+   (sh4der_ref), rounded to 4 places. */
 static int shipped(void) {
     static const struct { uint32_t tick; float x, y, z, want; } pin[] = {
         {0, 0.20f, 0.0f, 0.06f, 0.4112f},   {0, 0.20f, 0.0f, -0.05f, 0.2200f},  {0, 0.33f, 0.0f, 0.01f, 0.2200f},
@@ -124,7 +124,7 @@ static float rnd(float lo, float hi) {
     return lo + (hi - lo) * (float)(rng >> 8) / 16777216.0f;
 }
 
-/* Early-outs and tables against the plain formula, over the sword's box and around it. */
+/* Early-outs and tables against the plain formula, over the blade's box and around it. */
 static int against_reference(void) {
     sh4der_blade_params_t p;
     sh4der_blade_frame_t f;
@@ -162,6 +162,7 @@ static int against_reference(void) {
     return 0;
 }
 
+/* Checks that the period closes, that the loop seam joins, and the fade and light swing edge cases. */
 static int period_and_fade(void) {
     sh4der_blade_params_t p;
     sh4der_blade_frame_t f, g;
@@ -174,7 +175,7 @@ static int period_and_fade(void) {
         if (sh4der_blade_intensity(&f, 0.2f, 0.0f, 0.06f) != sh4der_blade_intensity(&g, 0.2f, 0.0f, 0.06f))
             return fail("period does not close");
     }
-    /* the loop is seamless: the last tick is next to the first */
+    /* the loop closes: the last tick is next to the first */
     sh4der_blade_prepare(&f, &p, SH4DER_BLADE_PERIOD - 1, 1.0f);
     sh4der_blade_prepare(&g, &p, 0, 1.0f);
     if (!near(f.glow, g.glow, 0.001f) || !near(f.tube_y[0], g.tube_y[0], 0.003f) || !near(f.tube_z[1], g.tube_z[1], 0.003f))
@@ -198,7 +199,7 @@ static int period_and_fade(void) {
     return 0;
 }
 
-/* Ripples along the axis: off by default (the shipped sword's intensities unchanged); on, a crest keeps the light and a trough takes `depth` of it. */
+/* Ripples along the axis: off by default (the default intensities unchanged); on, a crest keeps the light and a trough takes `depth` of it. */
 static int ripples(void) {
     sh4der_blade_params_t p;
     sh4der_blade_frame_t f, g;
@@ -224,6 +225,7 @@ static int ripples(void) {
     return 0;
 }
 
+/* Checks that each invalid param set is refused and gives a dark frame, and that a NULL params pointer is refused. */
 static int bad_params(void) {
     sh4der_blade_params_t p;
     sh4der_blade_frame_t f;
@@ -254,6 +256,7 @@ static int bad_params(void) {
     return 0;
 }
 
+/* Checks that the shade and packed-colour loops give the same values as the per-vertex call. */
 static int loops(void) {
     struct { float xyz[3]; uint8_t pad[12]; } v[40];
     uint32_t argb[40 * 2];

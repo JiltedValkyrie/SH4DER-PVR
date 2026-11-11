@@ -10,6 +10,8 @@
 
 #ifdef _arch_dreamcast
 
+/* One quad: four vertices at (x, y), w by h, depth z, with per-corner texture coordinates u and v and colour argb. Written with
+   pvr_prim (copies, not direct render). The caller passes the header. */
 static void glow_quad(const pvr_poly_hdr_t *hdr, float x, float y, float w, float h, float z,
                       const float u[4], const float v[4], const uint32_t argb[4]) {
     int q;
@@ -28,12 +30,15 @@ static void glow_quad(const pvr_poly_hdr_t *hdr, float x, float y, float w, floa
     }
 }
 
+/* Frees both glow textures and clears the pointers. Safe after a failed init. */
 void sh4der_glow_free(sh4der_glow_t *g) {
     if (g->big) pvr_mem_free(g->big);
     if (g->small) pvr_mem_free(g->small);
     g->big = g->small = NULL;
 }
 
+/* Compiles a glow texture header for the translucent list: RGB565 linear texture, bilinear filter, no culling, depth always passes with
+   no write, ADD blend (ONE / ONE), texture coordinates clamped. */
 static void glow_header_txr(pvr_poly_hdr_t *hdr, pvr_ptr_t tex, int w, int h) {
     pvr_poly_cxt_t c;
     pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, w, h, tex, PVR_FILTER_BILINEAR);
@@ -48,6 +53,8 @@ static void glow_header_txr(pvr_poly_hdr_t *hdr, pvr_ptr_t tex, int w, int h) {
     pvr_poly_compile(hdr, &c);
 }
 
+/* Allocates the big and small glow textures, fills the lookup table, and compiles the two texture headers and the darken header.
+   Returns 0, and frees what it took, when allocation fails. Call once at setup. */
 int sh4der_glow_init(sh4der_glow_t *g) {
     pvr_poly_cxt_t c;
     memset(g, 0, sizeof(*g));
@@ -60,7 +67,7 @@ int sh4der_glow_init(sh4der_glow_t *g) {
     sh4der_glow_lut(g->lut);
     glow_header_txr(&g->hdr_big, g->big, SH4DER_GLOW_TEX_W, SH4DER_GLOW_TEX_H);
     glow_header_txr(&g->hdr_small, g->small, SH4DER_GLOW_SMALL_TEX_W, SH4DER_GLOW_SMALL_TEX_H);
-    /* MULTIPLY: dst x colour (src ZERO, dst "source colour" as the look layers write it). */
+    /* MULTIPLY: frame x colour (src ZERO, dst DESTCOLOR). */
     pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.fog_type = PVR_FOG_DISABLE;
@@ -72,6 +79,10 @@ int sh4der_glow_init(sh4der_glow_t *g) {
     return 1;
 }
 
+/* Per frame. grid holds GRID_X x GRID_Y RGB565 luma samples, converted through the lookup table. When keep is set, each channel
+   keeps keep / 256 of the old texel and takes the rest from the new one. Writes the big stage, shrinks it into the small stage, and
+   loads both textures with pvr_txr_load. Returns the mean luma of the new grid, 0..1. Call once per frame, after the list's wait
+   (see sh4der_glow.h). */
 float sh4der_glow_upload(sh4der_glow_t *g, const uint16_t grid[SH4DER_GLOW_GRID_X * SH4DER_GLOW_GRID_Y]) {
     unsigned long sum = 0;
     unsigned x, y;
@@ -92,6 +103,9 @@ float sh4der_glow_upload(sh4der_glow_t *g, const uint16_t grid[SH4DER_GLOW_GRID_
     return sh4der_div_((float)sum, 255.0f * (float)(SH4DER_GLOW_GRID_X * SH4DER_GLOW_GRID_Y));
 }
 
+/* Draws the wide halo over the rectangle, in the translucent list. First, if darken > 0, a multiply layer of 1 - darken at depth z.
+   Then the big map at weight big, at z + 0.25, and the small shrink at weight small, at z + 0.5. Both ADD. radius splits strength
+   between the two (sh4der_glow_halo). A layer with weight 0 is skipped. */
 void sh4der_glow_draw_halo(const sh4der_glow_t *g, float x, float y, float w, float h, float z, float strength, float radius, float darken) {
     static const float cu[4] = { 0.0f, 1.0f, 0.0f, 1.0f }, cv[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
     float u[4], v[4], big, small;
@@ -124,6 +138,7 @@ void sh4der_glow_draw_halo(const sh4der_glow_t *g, float x, float y, float w, fl
 /* One copy of the map over the rectangle, scaled by s about (su, sv), as a SH4DER_GLOW_MESH_X x _Y grid of strips: the fade is by each vertex's own distance from the
    sun, so a sun in the middle of the screen keeps its rays (four corners alone gave the corners' fade: about none there). i: the copy's number (its weight), 0: `flat`
    on every vertex (a shaft copy). */
+/* Copies are drawn in the translucent list with the big map's header, which is ADD. */
 static void glow_copy(const sh4der_glow_t *g, float x, float y, float w, float h, float z, float s, float su, float sv, int i, float sun_fade, float share, float flat) {
     int gx, gy, k;
     for (gy = 0; gy < SH4DER_GLOW_MESH_Y; gy++) {
@@ -144,6 +159,9 @@ static void glow_copy(const sh4der_glow_t *g, float x, float y, float w, float h
     }
 }
 
+/* Adds rays from the sun at (su, sv), its position in the map. rays is clamped to 1 .. 6. Ray copy i is at depth z + 0.05 i and scaled by
+   sh4der_glow_ray_scale(i). Each copy's weight comes from the sun's fade and share. Draws nothing when sun_fade x share is 0 or below
+   (sun off screen or unlit). Translucent list. */
 void sh4der_glow_draw_rays(const sh4der_glow_t *g, float x, float y, float w, float h, float z, float su, float sv, float share, int rays) {
     const float sun_fade = sh4der_glow_sun_fade(su, sv);
     int i;
@@ -154,6 +172,8 @@ void sh4der_glow_draw_rays(const sh4der_glow_t *g, float x, float y, float w, fl
         glow_copy(g, x, y, w, h, z + 0.05f * (float)i, sh4der_glow_ray_scale(i), su, sv, i, sun_fade, share, 0.0f);
 }
 
+/* Adds one shaft copy at scale about (au, av). Its flat colour is set by weight, clamped to 0..1. Draws nothing when weight is 0 or
+   below. Translucent list, ADD. */
 void sh4der_glow_draw_shaft(const sh4der_glow_t *g, float x, float y, float w, float h, float z, float au, float av, float scale, float weight) {
     if (!(weight > 0.0f)) return;
     glow_copy(g, x, y, w, h, z, scale, au, av, 0, 0.0f, 0.0f, sh4der_sat_(weight));

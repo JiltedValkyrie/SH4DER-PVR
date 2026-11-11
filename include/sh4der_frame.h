@@ -26,10 +26,16 @@
     hot pixel alone in its cell, a texture's grain or a letter's stroke, lights
     nothing).
 
+    Order, per frame: sh4der_frame_next (the stamp, and what the frame is
+    drawn with), the draw, then sh4der_frame_stamp_draw last so it sits over
+    everything, then sh4der_frame_read once the scene is on the screen. The
+    read's stamp names the frame it found.
+
     sh4der_frame_degain takes a gain off a grid (the glow wants the scene, not
     the scene times the eye). sh4der_frame_hot is the sun's "looked at" term.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_FRAME_H
@@ -66,7 +72,11 @@ static inline void sh4der_frame_hist_reset(sh4der_frame_hist_t *h) {
     for (i = 0; i < SH4DER_FRAME_HISTORY; i++) { h->gain[i] = 1.0f; h->gain_ln[i] = 0.0f; h->glow[i] = 0.0f; }
 }
 
-/** \brief The next frame: its stamp, and what it is being drawn with. Returns the stamp. */
+/** \brief The next frame: its stamp, and what it is being drawn with. Returns the stamp (0..7).
+    \param h The history.
+    \param gain The eye's gain laid over this frame (1: none).
+    \param gain_ln Its natural log.
+    \param glow Glow strength drawn on this frame, all passes (0: none). */
 static inline unsigned sh4der_frame_next(sh4der_frame_hist_t *h, float gain, float gain_ln, float glow) {
     h->id = (h->id + 1u) & (SH4DER_FRAME_HISTORY - 1u);
     h->gain[h->id] = gain;

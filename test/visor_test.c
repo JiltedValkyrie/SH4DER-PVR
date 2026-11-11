@@ -30,6 +30,7 @@ static float through(const sh4der_look_layer_t *l, int n, int c, float x) {
     return x;
 }
 
+/* Presets: bad modes refused, amount 0 neutral, night is green, amber is warm. */
 static int presets(void) {
     sh4der_visor_desc_t d;
     sh4der_look_grade_t g;
@@ -58,6 +59,7 @@ static int presets(void) {
     return 0;
 }
 
+/* The thermal ramp's affine fit: worst error on grey input (must stay under 0.25) and on pure red, printed. */
 static int thermal_fit(void) {
     float gain[3], lift[3];
     int c, k;
@@ -82,6 +84,7 @@ static int thermal_fit(void) {
     return 0;
 }
 
+/* The thermal LUT ends (cold blue, hot white) and the grid lookup for white and black input. */
 static int thermal_map(void) {
     static uint16_t lut[SH4DER_VISOR_LUT_BINS];
     static uint16_t src[SH4DER_FOCUS_SRC_W * SH4DER_FOCUS_SRC_H];
@@ -101,6 +104,7 @@ static int thermal_map(void) {
     return 0;
 }
 
+/* The grain tile (amp 0 all white, amp 0.3 keeps the top 5 bits in 21..31), the tile byte sizes, and the scan rows. */
 static int tiles(void) {
     static uint16_t g[SH4DER_VISOR_GRAIN_TEX * SH4DER_VISOR_GRAIN_TEX];
     static uint16_t s[SH4DER_VISOR_SCAN_TEX * SH4DER_VISOR_SCAN_TEX];
@@ -121,6 +125,7 @@ static int tiles(void) {
     return 0;
 }
 
+/* The vignette alpha at full, zero and half amount, and the fade in and out envelopes. */
 static int vignette_and_fade(void) {
     sh4der_visor_fade_t f = { 0.0f };
     float a;

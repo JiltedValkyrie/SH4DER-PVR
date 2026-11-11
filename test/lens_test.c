@@ -3,11 +3,11 @@
    test/lens_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of the lens effects: the vignette's metric, falloff and mesh
-   (rings, the screen edge, the colour the blender gets after Gouraud across
-   each triangle against the exact curve), the grain tile's mean and the
-   mean-neutral boost, the frame offsets, the damage slots, the wedge
-   geometry and the flash envelope.
+   Host check of the lens effects: the vignette metric and falloff, the
+   vignette mesh (rings, rim, and the Gouraud colour across each triangle
+   against the exact curve), the grain tile and its mean-neutral boost, the
+   frame offsets, the hit indicators and their wedge geometry, and the flash
+   envelope.
 */
 
 #include <math.h>
@@ -26,6 +26,7 @@ static int fail(const char *msg) {
 
 static int near(float a, float b, float tol) { return fabsf(a - b) <= tol; }
 
+/* The vignette metric for 4:3, 16:9 and the circle, and the falloff from 1 to 1 - strength. */
 static int metric_and_falloff(void) {
     sh4der_lens_vig_t v;
     float m_prev = 2.0f;
@@ -116,6 +117,7 @@ static int mesh_check(unsigned spokes, unsigned rings, float *worst_out) {
     return 0;
 }
 
+/* The grain tile: level range, seed, texel format, mean near one half, the mean-neutral boost, frame offsets. */
 static int grain(void) {
     uint32_t sum = 0, i, texels = (uint32_t)SH4DER_LENS_GRAIN_TILE * SH4DER_LENS_GRAIN_TILE;
     uint32_t seen[16] = { 0 };
@@ -154,6 +156,7 @@ static int grain(void) {
     return 0;
 }
 
+/* The hit indicators: merging, the slot limit, the alpha envelope and the wedge geometry on the screen edges. */
 static int hits(void) {
     sh4der_lens_hit_t s[SH4DER_LENS_HIT_MAX];
     sh4der_lens_vtx_t q[4];
@@ -209,6 +212,7 @@ static int hits(void) {
     return 0;
 }
 
+/* The flash: the target keeps the peak, the level rises to the peak and decays, the colour alpha in each mode. */
 static int flash(void) {
     sh4der_lens_flash_t f;
     float t, lvl_peak = 0.0f, late;

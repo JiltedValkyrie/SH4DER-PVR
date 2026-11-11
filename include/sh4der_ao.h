@@ -15,10 +15,10 @@
     - Crease (sh4der_ao_edge_concave, sh4der_ao_crease_factor): at a concave
       edge, the face the other face rises from is darker. The caller sums the
       concave amount of a vertex's edges and multiplies the vertex colour by the
-      factor. Done at bake time it costs nothing at runtime: the BSP's vertex
-      colour already is the lightmap, so the factor multiplies into it.
+      factor. Done at bake time it costs nothing at runtime: the baked vertex
+      colour already holds the light, so the factor multiplies into it.
     - Screen cavity (sh4der_ao_screen, sh4der_ao_grid): on an 80 x 60 luma grid
-      of the frame on screen (the look read), a texel brighter than the mean of
+      of the frame on screen (the grid sh4der_look reads), a texel brighter than the mean of
       the texels above it is darkened by how much brighter. The darkened grid
       (sh4der_ao_texel565) is a multiply map drawn over the frame. This cannot
       tell a crease from an edge in the texture: it is a cue, not AO.
@@ -27,6 +27,7 @@
     integer. Define SH4DER_CORE_NO_SH4ZAM for the plain C path.
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_AO_H
@@ -43,7 +44,7 @@ extern "C" {
     @{ */
 #define SH4DER_AO_CREASE_K     0.5f    /**< \brief Vertex factor at a full concave crease is 1 - this (0.5: half the colour). */
 #define SH4DER_AO_CREASE_FULL  2.0f    /**< \brief Sum of concave edge amounts at a vertex that counts as full (two right-angle edges). */
-#define SH4DER_AO_SCR_GRID_X   80      /**< \brief Screen grid across (the look read's grid). */
+#define SH4DER_AO_SCR_GRID_X   80      /**< \brief Screen grid across (the grid sh4der_look reads). */
 #define SH4DER_AO_SCR_GRID_Y   60      /**< \brief Screen grid down. */
 #define SH4DER_AO_SCR_K        0.5f    /**< \brief Multiply at full cavity is 1 - this. */
 #define SH4DER_AO_SCR_ENGAGE   0.2f    /**< \brief Brighter-than-above ratio below which nothing is darkened (the luma noise floor). */

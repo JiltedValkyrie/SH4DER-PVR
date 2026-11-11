@@ -24,13 +24,14 @@ static int fail(const char *msg) {
 
 static int near(float a, float b, float tol) { return fabsf(a - b) <= tol; }
 
+/* Checks the threshold table: its ends, zero below the threshold, the half-way value, and that it never falls. */
 static int threshold_table(void) {
     uint8_t lut[256];
     int i;
     sh4der_glow_lut(lut);
     if (lut[0] != 0 || lut[255] != 255)
         return fail("lut ends");
-    /* at the threshold (62 / 255 = 0.243 luma? no: threshold 0.62 = 158 / 255) the weight is 0 */
+    /* At the threshold (0.62 = 158 / 255) the weight is 0. */
     if (lut[158] != 0 || lut[157] != 0)
         return fail("lut below threshold is not zero");
     /* a half-way luma above the threshold: t = 0.5, weight 0.25 (power 2) */
@@ -48,6 +49,7 @@ static int threshold_table(void) {
     return 0;
 }
 
+/* Checks the texel pack: white, black and dim texels, the RGB565 channel ends, and a bright yellow texel glowing. */
 static int texel_pack(void) {
     uint8_t lut[256];
     uint16_t white = 0xffffu, black = 0x0000u, dim = 0x2104u;   /* dim: about luma 0.13: below threshold */
@@ -68,6 +70,7 @@ static int texel_pack(void) {
     return 0;
 }
 
+/* Checks the 4 x 4 shrink: a flat frame stays flat, and one hot texel contributes its mean to its own cell only. */
 static int shrink(void) {
     uint16_t src[SH4DER_GLOW_GRID_X * SH4DER_GLOW_GRID_Y];
     uint16_t dst[SH4DER_GLOW_SMALL_X * SH4DER_GLOW_SMALL_Y];
@@ -89,6 +92,7 @@ static int shrink(void) {
     return 0;
 }
 
+/* Checks the halo split of a strength between the map and the shrink: half, both ends, and that the two sum to the strength. */
 static int halo_split(void) {
     float big, small;
     sh4der_glow_halo(0.5f, 0.5f, &big, &small);
@@ -106,6 +110,7 @@ static int halo_split(void) {
     return 0;
 }
 
+/* Checks the darken balance: a neutral scene keeps its mean, no map or a black frame gives no darken, and a bright map is capped. */
 static int darken_balance(void) {
     /* neutral scene: frame mean F, map mean Mg. (1 - D) F + S Mg == F exactly when D is not capped. */
     const float F = 0.3f, Mg = 0.1f, S = 0.5f;
@@ -127,6 +132,7 @@ static int darken_balance(void) {
     return 0;
 }
 
+/* Checks the mean luma of half white pixels against 0.5. */
 static int mean_luma(void) {
     uint16_t px[4] = { 0xffff, 0xffff, 0, 0 };
     if (!near(sh4der_glow_mean_luma(px, 4), 0.5f, 0.01f))
@@ -134,6 +140,7 @@ static int mean_luma(void) {
     return 0;
 }
 
+/* Checks the ray scales and weights, and the ray mapping: the sun maps to itself, the map edge is a texel centre, and a scaled copy samples about the sun. */
 static int rays(void) {
     int i;
     float prev = 1e9f;
@@ -167,6 +174,7 @@ static int rays(void) {
     return 0;
 }
 
+/* Checks the sun and ray fades: full on screen, gone past the edge and reach, smooth just off screen, and the sun share clamped. */
 static int fades(void) {
     float c;
     if (!near(sh4der_glow_sun_fade(0.5f, 0.5f), 1.0f, 1e-6f))

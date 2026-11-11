@@ -9,6 +9,7 @@
 
 #ifdef _arch_dreamcast
 
+/* Frees every frame texture in g and clears g->n. Safe with NULL. */
 void sh4der_ca_shutdown(sh4der_ca_gpu_t *g) {
     unsigned i;
     if (!g)
@@ -21,6 +22,9 @@ void sh4der_ca_shutdown(sh4der_ca_gpu_t *g) {
     g->n = 0;
 }
 
+/* Holds n frame textures, each in PVR memory: half size when half is non-zero, else full size. n is capped at SH4DER_CA_TEXTURES.
+   An existing set of the same size and count is kept. On failure nothing is kept, short_kb is set to the KB still missing (or to one
+   texture's KB when the free memory is in pieces), and 0 is returned. On success the texture stride is set to the render width. */
 int sh4der_ca_setup(sh4der_ca_gpu_t *g, int half, unsigned n) {
     unsigned i, bytes;
     if (!g)
@@ -54,12 +58,16 @@ int sh4der_ca_setup(sh4der_ca_gpu_t *g, int half, unsigned n) {
     return 1;
 }
 
+/* Starts a render into frame texture i at the texture's own size. Returns the result of pvr_scene_begin_rtt, or -1 when i is out of
+   range or its texture is not held. The caller ends the render. */
 int sh4der_ca_begin(const sh4der_ca_gpu_t *g, unsigned i) {
     if (!g || i >= g->n || !g->tex[i])
         return -1;
     return pvr_scene_begin_rtt(g->tex[i], g->size.w, g->size.h, g->size.w);   /* KOS: a sized render to texture, the stride its width */
 }
 
+/* Compiles a header that draws frame texture i in list. The texture is RGB565, linear (not twiddled), with a 32-bit stride. Culling is
+   off, and depth always passes with no write. Texture alpha is off and src / dst are set only in the translucent list. */
 static void ca_header(const sh4der_ca_gpu_t *g, unsigned i, pvr_poly_hdr_t *hdr, int list, int filter, int env, int src, int dst) {
     pvr_poly_cxt_t c;
     pvr_poly_cxt_txr(&c, list, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED | PVR_TXRFMT_X32_STRIDE, (int)g->size.tex_w, (int)g->size.tex_h, g->tex[i], filter);
@@ -75,6 +83,10 @@ static void ca_header(const sh4der_ca_gpu_t *g, unsigned i, pvr_poly_hdr_t *hdr,
     pvr_poly_compile(hdr, &c);
 }
 
+/* Puts frame texture i on screen as one 640 x 480 quad at (dx, dy), scaled by scale, at depth z. alpha 1 gives an opaque quad in the
+   opaque list. Under 1 it is a translucent quad in the translucent list, blended SRC_ALPHA / INV_SRC_ALPHA at that share. Half-size
+   textures are filtered and use texel centres. Full size maps the picture's own edges 1 : 1. Vertices are written straight into the
+   store queue by KOS direct render (pvr_dr_target / pvr_dr_commit), so do not upload a texture between the vertices of one quad. */
 void sh4der_ca_quad(const sh4der_ca_gpu_t *g, unsigned i, float alpha, float dx, float dy, float z, float scale) {
     pvr_poly_hdr_t hdr;
     const int blend = alpha < 1.0f;
@@ -106,6 +118,11 @@ void sh4der_ca_quad(const sh4der_ca_gpu_t *g, unsigned i, float alpha, float dx,
     }
 }
 
+/* Draws one colour channel (chan) of frame texture i over a w x h area, at depth z. It is SH4DER_CA_MESH_Y strips, each of
+   SH4DER_CA_MESH_X + 1 columns of two vertices, with one list header per strip. Each vertex's texture coordinates come from
+   sh4der_ca_sample, which moves the sample point (the aberration). Green goes in the opaque list. Red and blue go in the translucent
+   list, added (ONE, ONE). Draws nothing when w or h is not above 0. Vertices come from KOS direct render, the same rule as
+   sh4der_ca_quad. */
 void sh4der_ca_channel(const sh4der_ca_gpu_t *g, unsigned i, int chan, float strength, float w, float h, float z) {
     pvr_poly_hdr_t hdr;
     const int add = chan != SH4DER_CA_GREEN;

@@ -34,6 +34,7 @@ static void visor_quad(float u0, float v0, float u1, float v1, uint32_t argb, fl
     }
 }
 
+/* Compile an untextured TR header with culling off. src and dst are the blend factors, as PVR_BLEND_* values. */
 static void compile_col(pvr_poly_hdr_t *hdr, int src, int dst) {
     pvr_poly_cxt_t cxt;
     pvr_poly_cxt_col(&cxt, PVR_LIST_TR_POLY);
@@ -43,6 +44,8 @@ static void compile_col(pvr_poly_hdr_t *hdr, int src, int dst) {
     pvr_poly_compile(hdr, &cxt);
 }
 
+/* Make the headers and the two video memory textures (grain, scanline) for the visor. Returns 0 on success. Returns -1
+   when the focus init fails or video memory is short; a texture that was taken is freed again in that case. */
 int sh4der_visor_init(sh4der_visor_gpu_t *g) {
     pvr_poly_cxt_t cxt;
     if (sh4der_focus_init(&g->thermal) != 0)
@@ -79,6 +82,8 @@ int sh4der_visor_init(sh4der_visor_gpu_t *g) {
     return 0;
 }
 
+/* Draw n look layers in order, each as one full-screen colour quad on the TR list with its blend header. Each layer
+   blends with the frame as it stands after the layers before it. A layer whose kind is not one of the four is skipped. */
 void sh4der_visor_draw_grade(const sh4der_visor_gpu_t *g, const sh4der_look_layer_t *l, int n) {
     int i;
     for (i = 0; i < n; i++) {
@@ -89,12 +94,16 @@ void sh4der_visor_draw_grade(const sh4der_visor_gpu_t *g, const sh4der_look_laye
     }
 }
 
+/* Draw the thermal layer over the full screen on the TR list: the focus thermal texture, with alpha set from amount
+   (clamped to 0..1). */
 void sh4der_visor_draw_thermal(const sh4der_visor_gpu_t *g, float amount) {
     const uint32_t a = (uint32_t)(sh4der_sat_(amount) * 255.0f + 0.5f);
     pvr_prim(&g->thermal.hdr, sizeof(pvr_poly_hdr_t));
     visor_quad(0.0f, 0.0f, sh4der_focus_uv_max_u(), sh4der_focus_uv_max_v(), (a << 24) | 0x00ffffffu, SH4DER_VISOR_Z, 1);
 }
 
+/* Draw the grain over the full screen on the TR list, multiplied over the frame. The texture offset changes with frame,
+   so the grain moves from frame to frame. */
 void sh4der_visor_draw_grain(const sh4der_visor_gpu_t *g, unsigned frame) {
     /* scroll the tile across the screen: 640 / 32 = 20 tiles across, 480 / 32 = 15 down */
     const float du = (float)(frame % 97u) * SH4DER_VISOR_GRAIN_SPEED_U;
@@ -104,12 +113,16 @@ void sh4der_visor_draw_grain(const sh4der_visor_gpu_t *g, unsigned frame) {
                0xffffffffu, SH4DER_VISOR_Z, 1);
 }
 
+/* Draw the scanline texture over the full screen on the TR list, multiplied over the frame. It repeats down the screen. */
 void sh4der_visor_draw_scanline(const sh4der_visor_gpu_t *g) {
     const float tiles = SH4DER_FOCUS_SCREEN_H / (float)(SH4DER_VISOR_SCAN_TEX * SH4DER_VISOR_SCAN_PX);
     pvr_prim(&g->scan_hdr, sizeof(pvr_poly_hdr_t));
     visor_quad(0.0f, 0.0f, 1.0f, tiles, 0xffffffffu, SH4DER_VISOR_Z, 1);
 }
 
+/* Draw the vignette over the frame on the TR list: black with alpha, from the disc mask. The mask is a grid of
+   SH4DER_FOCUS_GRID_Y rows, each a strip of SH4DER_FOCUS_GRID_X + 1 columns, two vertices a column. Untextured. Per-vertex
+   alpha comes from strength and amount. */
 void sh4der_visor_draw_vignette(const sh4der_visor_gpu_t *g, float strength, float amount) {
     sh4der_focus_mask_t m;
     unsigned i, j, k;

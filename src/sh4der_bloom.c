@@ -14,6 +14,9 @@ static const float rim[SH4DER_BLOOM_RIM][2] = {
 };
 
 #define R0 (SH4DER_BLOOM_ROWS * SH4DER_BLOOM_COLS)   /* the disc's centre vertex */
+/* Triangle indices into the blade mesh. The ribbon is ROWS x COLS (3 x 5) vertices, numbered r * COLS + c, so 0..14. Its 2 x 4 cells
+   give 16 triangles. Then 8 fan triangles from the disc centre R0 to the rim vertices R0 + 1 .. R0 + 8. Index data only: the caller
+   draws with it. */
 const uint8_t sh4der_bloom_tris[SH4DER_BLOOM_TRIS][3] = {
     { 0, 1, 5 }, { 1, 6, 5 }, { 1, 2, 6 }, { 2, 7, 6 }, { 2, 3, 7 }, { 3, 8, 7 }, { 3, 4, 8 }, { 4, 9, 8 },
     { 5, 6, 10 }, { 6, 11, 10 }, { 6, 7, 11 }, { 7, 12, 11 }, { 7, 8, 12 }, { 8, 13, 12 }, { 8, 9, 13 }, { 9, 14, 13 },
@@ -21,6 +24,7 @@ const uint8_t sh4der_bloom_tris[SH4DER_BLOOM_TRIS][3] = {
     { R0, R0 + 7, R0 + 8 }, { R0, R0 + 8, R0 + 1 },
 };
 
+/* Fills p with the default bloom look from SH4DER_BLOOM_* in the header. Maths only: no PVR calls. */
 void sh4der_bloom_params_default(sh4der_bloom_params_t *p) {
     p->x0 = SH4DER_BLOOM_X0;
     p->x1 = SH4DER_BLOOM_X1;
@@ -38,6 +42,8 @@ void sh4der_bloom_params_default(sh4der_bloom_params_t *p) {
     p->flare_cos = SH4DER_BLOOM_FLARE_COS;
 }
 
+/* Fills p as sh4der_bloom_params_default does, then with the MAX_* values for the tail, width, inner, tip, boost, disc and flare floor.
+   x0, x1, root, tube_floor and flare_cos keep their default values. */
 void sh4der_bloom_params_max(sh4der_bloom_params_t *p) {
     sh4der_bloom_params_default(p);
     p->tail = SH4DER_BLOOM_MAX_TAIL;
@@ -51,6 +57,7 @@ void sh4der_bloom_params_max(sh4der_bloom_params_t *p) {
     p->flare_floor = SH4DER_BLOOM_MAX_FLARE_FLOOR;
 }
 
+/* finite and above 0 */
 static int positive(float x) {
     return sh4der_finite_(x) && x > 0.0f;
 }
@@ -59,6 +66,9 @@ static int level_ok(float x) {   /* a level may pass 1 (the colour clamps): 0..4
     return sh4der_finite_(x) && x >= 0.0f && x <= 4.0f;
 }
 
+/* Returns 1 when every bloom parameter is usable: x1 > x0, tail and half_width above 0, inner from 0 up to below half_width, root, tip,
+   boost and disc_peak in 0..4, tube_floor and flare_floor in 0..1, boost_reach and disc_radius above 0, and flare_cos in -1 (inclusive)
+   to 1 (exclusive). Otherwise returns 0. */
 int sh4der_bloom_params_valid(const sh4der_bloom_params_t *p) {
     return p && sh4der_finite_(p->x0) && sh4der_finite_(p->x1) && p->x1 > p->x0 && positive(p->tail) && positive(p->half_width) &&
            sh4der_finite_(p->inner) && p->inner >= 0.0f && p->inner < p->half_width && level_ok(p->root) && level_ok(p->tip) &&
@@ -78,6 +88,9 @@ static void across(const float v[3], float w[3]) {
     sh4der_norm3_(w);
 }
 
+/* A disc of the given radius at centre, facing eye. Vertex 0 is the centre at level peak; the SH4DER_BLOOM_RIM rim vertices 1 .. SH4DER_BLOOM_RIM
+   are at level 0. The disc lies in the plane across the view direction, so it faces the eye. A view straight down the x axis uses a
+   fixed across vector. Writes xyz and level only: the caller draws them through sh4der_bloom_argb. Maths only. */
 void sh4der_bloom_disc(float xyz[][3], float level[], const float centre[3], float radius, const float eye[3], float peak) {
     float v[3] = { eye[0] - centre[0], eye[1] - centre[1], eye[2] - centre[2] }, w[3], u[3];
     int k, j;
@@ -100,6 +113,8 @@ void sh4der_bloom_disc(float xyz[][3], float level[], const float centre[3], flo
     }
 }
 
+/* As sh4der_bloom_disc, with rim_n rim vertices (1 .. rim_n) spaced evenly: the k-th at angle 2 pi (k + 1/2) / rim_n. rim_n below 3
+   writes nothing. Above SH4DER_BLOOM_DISC_MAX it is clamped. xyz and level need 1 + rim_n entries. Maths only. */
 void sh4der_bloom_disc_n(float xyz[][3], float level[], const float centre[3], float radius, const float eye[3], float peak, unsigned rim_n) {
     float v[3] = { eye[0] - centre[0], eye[1] - centre[1], eye[2] - centre[2] }, w[3], u[3];
     unsigned k;
@@ -130,6 +145,10 @@ void sh4der_bloom_disc_n(float xyz[][3], float level[], const float centre[3], f
     }
 }
 
+/* A feathered disc with rim_n rim vertices. Vertex 0 is the centre at level peak. Vertices 1 .. rim_n form an inner ring at level peak,
+   at radius (1 - feather) x radius. Vertices rim_n + 1 .. 2 rim_n form the outer ring at radius, at level 0. feather is clamped to
+   0..1 (NaN reads as 1, which puts the inner ring at the centre). rim_n below 3 writes nothing; above SH4DER_BLOOM_DISC_MAX it is
+   clamped. xyz and level need 1 + 2 rim_n entries. Maths only. Index it with sh4der_bloom_disc_feather_tris. */
 void sh4der_bloom_disc_feather(float xyz[][3], float level[], const float centre[3], float radius, float feather, const float eye[3], float peak,
                                unsigned rim_n) {
     float outer[1 + SH4DER_BLOOM_DISC_MAX][3], lv[1 + SH4DER_BLOOM_DISC_MAX];
@@ -155,6 +174,9 @@ void sh4der_bloom_disc_feather(float xyz[][3], float level[], const float centre
     }
 }
 
+/* Triangle indices for the layout of sh4der_bloom_disc_feather: a fan from vertex 0 over the inner ring (rim_n triangles), then a band
+   from the inner ring to the outer ring (2 rim_n triangles). Returns the count written, 3 rim_n. rim_n below 3 returns 0. Above
+   SH4DER_BLOOM_DISC_MAX it is clamped. Index data only. */
 unsigned sh4der_bloom_disc_feather_tris(unsigned rim_n, uint8_t tris[][3]) {
     unsigned k, n = 0;
 
@@ -209,6 +231,10 @@ static float knot_at(const sh4der_blade_frame_t *f, const sh4der_bloom_params_t 
     return kb;
 }
 
+/* The blade's bloom mesh for this frame, written into m. A ribbon of ROWS x COLS vertices runs along x from x0 to x1, and on to
+   x1 + tail. Each level comes from the blade's tube profile, its glow and the blocker knot. Then the lens-flare disc sits at x1 (the
+   tip), facing eye. f comes from sh4der_blade_prepare for the same blade. eye is the viewer's position in the blade's space. Returns
+   1 when written. Returns 0 and zeroes m when p or blade is invalid. Maths only: the caller draws m with sh4der_bloom_argb. */
 int sh4der_bloom_blade(sh4der_bloom_mesh_t *m, const sh4der_bloom_params_t *p, const sh4der_blade_params_t *blade,
                        const sh4der_blade_frame_t *f, const float eye[3]) {
     float v[3], w[3], xs[SH4DER_BLOOM_ROWS], along[SH4DER_BLOOM_ROWS], centre[3];
@@ -256,6 +282,8 @@ int sh4der_bloom_blade(sh4der_bloom_mesh_t *m, const sh4der_bloom_params_t *p, c
     return 1;
 }
 
+/* ARGB words for all SH4DER_BLOOM_VERTS vertices of m: the ramp between edge and core at each vertex's level, alpha a. out_stride is
+   in bytes. No PVR calls: the caller picks the list and blend. */
 void sh4der_bloom_argb(const sh4der_bloom_mesh_t *m, const float edge[3], const float core[3], uint8_t a, uint32_t *out, size_t out_stride) {
     uint8_t *o = (uint8_t *)out;
     int i;

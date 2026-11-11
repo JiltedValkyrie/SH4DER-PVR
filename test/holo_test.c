@@ -3,9 +3,9 @@
    test/holo_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check: weights, table entries and the breath tracker at fixed points
-   (the reference maths of the effect's storyboard tool),
-   the table order, the fade, bad params and the loop.
+   Host check of the holo effect: weights, table entries and the breath tracker at
+   fixed points (pinned from an offline reference script), the table order, the fade,
+   bad params and the loop.
 */
 
 #include <math.h>
@@ -22,7 +22,8 @@ static int fail(const char *msg) {
     return 1;
 }
 
-/* core_weight / core_ref pins. */
+/* Checks the default weights and table levels at fixed points, against pinned values from core_weight and core_ref
+   in an offline reference script. */
 static int shipped(void) {
     static const struct { float d; int want; } wpin[] = {{0.0f, 63}, {0.005f, 63}, {0.020f, 55}, {0.030f, 37}, {0.040f, 16}, {0.054f, 0}, {0.08f, 0}};
     static const struct { float breath; uint8_t w; uint32_t want; } tpin[] = {
@@ -76,7 +77,8 @@ static int shipped(void) {
     return 0;
 }
 
-/* The tracker: the storyboard's Breath.push over a breathing chest that then leans forward and stays (frame 121). */
+/* Checks the breath tracker against pinned values (from the reference Breath.push) over a breathing chest
+   that leans forward at frame 121 and stays there. */
 static int tracker(void) {
     static const struct { unsigned frame; float want; } pin[] = {
         {0, 0.5f}, {1, 0.513415f}, {10, 0.623613f}, {45, 0.307809f}, {89, 0.473171f}, {100, 0.747226f}, {121, 1.0f}, {130, 0.916441f},

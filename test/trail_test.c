@@ -3,18 +3,17 @@
    test/trail_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of motion blur and the feed route's maths: the weight (rises
-   with speed, the cap), the even / whole copy offsets, the copies (their
-   order, the clamp, the sum of their weights), the cut and the still camera
-   (no layers), the TAA frame's copy offset, and the RGB565 drift of the
-   history blend (a report: iterate the blend on 565 values, 900 frames).
+   Host check of motion blur and the feed route's maths: the weight, the copy
+   offsets and their order, the cut and still camera, the TAA copy offset and
+   the keep and add sum. Ends with an RGB565 drift report: the history blend
+   iterated for 900 frames.
 */
 
 #include <math.h>
 #include <stdio.h>
 #include "../include/sh4der_trail.h"
 
-#define FOCAL_FX 457.1f   /* the game's focal, 320 / tan 35 deg, pixels */
+#define FOCAL_FX 457.1f   /* focal in pixels: 320 / tan 35 deg */
 
 static int fail(const char *msg) {
     fprintf(stderr, "FAIL %s\n", msg);
@@ -25,6 +24,7 @@ static int near(float a, float b, float tol) {
     return fabsf(a - b) <= tol;
 }
 
+/* The weight: its ends, rises with speed up to the cap, and the midpoint at the mean of the squared speed limits. */
 static int weight_checks(void) {
     float prev = -1.0f, s2;
     int k;
@@ -42,6 +42,7 @@ static int weight_checks(void) {
     return 0;
 }
 
+/* Copy offsets: even_px gives the nearest even pixel count, whole_px the nearest whole pixel. */
 static int copy_offsets(void) {
     if (sh4der_taa_even_px(0.9f) != 0 || sh4der_taa_even_px(1.0f) != 2 || sh4der_taa_even_px(2.9f) != 2 || sh4der_taa_even_px(3.1f) != 4 ||
         sh4der_taa_even_px(-3.1f) != -4 || sh4der_taa_even_px(-0.4f) != 0 || sh4der_taa_even_px(7.9f) != 8)
@@ -51,6 +52,7 @@ static int copy_offsets(void) {
     return 0;
 }
 
+/* A still camera gives no layers, and a 0.5 rad turn in one frame is a cut with no blur. */
 static int still_and_cut(void) {
     sh4der_trail_t t;
     sh4der_trail_frame_t o;
@@ -70,6 +72,7 @@ static int still_and_cut(void) {
     return 0;
 }
 
+/* A fast pan: full weight, copies run to the motion with one sign, clamped, and the weights sum to the weight. */
 static int fast_pan(void) {
     sh4der_trail_t t;
     sh4der_trail_frame_t o;
@@ -99,6 +102,7 @@ static int fast_pan(void) {
     return 0;
 }
 
+/* A slow pan: partial weight, and copy offsets 0, 0, -2. */
 static int slow_pan(void) {
     sh4der_trail_t t;
     sh4der_trail_frame_t o;
@@ -112,6 +116,7 @@ static int slow_pan(void) {
     return 0;
 }
 
+/* The TAA frame's copy offset after a 0.02 rad turn: even and whole, -10 px. */
 static int taa_copy_px(void) {
     sh4der_taa_t t;
     sh4der_taa_frame_t o;
@@ -136,21 +141,25 @@ static int keep_add_sum(void) {   /* the two layers' colours sum to 255 (one lev
 
 /* The history blend on RGB565, one channel, the still colour: out = Q(keep x c + add x E(Q(out))), 8-bit products rounded.
    expand: 0 = bit replication (5 -> 8: x << 3 | x >> 2), 1 = shift only. quant: 0 = truncation to 565, 1 = round to nearest. */
+/* Expand a 5 or 6 bit level to 8 bits: replicate the top bits, or shift only. */
 static int expand8(int q, int bits, int variant) {
     if (variant == 0)
         return bits == 5 ? (q << 3) | (q >> 2) : (q << 2) | (q >> 4);
     return bits == 5 ? q << 3 : q << 2;
 }
 
+/* Round an 8-bit value back to a level: truncate, or round to nearest. */
 static int quant_back(int v8, int bits, int mode) {
     const int maxq = (1 << bits) - 1;
     return mode == 0 ? v8 >> (8 - bits) : (v8 * maxq + 127) / 255;
 }
 
+/* An 8-bit product: a times b over 255, rounded. */
 static int mul255(int a, int b) {
     return (a * b + 127) / 255;
 }
 
+/* Iterate the blend for 900 frames from every level, and print the largest drift and how many levels move. */
 static void drift_report(float w, int bits, int variant, int mode) {
     const int keep = (int)(sh4der_taa_keep_argb(w) & 0xffu), add = (int)(sh4der_taa_add_argb(w) & 0xffu);
     const int levels = 1 << bits, frames = 900;   /* 30 s at 30 fps */
@@ -174,6 +183,7 @@ static void drift_report(float w, int bits, int variant, int mode) {
            (double)w, bits == 5 ? "R5/B5" : "G6", variant == 0 ? "replicate" : "shift", mode == 0 ? "truncate" : "round", maxd, drifted, levels, up, down);
 }
 
+/* Print the drift report for both weights, both channel widths, and both expand and quant modes. */
 static void drift_all(void) {
     const float ws[2] = { 0.75f, 0.5f };
     int i, variant, mode;

@@ -20,6 +20,10 @@
       gives back what it took, returns 0 and says how many KB were short
       (sh4der_ca_gpu_t.short_kb), for one line on a log. Nothing else fails.
 
+    Order, per frame: sh4der_ca_begin (the world is drawn into the texture),
+    then sh4der_ca_quad, or the three sh4der_ca_channel calls for the
+    aberration, then the HUD on the screen.
+
     Cost: the world is drawn once (into the texture); the screen pass is one
     quad, or with CA three meshes of SH4DER_CA_MESH_X x SH4DER_CA_MESH_Y
     cells. On the SH-4: 3 x 63 vertices, a multiply and an add each.
@@ -27,7 +31,17 @@
     The maths is a line per vertex; the square root of the half diagonal is
     SH4ZAM's (shz_sqrtf), once a mesh.
 
+    Recommended settings (the author's own game and demo disc):
+    - Strength 1.00: red and blue 3 pixels apart in the corner. Useful range
+      0.25 .. 4.00 (12 pixels: a deliberate, damaged-lens look).
+    - 640 x 480 for the aberration alone. 320 x 240 when a temporal blend
+      (sh4der_taa.h) rides on it, or when video memory is short.
+    - Off by default, and off without complaint when the memory is not
+      there: print short_kb once, not every frame.
+    - Draw a HUD after the three channels, at full sharpness.
+
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_CA_H
@@ -118,7 +132,7 @@ static inline void sh4der_ca_uv(const sh4der_ca_size_t *s, float pu, float pv, f
     *v = sh4der_div_(0.5f + sh4der_sat_(pv) * ((float)s->h - 1.0f), (float)s->tex_h);
 }
 
-/** \brief A channel's vertex colour: the texel times it leaves that channel alone and the others black. */
+/** \brief A channel's vertex colour (ARGB8888): full on that channel, zero on the other two, so the texel passes only that channel. */
 static inline uint32_t sh4der_ca_argb(int chan) {
     return chan == SH4DER_CA_RED ? 0xffff0000u : chan == SH4DER_CA_GREEN ? 0xff00ff00u : 0xff0000ffu;
 }

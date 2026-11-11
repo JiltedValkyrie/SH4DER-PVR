@@ -3,11 +3,10 @@
    test/taa_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of temporal anti-aliasing: the Halton values, the jitter cycle
-   (centred, distinct phases, its clip units), the reprojection (a known yaw in
-   pixels, the sign, the corner warp against a matrix product in double), the
-   weight (monotonic in speed, the cut), the step over a still camera, a slow
-   turn and a cut, the angle wrap, and the two layer colours.
+   Host check of temporal anti-aliasing: the Halton values, the jitter cycle,
+   the reprojection (pixel shifts, the corner warp against a matrix product
+   in double), the weight, the frame step, the angle wrap, the layer colours
+   and the feed copy offsets.
 */
 
 #include <math.h>
@@ -32,11 +31,12 @@ static int near(float a, float b, float tol) {
     return fabsf(a - b) <= tol;
 }
 
-/* The game's focal length for a half horizontal field of view of 35 degrees (focal = 320 / tan 35 degrees), in pixels. */
+/* Focal length in pixels for a 35 degree half horizontal field of view: focal = 320 / tan 35 degrees. */
 static double focal35(void) {
     return 320.0 / tan(35.0 * 3.14159265358979 / 180.0);
 }
 
+/* Halton values in base 2 and base 3 against hand-worked fractions. */
 static int halton_values(void) {
     if (!near(sh4der_taa_halton(0, 2), 0.0f, SH4DER_TEST_TOL) || !near(sh4der_taa_halton(1, 2), 0.5f, SH4DER_TEST_TOL) ||
         !near(sh4der_taa_halton(2, 2), 0.25f, SH4DER_TEST_TOL) || !near(sh4der_taa_halton(3, 2), 0.75f, SH4DER_TEST_TOL) ||
@@ -48,6 +48,7 @@ static int halton_values(void) {
     return 0;
 }
 
+/* The jitter table: phases are distinct, sum to zero over a cycle, and stay under 0.75 px. */
 static int jitter_cycle(void) {
     sh4der_taa_t t;
     float sx = 0.0f, sy = 0.0f, mx = 0.0f;
@@ -71,6 +72,7 @@ static int jitter_cycle(void) {
     return 0;
 }
 
+/* The jitter in clip units: the centre plus the jitter lands on the pixel, with y down. */
 static int jitter_clip(void) {
     const float jit[2] = { 0.25f, -0.375f };
     float clip[2];
@@ -81,6 +83,7 @@ static int jitter_clip(void) {
     return 0;
 }
 
+/* Reprojection: yaw and pitch shifts in pixels, their signs, the warp at the centre, the corners and a wide yaw. */
 static int reproject(void) {
     const double f = focal35();
     const float fx = (float)f, fy = (float)f;
@@ -125,6 +128,7 @@ static int reproject(void) {
     return 0;
 }
 
+/* The history weight: its ends, monotonic in speed, and the midpoint at the mean of the squared speed limits. */
 static int weight(void) {
     float prev = 2.0f, s2;
     int k;
@@ -142,12 +146,14 @@ static int weight(void) {
     return 0;
 }
 
+/* The angle difference wraps across pi. */
 static int angle_wrap(void) {
     if (!near(sh4der_taa_angle_delta(-3.1f, 3.1f), 0.0832f, 1e-4f) || !near(sh4der_taa_angle_delta(0.3f, 0.1f), 0.2f, 1e-5f))
         return fail("angle delta wraps");
     return 0;
 }
 
+/* One TAA state through a still camera, a slow turn, a fast turn, a cut and a reset. */
 static int steps(void) {
     sh4der_taa_t t;
     sh4der_taa_frame_t o;
@@ -186,6 +192,7 @@ static int steps(void) {
     return 0;
 }
 
+/* The keep and add layer colours at 0, 0.75 and 1, and alpha 0. */
 static int colours(void) {
     if (sh4der_taa_keep_argb(0.0f) != 0x00ffffffu || sh4der_taa_keep_argb(0.75f) != 0x00404040u || sh4der_taa_keep_argb(1.0f) != 0u)
         return fail("keep colour");

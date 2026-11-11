@@ -3,10 +3,10 @@
    test/shafts_test.c
    Copyright (c) 2026 Jilted Valkyrie
 
-   Host check of the shadow shafts' maths: the turn toward the light, the depth and its cap,
-   what casts and what does not, near and far from the light, a texel easing half way, the
-   map from a read (a dark cell near the light shades, a bright one and a far one do not),
-   the copy's scale.
+   Host check of the shadow shafts' maths: the turn toward the light, depth
+   and its cap, what casts, the near-light weight and the copy's scale. Also
+   the shade map built from a read (a dark cell near the light shades; a
+   bright or far one does not).
 */
 
 #include <math.h>
@@ -24,6 +24,7 @@ static int fail(const char *msg) {
 
 static int near(float a, float b, float tol) { return fabsf(a - b) <= tol; }
 
+/* The terms: turn toward the light, depth and its cap, cast, near-light weight and copy scale. */
 static int terms(void) {
     if (sh4der_shafts_toward(0.4f) != 0.0f || sh4der_shafts_toward(0.5f) != 0.0f || !near(sh4der_shafts_toward(0.95f), 1.0f, 1e-5f) || sh4der_shafts_toward(1.0f) != 1.0f)
         return fail("toward the light");
@@ -46,6 +47,7 @@ static int terms(void) {
     return 0;
 }
 
+/* The shade map: a texel eases half way per step, then dark cells near the light shade and bright or far ones do not. */
 static int map_from_read(void) {
     static uint16_t grid[SH4DER_GLOW_GRID_X * SH4DER_GLOW_GRID_Y], map[SH4DER_GLOW_TEX_W * SH4DER_GLOW_TEX_H];
     unsigned i, g;

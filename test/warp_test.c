@@ -4,12 +4,9 @@
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 
-   Host check of the warps: the ring (band, push outward, zero at the centre
-   and outside the band), the haze column (rect, period, climb), the wobble
-   (period, moves on), the clamp at the frame edge, the sum of sources, the
-   zero-strength identity, the grid's positions and UVs, the blur's scales
-   and integer weights (sum 255), the pixelate UVs and the dither tile's
-   twiddle order (the feed mask's: alpha on even columns).
+   Host check of the warps: the ring, haze column and wobble, the frame-edge
+   clamp, the sum of sources, the grid, the blur weights (sum 255), the pixel
+   UVs and the dither tile's twiddle order (alpha on even columns).
 */
 
 #include <math.h>
@@ -27,18 +24,21 @@ static int fail(const char *msg) {
 
 static int near(float a, float b) { return fabsf(a - b) <= SH4DER_TEST_TOL; }
 
+/* Test helper: a ring source at (cx, cy) with the given age and strength. */
 static sh4der_warp_src_t ring(float cx, float cy, float age, float strength) {
     sh4der_warp_src_t s = { 0 };
     s.kind = SH4DER_WARP_RING; s.cx = cx; s.cy = cy; s.age = age; s.strength = strength;
     return s;
 }
 
+/* Test helper: a haze source over the rect (x0, y0) to (x1, y1). */
 static sh4der_warp_src_t haze(float x0, float y0, float x1, float y1, float age, float strength) {
     sh4der_warp_src_t s = { 0 };
     s.kind = SH4DER_WARP_HAZE; s.x0 = x0; s.y0 = y0; s.x1 = x1; s.y1 = y1; s.age = age; s.strength = strength;
     return s;
 }
 
+/* Test helper: a wobble source with the given age and strength. */
 static sh4der_warp_src_t wobble(float age, float strength) {
     sh4der_warp_src_t s = { 0 };
     s.kind = SH4DER_WARP_WOBBLE; s.age = age; s.strength = strength;
@@ -58,6 +58,7 @@ static void offset_of(const sh4der_warp_src_t *s, float x, float y, float out[2]
     out[1] = p[1] - y;
 }
 
+/* The ring: full inward push at the band middle, none outside the band or at the centre, none at zero strength. */
 static int ring_test(void) {
     const float r = SH4DER_WARP_RING_SPEED * 0.5f;   /* radius at 0.5 s */
     float o[2];
@@ -81,6 +82,7 @@ static int ring_test(void) {
     return 0;
 }
 
+/* The haze column: no push outside the rect, period in rows, climb at RISE, full push inside. */
 static int haze_test(void) {
     float o[2];
     sh4der_warp_src_t s = haze(100.0f, 50.0f, 140.0f, 200.0f, 0.3f, 1.0f);
@@ -104,6 +106,7 @@ static int haze_test(void) {
     return 0;
 }
 
+/* The wobble: period in rows, moves on by TURN, strength scales, sideways only. */
 static int wobble_test(void) {
     float o[2];
     sh4der_warp_src_t s = wobble(1.0f, 1.0f);
@@ -118,6 +121,7 @@ static int wobble_test(void) {
     return 0;
 }
 
+/* The frame-edge clamp: a push past the edge is held at the edge, and no black is pulled in. */
 static int clamp_test(void) {
     /* A ring with a huge push cannot sample outside the frame. */
     sh4der_warp_frame_t f = { 0 };
@@ -136,6 +140,7 @@ static int clamp_test(void) {
     return 0;
 }
 
+/* Two sources add their row terms. */
 static int sum_test(void) {
     /* Two sources sum: a wobble at strength 1 and another at strength 0.5 sample the sum of their row terms. */
     sh4der_warp_frame_t f = { 0 };
@@ -153,6 +158,7 @@ static int sum_test(void) {
     return 0;
 }
 
+/* The grid row with no sources: positions and identity UVs, then the last fine column. */
 static int identity_test(void) {
     /* No sources, and zero strength: the sample is the pixel itself, the UVs the texel centres. */
     sh4der_warp_frame_t f = { 0 };
@@ -172,6 +178,7 @@ static int identity_test(void) {
     return 0;
 }
 
+/* Blur copies: scales never below 1, weights sum to 255, sharp copy 1, outer copy zoom, zero strength gives 1. */
 static int blur_test(void) {
     unsigned k, i, sum;
     for (k = 1; k <= SH4DER_WARP_BLUR_COPIES; k++) {
@@ -188,6 +195,7 @@ static int blur_test(void) {
     return 0;
 }
 
+/* Pixelate: the cell divides the frame, the first block's centre texel, and the last block stays inside. */
 static int pixel_test(void) {
     float uv[2];
     const unsigned cell = SH4DER_WARP_PIXEL_CELL;
@@ -199,6 +207,7 @@ static int pixel_test(void) {
     return 0;
 }
 
+/* The dither tile: multiplier range, twiddle index range, grey ARGB4444 with alpha 15, and x bits at odd index positions. */
 static int dither_test(void) {
     uint16_t tile[64];
     unsigned x, y;
@@ -228,6 +237,7 @@ static int dither_test(void) {
     return 0;
 }
 
+/* The fast reciprocal square root against 1 / sqrt, within the tolerance. */
 static int rsqrt_test(void) {
     const float v[4] = { 0.25f, 2.0f, 9.0f, 1000.0f };
     unsigned i;

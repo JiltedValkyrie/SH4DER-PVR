@@ -16,10 +16,10 @@
     effect loops.
 
     The vertices are in the effect's own space: x along the axis, the axis
-    line at (y, z) = params->axis. A weapon blade passes its node's space, so
+    line at (y, z) = params->axis. A blade on a model passes its node's space, so
     the effect needs no bone of its own.
 
-    Call sh4der_blade_prepare() once per instance per frame with the game tick (plus
+    Call sh4der_blade_prepare() once per instance per frame with a 30 Hz tick counter (plus
     a per-instance phase) and the fade, then per vertex sh4der_blade_intensity(), or
     sh4der_blade_shade() over a run. Multiply your colour by the intensity and draw
     it additively; sh4der_blade_argb() packs that for you. frame->light is the
@@ -32,6 +32,7 @@
     SH4ZAM steps are SH4DER-PVR's shared parts (sh4der_core.h).
 
     \author Jilted Valkyrie
+    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
 
 #ifndef SH4DER_BLADE_H
@@ -43,8 +44,8 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning: the energy sword (sh4der_blade_params_default())
-    Lengths are in vertex units (Halo world units on the sword's node), the
+/** \name Shipped tuning: the default blade (sh4der_blade_params_default())
+    Lengths are in vertex units (units of the blade's own node), the
     period in ticks.
     @{ */
 #define SH4DER_BLADE_PERIOD          192     /**< \brief Ticks a period: one turn of tube A (6.4 s at 30 Hz). */
@@ -54,7 +55,7 @@ extern "C" {
 #define SH4DER_BLADE_FLOOR           0.40f   /**< \brief Share of the glow away from every tube. */
 #define SH4DER_BLADE_LIGHT_SWING     0.15f   /**< \brief Point light dip at the bottom of a pulse. */
 #define SH4DER_BLADE_MIN_GLOW        0.25f   /**< \brief Lowest glow a pulse reaches (the blade never goes fully transparent; a pulse AMOUNT of 1 would reach 0). */
-#define SH4DER_BLADE_AXIS_Z          0.008f  /**< \brief Axis height (the blades' node origin). */
+#define SH4DER_BLADE_AXIS_Z          0.008f  /**< \brief Axis height (the blade's node origin). */
 #define SH4DER_BLADE_A_RHO           0.055f  /**< \brief Tube A orbit radius. */
 #define SH4DER_BLADE_A_INNER         0.012f  /**< \brief Tube A core radius. */
 #define SH4DER_BLADE_A_OUTER         0.035f  /**< \brief Tube A outer radius. */
@@ -97,8 +98,8 @@ typedef struct sh4der_blade_params {
     float fade_x0, fade_x1; /**< \brief The intensity fades in from 0 at fade_x0 to full at fade_x1 along the axis (fade_x1 > fade_x0). */
     float ripple_freq;      /**< \brief Ripples along the axis, cycles a unit (>= 0); they travel one ripple a pulse. */
     float ripple_depth;     /**< \brief Light a ripple's trough takes away, 0..1; 0 (the default) turns them off. */
-    sh4der_tube_t tube[SH4DER_TUBE_MAX];
-    sh4der_blocker_t blocker[SH4DER_BLOCKER_MAX];
+    sh4der_tube_t tube[SH4DER_TUBE_MAX];       /**< \brief The tubes; tube_count of them are live. */
+    sh4der_blocker_t blocker[SH4DER_BLOCKER_MAX];   /**< \brief The blockers; blocker_count of them are live. */
 } sh4der_blade_params_t;
 
 /** \brief One instance's frame: sh4der_blade_prepare()'s output. */
@@ -110,30 +111,35 @@ typedef struct sh4der_blade_frame {
     float lo, hi;           /**< \brief glow x floor, glow x (1 - floor). */
     float fade_x0, inv_fade_len;    /**< \brief The base fade (params' fade_x0, 1 / (fade_x1 - fade_x0)). */
     float ripple_k, ripple_phase, ripple_depth;   /**< \brief 2 pi x ripple_freq, this frame's travel (radians), the depth (0: none). */
-    int tube_count, blocker_count;
-    float tube_y[SH4DER_TUBE_MAX], tube_z[SH4DER_TUBE_MAX];
-    float tube_inner[SH4DER_TUBE_MAX], tube_outer2[SH4DER_TUBE_MAX];
-    float tube_inv_feather[SH4DER_TUBE_MAX], tube_weight[SH4DER_TUBE_MAX];
-    float blk_x[SH4DER_BLOCKER_MAX], blk_y[SH4DER_BLOCKER_MAX], blk_z[SH4DER_BLOCKER_MAX];
-    float blk_inner[SH4DER_BLOCKER_MAX], blk_outer2[SH4DER_BLOCKER_MAX];
-    float blk_inv_feather[SH4DER_BLOCKER_MAX], blk_depth[SH4DER_BLOCKER_MAX];
+    int tube_count, blocker_count;   /**< \brief Live tubes and blockers this frame. */
+    float tube_y[SH4DER_TUBE_MAX], tube_z[SH4DER_TUBE_MAX];   /**< \brief Each tube's axis point (y, z). */
+    float tube_inner[SH4DER_TUBE_MAX], tube_outer2[SH4DER_TUBE_MAX];   /**< \brief Core radius; outer radius squared. */
+    float tube_inv_feather[SH4DER_TUBE_MAX], tube_weight[SH4DER_TUBE_MAX];   /**< \brief 1 / (outer - inner); brightness. */
+    float blk_x[SH4DER_BLOCKER_MAX], blk_y[SH4DER_BLOCKER_MAX], blk_z[SH4DER_BLOCKER_MAX];   /**< \brief Each blocker's centre. */
+    float blk_inner[SH4DER_BLOCKER_MAX], blk_outer2[SH4DER_BLOCKER_MAX];   /**< \brief Core radius; outer radius squared. */
+    float blk_inv_feather[SH4DER_BLOCKER_MAX], blk_depth[SH4DER_BLOCKER_MAX];   /**< \brief 1 / (outer - inner); light taken at the core. */
 } sh4der_blade_frame_t;
 
-/** \brief The energy sword's tuning (the SH4DER_* values). */
+/** \brief The default blade tuning (the SH4DER_BLADE_* values). */
 void sh4der_blade_params_default(sh4der_blade_params_t *params);
 
-/** \brief The MAX WHITE test preset: the shipped sword with the SH4DER_BLADE_WHITE_* values. */
+/** \brief The MAX WHITE test preset: the default blade with the SH4DER_BLADE_WHITE_* values. */
 void sh4der_blade_params_white(sh4der_blade_params_t *params);
 
 /** \brief Validate params: 1 when sh4der_blade_prepare() would accept them. */
 int sh4der_blade_params_valid(const sh4der_blade_params_t *params);
 
-/** \brief Evaluate one instance at `tick` (add the instance's phase yourself).
+/** \brief Evaluate one instance at `tick` (a counter at 30 Hz; add the instance's phase yourself).
     `fade` is clamped to 0..1 (1 - active camouflage). Returns 0 and leaves an
     all-dark frame (every intensity 0) on bad params. */
 int sh4der_blade_prepare(sh4der_blade_frame_t *frame, const sh4der_blade_params_t *params, uint32_t tick, float fade);
 
-/** \brief Intensities of `count` vertices into out[] (floats, 0..1). */
+/** \brief Intensities of `count` vertices into out[] (floats, 0..1).
+    \param frame This instance's frame (from sh4der_blade_prepare).
+    \param xyz Vertex positions in the effect's space (x along the axis).
+    \param xyz_stride Bytes from one position to the next.
+    \param out One float per vertex.
+    \param count Number of vertices. */
 void sh4der_blade_shade(const sh4der_blade_frame_t *frame, const float *xyz, size_t xyz_stride, float *out, unsigned count);
 
 /** \brief Packed colours of `count` vertices: rgb x intensity, alpha `a`, at
