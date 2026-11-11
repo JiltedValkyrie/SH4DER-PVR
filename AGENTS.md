@@ -28,6 +28,7 @@ There is no game header and no game data here. The example client is `example/bl
 - `include/sh4der_ca.h`, `src/sh4der_ca.c`: the frame texture (the world into a 640 x 480 or 320 x 240 render target: 640 KB or 160 KB) and chromatic aberration through it. A setup with no video memory holds nothing and says how many KB were short. The .c is KOS PVR drawing, Dreamcast only.
 - `include/sh4der_shafts.h`, `src/sh4der_shafts.c`: shadow shafts: the frame's dark shapes cast away from a light, from the frame read. The .c is KOS PVR drawing, Dreamcast only.
 - `test/core_test.c`, `test/blade_test.c`, `test/holo_test.c`, `test/look_test.c`, `test/taa_test.c`, `test/frame_test.c`, `test/glow_test.c`, `test/warp_test.c`, `test/trail_test.c`, `test/lens_test.c`, `test/focus_test.c`, `test/visor_test.c`, `test/torch_test.c`, `test/ao_test.c`, `test/ca_test.c`, `test/shafts_test.c` and `example/blade.c` run with `make test`. `make test-shz SH4ZAM=...` runs the tests on the SH4ZAM path. `make dc SH4ZAM=...` builds the Dreamcast library. Every target takes `SH4DOW=`.
+- `demo/main.c`, `demo/models`, `demo/tools`: the demo disc, one program that shows every effect as a row switched live. `make demo SH4ZAM=...` builds `build/demo/sh4der-demo.cdi` (needs python and mkdcdisc); `make dc DEMO=1` builds it after the library.
 - `README.md` is the explanation:
   - the effect table
   - how to add an effect

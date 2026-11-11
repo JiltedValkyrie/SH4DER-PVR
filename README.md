@@ -734,6 +734,36 @@ float sh4der_frame_hot(float facing);
 | SH4DER_FRAME_HISTORY | 8 | Frames of history kept |
 | SH4DER_FRAME_HOT_FROM | 0.85 | Cosine off the view axis from which a faced sun grows |
 
+## The demo disc
+
+`demo/main.c` is one program that shows the effects on a small scene of its own: a dark hall that opens on a sunlit yard, with a few box-built models as actors (a block figure, a station wagon, a jet, crates, a work lamp). Every effect is a row on the read-out, switched and tuned live, with the video memory it holds and the frame's time on screen.
+
+Build the disc image:
+
+```sh
+make demo SH4ZAM=/path/to/sh4zam            # build/demo/sh4der-demo.cdi
+make dc DEMO=1 SH4ZAM=/path/to/sh4zam       # the library, and with the flag DEMO=1 the demo disc as well
+```
+
+It needs the KallistiOS environment sourced (`kos-cc`), Python 3 (the models become a C header) and [mkdcdisc](https://gitlab.com/simulant/mkdcdisc) (the image). Name them if they are not on the path: `PYTHON=python MKDCDISC=/path/to/mkdcdisc`. The image runs on a Dreamcast from a burned disc or a GDEMU, and in an emulator. For the eye, the bloom, the rays and the shadow shafts an emulator must have full framebuffer emulation on: they read the finished frame back.
+
+Pad: d-pad left / right picks a row, A switches it on or off, d-pad up / down changes its strength, Y hides the read-out. Left stick: walk and strafe. Second stick: turn and look. R / L trigger: look up / down.
+
+| Row | What it shows |
+| --- | --- |
+| EYE | the picture adapts like an eye (`sh4der_look.h`) |
+| BLOOM, RAYS, CURVE | bright things spill a glow, the sun throws rays; the ramp and its threshold (`sh4der_glow.h`) |
+| TORCH | the flashlight (`sh4der_torch.h`) |
+| SH4FTS | dark shapes cast shade away from the sun (`sh4der_shafts.h`) |
+| CA, RES | chromatic aberration; the frame texture at 640 x 480 or 320 x 240 (`sh4der_ca.h`) |
+| TAA, TAAHOLD, TAAMODE | the temporal blend: its share, kept or not, dynamic or fixed (`sh4der_taa.h`) |
+| SH4DOW | soft self-shadow on the four nearest actors, foot cones under the two-legged ones (SH4DOW-DC) |
+| CAR, WEDGE, NIGHT | drive the station wagon with its flood lamps; dim the world outside their fan; the yard at night |
+| PROBE | what the frame read saw, and the bloom's map |
+| DR | the world's vertices by KOS direct render, or one `pvr_prim` call each |
+
+The models are made by `demo/tools/make_models.py` (boxes and wedges, no outside assets) and turned into C by `demo/tools/obj2c.py`.
+
 ## Recommended settings
 
 The numbers the author's own game and demo disc use, found by eye. Each header repeats its own under "Recommended settings".
