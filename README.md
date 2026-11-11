@@ -33,6 +33,8 @@ Repository: [github.com/JiltedValkyrie/SH4DER-PVR](https://github.com/JiltedValk
 | visor | `sh4der_visor.h` | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out | the look effect's layers, small tiles | research: none yet |
 | torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table | research: none yet |
 | ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | research: none yet |
+| ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture, 640 KB or 160 KB; three small meshes | the demo disc |
+| shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | the demo disc |
 
 All of them include `sh4der_core.h`, the shared parts:
 - **The feather.** SH4DOW-DC's column feather, with the core answered before any square root.
@@ -614,6 +616,79 @@ unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 | SH4DER_AO_SCR_FULL | 0.6 | Ratio (centre - above) / centre at full cavity |
 | SH4DER_AO_SCR_FLOOR | 4.0 | Luma (0..255) added to both before the ratio: black is no division by zero |
 
+## The frame texture and chromatic aberration
+
+`sh4der_ca.h`, `src/sh4der_ca.c`. The PVR cannot read the frame it is drawing, but it can draw a frame into a texture and then draw that texture. The world goes into a render target; the screen is that texture as one quad, or three times over a small mesh, once per colour channel, each sampled at its own scale about the centre.
+
+Video memory, as the PVR allocates it (whole tile rows, RGB565):
+
+| Size | One texture | Two (a temporal blend's history) |
+| --- | --- | --- |
+| 640 x 480 | 640 KB | 1,280 KB |
+| 320 x 240 | 160 KB | 320 KB |
+
+Call order, a frame:
+
+```c
+static sh4der_ca_gpu_t ca;                 /* zeroed */
+
+if (!sh4der_ca_setup(&ca, half, 1))        /* once, and again when the size or count changes */
+    printf("CA: needs %u KB more VRAM\n", ca.short_kb);   /* nothing is held: draw as before, the effect is off */
+
+pvr_wait_ready();
+if (sh4der_ca_begin(&ca, 0) == 0) {        /* in place of pvr_scene_begin() */
+    /* draw the world; multiply its screen x and y by ca.size.scale */
+    pvr_scene_finish();
+    pvr_wait_ready();
+    pvr_scene_begin();
+    pvr_list_begin(PVR_LIST_OP_POLY);
+    sh4der_ca_channel(&ca, 0, SH4DER_CA_GREEN, strength, 640.0f, 480.0f, 1.0f);   /* or sh4der_ca_quad(&ca, 0, 1.0f, 0, 0, 1.0f, 1.0f) with no aberration */
+    pvr_list_finish();
+    pvr_list_begin(PVR_LIST_TR_POLY);
+    sh4der_ca_channel(&ca, 0, SH4DER_CA_RED, strength, 640.0f, 480.0f, 2.0f);
+    sh4der_ca_channel(&ca, 0, SH4DER_CA_BLUE, strength, 640.0f, 480.0f, 3.0f);
+    /* the screen effects and the HUD, sharp, then pvr_list_finish(); pvr_scene_finish(); */
+}
+```
+
+- **Strength.** 1 puts red and blue `SH4DER_CA_SPLIT_PX` (3) screen pixels apart in the corner, green half way; the split grows with the square of the distance from the centre.
+- **No memory.** `sh4der_ca_setup` that cannot get its textures gives back what it took, returns 0 and leaves `short_kb`: the KB that were missing. Nothing else fails; `sh4der_ca_begin` then returns -1 and the client draws to the screen as before.
+- **One stride.** The PVR has one stride register for every stride texture; `sh4der_ca_setup` sets it to the frame texture's width.
+- **Two scenes a frame.** The world's scene and the screen's scene: the frame's time must hold both.
+- **KOS path.** `pvr_scene_begin_rtt` with a size, a `PVR_TXRFMT_X32_STRIDE` texture, the vertices by direct render (`pvr_dr_target`, `pvr_dr_commit`).
+
+`test/ca_test.c`: the two sizes and their video memory, the shortfall in KB, no shift in the centre, the shipped split in the corner, green half of red, blue unmoved, every sample inside the picture, texel-centre coordinates. Run on the demo disc; not yet in a game.
+
+## The shadow shafts
+
+`sh4der_shafts.h`, `src/sh4der_shafts.c`. The glow's god rays are the frame's bright parts stretched away from the sun. These are the other half: the frame's dark parts cast a darker copy of themselves, pushed away from the light.
+
+Call order, a frame (the read is `sh4der_frame_read`'s untouched grid):
+
+```c
+static sh4der_shafts_gpu_t shafts;
+static uint16_t shade[SH4DER_GLOW_TEX_W * SH4DER_GLOW_TEX_H] __attribute__((aligned(32)));
+
+sh4der_shafts_init(&shafts);                                             /* once: 16 KB of video memory */
+sh4der_shafts_clear(shade, SH4DER_GLOW_TEX_W, SH4DER_GLOW_TEX_H);
+
+const float toward = sh4der_shafts_toward(facing);                       /* facing: cosine between the view axis and the light */
+if (light_on_screen && toward > 0.01f) {
+    sh4der_shafts_map(shade, SH4DER_GLOW_TEX_W, raw_grid, su, sv, sh4der_shafts_depth(strength, toward));
+    sh4der_shafts_upload(&shafts, shade);                                /* before the list that draws it */
+    sh4der_shafts_draw(&shafts, su, sv, sh4der_shafts_scale(strength), 640.0f, 480.0f, z);   /* translucent list, under the look and the glow */
+} else {
+    sh4der_shafts_clear(shade, SH4DER_GLOW_TEX_W, SH4DER_GLOW_TEX_H);    /* once, when the light leaves the view */
+}
+```
+
+- **What casts.** A cell darker than `SH4DER_SHAFTS_DARK_FROM` (0.30), fully from `DARK_FULL` (0.10) down, times how near the light it is on screen (full within 0.25 screen heights, gone at 0.9).
+- **How dark.** `SH4DER_SHAFTS_DEPTH` (0.45) of the light at strength 1, never over 0.9, times the turn toward the light (none past 60 degrees off it, all within 18).
+- **Eased.** Each upload moves a texel half way: the read is a frame or two old and carries its own shade.
+- **Needs the frame read.** Where the read sees black (an emulator without full framebuffer emulation), the whole frame counts as dark and casts: gate it as the eye and the glow are gated.
+
+`test/shafts_test.c`: the turn toward the light, the depth and its cap, what casts, near and far, a texel easing half way, the map from a read, the copy's scale. Run on the demo disc; not yet in a game.
+
 ## The frame read
 
 `sh4der_frame.h`, `src/sh4der_frame.c`: the look and the glow work from the frame the CPU reads off the screen, and that frame is one or two frames old, which of the two changing from frame to frame. An effect that takes "last frame's" gain or glow off the read corrects the wrong frame and pulses. So every frame carries a stamp: `sh4der_frame_next` numbers it (0..7) and keeps the eye's gain and the glow's strength it is drawn with; `sh4der_frame_stamp_draw` lays a small block of that number's colour at the top left; `sh4der_frame_read` samples the screen on the grid and reads the stamp back, so the client takes off exactly what the read frame carried (`sh4der_frame_degain`, the glow's `sh4der_glow_unfeed`). The read gives two grids: one sample a cell for the eye, and the darker of two samples a cell for the glow, so one hot pixel alone in its cell (a texture's grain, a letter's stroke) lights nothing. `sh4der_frame_hot` is how hard a light is looked at: a client grows and whitens its sun by it. An emulator shows the CPU a black screen unless it copies the drawn frame into video memory (its framebuffer emulation).
@@ -691,6 +766,8 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 - `test/visor_test.c`: the presets through the grade, the thermal ramp, the affine fit error, the fade envelope.
 - `test/torch_test.c`: the profile, the mesh colours, cone to radius, the fog bend, the darkness gate, the power ramp.
 - `test/ao_test.c`: the crease factor by angle, the cavity cue on synthetic pictures.
+- `test/ca_test.c`: the frame texture's sizes and the chromatic aberration's split.
+- `test/shafts_test.c`: the shadow shafts' terms and the shade map from a read.
 - `test/frame_test.c`: the stamp there and back through RGB565, the history ring, the darker of two pixels, a gain taken off, the looked-at term, the glow taken off a read, the weight table from a threshold.
 - `test/taa_test.c`: the Halton values, the jitter centred over a cycle, a known turn's shift in pixels, the weight falling with speed, a cut.
 - `test/look_test.c`: the luma bins and the log average; the eye into light (over-bright, then settled by LIGHT_S) and into dark (darker, then slow); the log and exp series against the C library; every grade layer list against clamp(A x + B) over a ramp; the layer colour; the glare.
