@@ -31,6 +31,7 @@
     the smooth step is SH4DOW-DC's sh4dow_smooth01, the one both libraries
     share.
 
+    Version: v0.50
     The effect: makes things that stand between the camera and a light seem to
       throw shade toward the viewer. The picture's dark shapes cast a darker
       copy of themselves, pushed away from the light.

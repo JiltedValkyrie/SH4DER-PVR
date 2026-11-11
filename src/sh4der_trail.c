@@ -1,6 +1,7 @@
 /* SH4DER-PVR: the feed route's KOS draw code
 
    src/sh4der_trail.c
+   Version: v0.10
    The effect: smears the picture along the camera's motion, so a fast turn
      blurs. The frame before is laid over this one, moved by how far the camera
      turned.

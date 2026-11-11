@@ -1,6 +1,7 @@
 /* SH4DER-PVR: the blade effect
 
    sh4der_blade.c
+   Version: v1.00
    The effect: makes a flat, see-through blade look filled with moving energy.
      Bright streaks circle inside it, a dark knot travels along it, and the
      whole blade breathes brighter and dimmer. All of it is done in the vertex

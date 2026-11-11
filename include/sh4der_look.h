@@ -33,6 +33,7 @@
     frame's x. A fast exp is off by percents at x = 0.01 .. 0.04, which is a
     whole factor in a step.
 
+    Version: v0.50
     The effect: makes the whole picture behave like an eye or a camera. It
       darkens after a moment in bright light and opens up in the dark, and it
       can tint, lift or fade the frame, as a few full-screen layers.

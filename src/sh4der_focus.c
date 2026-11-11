@@ -1,6 +1,7 @@
 /* SH4DER-PVR: fake depth of field, KOS draw code
 
    sh4der_focus.c
+   Version: v0.10
    The effect: keeps one part of the picture sharp and lets the rest go soft,
      as a camera focused on a face does. The soft part is a small blurred copy
      of the frame.

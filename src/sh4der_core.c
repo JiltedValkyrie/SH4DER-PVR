@@ -1,6 +1,7 @@
 /* SH4DER-PVR
 
    sh4der_core.c
+   Version: v1.00
    The effect: nothing on screen of its own. It holds what the effects share:
      the soft edge, the tube and blocker shapes, a breathing tracker, a colour
      ramp and the maths helpers, so each effect is a few lines.

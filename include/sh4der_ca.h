@@ -31,6 +31,7 @@
     The maths is a line per vertex; the square root of the half diagonal is
     SH4ZAM's (shz_sqrtf), once a mesh.
 
+    Version: v0.50
     The effect: splits the picture's colours toward the screen's edges, as a
       cheap lens does: red, green and blue fringes in the corners, none in the
       middle. To do it the game is first drawn into a texture, which this module

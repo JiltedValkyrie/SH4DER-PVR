@@ -43,6 +43,7 @@
     do not need). The rest goes through SH4ZAM's saturate / divide / length
     (sh4der_core.h).
 
+    Version: v0.50
     The effect: makes bright things spill light. Lamps and the sun bleed a
       soft glow over what is round them, and the sun throws streaks of light
       across the screen (god rays).

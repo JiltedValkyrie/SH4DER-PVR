@@ -1,6 +1,7 @@
 /* SH4DER-PVR: the flashlight hotspot by carving
 
    sh4der_torch.c
+   Version: v0.50
    The effect: a flashlight with no light source to pay for. A round lit patch
      with a hot centre lies ahead of the player, the dark stays dark round it,
      and the beam fades with distance.

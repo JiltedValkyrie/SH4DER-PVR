@@ -34,6 +34,7 @@
     sh4der_look_solve for the grade layers, then the draws for the parts the
     mode uses (a fade of 0 skips them).
 
+    Version: v0.10
     The effect: shows the world as through a device: green night vision,
       amber, or a heat picture, with grain and scanlines, fading in and out.
     Developed for: Halo: Dreamcast Evolved.

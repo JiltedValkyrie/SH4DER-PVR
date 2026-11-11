@@ -36,6 +36,7 @@
     The draw code for the mesh and the copies is in src/sh4der_warp.c (KOS,
     under _arch_dreamcast). This header is the numbers: host tested.
 
+    Version: v0.10
     The effect: bends the finished picture. A ring ripples outward, air
       shimmers with heat, water wobbles, a blur streams from the centre, the
       picture breaks into big square pixels.
