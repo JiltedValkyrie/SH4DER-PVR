@@ -1,6 +1,13 @@
 /* SH4DER-PVR
 
    sh4der_core.c
+   The effect: nothing on screen of its own. It holds what the effects share:
+     the soft edge, the tube and blocker shapes, a breathing tracker, a colour
+     ramp and the maths helpers, so each effect is a few lines.
+   Developed for: the first two effects made for Halo: Dreamcast Evolved: the
+     energy sword's blades and a hologram's inner light.
+   Use it for: the base of a per-vertex effect of your own.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE.
 

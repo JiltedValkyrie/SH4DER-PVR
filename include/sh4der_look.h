@@ -33,6 +33,14 @@
     frame's x. A fast exp is off by percents at x = 0.01 .. 0.04, which is a
     whole factor in a step.
 
+    The effect: makes the whole picture behave like an eye or a camera. It
+      darkens after a moment in bright light and opens up in the dark, and it
+      can tint, lift or fade the frame, as a few full-screen layers.
+    Developed for: eye adaptation and colour grading in Halo: Dreamcast
+      Evolved: walking out of a dark corridor into sunlight and back.
+    Use it for: automatic exposure, a day / night or underwater tint, a fade
+      to black or white, a red flash when hurt, a sepia flashback.
+
     Recommended settings (the author's own game and demo disc):
     - Eye strength 0.25: scale the shipped numbers by it, so the eye is felt
       and not seen:
@@ -62,7 +70,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_LOOK_GRID_X     80       /**< \brief Samples across the frame. */
 #define SH4DER_LOOK_GRID_Y     60       /**< \brief Samples down the frame. */

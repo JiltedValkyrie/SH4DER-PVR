@@ -28,8 +28,15 @@
       and decaying (sh4der_lens_flash_hit / _step). Additive or alpha.
 
     Every time step is first order, dt / (tau + dt), as in sh4der_look.h.
-    Shipped tuning is SH4DER_LENS_* below. Screen units: pixels, y down,
+    Default tuning is SH4DER_LENS_* below. Screen units: pixels, y down,
     the screen origin at the top left.
+
+    The effect: adds what a camera lens and film add to a picture: darker
+      corners, moving grain, a marker that points at where a hit came from, a
+      white flash. None of it reads the frame.
+    Developed for: Halo: Dreamcast Evolved.
+    Use it for: a horror game's dark corners, film grain in a cutscene, damage
+      direction markers in a shooter, lightning or a flash grenade.
 
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
@@ -45,7 +52,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     The vignette's metric: radius r = 1 at the middle of a screen edge when
     ROUND is 0 (the ellipse follows the screen), a circle of radius 1 at the
     top and bottom middle when ROUND is 1. Corners sit at sqrt(2) when ROUND

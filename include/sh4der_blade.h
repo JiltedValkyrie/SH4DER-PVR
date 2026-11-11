@@ -31,6 +31,14 @@
     The tube and blocker shapes, the feather (SH4DOW-DC's, required) and the
     SH4ZAM steps are SH4DER-PVR's shared parts (sh4der_core.h).
 
+    The effect: makes a flat, see-through blade look filled with moving
+      energy. Bright streaks circle inside it, a dark knot travels along it, and
+      the whole blade breathes brighter and dimmer. All of it is done in the
+      vertex colours the model already has.
+    Developed for: the energy sword in Halo: Dreamcast Evolved.
+    Use it for: any glowing blade or beam: a plasma sword, a magic staff, a
+      neon tube, an engine's exhaust plume, a force-field wall.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -44,7 +52,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning: the default blade (sh4der_blade_params_default())
+/** \name Default tuning: the default blade (sh4der_blade_params_default())
     Lengths are in vertex units (units of the blade's own node), the
     period in ticks.
     @{ */

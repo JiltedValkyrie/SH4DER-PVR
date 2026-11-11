@@ -31,6 +31,16 @@
     The maths is a line per vertex; the square root of the half diagonal is
     SH4ZAM's (shz_sqrtf), once a mesh.
 
+    The effect: splits the picture's colours toward the screen's edges, as a
+      cheap lens does: red, green and blue fringes in the corners, none in the
+      middle. To do it the game is first drawn into a texture, which this module
+      also provides.
+    Developed for: the SH4DER demo disc, then handed to Halo: Dreamcast
+      Evolved.
+    Use it for: a camera or scope's colour fringe, a hit or glitch distortion,
+      a dream or VHS look. The frame texture alone renders a game at 320 x 240
+      for speed, or feeds a screen transition.
+
     Recommended settings (the author's own game and demo disc):
     - Strength 1.00: red and blue 3 pixels apart in the corner. Useful range
       0.25 .. 4.00 (12 pixels: a deliberate, damaged-lens look).
@@ -57,7 +67,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_CA_SPLIT_PX  3.0f    /**< \brief Strength 1: red and blue this many screen pixels apart in the corner. */
 #define SH4DER_CA_MESH_X    8       /**< \brief Cells across a channel's mesh. */

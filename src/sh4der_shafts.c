@@ -1,6 +1,15 @@
 /* SH4DER-PVR: shadow shafts, Dreamcast side
 
    sh4der_shafts.c
+   The effect: makes things that stand between the camera and a light seem to
+     throw shade toward the viewer. The picture's dark shapes cast a darker copy
+     of themselves, pushed away from the light.
+   Developed for: the SH4DER demo disc, where a misplaced copy of the frame
+     read threw dark ghosts that read as shadows; it was kept and made
+     deliberate.
+   Use it for: trees or pillars against a low sun, a figure in a bright
+     doorway, window bars across a room.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 */

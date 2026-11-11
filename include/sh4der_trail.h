@@ -36,6 +36,14 @@
     The maths is the host side (inline, both SH4ZAM and plain C). The KOS side
     is under _arch_dreamcast.
 
+    The effect: smears the picture along the camera's motion, so a fast turn
+      blurs. The frame before is laid over this one, moved by how far the camera
+      turned.
+    Developed for: motion blur and the temporal blend in Halo: Dreamcast
+      Evolved, on the screen's own front buffer, with no frame texture.
+    Use it for: a speed blur while boosting, stunned or drunken vision, ghost
+      trails behind fast things.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -51,7 +59,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_TRAIL_COPIES    3      /**< \brief History copies along the motion, 2 or 3 (copy k at k / (COPIES - 1) of the motion). */
 #define SH4DER_TRAIL_WEIGHT_LO 0.0f   /**< \brief History weight while still (no blur). */

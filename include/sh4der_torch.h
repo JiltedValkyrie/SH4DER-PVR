@@ -37,6 +37,14 @@
     src/sh4der_torch.c. The client draws both layers under its own look
     (z below the look's layers).
 
+    The effect: a flashlight with no light source to pay for. A round lit
+      patch with a hot centre lies ahead of the player, the dark stays dark
+      round it, and the beam fades with distance.
+    Developed for: the flashlight in Halo: Dreamcast Evolved: dark corridors,
+      and daylight where it must darken nothing.
+    Use it for: a flashlight, a miner's lamp, a vehicle's head lamps, a
+      searchlight in a stealth or horror game.
+
     Recommended settings (the author's own game):
     - The near light a vertex takes: radius 6.0 world units, strength 0.85,
       tint 0.94 green and 0.82 blue (a warm white).
@@ -65,7 +73,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_TORCH_BOOST       0.6f    /**< \brief Core boost at the centre (x (1 + this) at full power, plus HOT). */
 #define SH4DER_TORCH_HOT         0.4f    /**< \brief Extra hot centre, linear to 0 at HOT_U. */

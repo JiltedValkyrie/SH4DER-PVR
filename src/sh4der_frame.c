@@ -1,6 +1,15 @@
 /* SH4DER-PVR: the frame read, Dreamcast side
 
    sh4der_frame.c
+   The effect: lets a program see its own finished picture. The frame on
+     screen is read back on a small grid, and every frame carries a small mark
+     so a read knows which frame it saw.
+   Developed for: the SH4DER demo disc, so the eye and the glow could read the
+     frame without pulsing (the frame on screen is one or two frames old).
+   Use it for: anything that must know what is on screen: automatic exposure,
+     a bloom source, ambient light from the picture's average colour, rumble or
+     music driven by brightness.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 */

@@ -31,6 +31,15 @@
     the smooth step is SH4DOW-DC's sh4dow_smooth01, the one both libraries
     share.
 
+    The effect: makes things that stand between the camera and a light seem to
+      throw shade toward the viewer. The picture's dark shapes cast a darker
+      copy of themselves, pushed away from the light.
+    Developed for: the SH4DER demo disc, where a misplaced copy of the frame
+      read threw dark ghosts that read as shadows; it was kept and made
+      deliberate.
+    Use it for: trees or pillars against a low sun, a figure in a bright
+      doorway, window bars across a room.
+
     Recommended settings (the author's own game and demo disc):
     - Strength 0.50, off by default: a strong shade reads as a second,
       wrong shadow. Useful range 0.25 .. 3.00.
@@ -56,7 +65,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_SHAFTS_DARK_FROM  0.30f  /**< \brief Luma (0..1) under which a cell casts. */
 #define SH4DER_SHAFTS_DARK_FULL  0.10f  /**< \brief Luma from which down it casts fully. */

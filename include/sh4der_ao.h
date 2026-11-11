@@ -26,6 +26,12 @@
     The divisions and clamps are SH4ZAM (through the core), the luma sums are
     integer. Define SH4DER_CORE_NO_SH4ZAM for the plain C path.
 
+    The effect: darkens the creases where surfaces meet and the places where
+      things touch, so shapes read as solid instead of flat.
+    Developed for: Halo: Dreamcast Evolved.
+    Use it for: baking corner shading into a level's vertex colours at build
+      time, grounding objects where they meet a floor.
+
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 */
@@ -40,7 +46,7 @@
 extern "C" {
 #endif
 
-/** \name Shipped tuning
+/** \name Default tuning
     @{ */
 #define SH4DER_AO_CREASE_K     0.5f    /**< \brief Vertex factor at a full concave crease is 1 - this (0.5: half the colour). */
 #define SH4DER_AO_CREASE_FULL  2.0f    /**< \brief Sum of concave edge amounts at a vertex that counts as full (two right-angle edges). */

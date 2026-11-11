@@ -1,6 +1,14 @@
 /* SH4DER-PVR: the feed route's KOS draw code
 
    src/sh4der_trail.c
+   The effect: smears the picture along the camera's motion, so a fast turn
+     blurs. The frame before is laid over this one, moved by how far the camera
+     turned.
+   Developed for: motion blur and the temporal blend in Halo: Dreamcast
+     Evolved, on the screen's own front buffer, with no frame texture.
+   Use it for: a speed blur while boosting, stunned or drunken vision, ghost
+     trails behind fast things.
+
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 */
