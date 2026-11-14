@@ -5,8 +5,8 @@
 
    Host check of the flashlight hotspot: cone radii, boost and carve profiles,
    the near add, the fog bend, the darkness gate (hysteresis, ramp times), the
-   power ramp at 30 Hz, and both meshes (strip layout, eol, edge colours,
-   corner coverage).
+   power ramp at 30 Hz, both meshes (strip layout, eol, edge colours,
+   corner coverage), and the anti-aliasing 2X x space (scaled once).
 */
 
 #include <math.h>
@@ -206,6 +206,38 @@ static int meshes(void) {
     return 0;
 }
 
+/* Anti-aliasing 2X: centre, x scale and width doubled once give the 1X meshes with x doubled (round after the scaler halves it); doubled twice, the centre sits on the right edge. */
+static int aa2x(void) {
+    static sh4der_torch_vert_t a[SH4DER_TORCH_VERTS], b[SH4DER_TORCH_VERTS];
+    const float tan_r = sh4der_torch_tan_of_cos2(0.941474f), sx = 554.0f, sy = 554.0f, cx = 320.0f, cy = 240.0f, w = 640.0f, h = 480.0f;
+    float rx, ry, rx2, ry2;
+    unsigned n1, n2, i, pass;
+    sh4der_torch_radii(sx, sy, tan_r, &rx, &ry);
+    sh4der_torch_radii(sx * 2.0f, sy, tan_r, &rx2, &ry2);
+    if (fabsf(rx2 - 2.0f * rx) > 1e-3f || ry2 != ry)
+        return fail("aa2x: rx doubles, ry stays");
+    if (fabsf(sh4der_torch_umax(cx * 2.0f, cy, rx2, ry2, w * 2.0f, h) - sh4der_torch_umax(cx, cy, rx, ry, w, h)) > 1e-5f)
+        return fail("aa2x: the carve reaches the same share");
+    for (pass = 0; pass < 2; pass++) {
+        if (pass == 0) {
+            n1 = sh4der_torch_carve_mesh_to(a, cx, cy, rx, ry, 1.0f, sh4der_torch_umax(cx, cy, rx, ry, w, h));
+            n2 = sh4der_torch_carve_mesh_to(b, cx * 2.0f, cy, rx2, ry2, 1.0f, sh4der_torch_umax(cx * 2.0f, cy, rx2, ry2, w * 2.0f, h));
+        } else {
+            n1 = sh4der_torch_boost_mesh_core(a, cx, cy, rx, ry, 1.0f, SH4DER_TORCH_TINT_G, SH4DER_TORCH_TINT_B, 0.0f);
+            n2 = sh4der_torch_boost_mesh_core(b, cx * 2.0f, cy, rx2, ry2, 1.0f, SH4DER_TORCH_TINT_G, SH4DER_TORCH_TINT_B, 0.0f);
+        }
+        if (n1 != n2)
+            return fail("aa2x: same vertex count");
+        for (i = 0; i < n1; i++)
+            if (fabsf(b[i].x - 2.0f * a[i].x) > 1e-2f || fabsf(b[i].y - a[i].y) > 1e-3f || b[i].argb != a[i].argb || b[i].eol != a[i].eol)
+                return fail(pass ? "aa2x: boost mesh is the 1X mesh with x doubled" : "aa2x: carve mesh is the 1X mesh with x doubled");
+    }
+    sh4der_torch_boost_mesh_core(b, cx * 4.0f, cy, rx2 * 2.0f, ry2, 1.0f, SH4DER_TORCH_TINT_G, SH4DER_TORCH_TINT_B, 0.0f);   /* the wrong way: scaled twice */
+    if (fabsf(b[0].x * 0.5f - w) > 1e-2f)   /* its centre, halved by the scaler, lands on the right edge */
+        return fail("aa2x: twice puts the centre on the edge");
+    return 0;
+}
+
 /* The carve by darkness: full up to DARK_LO, none from DARK_HI, never rising with more light, half way near the middle. */
 static int dark(void) {
     float last = 1.0f, l;
@@ -223,7 +255,7 @@ static int dark(void) {
 }
 
 int main(void) {
-    if (radii() || profiles() || near_and_fog() || gate() || power() || meshes() || dark())
+    if (radii() || profiles() || near_and_fog() || gate() || power() || meshes() || dark() || aa2x())
         return 1;
     printf("torch_test: ok\n");
     return 0;

@@ -37,6 +37,14 @@
     src/sh4der_torch.c. The client draws both layers under its own look
     (z below the look's layers).
 
+    Anti-aliasing 2X (KOS pvr_init_params_t fsaa_enabled): the PVR renders
+    twice the width (1280 for a 640 mode) and the scaler halves it on the way
+    out, so vertex x is in the wide space. Scale x exactly once: the centre cx,
+    the x pixel scale sx given to sh4der_torch_radii (so rx), and the width w
+    given to sh4der_torch_umax. y, sy, ry and h stay. A projection whose x
+    scale already holds the factor must not be scaled again: twice puts the
+    circle's centre on the right edge, twice as wide as tall.
+
     Version: v0.50
     The effect: a flashlight with no light source to pay for. A round lit
       patch with a hot centre lies ahead of the player, the dark stays dark

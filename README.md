@@ -563,6 +563,8 @@ The darkness gate (`sh4der_torch_gate_step`) reads the baked luminance of the ne
 
 The two meshes are strips: 9 strips of 34 vertices (5 boost bands, 4 carve bands), 306 vertices and 288 triangles a frame. The KOS drawing (`sh4der_torch_headers`, `sh4der_torch_draw`) is Dreamcast only. No texture, no video memory; the client's vertex buffer is `SH4DER_TORCH_VERTS` x 16 bytes (4.9 KB).
 
+Under anti-aliasing 2X (KOS `fsaa_enabled`) the PVR draws twice the width and the scaler halves it, so vertex x is in the wide space. Scale x exactly once: the centre `cx`, the x pixel scale given to `sh4der_torch_radii` (so `rx`), and the width given to `sh4der_torch_umax`; y stays. If the projection's x scale already holds the factor, do not scale again: twice puts the spot on the right edge as an oval.
+
 ### Calls
 
 ```c
@@ -838,7 +840,7 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 - `test/lens_test.c`: the vignette's vertex colours and banding bound, the grain's mean, the wedge geometry, the flash envelope.
 - `test/focus_test.c`: the box blur, the mask falloff for each shape, the mesh counts.
 - `test/visor_test.c`: the presets through the grade, the thermal ramp, the affine fit error, the fade envelope.
-- `test/torch_test.c`: the profile, the mesh colours, cone to radius, the fog bend, the darkness gate, the power ramp.
+- `test/torch_test.c`: the profile, the mesh colours, cone to radius, the fog bend, the darkness gate, the power ramp, the anti-aliasing 2X x space.
 - `test/ao_test.c`: the crease factor by angle, the cavity cue on synthetic pictures.
 - `test/ca_test.c`: the frame texture's sizes and the chromatic aberration's split.
 - `test/shafts_test.c`: the shadow shafts' terms and the shade map from a read.
