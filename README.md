@@ -52,6 +52,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | v0.10 |
 | ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | v0.50 |
 | shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | v0.50 |
+| guard | `sh4der_guard.h` | Two checks for what an emulator forgives and a real console does not: a triangle with no screen area, and a polygon header that was never compiled | nothing (inline tests) | v0.10 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
 
@@ -823,7 +824,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 ## Build and test
 
 ```sh
-make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, example/blade
+make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, example/blade
 make test-shz SH4ZAM=/path/to/sh4zam   # host, the SH4ZAM path on SH4ZAM's software back-end
 make dc SH4ZAM=/path/to/sh4zam   # Dreamcast: build/libsh4der_core.a (KallistiOS environment sourced)
 make test-dc SH4ZAM=/path/to/sh4zam  # Dreamcast: build/*_test.elf
@@ -844,10 +845,25 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 - `test/ao_test.c`: the crease factor by angle, the cavity cue on synthetic pictures.
 - `test/ca_test.c`: the frame texture's sizes and the chromatic aberration's split.
 - `test/shafts_test.c`: the shadow shafts' terms and the shade map from a read.
+- `test/guard_test.c`: a normal triangle kept; a line, a repeated point, one point three times and three points on one ray dropped; a thin sliver kept and the caller's threshold; a point at or behind the near plane not judged; a non-finite point dropped; the polygon header's command word (zeros refused).
 - `test/frame_test.c`: the stamp there and back through RGB565, the history ring, the darker of two pixels, a gain taken off, the looked-at term, the glow taken off a read, the weight table from a threshold.
 - `test/taa_test.c`: the Halton values, the jitter centred over a cycle, a known turn's shift in pixels, the weight falling with speed, a cut.
 - `test/look_test.c`: the luma bins and the log average; the eye into light (over-bright, then settled by LIGHT_S) and into dark (darker, then slow); the log and exp series against the C library; every grade layer list against clamp(A x + B) over a ramp; the layer colour; the glare.
 - `test/holo_test.c`: the default weights and table entries, the breath tracker over a breathing chest that then leans, a table that never gets darker with more weight or more breath, the fade, bad params, the glint by depth.
+
+## Real hardware notes
+
+What an emulator forgives and a real Dreamcast does not. Each of these was seen on a console while an emulator showed the picture right, so test on hardware (or a GDEMU) before you call an effect done.
+
+- **A triangle with no screen area.** On a real console the PVR drew triangles with no area (three points on a line, two the same) as short bright lines; an emulator drew nothing. A fan, ring or strip has them where the camera looks along a spoke, and a mesh with a centre band at radius 0 has them always. Drop them before you send: `sh4der_tri_area_ok` in `sh4der_guard.h` (the area of the triangle in x / z, y / z; a triangle with a point behind the near plane is left to your clipper).
+- **Compile a polygon header before any quad.** Every quad, a full-screen filter quad as much as a model, needs a header filled in by `pvr_poly_compile` first. A header that never was is all zeros, and its command word 0 is "end of list" to the tile accelerator, in the middle of the list. An emulator carries on; a real console can stop. If a header is set up in one code path (a level start, say) and a quad is drawn from another (a cutscene), check that both compile it. `sh4der_poly_hdr_ok` in `sh4der_guard.h` tests a header's command word: use it in a debug assert where the header is sent.
+- **Aligned access only.** A 4 byte load or store (a `float`, an `int`, a 32 bit colour) on an address that is not a multiple of 4 is an address error on the SH-4: the console stops with nothing on screen. An emulator reads it anyway. Never cast a byte pointer, a disc buffer or a packed struct field to a wider pointer; copy with `memcpy` or read the bytes. Store queue and SIMD addresses want 32 byte alignment. The calls here that write 32 bit values through a byte stride document the alignment they need (see "What a caller must keep").
+
+### Guard tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_GUARD_MIN_AREA2 | 1.0e-7 | Twice the area of the triangle in (x / z, y / z) below which `sh4der_tri_area_ok` says drop: about 0.01 square pixel at 640 x 480 with a 90 degree field, so only a triangle with no area at all |
 
 ## What a caller must keep
 
