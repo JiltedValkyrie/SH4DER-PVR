@@ -923,3 +923,8 @@ The license is in [LICENSE](LICENSE). It uses the same terms as SH4DOW-DC.
 `make ocean SH4ZAM=../sh4zam MKDCDISC=<mkdcdisc>` builds the separate sunset
 scene. `make demo` still builds the original gallery.
 See [demo/OCEAN.md](demo/OCEAN.md) for method, controls, costs and validation.
+The demo has a PRESET row (QUALITY, the original look; PERFORMANT: SH4DOW off, a
+2,000 triangle water mesh), a WATER TRIANGLES row (114 live mesh sizes in steps of
+200 triangles, with the triangle and vertex counts, CPU and render milliseconds and
+TA use on the readout), SUN AZIMUTH / SUN ELEVATION rows (the water, transmission,
+SH4DOW and reflection follow the sun) and the camera height on LT / RT.

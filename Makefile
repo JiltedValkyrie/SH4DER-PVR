@@ -169,7 +169,7 @@ clean:
 
 # Separate sunset scene; original effects gallery remains `make demo`.
 .PHONY: ocean ocean-preview test-water
-OCEAN_CDI ?= $(BUILD)/ocean/sh4der-ocean-b8.cdi
+OCEAN_CDI ?= $(BUILD)/ocean/sh4der-ocean-b9.cdi
 OCEAN_HEADERS = demo/ocean_scene.h include/sh4der_water.h include/sh4der_sss.h $(SH4DOW)/include/sh4dow_heightfield.h
 ocean: $(OCEAN_CDI)
 $(BUILD)/ocean/sh4der-ocean.elf: demo/ocean.c $(OCEAN_HEADERS) $(BUILD)/libsh4der_core.a
