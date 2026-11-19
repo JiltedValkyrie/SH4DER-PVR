@@ -247,10 +247,13 @@ static inline void sh4der_warp_pixel_uv(unsigned bx, unsigned by, float out[2]) 
 /* 4 x 4 ordered (Bayer) threshold, 0..15, row-major. */
 static const uint8_t sh4der_warp_bayer_[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
 
-/** \brief The dither multiply at screen pixel (x, y): 1 - DITHER x (threshold share), 1 - DITHER .. 1. */
+/** \brief Ordered threshold in (0,1), also useful for build/load-time texture quantization. */
+static inline float sh4der_warp_dither_threshold(unsigned x, unsigned y) {
+    return ((float)sh4der_warp_bayer_[(y & 3u) * 4u + (x & 3u)] + 0.5f) * (1.0f / 16.0f);
+}
+/** \brief The dither multiply at screen pixel (x, y): 1 - DITHER x threshold share. */
 static inline float sh4der_warp_dither_mul(unsigned x, unsigned y) {
-    const float t = ((float)sh4der_warp_bayer_[(y & 3u) * 4u + (x & 3u)] + 0.5f) * (1.0f / 16.0f);
-    return 1.0f - SH4DER_WARP_DITHER * t;
+    return 1.0f - SH4DER_WARP_DITHER * sh4der_warp_dither_threshold(x,y);
 }
 
 /** \brief PVR twiddle index of texel (x, y) in an 8 x 8 texture: y bit b at 2b, x bit b at 2b + 1. Matches the feed mask's

@@ -174,6 +174,10 @@ static inline float sh4der_frac_(float x) { return shz_fractf(x); }   /* x - flo
 static inline float sh4der_lerp_(float a, float b, float t) { return shz_lerpf(a, b, t); }
 static inline float sh4der_div_(float a, float b) { return shz_divf(a, b); }
 static inline float sh4der_recip_pos_(float x) { return shz_invf_fsrra(x); }   /* x > 0: every caller checked the sign */
+static inline float sh4der_fma_(float a, float b, float c) { return shz_fmaf(a, b, c); }   /* a * b + c, one FMAC */
+static inline float sh4der_dot3_(const float a[3], const float b[3]) {
+    return shz_vec3_dot(shz_vec3_init(a[0], a[1], a[2]), shz_vec3_init(b[0], b[1], b[2]));
+}
 static inline void sh4der_sincos_(float radians, float *s, float *c) {
     const shz_sincos_t sc = shz_sincosf(radians);
 
@@ -201,6 +205,8 @@ static inline float sh4der_frac_(float x) { return x - floorf(x); }
 static inline float sh4der_lerp_(float a, float b, float t) { return a + (b - a) * t; }
 static inline float sh4der_div_(float a, float b) { return a / b; }
 static inline float sh4der_recip_pos_(float x) { return 1.0f / x; }
+static inline float sh4der_fma_(float a, float b, float c) { return a * b + c; }
+static inline float sh4der_dot3_(const float a[3], const float b[3]) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
 static inline void sh4der_sincos_(float radians, float *s, float *c) {
     *s = sinf(radians);
     *c = cosf(radians);
