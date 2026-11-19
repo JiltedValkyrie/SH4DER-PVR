@@ -24,10 +24,10 @@
         SHZ_DCE_USE_ASIN_ACOS   default 1   shz_asinf, shz_acosf (shz_dce_trig.h). Results DIFFER from
                                             SH4ZAM's: within 8e-6 rad of the true angle instead of
                                             4.95e-3, and +-pi/2, 0 or pi past +-1 instead of NaN.
-        SHZ_DCE_USE_ATAN2       default 0   shz_atan2f (shz_dce_atan2.h). Results DIFFER from
-                                            SH4ZAM's: within 2.5e-6 rad of the true angle instead
-                                            of 1.02e-2, for about 9 cycles more in the model (the
-                                            trade is SHZ_DCE_ATAN2_TERMS). Not on a console yet.
+        SHZ_DCE_USE_ATAN2       default 1   shz_atan2f (shz_dce_atan2.h). Results DIFFER from
+                                            SH4ZAM's: within 1.4e-5 rad of the true angle instead
+                                            of 1.02e-2, and it COSTS cycles: about 8 a call in the
+                                            model (the trade is SHZ_DCE_ATAN2_TERMS, default 5).
         SHZ_DCE_USE_SQRT        default 0   shz_sqrtf, shz_hypotf (shz_dce_sqrt.h; SH4ZAM's bits)
         SHZ_DCE_USE_INV_SQRT    default 0   shz_inv_sqrtf
         SHZ_DCE_USE_MAGNITUDE   default 0   shz_vec2/3/4_magnitude, shz_vec2/3/4_magnitude_inv
@@ -40,14 +40,19 @@
 
     Why these defaults: a console (single calls, reported by Falco Girgis; doc/THESIS.md, section
     7). The arcsine and arccosine won there, in accuracy by a factor of 850 and in cycles by
-    nothing or a little. The reordered roots, lengths and normalisations lost a cycle or two on
-    single calls against a pipeline model that had promised a gain; they are here to be switched
-    on a group at a time and measured in a real program. A second set of switches,
-    SHZ_DCE_OPAQUE_... (shz_dce_cdefs.h), says where those routines put a barrier on their zero.
+    nothing or a little. The arctangent won in use: with 5 terms an interpolated rotation that
+    jittered with SH4ZAM's routine is steady, for "a few extra cycles" (doc/THESIS.md, 2.5); it
+    is the one default here that is slower than what it replaces, so a caller that only sorts
+    by angle sets SHZ_DCE_USE_ATAN2 0. The reordered roots, lengths and normalisations lost a
+    cycle or two on single calls against a pipeline model that had promised a gain; they are
+    here to be switched on a group at a time and measured in a real program. A second set of
+    switches, SHZ_DCE_OPAQUE_... (shz_dce_cdefs.h), says where those routines put a barrier on
+    their zero.
 
     Before these switches existed this header renamed the root family always and the arcsine and
     arccosine only with SHZ_DCE_OVERRIDE_APPROX 1. That name is still read: 1 turns
-    SHZ_DCE_USE_ASIN_ACOS and SHZ_DCE_USE_FIPR on, 0 turns them off, unless they are set by name.
+    SHZ_DCE_USE_ASIN_ACOS, SHZ_DCE_USE_ATAN2 and SHZ_DCE_USE_FIPR on, 0 turns them off, unless
+    they are set by name.
 
     Scope: the macros act on the code that follows them. SH4ZAM's own inline routines were
     compiled before them and keep calling SH4ZAM's originals; that is why the lengths, distances
@@ -78,7 +83,11 @@
 #endif
 #endif
 #ifndef SHZ_DCE_USE_ATAN2
-#define SHZ_DCE_USE_ATAN2 (SHZ_DCE_OVERRIDE_ALL)
+#ifdef SHZ_DCE_OVERRIDE_APPROX
+#define SHZ_DCE_USE_ATAN2 ((SHZ_DCE_OVERRIDE_APPROX) || (SHZ_DCE_OVERRIDE_ALL))
+#else
+#define SHZ_DCE_USE_ATAN2 1
+#endif
 #endif
 #ifndef SHZ_DCE_USE_SQRT
 #define SHZ_DCE_USE_SQRT (SHZ_DCE_OVERRIDE_ALL)

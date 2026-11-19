@@ -6,8 +6,8 @@
    MIT License: see ../../LICENSE.
 
    What is checked:
-   - a plain include renames shz_asinf and shz_acosf and nothing else (the defaults); one switch set by name (here
-     SHZ_DCE_USE_INV_SQRT) renames its own group and no other
+   - a plain include renames shz_asinf, shz_acosf and shz_atan2f and nothing else (the defaults); one switch set by name
+     (here SHZ_DCE_USE_INV_SQRT) renames its own group and no other
    - the renamed calls, written with SH4ZAM's names and argument types, compile and give the rework's value
    - the barrier switches of shz_dce_cdefs.h have their documented defaults
    Every switch on at once, and one taken back by name, is overrideall_test.c; the old switch SHZ_DCE_OVERRIDE_APPROX is
@@ -31,6 +31,7 @@ int main(void) {
     /* on by default */
     IS(shz_asinf, "shz_dce_asinf");
     IS(shz_acosf, "shz_dce_acosf");
+    IS(shz_atan2f, "shz_dce_atan2f");
     /* set by name in this file */
     IS(shz_inv_sqrtf, "shz_dce_inv_sqrtf");
     /* off by default: SH4ZAM's own routines */
@@ -49,14 +50,13 @@ int main(void) {
     IS(shz_vec3_normalize_safe, "shz_vec3_normalize_safe");
     IS(shz_vec4_normalize_safe, "shz_vec4_normalize_safe");
     IS(shz_vec4_normalize, "shz_vec4_normalize");
-    IS(shz_atan2f, "shz_atan2f");
     /* routines with no rework keep their names */
     IS(shz_vec3_normalize, "shz_vec3_normalize");
     IS(shz_invf, "shz_invf");
     IS(shz_inv_sqrtf_fsrra, "shz_inv_sqrtf_fsrra");
 
     T_CHECK(SHZ_DCE_USE_ASIN_ACOS == 1 && SHZ_DCE_USE_INV_SQRT == 1 && SHZ_DCE_USE_SQRT == 0 && SHZ_DCE_USE_MAGNITUDE == 0 && SHZ_DCE_USE_DISTANCE == 0 &&
-            SHZ_DCE_USE_NORMALIZE == 0 && SHZ_DCE_USE_FIPR == 0 && SHZ_DCE_USE_ATAN2 == 0 && SHZ_DCE_OVERRIDE_ALL == 0, "the override switches' defaults");
+            SHZ_DCE_USE_NORMALIZE == 0 && SHZ_DCE_USE_FIPR == 0 && SHZ_DCE_USE_ATAN2 == 1 && SHZ_DCE_OVERRIDE_ALL == 0, "the override switches' defaults");
     T_CHECK(SHZ_DCE_OPAQUE_SQRT == 0 && SHZ_DCE_OPAQUE_INV_SQRT == 1 && SHZ_DCE_OPAQUE_MAGNITUDE == 0 && SHZ_DCE_OPAQUE_DISTANCE == 0 && SHZ_DCE_OPAQUE_NORMALIZE2 == 1 &&
             SHZ_DCE_OPAQUE_NORMALIZE3 == 0 && SHZ_DCE_OPAQUE_NORMALIZE4 == 0 && SHZ_DCE_OPAQUE_ASIN_ACOS == 0, "the barrier switches' defaults");
 
@@ -67,6 +67,7 @@ int main(void) {
             T_CHECK(shz_inv_sqrtf(x) == shz_dce_inv_sqrtf(x), "inv_sqrtf is the rework");
             T_CHECK(fabs(shz_asinf(c) - asin((double)c)) <= 8e-6 && fabs(shz_acosf(c) - acos((double)c)) <= 8e-6, "asinf / acosf are the reworks (their bound holds)");
             T_CHECK(fabs(shz_sqrtf(x) - sqrt((double)x)) <= 2e-6 * sqrt((double)x) + 1e-30, "sqrtf is still a square root");
+            T_CHECK(fabs(shz_atan2f(c, x + 0.5f) - atan2((double)c, (double)(x + 0.5f))) <= 1.4e-5, "atan2f is the rework (its bound holds)");
         }
     }
     return t_done("override_test");

@@ -65,7 +65,7 @@
       square, FSRRA, multiply) and stay; the same operations with one quotient and no reflection
       subtract measure 36.5 E in C, because the compiler orders them as before. Evaluating the
       polynomial's terms while FSRRA runs would save about 8 cycles and needs an assembly block:
-      not done. Reworked for accuracy in shz_dce_atan2.h (1.02e-2 rad to 2.5e-6, 9 cycles more).
+      not done. Reworked for accuracy in shz_dce_atan2.h (1.02e-2 rad to 1.4e-5, 8 cycles more).
 
     Use it for: angles from dot products and unit-vector components. shz_dce_override.h maps
     shz_asinf / shz_acosf onto these when the approximate overrides are asked for.

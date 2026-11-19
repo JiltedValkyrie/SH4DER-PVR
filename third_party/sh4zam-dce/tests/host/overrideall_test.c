@@ -72,7 +72,7 @@ int main(void) {
                     fabs((double)n4.x * n4.x + (double)n4.y * n4.y + (double)n4.z * n4.z + (double)n4.w * n4.w - 1.0) < 1e-5, "safe normalisations");
             T_CHECK(fabs((double)m4.x * m4.x + (double)m4.y * m4.y + (double)m4.z * m4.z + (double)m4.w * m4.w - 1.0) < 1e-5, "vec4 normalize");
             T_CHECK(fabs(shz_asinf(c) - asin((double)c)) <= 8e-6 && fabs(shz_acosf(c) - acos((double)c)) <= 8e-6, "asinf / acosf are the reworks (their bound holds)");
-            T_CHECK(fabs(shz_atan2f(vf[2], vf[3]) - atan2((double)vf[2], (double)vf[3])) <= 2.5e-6, "atan2f is the rework (its bound holds)");
+            T_CHECK(fabs(shz_atan2f(vf[2], vf[3]) - atan2((double)vf[2], (double)vf[3])) <= 1.4e-5, "atan2f is the rework (its bound holds)");
         }
     }
     return t_done("overrideall_test");
