@@ -1,10 +1,11 @@
-/* SH4DER-PVR: reusable directional-wave water, Fresnel and transmission.
+/* SH4DER-PVR: reusable directional-wave water and Fresnel; crest transmission via sh4der_sss.h.
  * Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
  * SH4ZAM for all math on Dreamcast; core's plain-C mirror for host checks.
  */
 #ifndef SH4DER_WATER_H
 #define SH4DER_WATER_H
 #include "sh4der_core.h"
+#include "sh4der_sss.h"
 #define SH4DER_WATER_TAU 6.28318530718f
 
 typedef struct { float dx, dz, amplitude, wavelength, speed, phase; int ripple; } sh4der_water_wave_t;
@@ -69,11 +70,16 @@ static inline void sh4der_water_reflect(const float n[3], const float view[3], f
     unsigned i; for (i=0; i<3; ++i) r[i] = 2*d*n[i]-view[i];
 #endif
 }
-/* Material-specific absorption coefficient / metre; incident RGB, path metres.
- * A transmission approximation, NOT a multiple-scattering transport solver.
- */
+/* Absorption only: thin wrapper over sh4der_sss_absorb (kept for callers). */
 static inline void sh4der_water_transmit(const float incident[3], const float absorption[3], float path, float out[3]) {
-    unsigned i; if (path < 0) path = 0;
-    for(i=0; i<3; ++i) out[i] = incident[i]*sh4der_water_exp(-absorption[i]*path); /* hand: scalar products around SH4ZAM exp */
+    sh4der_sss_absorb(incident, absorption, path, out);
+}
+/* Crest transmission: the water's thickness proxy on top of sh4der_sss_rgb.
+ * crest 0..1 (thin wave top = 1) is the coverage; the path runs from thick_path
+ * (crest 0) to thin_path (crest 1). entry: light into the water (1 - Fresnel).
+ * An artistic proxy, NOT a multiple-scattering solve (see sh4der_sss.h). */
+static inline void sh4der_water_crest_sss(const sh4der_sss_t *p, const float view[3], const float light[3], const float normal[3],
+    float crest, float thin_path, float thick_path, float entry, float visibility, float out[3]) {
+    sh4der_sss_rgb(p, view, light, normal, sh4der_lerp_(thick_path, thin_path, crest), crest, entry, visibility, out);
 }
 #endif

@@ -52,6 +52,8 @@ static float ocean_occlusion[OCEAN_SHADOW_X*OCEAN_SHADOW_Z] __attribute__((align
 static float ocean_scratch[2*OCEAN_SHADOW_Z] __attribute__((aligned(32)));
 static float ocean_rows[OCEAN_Z+1];
 static float ocean_cols[OCEAN_X+1]; /* screen-side factor per column, x f gives metres */
+/* Crest transmission (sh4der_sss): sun-coloured light, water absorption / m. */
+static sh4der_sss_t ocean_sss;
 #ifndef SH4DER_CORE_NO_SH4ZAM
 /* One water row through shz_dce_project_vertices: 24 B source (side, dy, f + 3
  * unused words), 32 B records out. Row-sized: 7.4 KB, stays in cache. */
@@ -133,6 +135,8 @@ static void ocean_scene_init(void) {
         else if(y<=80) ocean_rows[y]=12*sh4der_water_exp(sh4der_fma_((float)y,2.302585093f/40,-2.302585093f)); /* hand: constant scale */
         else ocean_rows[y]=120*sh4der_water_exp(sh4der_fma_((float)y,3.14988295f/16,-80*3.14988295f/16)); /* hand: constant scale */
     }
+    { const float incident[3]={1.0f,0.58f,0.30f}, absorb[3]={0.50f,0.13f,0.07f};
+      sh4der_sss_init(&ocean_sss,incident,absorb,0.25f,0.0f,0.0f); }
     for(x=0;x<=OCEAN_X;++x) ocean_cols[x]=sh4der_fma_((float)x,2*0.77f/OCEAN_X,-0.77f);
 }
 static void ocean_shadow_update(const ocean_settings_t *s) {
@@ -171,7 +175,7 @@ static void ocean_scene_update(const ocean_settings_t *s) {
             const sh4der_water_surface_t surf=sh4der_water_sample(ocean_waves,7,wx,wz,s->time,step,(float)s->swell,(float)s->ripple);
             const float dy=surf.height-OCEAN_EYE;
             float n[3],view[3],r[3],rgb[3],trans[3];
-            float ndv,fresnel,shadow,visibility,crest,forward,amount,light,texweight,base;
+            float ndv,fresnel,shadow,visibility,crest,light,texweight,base;
             ocean_vertex_t *v=&ocean_water[z*(OCEAN_X+1)+x];
 #ifndef SH4DER_CORE_NO_SH4ZAM
             /* Camera-yaw frame position; pitch + projection after the row, one DCE pass. */
@@ -187,15 +191,14 @@ static void ocean_scene_update(const ocean_settings_t *s) {
             sh4der_water_reflect(n,view,r); ocean_env_uv(r,&v->u,&v->v);
             shadow=s->shadow?ocean_shadow_at(wx,wz):0; visibility=1-shadow;
             crest=sh4der_sat_(sh4der_fma_(surf.height,3.4f,0.34f));
-            forward=sh4der_sat_(-ocean_dot(view,ocean_sun));
-            amount=s->transmission?(1-fresnel)*crest*forward*visibility*0.25f:0; /* hand: weight product, no SH4ZAM op */
-            { const float incident[3]={1.0f,0.58f,0.30f}, absorb[3]={0.50f,0.13f,0.07f};
-              sh4der_water_transmit(incident,absorb,sh4der_fma_(-crest,4.0f,4.4f),trans); }
+            /* Crest transmission: sh4der_sss, path 4.4 m (trough) to 0.4 m (crest top) */
+            if(s->transmission) sh4der_water_crest_sss(&ocean_sss,view,ocean_sun,n,crest,0.4f,4.4f,1-fresnel,visibility,trans);
+            else trans[0]=trans[1]=trans[2]=0;
             light=sh4der_sat_(ocean_dot(n,ocean_sun))*visibility; /* hand: one product */
             base=1-fresnel;
-            rgb[0]=sh4der_fma_(base,sh4der_fma_(0.020f,light,0.014f),trans[0]*amount);
-            rgb[1]=sh4der_fma_(base,sh4der_fma_(0.032f,light,0.039f),trans[1]*amount);
-            rgb[2]=sh4der_fma_(base,sh4der_fma_(0.024f,light,0.051f),trans[2]*amount);
+            rgb[0]=sh4der_fma_(base,sh4der_fma_(0.020f,light,0.014f),trans[0]);
+            rgb[1]=sh4der_fma_(base,sh4der_fma_(0.032f,light,0.039f),trans[1]);
+            rgb[2]=sh4der_fma_(base,sh4der_fma_(0.024f,light,0.051f),trans[2]);
             /* Occlusion removes direct sun from env only, keeps sky illumination.
              * CPU evaluates broad sun mask at vertex; glint texture supplies detail. */
             { const float sunmask=sh4der_water_exp(sh4der_fma_(sh4der_sat_(ocean_dot(r,ocean_sun)),260.0f,-260.0f));
