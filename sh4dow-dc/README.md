@@ -342,3 +342,18 @@ The original implementation, or substantially similar derivatives, may not be so
 Commercial distribution of larger products incorporating this implementation is expressly permitted.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Heightfield sunlight (experimental)
+
+`include/sh4dow_heightfield.h` is a separate header-only module for regular
+heightfields: water, terrain or other single-valued surfaces. It sweeps along
+the sun's dominant horizontal axis, propagates blocker height and feathers
+visibility using this library's smooth step. Limb-column behavior is unchanged.
+
+Pass heights, grid dimensions, cell size, direction toward sun, vertical bias,
+feather width, output shadow grid and scratch (2 * max(width,height) floats).
+Output: 0 lit, 1 blocked. O(width * height) work; GPU memory 0 KB. Caller holds
+height and shadow fields in RAM. See header contract. Boundaries are open;
+off-grid blockers, overhangs and exact solar-disc penumbrae are absent. Sun
+must be above horizon. Parent `test/water_test.c` checks flat fields and ridge
+shadow length/direction on both axes and both math backends.

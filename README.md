@@ -52,6 +52,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | v0.10 |
 | ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | v0.50 |
 | shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | v0.50 |
+| water | `sh4der_water.h` | Directional waves, filtered ripple normals, Fresnel, absorption-based transmission; sunset client uses SH4DOW heightfield sun visibility | textured mesh + offset RGB; optional framebuffer bloom | v0.50 |
 | guard | `sh4der_guard.h` | Two checks for what an emulator forgives and a real console does not: a triangle with no screen area, and a polygon header that was never compiled | nothing (inline tests) | v0.10 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
@@ -884,3 +885,9 @@ Drawing: [KallistiOS](https://github.com/KallistiOS/KallistiOS), under its own l
 The effects' maths, the PVR paths and the tests were written with Cortana (Claude, an AI by Anthropic), the project's graphics engineer.
 
 The license is in [LICENSE](LICENSE). It uses the same terms as SH4DOW-DC.
+
+## Sunset ocean research demo
+
+`make ocean SH4ZAM=../sh4zam SH4ZAM_DCE=<sh4zam-dce> MKDCDISC=<mkdcdisc>` builds the separate sunset
+scene. `make demo` still builds the original gallery.
+See [demo/OCEAN.md](demo/OCEAN.md) for method, controls, costs and validation.

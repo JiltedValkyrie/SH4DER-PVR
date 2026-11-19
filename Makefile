@@ -20,10 +20,13 @@ HDR      = include/sh4der_core.h include/sh4der_blade.h include/sh4der_holo.h in
 DC_CC   ?= kos-cc
 DC_AR   ?= kos-ar
 SH4ZAM  ?=
+# SH4ZAM-DCE (header-only sister include of SH4ZAM): the ocean demo needs it. Point at the checkout holding include/sh4zam_dce.
+SH4ZAM_DCE ?=
+DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC ships in this repository: the soft shadows, and the column feather every effect here uses
 SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test water_test ocean_scene_test
 
 .PHONY: test test-shz dc test-dc demo clean
 
@@ -46,6 +49,8 @@ test: $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/ca_test
 	$(BUILD)/shafts_test
 	$(BUILD)/guard_test
+	$(BUILD)/water_test
+	$(BUILD)/ocean_scene_test
 	$(BUILD)/blade
 
 $(BUILD)/%: $(SRC) $(HDR)
@@ -70,6 +75,7 @@ $(BUILD)/ao_test: test/ao_test.c
 $(BUILD)/ca_test: test/ca_test.c
 $(BUILD)/shafts_test: test/shafts_test.c
 $(BUILD)/guard_test: test/guard_test.c
+$(BUILD)/water_test: test/water_test.c include/sh4der_water.h $(SH4DOW)/include/sh4dow_heightfield.h
 $(BUILD)/blade: example/blade.c
 
 test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
@@ -91,11 +97,13 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/ca_test
 	$(BUILD)/shz/shafts_test
 	$(BUILD)/shz/guard_test
+	$(BUILD)/shz/water_test
+	$(BUILD)/shz/ocean_scene_test
 
 $(BUILD)/shz/%: test/%.c $(SRC) $(HDR)
 	@test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
 	@mkdir -p $(BUILD)/shz
-	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include $(filter %.c,$^) $(SH4ZAM)/source/sw/shz_xmtrx_sw.c -lm -o $@
+	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include $(DCE_INC) $(filter %.c,$^) $(SH4ZAM)/source/sw/shz_xmtrx_sw.c -lm -o $@
 
 dc: $(BUILD)/libsh4der_core.a
 
@@ -148,7 +156,31 @@ endif
 test-dc: $(addprefix $(BUILD)/,$(addsuffix .elf,$(TESTS)))
 
 $(BUILD)/%.elf: test/%.c $(BUILD)/libsh4der_core.a
-	$(DC_CC) $(DC_FLAGS) -DSH4DER_TEST_TOL=0.0005f $< $(BUILD)/libsh4der_core.a -o $@
+	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -DSH4DER_TEST_TOL=0.0005f $< $(BUILD)/libsh4der_core.a -o $@
 
 clean:
 	rm -rf $(BUILD)
+
+# Separate sunset scene; original effects gallery remains `make demo`.
+.PHONY: ocean ocean-preview test-water
+OCEAN_CDI ?= $(BUILD)/ocean/sh4der-ocean-b7.cdi
+OCEAN_HEADERS = demo/ocean_scene.h include/sh4der_water.h $(SH4DOW)/include/sh4dow_heightfield.h
+ocean: $(OCEAN_CDI)
+$(BUILD)/ocean/sh4der-ocean.elf: demo/ocean.c $(OCEAN_HEADERS) $(BUILD)/libsh4der_core.a
+	@test -n "$(SH4ZAM_DCE)" || { echo "set SH4ZAM_DCE to your SH4ZAM-DCE checkout"; exit 1; }
+	@mkdir -p $(BUILD)/ocean
+	$(DC_CC) $(DC_FLAGS) $(DCE_INC) demo/ocean.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
+$(OCEAN_CDI): $(BUILD)/ocean/sh4der-ocean.elf
+	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-OCEAN
+$(BUILD)/ocean-preview: demo/ocean.c $(OCEAN_HEADERS)
+	@mkdir -p $(BUILD)
+	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -I$(SH4DOW)/include $< -lm -o $@
+ocean-preview: $(BUILD)/ocean-preview
+test-water: $(BUILD)/water_test
+	$(BUILD)/water_test
+
+$(BUILD)/shz/water_test $(BUILD)/water_test.elf: include/sh4der_water.h $(SH4DOW)/include/sh4dow_heightfield.h
+
+$(BUILD)/ocean_scene_test: test/ocean_scene_test.c $(OCEAN_HEADERS)
+$(BUILD)/shz/ocean_scene_test $(BUILD)/ocean_scene_test.elf: $(OCEAN_HEADERS)
