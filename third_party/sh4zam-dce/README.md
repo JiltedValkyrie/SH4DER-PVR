@@ -19,7 +19,7 @@ Checks, all hidden and one at a time (host tests, SH-4 compile checks, the SH-4 
 | `shz_dce_vector.h` | `shz_dce_vec3_magnitude_fipr`, `_vec4_normalize` (reworks by FIPR), `_vec3_dot4`, `_vec3_cross_batch` | NO, within 2 and 3 ulp; dot4 and cross YES (dot4: but the sign of an exact zero) | 25 -> 18, 31 -> 24; 61 -> 50 a quad; cross 20 -> 20 (no gain) |
 | `shz_dce_sqrt.h` | `shz_dce_sqrtf`, `_inv_sqrtf`, `_hypotf`, `_vec2/3/4_magnitude`, `_magnitude_inv`, `_distance`, `_normalize_safe` (reworks of SH4ZAM 0.10: the zero test in FSRRA's shadow) | YES; on the zero path of a -ffast-math build: the operand, as SH4ZAM's, or +0 with the group's barrier on | model: 16 -> 14, 12 -> 11 / 9, vec3 length 25 -> 23, distance 31 -> 29. A CONSOLE SAYS NO GAIN on single calls (below): off by default |
 | `shz_dce_trig.h` | `shz_dce_asinf`, `shz_dce_acosf` (reworks: one root, one quartic) | NO: within 8e-6 rad of the true angle (SH4ZAM's: 4.95e-3), no NaN past +-1 | a console: about equal in range, 57 -> 46 and 65 -> 54 over [-pi, pi]. Model: asin 31.7 -> 34.5, acos 31.8 -> 31.5 |
-| `shz_dce_atan2.h` | `shz_dce_atan2f` (rework: SH4ZAM's quotient, an arctangent polynomial of 2, 5, 6 or 7 terms; `SHZ_DCE_ATAN2_TERMS`, default 6) | NO: within 2.5e-6 rad of the true angle (SH4ZAM's: 1.02e-2); 6.2e-3, 1.4e-5 or 1.0e-6 with 2, 5 or 7 terms | model: 37.5 -> 46.4 (36.5, 45.4, 49.4). Accuracy bought with cycles, not a faster routine. Not on a console yet |
+| `shz_dce_atan2.h` | `shz_dce_atan2f` (rework: SH4ZAM's quotient, an arctangent polynomial of 2, 5, 6 or 7 terms; `SHZ_DCE_ATAN2_TERMS`, default 5) | NO: within 1.4e-5 rad of the true angle (SH4ZAM's: 1.02e-2); 6.2e-3, 2.5e-6 or 1.0e-6 with 2, 6 or 7 terms | model: 37.5 -> 45.4 (36.5, 46.4, 49.4). Accuracy bought with cycles, not a faster routine. A console (Falco Girgis): 5 terms end the jitter of an interpolated rotation; his cycle counts are not here |
 
 Cycles E are estimates from a model of the SH7750 pipeline on the compiled code, every memory access a cache hit: for comparing two routines, not a console measurement. Code that must reproduce a result bit for bit takes only the routines that say YES.
 
@@ -32,7 +32,7 @@ So `shz_dce_override.h` renames a routine only when its group's switch is on. Ea
 | Switch | Default | SH4ZAM names it puts on the reworks |
 |---|---|---|
 | `SHZ_DCE_USE_ASIN_ACOS` | 1 | `shz_asinf`, `shz_acosf` (results differ from SH4ZAM's: closer, and defined past +-1) |
-| `SHZ_DCE_USE_ATAN2` | 0 | `shz_atan2f` (results differ from SH4ZAM's: about 5000 times closer, about 9 cycles more in the model; not on a console yet) |
+| `SHZ_DCE_USE_ATAN2` | 1 | `shz_atan2f` (results differ from SH4ZAM's: about 800 times closer; it costs about 8 cycles a call in the model, so a caller that does not need the accuracy sets it to 0) |
 | `SHZ_DCE_USE_SQRT` | 0 | `shz_sqrtf`, `shz_hypotf` |
 | `SHZ_DCE_USE_INV_SQRT` | 0 | `shz_inv_sqrtf` |
 | `SHZ_DCE_USE_MAGNITUDE` | 0 | `shz_vec2/3/4_magnitude`, `shz_vec2/3/4_magnitude_inv` |
@@ -41,7 +41,7 @@ So `shz_dce_override.h` renames a routine only when its group's switch is on. Ea
 | `SHZ_DCE_USE_FIPR` | 0 | `shz_vec4_normalize`; `shz_vec3_magnitude` becomes the FIPR length (results differ in the last bits) |
 | `SHZ_DCE_OVERRIDE_ALL` | 0 | 1 turns on every switch above that is not set by name |
 
-A plain `#include <sh4zam_dce/shz_dce_override.h>` therefore renames `shz_asinf` and `shz_acosf` and nothing else. (Before the switches it renamed the root family and left those two alone; the old `SHZ_DCE_OVERRIDE_APPROX` is still read.)
+A plain `#include <sh4zam_dce/shz_dce_override.h>` therefore renames `shz_asinf`, `shz_acosf` and `shz_atan2f` and nothing else. The arctangent is on since the console's second verdict: with 5 terms an interpolated rotation that jittered with SH4ZAM's routine is steady (Falco Girgis; `doc/THESIS.md`, 2.5). (Before the switches it renamed the root family and left those two alone; the old `SHZ_DCE_OVERRIDE_APPROX` is still read.)
 
 A second set says where a rework puts the value barrier `shz_dce_opaquef()` (an asm statement with an empty template: no instruction; what it does and costs is `doc/THESIS.md`, appendix B). On: a guarded routine returns +0 on its zero path in every build. Off: the plain constant, which a -ffast-math build swaps for the operand, as it does in SH4ZAM's own routines. `SHZ_DCE_OPAQUE` (1 or 0) sets every group not set by name; the defaults are the console's winners:
 

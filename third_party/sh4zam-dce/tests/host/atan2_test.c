@@ -9,7 +9,7 @@
    - the four polynomials themselves, in double: r P(r r) against atan(r) on [-1, 1], inside the fit errors the header states
    - the rework with 2, 5, 6 and 7 terms against the true angle (atan2 in double), each inside the header's bound, over four
      million points: directions spread evenly round the circle, random points, points next to both axes, lengths 2e-18 to 5e17
-   - the special cases: two zeros of every sign, the sign of y (a zero y counts as positive), the axes; the public routine is the 6-term form by default
+   - the special cases: two zeros of every sign, the sign of y (a zero y counts as positive), the axes; the public routine is the 5-term form by default
    - SH4ZAM's routine on the same points: its worst error is printed beside them
 */
 
@@ -54,7 +54,7 @@ int main(void) {
         }
         T_CHECK(w <= fit[v], "the %d-term fit's error is %.3g, the header says %.3g", nterms[v], w, fit[v]);
     }
-    T_CHECK(SHZ_DCE_ATAN2_TERMS == 6, "the default number of terms");
+    T_CHECK(SHZ_DCE_ATAN2_TERMS == 5, "the default number of terms");
 
     for (i = 0; i < 4000000; i++) {
         float x, y;
@@ -77,7 +77,7 @@ int main(void) {
             if (e > worst[v]) worst[v] = e;
         }
         { const double e = angle_err(shz_atan2f(y, x), want); if (e > worst_shz) worst_shz = e; }
-        T_CHECK(t_bits(shz_dce_atan2f(y, x)) == t_bits(form(2, y, x)) || fabs((double)shz_dce_atan2f(y, x) - form(2, y, x)) <= 5e-7, "the public routine is the 6-term form");
+        T_CHECK(t_bits(shz_dce_atan2f(y, x)) == t_bits(form(1, y, x)) || fabs((double)shz_dce_atan2f(y, x) - form(1, y, x)) <= 5e-7, "the public routine is the 5-term form");
     }
     {   /* special cases */
         static const float sy[8] = { 0.0f, -0.0f, 0.0f, -0.0f, 3.0f, -3.0f, 0.0f, -0.0f };
@@ -96,6 +96,6 @@ int main(void) {
     }
     T_CHECK(fabs(shz_dce_atan2f(1.0f, 1.0f) - PI_D / 4) <= 1.2e-7, "constant arguments take the compile-time path");
     printf("worst error against the true angle, rad: 2 terms %.3g, 5 terms %.3g, 6 terms %.3g, 7 terms %.3g; SH4ZAM %.3g\n", worst[0], worst[1], worst[2], worst[3], worst_shz);
-    T_CHECK(worst_shz > 1000.0 * worst[2], "the header says the default is far closer than SH4ZAM's routine");
+    T_CHECK(worst_shz > 700.0 * worst[1] && worst_shz > 4000.0 * worst[2], "the header says 800 times closer with 5 terms and 5000 times with 6");
     return t_done("atan2_test");
 }

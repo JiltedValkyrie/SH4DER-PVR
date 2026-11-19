@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
     printf("worst error against the true angle, rad: 2 terms %.3g, 5 terms %.3g, 6 terms %.3g, 7 terms %.3g; SH4ZAM %.3g\n", worst[0], worst[1], worst[2], worst[3], worst_shz);
     printf("the public routine is the %u-term form; %u of its results differ from that form's in the last bits (another grouping at another call site)\n", built_terms, regrouped);
     for (v = 0; v < 4; v++) T_CHECK(worst[v] < worst_shz, "the %d-term form is no closer than SH4ZAM's routine", terms_of[v]);
-    T_CHECK(worst_shz > 1000.0 * worst[2], "the header says the default is far closer than SH4ZAM's routine");
+    T_CHECK(worst_shz > 700.0 * worst[1] && worst_shz > 4000.0 * worst[2], "the header says 800 times closer with 5 terms and 5000 times with 6");
+    T_CHECK(built_terms == 5u, "the default number of terms is %u", built_terms);
     return t_done("atan2_check");
 }

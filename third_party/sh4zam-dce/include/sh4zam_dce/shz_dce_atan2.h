@@ -8,9 +8,9 @@
 
 /** \file    shz_dce_atan2.h
     \brief   A rework of SH4ZAM's shz_atan2f (Falco Girgis): the same reduction, a longer
-             polynomial. 5000 times closer to the true angle for 9 more cycles in the model, or
-             1.6 times as close for none. A trade of cycles for accuracy, not a faster routine.
-             Not measured on a console yet.
+             polynomial. 800 times closer to the true angle for 8 more cycles in the model
+             (the default, 5 terms), 5000 times for 9, or 1.6 times as close for none. A trade
+             of cycles for accuracy, not a faster routine.
 
     SH4ZAM's routine. With s = |y| it forms one quotient,
 
@@ -28,7 +28,12 @@
     Here: the same quotient, and atan(r) = r P(r^2) with P of 2, 5, 6 or 7 terms, each the
     minimax fit on [-1, 1] with P(1) held at pi/4, as the original's, so that the polynomial
     has no error of its own on the axes. SHZ_DCE_ATAN2_TERMS picks one, before the include;
-    the default is 6.
+    the default is 5.
+
+    Why 5: a console. Falco Girgis ran the forms in a 60 frames a second interpolation (Euler
+    angles to quaternion, slerp, back to angles): with SH4ZAM's routine the result jitters,
+    with 5 terms it does not ("a few extra cycles above the 2, all the precision we need").
+    His cycle counts are not in this file; the E column below is still the model's.
 
         terms   degree   |result - atan2(y, x)| <=   worst found   cycles E
           2        3          6.2e-3 rad               6.14e-3       36.5
@@ -46,7 +51,7 @@
     budget that the tests have not exceeded, not a proof.
     Reducing the argument to an octant instead (r within tan(pi/8), three or four terms) was
     tried: 3.8e-6 for 56 cycles and 4.0e-7 for 61; the extra compare and the unfolding cost
-    more than the terms they save. So on this machine accuracy is bought with cycles: 9 of them
+    more than the terms they save. So on this machine accuracy is bought with cycles: 8 of them
     for the default. Nothing here is faster than SH4ZAM's routine: the 2-term form is its code
     with another constant (the one cycle of the model is instruction order; a console may not
     show it).
@@ -61,8 +66,8 @@
     from one call site to another, inside the bound.
 
     Cycles E are estimates from the pipeline model in a loop over an array, -O2 and -O3 alike.
-    The model has been wrong about single calls before (doc/THESIS.md, section 7): measure.
-    shz_dce_override.h puts SH4ZAM's name on it with SHZ_DCE_USE_ATAN2 1 (off by default).
+    The model has been wrong about single calls before (doc/THESIS.md, section 7).
+    shz_dce_override.h puts SH4ZAM's name on it (SHZ_DCE_USE_ATAN2, on by default).
 
     Use it for: angles that feed a camera or an orientation, where 1e-2 rad shows.
 
@@ -77,7 +82,7 @@
 /** \brief The number of terms of the arctangent polynomial of shz_dce_atan2f(): 2, 5, 6 or 7
     (see the table in the file comment). Set before the first SH4ZAM-DCE include. */
 #ifndef SHZ_DCE_ATAN2_TERMS
-#define SHZ_DCE_ATAN2_TERMS 6
+#define SHZ_DCE_ATAN2_TERMS 5
 #endif
 #if SHZ_DCE_ATAN2_TERMS != 2 && SHZ_DCE_ATAN2_TERMS != 5 && SHZ_DCE_ATAN2_TERMS != 6 && SHZ_DCE_ATAN2_TERMS != 7
 #error "SHZ_DCE_ATAN2_TERMS must be 2, 5, 6 or 7"
@@ -127,9 +132,9 @@ SHZ_INLINE float shz_dce_atan2f_n_(float y, float x, int terms) SHZ_NOEXCEPT {
 }
 
 /** \brief Rework of SH4ZAM's shz_atan2f (Falco Girgis): the angle of (x, y) in radians,
-    [-pi, pi]. Same signature and special cases. |error| <= 2.5e-6 rad with the default 6 terms
-    (SH4ZAM: 1.02e-2); SHZ_DCE_ATAN2_TERMS 2, 5 or 7 for 6.2e-3, 1.4e-5 or 1.0e-6.
-    Bit-identical to shz_atan2f: NO. Cycles E: 37.5 -> 46.4 (36.5, 45.4, 49.4). */
+    [-pi, pi]. Same signature and special cases. |error| <= 1.4e-5 rad with the default 5 terms
+    (SH4ZAM: 1.02e-2); SHZ_DCE_ATAN2_TERMS 2, 6 or 7 for 6.2e-3, 2.5e-6 or 1.0e-6.
+    Bit-identical to shz_atan2f: NO. Cycles E: 37.5 -> 45.4 (36.5, 46.4, 49.4). */
 SHZ_INLINE float shz_dce_atan2f(float y, float x) SHZ_NOEXCEPT {
     return shz_dce_atan2f_n_(y, x, SHZ_DCE_ATAN2_TERMS);
 }

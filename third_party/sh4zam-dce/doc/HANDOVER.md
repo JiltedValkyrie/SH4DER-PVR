@@ -15,8 +15,8 @@ Based on SH4ZAM by Falco Girgis (https://github.com/gyrovorbis/sh4zam). One page
 | `shz_dce_vector.h` | vec3 dot and normalise over arrays, dot4, cross (reference), FIPR length, FIPR vec4 normalise | NO but dot4, cross |
 | `shz_dce_sqrt.h` | reworks of SH4ZAM 0.10's guarded roots and lengths (zero test in FSRRA's shadow); a barrier switch a group | YES (zero path of a fast-math build: the operand, or +0 behind the barrier) |
 | `shz_dce_trig.h` | reworks of asinf, acosf (8e-6 rad) | NO |
-| `shz_dce_atan2.h` | rework of atan2f for accuracy: 2.5e-6 rad with the default 6 terms (SH4ZAM's: 1.02e-2), about 9 cycles more in the model; `SHZ_DCE_ATAN2_TERMS` 2, 5, 6, 7; switch `SHZ_DCE_USE_ATAN2`, off | NO |
-| `shz_dce_override.h` | macros: SH4ZAM's names on the reworks, one switch a group (`SHZ_DCE_USE_...`); a plain include renames asinf and acosf only | |
+| `shz_dce_atan2.h` | rework of atan2f for accuracy: 1.4e-5 rad with the default 5 terms (SH4ZAM's: 1.02e-2), about 8 cycles more in the model; `SHZ_DCE_ATAN2_TERMS` 2, 5, 6, 7 (5 is the console's choice); switch `SHZ_DCE_USE_ATAN2`, on | NO |
+| `shz_dce_override.h` | macros: SH4ZAM's names on the reworks, one switch a group (`SHZ_DCE_USE_...`); a plain include renames asinf, acosf and atan2f only | |
 | `doc/upstream/shz_asin_acos.h` | the arcsine and arccosine as one file on SH4ZAM alone, for upstream; tested as it is | NO |
 
 A console (single calls, reported by Falco Girgis; THESIS.md, section 7): asinf / acosf win; the reordered roots, lengths and normalisations lose a cycle or two, so they are off by default. The batch routines have not been on a console.
