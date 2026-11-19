@@ -52,7 +52,8 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | v0.10 |
 | ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | v0.50 |
 | shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | v0.50 |
-| water | `sh4der_water.h` | Directional waves, filtered ripple normals, Fresnel, absorption-based transmission; sunset client uses SH4DOW heightfield sun visibility | textured mesh + offset RGB; optional framebuffer bloom | v0.50 |
+| water | `sh4der_water.h` | Directional waves, filtered ripple normals, Fresnel; crest transmission through sss; sunset client uses SH4DOW heightfield sun visibility | textured mesh + offset RGB; optional framebuffer bloom | v0.50 |
+| sss | `sh4der_sss.h` | Back-lit transmission, a sub-surface scattering stand-in: light through a thin part toward the eye, tinted by absorption over a path-length proxy (wave crests, backlit skin and ears, leaves, wax, ice, cloth) | per-vertex RGB for the offset colour or vertex colour | v0.50 |
 | guard | `sh4der_guard.h` | Two checks for what an emulator forgives and a real console does not: a triangle with no screen area, and a polygon header that was never compiled | nothing (inline tests) | v0.10 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
@@ -711,6 +712,33 @@ if (light_on_screen && toward > 0.01f) {
 - **Needs the frame read.** Where the read sees black (an emulator without full framebuffer emulation), the whole frame counts as dark and casts: gate it as the eye and the glow are gated.
 
 `test/shafts_test.c`: the turn toward the light, the depth and its cap, what casts, near and far, a texel easing half way, the map from a read, the copy's scale.
+
+## The sss effect (back-lit transmission)
+
+`sh4der_sss.h`, header only. Light that comes through a thin part of a surface toward the eye. An artistic proxy: a tint loses each channel by `exp(-absorption x path)` over a path-length the caller supplies, weighted by a back-light term. It is NOT a multiple-scattering solve: no diffusion profile, no blur across the surface.
+
+`out = tint x exp(-absorption x path) x entry x coverage x back x visibility x gain`
+
+`back = saturate((wrap - (view . light + distortion x view . normal)) / (1 + wrap))`
+
+- **view, light, normal.** Unit; view from the surface to the eye, light from the surface to the light. With wrap 0 and distortion 0, back is `saturate(-view . light)`: full with the light straight behind, 0 from side-on to front-lit.
+- **path.** The caller's thickness proxy, in the unit of 1 / absorption (a crest height map, a bake, a constant per material).
+- **coverage, entry, visibility.** 0..1: how much of the surface is thin, light that enters (1 - Fresnel), and whether the light reaches it (a shadow term). Visibility 0 gives exactly 0.
+- **wrap, distortion.** Wrap lights side-on too (0.3 to 1 for skin, leaves); distortion bends the through direction along the normal (0.1 to 0.5).
+- **Drawn.** Nothing by itself: put the RGB in the PVR offset colour (`gen.specular = 1` on a textured header) or add it to the vertex colour.
+- **Cost.** VRAM 0, AICA 0, RAM: the 40-byte parameter block. CPU per vertex: two 3-term dots (one with distortion 0), three `shz_expf`, about 12 multiplies / FMAC. SH4ZAM for all maths; `SH4DER_CORE_NO_SH4ZAM` for plain C.
+
+### Calls
+
+```c
+void  sh4der_sss_init(sh4der_sss_t *p, const float tint[3], const float absorption[3], float gain, float wrap, float distortion);
+float sh4der_sss_back(const sh4der_sss_t *p, const float view[3], const float light[3], const float normal[3]);
+void  sh4der_sss_absorb(const float tint[3], const float absorption[3], float path, float out[3]);
+void  sh4der_sss_rgb(const sh4der_sss_t *p, const float view[3], const float light[3], const float normal[3],
+                     float path, float coverage, float entry, float visibility, float out[3]);
+```
+
+Water keeps a thin wrapper, `sh4der_water_crest_sss` (crest 0..1 as coverage, path from a thick to a thin length). `test/sss_test.c`: bounds, fall with path, blocked and front light give 0, linear weights, wrap, distortion; both maths back ends.
 
 ## The frame read
 

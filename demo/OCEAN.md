@@ -27,8 +27,10 @@ Open ocean, low evening sun, eye 2.5 m above water. No disc assets.
   Normals bend reflection UVs; Fresnel controls reflection share. Reflected sun
   emerges from those UVs, rather than a painted vertical stripe.
 - PVR texture modulation supplies reflection; offset RGB supplies water body
-  and thin-crest transmission. Transmission uses an artistic crest/path-length
-  proxy plus absorption, not a multiple-scattering volume solver.
+  and thin-crest transmission. Transmission is the generic `sh4der_sss.h`
+  module (back-lit transmission) via `sh4der_water_crest_sss`: an artistic
+  crest/path-length proxy plus absorption, not a multiple-scattering volume
+  solver.
 - SH4DOW's new generic CPU heightfield sweep finds sun-blocking crests in a
   67.2 by 86.4 m local field. Cells: 0.60 m. Micro-ripple occlusion below this
   cell size is unresolved; away-facing ripple slopes use normal lighting.
@@ -48,7 +50,7 @@ Source KallistiOS environment; SH4ZAM and mkdcdisc must be available.
 make test-water
 make build/shz/water_test SH4ZAM=../sh4zam SH4ZAM_DCE=<sh4zam-dce>
 build/shz/water_test
-make ocean SH4ZAM=../sh4zam SH4ZAM_DCE=<sh4zam-dce> MKDCDISC=<mkdcdisc> OCEAN_CDI=build/ocean/sh4der-ocean-b7.cdi
+make ocean SH4ZAM=../sh4zam SH4ZAM_DCE=<sh4zam-dce> MKDCDISC=<mkdcdisc> OCEAN_CDI=build/ocean/sh4der-ocean-b8.cdi
 make ocean-preview
 build/ocean-preview build/ocean-preview.ppm 6
 ```
