@@ -9,7 +9,7 @@ Two kinds of effect, each a module of its own (take one header or all of them):
 - **Screen effects** (look, frame, glow, torch, warp, trail, taa, lens, focus, visor) are drawn over the finished frame as a few layers. Some use a little video memory: the glow's two maps are 17 KB together. An effect that uses the whole frame as a texture (warp) needs a frame texture: about 640 KB at 640 x 480, about 160 KB at 320 x 240.
 - **Per-vertex effects** (blade, holo, bloom, ao) change the vertex colours you were already going to write: no extra polygons (the bloom adds 24 triangles), no video memory.
 
-It needs [KallistiOS](https://github.com/KallistiOS/KallistiOS) (the Dreamcast's operating system, used here for the drawing) and [SH4ZAM](https://github.com/gyrovorbis/sh4zam) (a maths library for the SH-4) for the maths.
+It needs [KallistiOS](https://github.com/KallistiOS/KallistiOS) (the Dreamcast's operating system, used here for the drawing) and [SH4ZAM](https://github.com/gyrovorbis/sh4zam) (a maths library for the SH-4) for the maths. [SH4ZAM-DCE](third_party/sh4zam-dce), header-only SH-4 kernels on top of SH4ZAM, is included in `third_party/sh4zam-dce` (the ocean demo uses it).
 
 Repository: [github.com/JiltedValkyrie/SH4DER-PVR](https://github.com/JiltedValkyrie/SH4DER-PVR). In code the names keep the library's first name: the `sh4der_` prefix, `sh4der_core.h`, `SH4DER_CORE_NO_SH4ZAM`, `libsh4der_core.a`.
 
@@ -908,6 +908,8 @@ SH4DOW-DC, by the same author, is included in the `sh4dow-dc` folder under its o
 
 Dreamcast math: [SH4ZAM](https://github.com/gyrovorbis/sh4zam), Copyright (c) 2025, 2026 Falco Girgis, MIT. Keep that notice with the library.
 
+Dreamcast kernels: [SH4ZAM-DCE](third_party/sh4zam-dce) (based on SH4ZAM by Falco Girgis), MIT, its LICENSE in the folder. Included whole and never edited here; the ocean demo uses `shz_dce_project_vertices` and `shz_dce_vec3_normalize_safe`. Keep that notice with the library.
+
 Drawing: [KallistiOS](https://github.com/KallistiOS/KallistiOS), under its own license.
 
 The effects' maths, the PVR paths and the tests were written with Cortana (Claude, an AI by Anthropic), the project's graphics engineer.
@@ -916,6 +918,6 @@ The license is in [LICENSE](LICENSE). It uses the same terms as SH4DOW-DC.
 
 ## Sunset ocean research demo
 
-`make ocean SH4ZAM=../sh4zam SH4ZAM_DCE=<sh4zam-dce> MKDCDISC=<mkdcdisc>` builds the separate sunset
+`make ocean SH4ZAM=../sh4zam MKDCDISC=<mkdcdisc>` builds the separate sunset
 scene. `make demo` still builds the original gallery.
 See [demo/OCEAN.md](demo/OCEAN.md) for method, controls, costs and validation.

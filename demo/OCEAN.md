@@ -48,9 +48,9 @@ Source KallistiOS environment; SH4ZAM and mkdcdisc must be available.
 
 ```sh
 make test-water
-make build/shz/water_test SH4ZAM=../sh4zam SH4ZAM_DCE=<sh4zam-dce>
+make build/shz/water_test SH4ZAM=../sh4zam
 build/shz/water_test
-make ocean SH4ZAM=../sh4zam SH4ZAM_DCE=<sh4zam-dce> MKDCDISC=<mkdcdisc> OCEAN_CDI=build/ocean/sh4der-ocean-b8.cdi
+make ocean SH4ZAM=../sh4zam MKDCDISC=<mkdcdisc> OCEAN_CDI=build/ocean/sh4der-ocean-b8.cdi
 make ocean-preview
 build/ocean-preview build/ocean-preview.ppm 6
 ```
@@ -68,7 +68,7 @@ SH4ZAM-DCE `shz_dce_project_vertices` per row (FTRV + FSRRA + FMAC, 24 B in,
 32 B records, 7.4 KB row buffers). Sky rays: `shz_xmtrx_init_rotation_y` +
 `shz_xmtrx_rotate_x`, `shz_xmtrx_transform_vec3`. Normalize: SH4ZAM-DCE
 `shz_dce_vec3_normalize_safe`. SH4ZAM-DCE is a header include
-(`SH4ZAM_DCE=`), not copied here. Plain host build keeps a marked mirror.
+(included in `third_party/sh4zam-dce`). Plain host build keeps a marked mirror.
 b7 adds SH4DOW sweep: shz_lerpf + hoisted shz_invf(feather). Host preview,
 SH4ZAM path, b5 vs b7: max 1/255 per channel, mean 0.0002.
 

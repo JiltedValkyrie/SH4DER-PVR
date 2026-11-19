@@ -20,8 +20,8 @@ HDR      = include/sh4der_core.h include/sh4der_blade.h include/sh4der_holo.h in
 DC_CC   ?= kos-cc
 DC_AR   ?= kos-ar
 SH4ZAM  ?=
-# SH4ZAM-DCE (header-only sister include of SH4ZAM): the ocean demo needs it. Point at the checkout holding include/sh4zam_dce.
-SH4ZAM_DCE ?=
+# SH4ZAM-DCE (header-only, on top of SH4ZAM) is included in third_party/sh4zam-dce; the ocean demo needs it. Override SH4ZAM_DCE to use another checkout.
+SH4ZAM_DCE ?= third_party/sh4zam-dce
 DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC ships in this repository: the soft shadows, and the column feather every effect here uses
 SH4DOW  ?= sh4dow-dc
