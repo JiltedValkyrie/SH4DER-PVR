@@ -144,7 +144,7 @@ float sh4der_glint(float depth, float fade);
 /* The effects' shared steps (inline; a trailing underscore: not for callers). */
 
 /* A bit test: under -ffast-math a float compare against NaN folds away. */
-static inline int sh4der_finite_(float x) {
+static inline __attribute__((always_inline)) int sh4der_finite_(float x) {
     union { float f; uint32_t u; } v;
 
     v.f = x;
@@ -169,12 +169,13 @@ static inline void sh4der_cross_(const float a[3], const float b[3], float out[3
 static inline float sh4der_len2_(float a, float b) { return shz_vec2_magnitude_sqr(shz_vec2_init(a, b)); }
 static inline float sh4der_len3_(float a, float b, float c) { return shz_mag_sqr3f(a, b, c); }
 static inline float sh4der_min1_(float x) { return shz_fminf(x, 1.0f); }
-static inline float sh4der_sat_(float x) { return shz_saturatef(x); }
-static inline float sh4der_frac_(float x) { return shz_fractf(x); }   /* x - floor(x): 0..1, negatives too */
-static inline float sh4der_lerp_(float a, float b, float t) { return shz_lerpf(a, b, t); }
+static inline __attribute__((always_inline)) float sh4der_sat_(float x) { return shz_saturatef(x); }
+static inline __attribute__((always_inline)) float sh4der_frac_(float x) { return shz_fractf(x); }   /* x - floor(x): 0..1, negatives too */
+static inline __attribute__((always_inline)) float sh4der_trunc_(float x) { return shz_truncf(x); }   /* toward zero, |x| under 2^31 */
+static inline __attribute__((always_inline)) float sh4der_lerp_(float a, float b, float t) { return shz_lerpf(a, b, t); }
 static inline float sh4der_div_(float a, float b) { return shz_divf(a, b); }
 static inline float sh4der_recip_pos_(float x) { return shz_invf_fsrra(x); }   /* x > 0: every caller checked the sign */
-static inline float sh4der_fma_(float a, float b, float c) { return shz_fmaf(a, b, c); }   /* a * b + c, one FMAC */
+static inline __attribute__((always_inline)) float sh4der_fma_(float a, float b, float c) { return shz_fmaf(a, b, c); }   /* a * b + c, one FMAC */
 static inline float sh4der_dot3_(const float a[3], const float b[3]) {
     return shz_vec3_dot(shz_vec3_init(a[0], a[1], a[2]), shz_vec3_init(b[0], b[1], b[2]));
 }
@@ -200,12 +201,13 @@ static inline void sh4der_cross_(const float a[3], const float b[3], float out[3
 static inline float sh4der_len2_(float a, float b) { return a * a + b * b; }
 static inline float sh4der_len3_(float a, float b, float c) { return a * a + b * b + c * c; }
 static inline float sh4der_min1_(float x) { return x > 1.0f ? 1.0f : x; }
-static inline float sh4der_sat_(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
-static inline float sh4der_frac_(float x) { return x - floorf(x); }
-static inline float sh4der_lerp_(float a, float b, float t) { return a + (b - a) * t; }
+static inline __attribute__((always_inline)) float sh4der_sat_(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
+static inline __attribute__((always_inline)) float sh4der_frac_(float x) { return x - floorf(x); }
+static inline __attribute__((always_inline)) float sh4der_trunc_(float x) { return truncf(x); }
+static inline __attribute__((always_inline)) float sh4der_lerp_(float a, float b, float t) { return a + (b - a) * t; }
 static inline float sh4der_div_(float a, float b) { return a / b; }
 static inline float sh4der_recip_pos_(float x) { return 1.0f / x; }
-static inline float sh4der_fma_(float a, float b, float c) { return a * b + c; }
+static inline __attribute__((always_inline)) float sh4der_fma_(float a, float b, float c) { return a * b + c; }
 static inline float sh4der_dot3_(const float a[3], const float b[3]) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
 static inline void sh4der_sincos_(float radians, float *s, float *c) {
     *s = sinf(radians);
