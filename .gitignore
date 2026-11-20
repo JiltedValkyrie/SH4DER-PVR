@@ -1,1 +1,4 @@
 build/
+demo/pl4nar/assets/
+demo/pl4nar/out/
+__pycache__/
