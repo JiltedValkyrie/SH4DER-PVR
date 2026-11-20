@@ -58,6 +58,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | uvwarp | `sh4der_uvwarp.h` | A texture coordinate pushed per vertex by a small two-channel table (64 x 16 is 2 KB, from a source distortion map): weight x table(u + su t, v + sv t), bilinear, both axes wrapping, unsigned; a prepared form (`sh4der_uvwarp_prepare` once, `sh4der_uvwarp_offset_p` a vertex, or `sh4der_uvwarp_offset_pn` without the input gates for a loop that checked once) for a mesh loop. For what a material does per pixel and the PVR cannot (an arc, a banner, a water strip). | nothing (the mesh's own UV: a table and a weight a vertex) | v0.10 |
 | spark | `sh4der_spark.h` | A fixed pool of 24 short-lived additive quads that face the camera, in two shapes: a billboard (a muzzle flash, an impact flash) and a streak (a tracer whose tail retreats to its hit, a spark that flies and falls), with a least width in pixels, a fade along the length, a burst helper and a pool rule (sparks die first, a flash or tracer is never lost to one). Sizes, colours, lives and atlas cells are the caller's table | one atlas texture (64 x 64 VQ: 3 KB), additive ONE / ONE on the translucent list, depth test on, write off | v0.10 |
 | pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
+| pool | `sh4der_pool.h` | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing: a disc under a street lamp, a wedge ahead of a headlight, and the same disc, dark, as a blob shadow. For ground polygons too big to light per vertex | untextured vertex-alpha fans on the translucent list: additive for light, blended for shadow | v0.10 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
 
@@ -881,6 +882,35 @@ A stylised look wants more than the physical F0: the first client's paint read b
 | SH4DER_PL4NAR_W_MIN | 0.001 | View depth at or under which a point is behind the reflection camera |
 | SH4DER_PL4NAR_SPLIT_RATIO | 1.25 | Far corner depth / near corner depth above which a flat triangle is cut |
 
+## The pool effect (light pools on a plane)
+
+`sh4der_pool.h`, header only. A big ground polygon cannot be lit per vertex: it has no vertices where the light falls. So the light is its own small mesh lying on the ground, drawn on the translucent list after it. The PVR sorts and blends it for nothing; the cost is the fill.
+
+- **Disc.** A centre and two axes in the plane, whose lengths are the two radii: a circle under a lamp, an ellipse under a car. The centre has the full alpha, the rim 0. n triangles, n + 1 vertices; the caller closes the rim (triangle k is 0, k + 1, (k + 1) % n + 1).
+- **Wedge.** An apex, a direction and a side axis in the plane, a length and a half angle. The apex has the full alpha, the far arc 0, so the light dies with distance. n triangles, n + 2 vertices (triangle k is 0, k + 1, k + 2). Two wedges read softer than one: a narrow long beam and a wide short spill at half the alpha.
+- **Light or shadow.** Additive (source alpha / one) with the lamp's colour for light; blended (source alpha / 1 - source alpha) with black for a blob shadow. Depth test on, depth write off.
+- **Lift.** Raise the fan a little off the ground along the plane's normal (2 to 4 cm at car scale) so the depth test does not fight the ground.
+- **Guards.** The calls write world positions and colours; the caller transforms and submits, with a compiled header (`sh4der_poly_hdr_ok`) and its own area test (`sh4der_tri_area_ok`): a fan seen edge on has no area.
+- **Cost.** RAM: the caller's vertex array, 16 B a vertex (a 10 triangle disc: 176 B). VRAM: 0. Sound RAM (AICA): 0. CPU: one sine and cosine pair and six fused multiply-adds a rim vertex. PVR: the fill of the fan, not measured. SH4ZAM for all maths; `SH4DER_CORE_NO_SH4ZAM` for plain C.
+
+### Calls
+
+```c
+unsigned sh4der_pool_disc(const float centre[3], const float u[3], const float v[3], unsigned n,
+                          uint32_t rgb, float alpha, sh4der_pool_vtx_t *out);
+unsigned sh4der_pool_wedge(const float apex[3], const float dir[3], const float side[3], float length,
+                           float half_angle, unsigned n, uint32_t rgb, float alpha, sh4der_pool_vtx_t *out);
+```
+
+Both return the vertices written, or 0 with nothing written for a bad count, length, angle or pointer. The array a call writes must hold `SH4DER_POOL_MAX_N + 2` vertices (or n + 2 for the n you pass). `test/pool_test.c`: the disc's centre and rim (circle, ellipse, the plane, alpha, colour, counts), the wedge's apex and arc (length, the half angle at both ends), every triangle through the area guard, bad arguments; both maths back ends.
+
+### Pool tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_POOL_MAX_N | 16 | Most triangles in one fan (the caller's array holds SH4DER_POOL_MAX_N + 2 vertices) |
+| SH4DER_POOL_TAU | 6.28318530718 | A whole turn, radians |
+
 ## The frame read
 
 `sh4der_frame.h`, `src/sh4der_frame.c`: the look and the glow work from the frame the CPU reads off the screen, and that frame is one or two frames old, and which one changes from frame to frame. An effect that takes "last frame's" gain or glow off the read corrects the wrong frame and pulses. So every frame carries a stamp: `sh4der_frame_next` numbers it (0..7) and keeps the eye's gain and the glow's strength it is drawn with; `sh4der_frame_stamp_draw` lays a small block of that number's colour at the top left; `sh4der_frame_read` samples the screen on the grid and reads the stamp back, so the client takes off exactly what the read frame carried (`sh4der_frame_degain`, the glow's `sh4der_glow_unfeed`). The read gives two grids: one sample a cell for the eye, and the darker of two samples a cell for the glow, so one hot pixel alone in its cell (a texture's grain, a letter's stroke) lights nothing. `sh4der_frame_hot` is how hard a light is looked at: a client grows and whitens its sun by it. An emulator shows the CPU a black screen unless it copies the drawn frame into video memory (its framebuffer emulation).
@@ -936,6 +966,10 @@ Pad: d-pad left / right picks a row, A switches it on or off, d-pad up / down ch
 | DR | the world's vertices by KOS direct render, or one `pvr_prim` call each |
 
 The models are made by `demo/tools/make_models.py` (boxes and wedges, no outside assets) and turned into C by `demo/tools/obj2c.py`.
+
+### The street driving demo
+
+`demo/pl4nar`: a second disc, its own program. A coupe on a street through a 45 second day: the street reflected on the car (`sh4der_pl4nar`), lamp pools, headlight beams and blob shadows (`sh4der_pool`), lamp halos that also pass over the car in the reflection (`sh4der_spark_quad`). `make pl4nar-demo SH4ZAM=...` (or `python demo/pl4nar/build.py`) goes from a clean checkout to an image: it fetches CC0 art that is not in this repository, builds the hero car from numbers, cuts the stock models in Blender and bakes. `demo/pl4nar/README.md` has the controls, the costs and what is not yet proven; `demo/pl4nar/CREDITS.md` every licence.
 
 ## Recommended settings
 
@@ -1018,6 +1052,7 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 - `test/guard_test.c`: a normal triangle kept; a line, a repeated point, one point three times and three points on one ray dropped; a thin sliver kept and the caller's threshold; a point at or behind the near plane not judged; a non-finite point dropped; the polygon header's command word (zeros refused).
 - `test/uvwarp_test.c`: a texel centre returns its texel, the middle of two their mean, both axes wrap (continuous across 1.0, negatives too), the scroll moves the table, a whole turn is no scroll, the offset is weight x table and never negative, weight 0 gives 0, a bad table or a non-finite input gives 0, 0; the prepared form gives the plain one's answer over a grid of u, v, time, scroll and weight (to 2e-4) and over odd sizes (1 x 1, 3 x 5, 7 x 2, 255 x 255: to 1.2e-3), its guards (non-finite u or weight, u below -32, a huge scroll, a NULL table) give 0, 0, a coordinate outside plus or minus 2^23 (3e9, 1e10, 1e30, 3.4e38, infinity, NaN) gives 0, 0 with the table in a field of 0xFF bytes (a read outside it would show), weights are saturated to 0..1; built plain, with SH4ZAM and with -ffast-math.
 - `test/pl4nar_test.c`: the materials, a point mirrored about a plane, the view rows against a camera worked out by hand and the mirrored rows against the plain rows of the mirrored point, a view with no direction refused, Fresnel's end points and its equality with the water kernel, the exact planar case, lookups inside 0 .. 1 and alphas inside 0 .. 255 over random vertices, a lost ray's fade, the batch through a stride, the split edge, the sphere against the plane.
+- `test/pool_test.c`: a disc's centre and rim (circle, ellipse, alpha, colour, counts), a wedge's apex and arc (length, half angle), every triangle through the area guard, bad arguments.
 - `test/frame_test.c`: the stamp there and back through RGB565, the history ring, the darker of two pixels, a gain taken off, the looked-at term, the glow taken off a read, the weight table from a threshold.
 - `test/taa_test.c`: the Halton values, the jitter centred over a cycle, a known turn's shift in pixels, the weight falling with speed, a cut.
 - `test/look_test.c`: the luma bins and the log average; the eye into light (over-bright, then settled by LIGHT_S) and into dark (darker, then slow); the log and exp series against the C library; every grade layer list against clamp(A x + B) over a ramp; the layer colour; the glare.

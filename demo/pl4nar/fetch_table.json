@@ -1,0 +1,71 @@
+{
+  "note": "Third-party art the demo is baked from. Nothing here is in the repository: tools/fetch.py downloads each pack into assets/_dl, checks its sha256 and unpacks the listed files. A pack with sha256 null is NOT pinned yet: fetch.py refuses it unless run with --pin, which prints the hash to put here. A pack with url null has no stable direct link: download it from its page by hand into assets/_dl under the name in 'file'. Every pack has a row in CREDITS.md (tools/check_credits.py checks both ways).",
+  "packs": [
+    {
+      "name": "Car Kit",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/car-kit",
+      "licence": "CC0 1.0",
+      "url": null,
+      "file": "kenney_car-kit.zip",
+      "sha256": null,
+      "into": "kenney_car-kit",
+      "take": ["Models/OBJ format/taxi.obj", "Models/OBJ format/police.obj", "Models/OBJ format/van.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
+    },
+    {
+      "name": "City Kit Roads",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/city-kit-roads",
+      "licence": "CC0 1.0",
+      "url": null,
+      "file": "kenney_city-kit-roads.zip",
+      "sha256": null,
+      "into": "kenney_city-kit-roads",
+      "take": ["Models/OBJ format/light-square.obj", "Models/OBJ format/electricity-pole-single.obj", "Models/OBJ format/traffic-light.obj", "Models/OBJ format/construction-cone.obj", "Models/OBJ format/dumpster.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
+    },
+    {
+      "name": "Asphalt025A",
+      "author": "ambientCG",
+      "page": "https://ambientcg.com/view?id=Asphalt025A",
+      "licence": "CC0 1.0",
+      "url": "https://ambientcg.com/get?file=Asphalt025A_1K-JPG.zip",
+      "file": "Asphalt025A_1K-JPG.zip",
+      "sha256": null,
+      "into": "ambientcg",
+      "take": ["Asphalt025A_1K-JPG_Color.jpg"]
+    },
+    {
+      "name": "Bricks075A",
+      "author": "ambientCG",
+      "page": "https://ambientcg.com/view?id=Bricks075A",
+      "licence": "CC0 1.0",
+      "url": "https://ambientcg.com/get?file=Bricks075A_1K-JPG.zip",
+      "file": "Bricks075A_1K-JPG.zip",
+      "sha256": null,
+      "into": "ambientcg",
+      "take": ["Bricks075A_1K-JPG_Color.jpg"]
+    },
+    {
+      "name": "Concrete034",
+      "author": "ambientCG",
+      "page": "https://ambientcg.com/view?id=Concrete034",
+      "licence": "CC0 1.0",
+      "url": "https://ambientcg.com/get?file=Concrete034_1K-JPG.zip",
+      "file": "Concrete034_1K-JPG.zip",
+      "sha256": null,
+      "into": "ambientcg",
+      "take": ["Concrete034_1K-JPG_Color.jpg"]
+    },
+    {
+      "name": "PaintedPlaster017",
+      "author": "ambientCG",
+      "page": "https://ambientcg.com/view?id=PaintedPlaster017",
+      "licence": "CC0 1.0",
+      "url": "https://ambientcg.com/get?file=PaintedPlaster017_1K-JPG.zip",
+      "file": "PaintedPlaster017_1K-JPG.zip",
+      "sha256": null,
+      "into": "ambientcg",
+      "take": ["PaintedPlaster017_1K-JPG_Color.jpg"]
+    }
+  ]
+}
