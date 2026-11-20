@@ -90,6 +90,8 @@ The lookups leave the reflection view in XMTRX: load your own matrix again befor
 
 ## pl4nar in an engine that has no normals (a port from a console without lighting)
 
+The step by step version, with what must be true before the next step and what each failure looks like, is `demo/pl4nar/AGENT_WORKFLOW.md` (reflection, light pools, halos, the report). This section is the summary.
+
 For an agent adding the effect to an engine ported from an older console, where meshes carry positions, texture coordinates and baked colours and nothing else.
 
 Inputs you must find or make:

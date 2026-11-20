@@ -969,7 +969,7 @@ The models are made by `demo/tools/make_models.py` (boxes and wedges, no outside
 
 ### The street driving demo
 
-`demo/pl4nar`: a second disc, its own program. A coupe on a street through a 45 second day: the street reflected on the car (`sh4der_pl4nar`), lamp pools, headlight beams and blob shadows (`sh4der_pool`), lamp halos that also pass over the car in the reflection (`sh4der_spark_quad`). `make pl4nar-demo SH4ZAM=...` (or `python demo/pl4nar/build.py`) goes from a clean checkout to an image: it fetches CC0 art that is not in this repository, builds the hero car from numbers, cuts the stock models in Blender and bakes. `demo/pl4nar/README.md` has the controls, the costs and what is not yet proven; `demo/pl4nar/CREDITS.md` every licence.
+`demo/pl4nar`: a second disc, its own program. A coupe on a street through a 45 second day: the street reflected on the car (`sh4der_pl4nar`), lamp pools, headlight beams and blob shadows (`sh4der_pool`), lamp halos that also pass over the car in the reflection (`sh4der_spark_quad`). `make pl4nar-demo SH4ZAM=...` (or `python demo/pl4nar/build.py`) goes from a clean checkout to an image: it fetches CC0 art that is not in this repository, builds the hero car from numbers, cuts the stock models in Blender and bakes. `demo/pl4nar/README.md` has the controls, the costs and what is not yet proven; `demo/pl4nar/AGENT_WORKFLOW.md` is the checklist for an agent putting the same effects into another engine; `demo/pl4nar/CREDITS.md` every licence.
 
 ## Recommended settings
 

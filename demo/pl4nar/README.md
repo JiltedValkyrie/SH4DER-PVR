@@ -22,6 +22,8 @@ One script from a clean checkout to `demo/pl4nar/out/pl4nar-demo-b<N>.cdi`: it c
 
 The fetch table is not pinned yet: the first run needs `--pin`, which prints each pack's sha256 to put in `fetch_table.json`. The two Kenney packs have no stable direct link: the script says where to download them by hand.
 
+Before the first real run, `python demo/pl4nar/build.py --dry-run [--rtt]` prints the seven steps, which tools it can and cannot find, the credits check and the state of the fetch table; it fetches, writes and builds nothing (`tools/test_build_dry.py` checks that). To put these effects into another engine, follow `AGENT_WORKFLOW.md`.
+
 Needs: KallistiOS and its toolchain, SH4ZAM, Blender, mkdcdisc, Python 3 with Pillow. See `CREDITS.md` for every licence.
 
 ## Controls
