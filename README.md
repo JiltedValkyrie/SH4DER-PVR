@@ -57,6 +57,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | guard | `sh4der_guard.h` | Two checks for what an emulator forgives and a real console does not: a triangle with no screen area, and a polygon header that was never compiled | nothing (inline tests) | v0.10 |
 | uvwarp | `sh4der_uvwarp.h` | A texture coordinate pushed per vertex by a small two-channel table (64 x 16 is 2 KB, from a source distortion map): weight x table(u + su t, v + sv t), bilinear, both axes wrapping, unsigned; a prepared form (`sh4der_uvwarp_prepare` once, `sh4der_uvwarp_offset_p` a vertex, or `sh4der_uvwarp_offset_pn` without the input gates for a loop that checked once) for a mesh loop. For what a material does per pixel and the PVR cannot (an arc, a banner, a water strip). | nothing (the mesh's own UV: a table and a weight a vertex) | v0.10 |
 | spark | `sh4der_spark.h` | A fixed pool of 24 short-lived additive quads that face the camera, in two shapes: a billboard (a muzzle flash, an impact flash) and a streak (a tracer whose tail retreats to its hit, a spark that flies and falls), with a least width in pixels, a fade along the length, a burst helper and a pool rule (sparks die first, a flash or tracer is never lost to one). Sizes, colours, lives and atlas cells are the caller's table | one atlas texture (64 x 64 VQ: 3 KB), additive ONE / ONE on the translucent list, depth test on, write off | v0.10 |
+| pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
 
@@ -782,6 +783,104 @@ A shot, in a client: a `KEEP` billboard at the muzzle (2 frames), a `KEEP | RETR
 | SH4DER_SPARK_INSET | 0.0078125 | Cell edge kept out of the bilinear read, texture units: half a texel of a 64 texel atlas |
 | SH4DER_SPARK_LIFE_MAX | 60.0 | Longest life, seconds (the age counter is 16 bit milliseconds) |
 
+## The pl4nar effect (planar reflection)
+
+`sh4der_pl4nar.h` (the maths, inline) and `src/sh4der_pl4nar.c` (the KallistiOS render target and layer header). The PVR renders to a texture, so a second, small picture of the world costs one more pass. Mirror the world about a plane, draw it at low detail into a small target, and that target is the reflection of everything near the plane. Nothing here knows a car or a road.
+
+- **The mirror pass.** `sh4der_pl4nar_view_build` fills the four rows of screen x projection x view x mirror in closed form and loads them (`shz_xmtrx_load_rows_4x4`). Draw the world with them into the target: low detail, culled the other way (a mirrored world has reversed winding), nothing that lies under the plane (`sh4der_pl4nar_sphere_side`; the PVR has no clip plane), not the reflecting surface itself.
+- **The lookup, a body.** `sh4der_pl4nar_shade`: reflect the view ray off the vertex, follow it `reach` world units, project that point with the mirror pass's rows. A curved body bends the picture as a mirror would, from the one target. A ray that leaves the picture slides to its edge; a ray that ends behind the camera fades to the sky texel at the bottom centre.
+- **The lookup, a flat surface.** `sh4der_pl4nar_flat`: for a vertex in the plane the reflection is exact, the texel under the vertex's own position in the mirrored picture. The lookup is a screen position and the PVR maps a texture perspective-correct, so a large polygon swims: cut it while its corners' depths differ (`sh4der_pl4nar_tri_split` names the edge; over the ratio 1.25 the error is up to 5.6 % of the edge's length on screen).
+- **The share.** Schlick's Fresnel for any F0 (at the water F0 it equals `sh4der_water_fresnel`): the layer's vertex alpha. Edge on reflects strongly, head on barely.
+- **The layer.** The same vertices as the opaque surface, on the translucent list, depth test greater-or-equal, no depth write, nothing sorted by hand. Additive (source alpha / one) over paint, so a clear coat keeps the paint's colour; blended (source alpha / 1 - source alpha) for glass, water, a wet road.
+- **Normals.** A body's lookup reads best off smoothed normals; light it with its own. `tools/pl4nar_normals.py IN.obj OUT.obj` makes them (area-weighted, faces within 60 degrees; `--self-test` checks it).
+- **Guards.** `sh4der_pl4nar_layer_header` zeroes the header when there is no target: test it with `sh4der_poly_hdr_ok` before a vertex is sent, and drop the layer's triangles with no screen area as you drop the opaque ones (`sh4der_tri_area_ok`).
+- **Limits.** One plane a target; two planes are two targets and two passes. A body's lookup is a `reach` approximation, not a traced ray. Nothing reflects itself. A body needs normals.
+- **Keep the row form.** A view built with a chain of matrix calls (screen, perspective, look-at, apply) gave a wrong camera in the first client; the four rows filled by hand and loaded once ran right: one load, one FTRV, no question of clip convention, handedness or apply order. The cause was not isolated.
+- **XMTRX is shared.** The single lookups need the view in XMTRX (`sh4der_pl4nar_begin`) and nothing else may touch it until the last of them: no `shz_xmtrx_*` call, no SH4ZAM matrix routine that uses XMTRX as scratch, no KallistiOS `mat_*` call. The `_n` calls load it themselves. Every lookup leaves the view there: load your own matrix again afterwards.
+- **A large world.** FTRV's error is relative to the largest product in a row, and a row's constant cancels against row . p. Within a few hundred units of the origin that is under a tenth of a pixel; for a world of kilometres build the rows about the eye and pass positions less the eye.
+- **KallistiOS.** `pvr_scene_begin_rtt` (a sized render-to-texture scene) is not in every KallistiOS. Compile `src/sh4der_pl4nar.c` with `-DSH4DER_PL4NAR_HAVE_RTT` where it is. Without it the file uses `pvr_scene_begin_txr`, whose rows are 1024 pixels apart: the target is 1024 x h (a 256 x 128 picture costs 256 KB, not 64 KB) and the layer's u is multiplied by `target.u_scale` (w / 1024).
+- **Store queues.** Between a list's begin and its finish call nothing that uses the store queues (`pvr_txr_load`, `sq_cpy`) if you submit by direct rendering.
+- **Cost.** VRAM: the target, pitch x h x 2 B. With `SH4DER_PL4NAR_HAVE_RTT` (pitch = w): 128 x 64 = 16 KB, 256 x 128 = 64 KB, 512 x 256 = 256 KB. Without (pitch = 1024): 128 KB, 256 KB, 512 KB (exact). RAM: a view 104 B (112 B where a row is 16 B aligned) and a material 24 B, the caller's; a polygon header a blend, 32 B. Sound RAM (AICA): 0. Code: the KallistiOS file 592 B (SH-4, -O3, measured); the maths is inline in the caller. Time: see the table; SH4ZAM for all maths, `SH4DER_CORE_NO_SH4ZAM` for plain C.
+
+| Step | Work | Time |
+| --- | --- | --- |
+| Lookup, a body | a vertex: one normalise (FSRRA), two dots, one FTRV, one reciprocal | 0.43 ms for 1,623 vertices (about 60 cycles a vertex): measured on an emulator, one run of the first client, with three dots and the water kernel; this version is one dot and one power call lighter (estimate: 15 to 20 % less); not measured on a console |
+| Lookup, a flat surface | a vertex: one normalise, one dot, one FTRV, one reciprocal | estimate: under the body's |
+| Mirror pass, CPU | the world's low detail submitted a second time | estimate: your world pass x the share of it you mirror |
+| Mirror pass, PVR | a second render, of the target's area: 32 tiles at 256 x 128, 128 at 512 x 256 | not measured. The PVR renders one scene at a time, so the screen's scene queues behind the mirror's and the mirror's behind the last screen's; a timer round the pass reads that queue (15 ms at 512 x 256 in the first client, on an emulator), not the pass. Read `pvr_get_stats` and time your two waits apart |
+| Layer, PVR | the surface once more, blended | estimate: under 0.5 ms for a car body |
+
+What to turn down, in this order: the target's size (256 x 128 is a quarter of the tiles of 512 x 256); the rate (`sh4der_pl4nar_due(frame, 2)` halves the mirror pass and leaves the reflection one frame late: keep the view the target was drawn with for the lookups); the triangles the mirror pass draws.
+
+### Calls
+
+```c
+sh4der_pl4nar_material_t sh4der_pl4nar_preset(unsigned kind);
+void     sh4der_pl4nar_mirror_point(const sh4der_pl4nar_plane_t *plane, const float p[3], float out[3]);
+int      sh4der_pl4nar_sphere_side(const sh4der_pl4nar_plane_t *plane, const float centre[3], float radius);
+int      sh4der_pl4nar_due(unsigned frame, unsigned every);
+int      sh4der_pl4nar_viewproj_rows(sh4der_pl4nar_row_t row[4], const sh4der_pl4nar_plane_t *plane, const float eye[3],
+                                     const float target[3], const float up[3], float fov, float znear, float w, float h);
+int      sh4der_pl4nar_view_build(sh4der_pl4nar_view_t *v, const sh4der_pl4nar_plane_t *plane, const float eye[3],
+                                  const float target[3], const float up[3], float fov, float znear,
+                                  float tex_w, float tex_h, float fade_w);
+void     sh4der_pl4nar_begin(const sh4der_pl4nar_view_t *v);
+float    sh4der_pl4nar_fresnel(float ndotv, float f0);
+void     sh4der_pl4nar_shade(const sh4der_pl4nar_view_t *v, const float pos[3], const float n[3],
+                             const sh4der_pl4nar_material_t *m, sh4der_pl4nar_sample_t *o);
+unsigned sh4der_pl4nar_shade_n(const sh4der_pl4nar_view_t *v, const float *pos, size_t pos_stride, const float *n,
+                               size_t n_stride, const sh4der_pl4nar_material_t *m, sh4der_pl4nar_sample_t *out, unsigned count);
+float    sh4der_pl4nar_flat(const sh4der_pl4nar_view_t *v, const float pos[3], const sh4der_pl4nar_material_t *m,
+                            sh4der_pl4nar_sample_t *o);
+unsigned sh4der_pl4nar_flat_n(const sh4der_pl4nar_view_t *v, const float *pos, size_t pos_stride,
+                              const sh4der_pl4nar_material_t *m, sh4der_pl4nar_sample_t *out, float *w, unsigned count);
+int      sh4der_pl4nar_tri_split(const float w[3], float ratio);
+unsigned sh4der_pl4nar_alpha(const sh4der_pl4nar_sample_t *s, const sh4der_pl4nar_material_t *m);
+uint32_t sh4der_pl4nar_argb(const sh4der_pl4nar_sample_t *s, const sh4der_pl4nar_material_t *m);
+int      sh4der_pl4nar_target_init(sh4der_pl4nar_target_t *t, unsigned w, unsigned h);              /* Dreamcast */
+void     sh4der_pl4nar_target_free(sh4der_pl4nar_target_t *t);                                      /* Dreamcast */
+int      sh4der_pl4nar_target_begin(const sh4der_pl4nar_target_t *t);                               /* Dreamcast */
+void     sh4der_pl4nar_target_end(void);                                                            /* Dreamcast */
+int      sh4der_pl4nar_pass(const sh4der_pl4nar_target_t *t, const sh4der_pl4nar_view_t *view,
+                            sh4der_pl4nar_draw_fn draw, void *user);                                /* Dreamcast, before the screen's scene */
+int      sh4der_pl4nar_layer_header(const sh4der_pl4nar_target_t *t, void *hdr, unsigned additive); /* Dreamcast */
+```
+
+The single `sh4der_pl4nar_shade` and `sh4der_pl4nar_flat` need the view in XMTRX (`sh4der_pl4nar_begin`); `sh4der_pl4nar_shade_n` and `sh4der_pl4nar_flat_n` load it themselves. A 0 from `sh4der_pl4nar_target_begin` means no scene is open. `test/pl4nar_test.c`: the default numbers and the materials, a point mirrored about a plane, the view rows against a camera worked out by hand, the mirrored rows against the plain rows of the mirrored point, the refusals, Fresnel's end points and its equality with the water kernel, the exact planar case (a vertex in the plane looks up its own screen position for any reach, and the flat call agrees), every lookup inside 0 .. 1 and every alpha inside 0 .. 255, a lost ray's fade to the sky texel, the batch against the single call through a 32 B stride, the flat batch through a 16 B stride, the split edge and a triangle cut until done, the sphere against the plane; both maths back ends and -ffast-math.
+
+### Materials
+
+`sh4der_pl4nar_preset(kind)` gives a starting row. Paint and glass were judged on a host picture; the others are physical F0 values with gains nobody has judged on screen.
+
+| Kind | F0 | Gain | Ground keep | Reach | Blend |
+| --- | --- | --- | --- | --- | --- |
+| SH4DER_PL4NAR_PAINT | 0.06 | 1.0 | 0.55 | 18 | additive |
+| SH4DER_PL4NAR_GLASS | 0.10 | 1.0 | 0.55 | 18 | blended |
+| SH4DER_PL4NAR_CHROME | 0.55 | 1.0 | 0.55 | 18 | blended |
+| SH4DER_PL4NAR_WATER | 0.0204 | 1.0 | 1.0 | 0 (flat) | blended |
+| SH4DER_PL4NAR_WET_ROAD | 0.0204 | 0.7 | 1.0 | 0 (flat) | blended |
+| SH4DER_PL4NAR_FLOOR | 0.05 | 0.8 | 1.0 | 0 (flat) | additive |
+
+A stylised look wants more than the physical F0: the first client's paint read best at 0.14, its glass at 0.24.
+
+### Pl4nar tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_PL4NAR_F0_WATER | 0.0204 | The F0 inside `sh4der_water_fresnel`: air to water |
+| SH4DER_PL4NAR_F0_PAINT | 0.06 | Clear-coated paint |
+| SH4DER_PL4NAR_F0_GLASS | 0.10 | Window glass from outside (two faces) |
+| SH4DER_PL4NAR_F0_CHROME | 0.55 | Chromium plate |
+| SH4DER_PL4NAR_F0_FLOOR | 0.05 | A varnished or polished floor |
+| SH4DER_PL4NAR_REACH | 18.0 | World units a body's reflected ray is followed before the lookup |
+| SH4DER_PL4NAR_FADE_W | 4.5 | View depth under which a body's lookup fades to the sky texel: a quarter of the reach |
+| SH4DER_PL4NAR_FOV_SCALE | 1.55 | Reflection field of view / main field of view for a body; a flat surface wants 1 |
+| SH4DER_PL4NAR_SKY_U | 0.5 | The texel a lost ray fades to, u: the centre |
+| SH4DER_PL4NAR_SKY_V | 0.97 | The texel a lost ray fades to, v: the bottom row, the sky over the camera |
+| SH4DER_PL4NAR_GROUND_KEEP | 0.55 | Share of the layer kept where a body's reflected ray points straight down at the plane |
+| SH4DER_PL4NAR_W_MIN | 0.001 | View depth at or under which a point is behind the reflection camera |
+| SH4DER_PL4NAR_SPLIT_RATIO | 1.25 | Far corner depth / near corner depth above which a flat triangle is cut |
+
 ## The frame read
 
 `sh4der_frame.h`, `src/sh4der_frame.c`: the look and the glow work from the frame the CPU reads off the screen, and that frame is one or two frames old, and which one changes from frame to frame. An effect that takes "last frame's" gain or glow off the read corrects the wrong frame and pulses. So every frame carries a stamp: `sh4der_frame_next` numbers it (0..7) and keeps the eye's gain and the glow's strength it is drawn with; `sh4der_frame_stamp_draw` lays a small block of that number's colour at the top left; `sh4der_frame_read` samples the screen on the grid and reads the stamp back, so the client takes off exactly what the read frame carried (`sh4der_frame_degain`, the glow's `sh4der_glow_unfeed`). The read gives two grids: one sample a cell for the eye, and the darker of two samples a cell for the glow, so one hot pixel alone in its cell (a texture's grain, a letter's stroke) lights nothing. `sh4der_frame_hot` is how hard a light is looked at: a client grows and whitens its sun by it. An emulator shows the CPU a black screen unless it copies the drawn frame into video memory (its framebuffer emulation).
@@ -918,6 +1017,7 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 - `test/shafts_test.c`: the shadow shafts' terms and the shade map from a read.
 - `test/guard_test.c`: a normal triangle kept; a line, a repeated point, one point three times and three points on one ray dropped; a thin sliver kept and the caller's threshold; a point at or behind the near plane not judged; a non-finite point dropped; the polygon header's command word (zeros refused).
 - `test/uvwarp_test.c`: a texel centre returns its texel, the middle of two their mean, both axes wrap (continuous across 1.0, negatives too), the scroll moves the table, a whole turn is no scroll, the offset is weight x table and never negative, weight 0 gives 0, a bad table or a non-finite input gives 0, 0; the prepared form gives the plain one's answer over a grid of u, v, time, scroll and weight (to 2e-4) and over odd sizes (1 x 1, 3 x 5, 7 x 2, 255 x 255: to 1.2e-3), its guards (non-finite u or weight, u below -32, a huge scroll, a NULL table) give 0, 0, a coordinate outside plus or minus 2^23 (3e9, 1e10, 1e30, 3.4e38, infinity, NaN) gives 0, 0 with the table in a field of 0xFF bytes (a read outside it would show), weights are saturated to 0..1; built plain, with SH4ZAM and with -ffast-math.
+- `test/pl4nar_test.c`: the materials, a point mirrored about a plane, the view rows against a camera worked out by hand and the mirrored rows against the plain rows of the mirrored point, a view with no direction refused, Fresnel's end points and its equality with the water kernel, the exact planar case, lookups inside 0 .. 1 and alphas inside 0 .. 255 over random vertices, a lost ray's fade, the batch through a stride, the split edge, the sphere against the plane.
 - `test/frame_test.c`: the stamp there and back through RGB565, the history ring, the darker of two pixels, a gain taken off, the looked-at term, the glow taken off a read, the weight table from a threshold.
 - `test/taa_test.c`: the Halton values, the jitter centred over a cycle, a known turn's shift in pixels, the weight falling with speed, a cut.
 - `test/look_test.c`: the luma bins and the log average; the eye into light (over-bright, then settled by LIGHT_S) and into dark (darker, then slow); the log and exp series against the C library; every grade layer list against clamp(A x + B) over a ramp; the layer colour; the glare.

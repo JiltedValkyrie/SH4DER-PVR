@@ -28,10 +28,11 @@ There is no game header and no game data here. The example client is `example/bl
 - `include/sh4der_sss.h`: back-lit transmission (the library's sub-surface scattering stand-in): light through a thin part of a surface toward the eye, tinted by absorption over a thickness the caller supplies. Header only, all inline. The water module's `sh4der_water_crest_sss` is a thin wrapper over it. README "The sss effect"; "Call order: sss" below.
 - `include/sh4der_uvwarp.h`: per-vertex UV warp: `sh4der_uvwarp_sample` (a w x h table of byte pairs, bilinear, both axes wrap) and `sh4der_uvwarp_offset` (weight x table at (u + su t, v + sv t)), plus the prepared form for a mesh loop (`sh4der_uvwarp_prepare` once, `sh4der_uvwarp_offset_p` a vertex: the scroll and size hoisted, no floor call a vertex; `sh4der_uvwarp_offset_pn` the same without the input gates for a loop that checked once); the build tool downsamples the source map, the caller owns the table and the weights. Header only, byte reads only.
 - `include/sh4der_spark.h`, `src/sh4der_spark.c`: pooled additive sparks: a fixed pool of 24 short-lived quads that face the camera, a billboard (flash) and a streak (tracer, spark) with a pixel floor, a retreating tail, a fade along the length, gravity, a burst helper and a pool rule that never loses a KEEP quad to a plain one. The header is the pool and the quad maths (inline, host tested); the .c is KOS PVR drawing (one additive header, both guards), Dreamcast only. README "The spark effect"; "Call order: spark" below.
+- `include/sh4der_pl4nar.h`, `src/sh4der_pl4nar.c`, `tools/pl4nar_normals.py`: real-time planar reflection: the world mirrored about a plane into a small render target, looked up per vertex by a body near the plane (`sh4der_pl4nar_shade`) or a surface in it (`sh4der_pl4nar_flat`), blended in as one translucent layer whose vertex alpha is Fresnel. The header is the view rows, the lookup, the materials and the split (inline, host tested); the .c is the KallistiOS target, pass and layer header, Dreamcast only; the tool makes smoothed normals for the lookup. README "The pl4nar effect"; "Call order: pl4nar" and "pl4nar in an engine that has no normals" below.
 - `include/sh4der_ao.h`: small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map.
 - `include/sh4der_ca.h`, `src/sh4der_ca.c`: the frame texture (the world into a 640 x 480 or 320 x 240 render target: 640 KB or 160 KB) and chromatic aberration through it. A setup with no video memory holds nothing and says how many KB were short. The .c is KOS PVR drawing, Dreamcast only.
 - `include/sh4der_shafts.h`, `src/sh4der_shafts.c`: shadow shafts: the frame's dark shapes cast away from a light, from the frame read. The .c is KOS PVR drawing, Dreamcast only.
-- `test/core_test.c`, `test/guard_test.c`, `test/uvwarp_test.c`, `test/sss_test.c`, `test/spark_test.c`, `test/blade_test.c`, `test/holo_test.c`, `test/look_test.c`, `test/taa_test.c`, `test/frame_test.c`, `test/glow_test.c`, `test/warp_test.c`, `test/trail_test.c`, `test/lens_test.c`, `test/focus_test.c`, `test/visor_test.c`, `test/torch_test.c`, `test/ao_test.c`, `test/ca_test.c`, `test/shafts_test.c` and `example/blade.c` run with `make test`. `make test-shz SH4ZAM=...` runs the tests on the SH4ZAM path. `make dc SH4ZAM=...` builds the Dreamcast library. Every target takes `SH4DOW=`.
+- `test/core_test.c`, `test/guard_test.c`, `test/uvwarp_test.c`, `test/sss_test.c`, `test/spark_test.c`, `test/pl4nar_test.c`, `test/blade_test.c`, `test/holo_test.c`, `test/look_test.c`, `test/taa_test.c`, `test/frame_test.c`, `test/glow_test.c`, `test/warp_test.c`, `test/trail_test.c`, `test/lens_test.c`, `test/focus_test.c`, `test/visor_test.c`, `test/torch_test.c`, `test/ao_test.c`, `test/ca_test.c`, `test/shafts_test.c` and `example/blade.c` run with `make test`. `make test-shz SH4ZAM=...` runs the tests on the SH4ZAM path. `make dc SH4ZAM=...` builds the Dreamcast library. Every target takes `SH4DOW=`.
 - `demo/ocean.c`, `demo/ocean_scene.h`, `demo/OCEAN.md`: the sunset ocean demo (`make ocean`), a separate program. `ocean_scene.h` is the scene (water mesh tables and `ocean_scene_update`, sky texture rows `ocean_env_rows`, the sun `ocean_sun` / `ocean_sun_vector`), `ocean.c` the Dreamcast program (KOS direct render, readout, rows) and a host preview. Rows, picked with left / right: PRESET (QUALITY = the original look, default; PERFORMANT = SH4DOW off, 2,016 water triangles), SWELL, RIPPLE, TRANSMISSION, REFLECTION, SH4DOW, BLOOM, WATER TRIANGLES (400 .. 22,800 in steps of 200, then the original 23,040; `ocean_mesh_grid` picks the grid), SUN AZIMUTH, SUN ELEVATION. A adds one step (WATER TRIANGLES: ten); up / down set a toggle or step a row (200 triangles); LT / RT lower / raise the eye (`ocean_eye_set`, 0.8 to 8.0 m). To add a row: an `ROW_` entry and a name in `ocean.c`, its value in `ocean_value`, its change in `ocean_step`, a line in the OCEAN.md controls table; keep the original value the start state (the host hash check in OCEAN.md). `make test-water` and `build/ocean_scene_test` check the scene; `ocean-preview` renders it on the host (`tris=400..22800`, `mesh=0..113`, `eye=0.8..8`, `az=0..10`, `el=0..9`, `performant`).
 - `demo/main.c`, `demo/models`, `demo/tools`: the demo disc, one program that shows every effect as a row switched live. `make demo SH4ZAM=...` builds `build/demo/sh4der-demo.cdi` (needs python and mkdcdisc); `make dc DEMO=1` builds it after the library.
 - `README.md` is the explanation:
@@ -72,6 +73,47 @@ On the Dreamcast, the square roots, sines and cosines are FSRRA and FSCA inside 
 2. On an event: `sh4der_spark_billboard` / `sh4der_spark_streak` / `sh4der_spark_burst` with the sizes, colour, life and cell from your own table. Give `SH4DER_SPARK_KEEP` to what must never be pushed out (a flash, a tracer).
 3. Once a frame: `sh4der_spark_update(pool, dt, gravity)`.
 4. Inside the translucent list, after the world: fill a `sh4der_spark_view_t` (camera axes and eye in world space, near plane, focal length in pixels, `SH4DER_SPARK_MIN_PX`, `SH4DER_SPARK_INSET`, atlas cols and rows) and a `sh4der_spark_screen_t`, then `sh4der_spark_draw`. A client with its own vertex path calls `sh4der_spark_quad` and tests both triangles with `sh4der_tri_area_ok`.
+
+## Call order: pl4nar
+
+1. At load: `sh4der_pl4nar_target_init(&target, 256, 128)`; one `sh4der_pl4nar_layer_header` a blend you use (additive 1 for paint, 0 for glass and water); a `sh4der_pl4nar_material_t` a surface kind from `sh4der_pl4nar_preset`, then tuned in your own table. A 0 from the init means no video memory: draw no layer.
+2. Each frame, before the screen's scene: `sh4der_pl4nar_view_build` with the plane, the main camera and the target's size (field of view: the main one x `SH4DER_PL4NAR_FOV_SCALE` for a body, x 1 for a flat surface). A 0 means the view has no direction: draw no layer this frame.
+3. `sh4der_pl4nar_pass(&target, &view, draw, user)`. Your `draw` opens the opaque list, draws the world with the rows already in XMTRX, closes it. In it: low detail, culling reversed, skip what `sh4der_pl4nar_sphere_side` puts under the plane, skip the reflecting surface.
+4. In the screen's scene, draw the opaque surface as always and keep its screen vertices.
+5. `sh4der_pl4nar_shade_n` over the surface's world positions and unit world normals (or `sh4der_pl4nar_flat_n` for a surface in the plane, then `sh4der_pl4nar_tri_split` on each triangle's three depths). Put `u` x `target.u_scale`, `v` and `sh4der_pl4nar_argb` in a copy of the opaque vertex: same x, y, z.
+6. In the translucent list: the layer header (checked with `sh4der_poly_hdr_ok`), then those triangles (each checked with `sh4der_tri_area_ok` or your own signed area test).
+7. On a size change or at exit: `sh4der_pl4nar_target_free`, which waits for the PVR first.
+
+The lookups leave the reflection view in XMTRX: load your own matrix again before you transform anything else. The single calls (`sh4der_pl4nar_shade`, `sh4der_pl4nar_flat`) need `sh4der_pl4nar_begin` first and no XMTRX call of any kind between them. Compile `src/sh4der_pl4nar.c` with `-DSH4DER_PL4NAR_HAVE_RTT` on a KallistiOS that has `pvr_scene_begin_rtt`; without it the target is 1024 pixels wide (4 times the video memory at 256 x 128).
+
+## pl4nar in an engine that has no normals (a port from a console without lighting)
+
+For an agent adding the effect to an engine ported from an older console, where meshes carry positions, texture coordinates and baked colours and nothing else.
+
+Inputs you must find or make:
+
+- **A plane.** The road or floor: unit normal toward the camera's side and `d` with dot(n, x) = d, in the engine's world units after any fixed-point conversion. A world with hills takes the plane under the camera, rebuilt each frame.
+- **The main camera** as eye, target and up in world space, its vertical field of view in radians and its near depth. Take them from where the engine builds its view matrix; do not rebuild them from the matrix.
+- **World positions** of the reflective vertices as `float[3]` at a stride that is a multiple of 4. Fixed-point vertices are converted once at load, not every frame.
+- **Normals.** Bake them at load or at build for the reflective meshes alone (a car body, not the city): `tools/pl4nar_normals.py`, or the same rule in the engine's loader. Rotate them with the object each frame.
+- **Which triangles reflect.** A list by material, palette entry or texture page: paint, glass, chrome. Everything else is not drawn in the layer.
+- **A second, cheap world draw.** The engine's own draw with its lowest detail, a shorter far distance, no small props, no HUD, and the cull test reversed.
+
+Order of work (each step ends with something to look at):
+
+1. The target and the pass, with the target shown as a quad in a screen corner. It must show the world upside down: the ground's horizon at the top, the sky at the bottom. If it shows the world upright, the mirror is missing; if it shows nothing, the cull is the wrong way.
+2. The layer on one mesh with alpha fixed at 255 and the blend at 0. The picture must sit still on the surface as the camera turns.
+3. `sh4der_pl4nar_argb` for the alpha, the material's own blend.
+4. The material table, tuned on screen: `f0` first, then `gain`, then `ground_keep`.
+5. The costs, read from the engine's own timers, at 128 x 64, 256 x 128 and 512 x 256.
+
+Tuning, in the order that matters: the target's size (the mirror pass is the largest cost: start at 256 x 128, go down before anything else); how much of the world the pass draws; `f0` (physical values look weak on flat-shaded art: 0.14 for paint was right in the first client); `reach` (shorter pulls the picture toward the horizon, longer toward what is far up the road); the field of view scale (wider keeps more rays in the picture and costs sharpness).
+
+Cost table to fill in and report, measured or marked estimate, never mixed: target bytes (exact, w x h x 2); lookup ms and vertex count; mirror pass CPU ms (list begin to list finish of your draw alone) and triangle count; the PVR's render time from `pvr_get_stats` and your two waits for it, apart, at each target size (a timer round the whole pass reads the PVR's queue, not the pass); frames a second with the effect off and on; video memory free after load.
+
+Checks: `make test`, `make test-shz SH4ZAM=<checkout>`, `make dc SH4ZAM=<checkout>`, `python tools/pl4nar_normals.py --self-test`. On the host the software back end of SH4ZAM gives the same numbers as this library's plain C path; a console is the only test of the matrix load and of the render target.
+
+Do not: build the view with a chain of matrix calls (see README "Keep the row form"); draw the layer before the opaque surface; write depth from the layer; allocate the target every frame; put an engine's or a game's name in this folder.
 
 ## Call order: sss (transmission)
 
