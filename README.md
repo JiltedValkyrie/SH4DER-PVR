@@ -56,6 +56,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | sss | `sh4der_sss.h` | Back-lit transmission, a sub-surface scattering stand-in: light through a thin part toward the eye, tinted by absorption over a path-length proxy (wave crests, backlit skin and ears, leaves, wax, ice, cloth) | per-vertex RGB for the offset colour or vertex colour | v0.50 |
 | guard | `sh4der_guard.h` | Two checks for what an emulator forgives and a real console does not: a triangle with no screen area, and a polygon header that was never compiled | nothing (inline tests) | v0.10 |
 | uvwarp | `sh4der_uvwarp.h` | A texture coordinate pushed per vertex by a small two-channel table (64 x 16 is 2 KB, from a source distortion map): weight x table(u + su t, v + sv t), bilinear, both axes wrapping, unsigned; a prepared form (`sh4der_uvwarp_prepare` once, `sh4der_uvwarp_offset_p` a vertex, or `sh4der_uvwarp_offset_pn` without the input gates for a loop that checked once) for a mesh loop. For what a material does per pixel and the PVR cannot (an arc, a banner, a water strip). | nothing (the mesh's own UV: a table and a weight a vertex) | v0.10 |
+| spark | `sh4der_spark.h` | A fixed pool of 24 short-lived additive quads that face the camera, in two shapes: a billboard (a muzzle flash, an impact flash) and a streak (a tracer whose tail retreats to its hit, a spark that flies and falls), with a least width in pixels, a fade along the length, a burst helper and a pool rule (sparks die first, a flash or tracer is never lost to one). Sizes, colours, lives and atlas cells are the caller's table | one atlas texture (64 x 64 VQ: 3 KB), additive ONE / ONE on the translucent list, depth test on, write off | v0.10 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
 
@@ -740,6 +741,46 @@ void  sh4der_sss_rgb(const sh4der_sss_t *p, const float view[3], const float lig
 ```
 
 Water keeps a thin wrapper, `sh4der_water_crest_sss` (crest 0..1 as coverage, path from a thick to a thin length). `test/sss_test.c`: bounds, fall with path, blocked and front light give 0, linear weights, wrap, distortion; both maths back ends.
+
+## The spark effect (pooled additive quads)
+
+`sh4der_spark.h` (the pool and the quad maths, inline) and `src/sh4der_spark.c` (the KallistiOS draw). A muzzle flash, a tracer, an impact flash and its sparks are the same thing to the PVR: a few textured quads that add light for a few frames. The pool holds them, the two shapes draw them, and what each one looks like is a row of the caller's table. Nothing here knows a weapon.
+
+- **Billboard.** A centre, a half size, a spin: a square facing the camera, turned about the view axis.
+- **Streak.** A tail and a head: a quad along the line, turned about its own axis to face the camera. Its width never falls under `min_px` pixels, so a far tracer stays a line. `RETREAT` moves the tail to the head over the life (a tracer swallowed by its hit), `TAIL0` blacks the tail vertices (it fades along its length, no hard end), `GRAVITY` lets the update bend its velocity.
+- **Brightness.** Colour x (1 - age / life), in the vertex colour; the blend is ONE / ONE, so a dying quad adds less and the order of the quads does not matter. A life of n frames is drawn n times.
+- **The pool rule.** Full pool: a new quad takes the place of the one nearest its end among those without `KEEP`; a new `KEEP` quad may also take the oldest `KEEP` one; a plain quad is dropped (counted) when every slot is `KEEP`.
+- **The atlas.** One texture of cols x rows cells, no alpha (black adds nothing). A billboard maps a whole cell; a streak maps u along its length, v across.
+- **Guards.** The draw sends a quad only when both its triangles have screen area (`sh4der_tri_area_ok`) and its header was compiled (`sh4der_poly_hdr_ok`).
+- **Cost.** RAM: the pool, 24 x 52 B + 8 B = 1,256 B, the caller's; one polygon header, 32 B. VRAM: the caller's atlas (64 x 64 VQ RGB565: 3 KB). Sound RAM (AICA): 0. TA a frame: one header + 4 vertices a live quad (24 quads: 96 vertices, 3,104 B). Code: the draw 2,776 B (SH-4, -O3); spawn and update are inline in the caller. SH4ZAM for all maths; `SH4DER_CORE_NO_SH4ZAM` for plain C.
+
+### Calls
+
+```c
+void     sh4der_spark_reset(sh4der_spark_pool_t *pool);
+int      sh4der_spark_billboard(sh4der_spark_pool_t *pool, const float centre[3], float half, float spin,
+                                uint32_t argb, float life, unsigned cell, unsigned flags);
+int      sh4der_spark_streak(sh4der_spark_pool_t *pool, const float tail[3], const float head[3], const float vel[3],
+                             float width, uint32_t argb, float life, unsigned cell, unsigned flags);
+unsigned sh4der_spark_burst(sh4der_spark_pool_t *pool, const float at[3], const float dir[3], unsigned n, float cone,
+                            float speed, float len_min, float len_max, float width, uint32_t argb, float life, unsigned cell);
+void     sh4der_spark_update(sh4der_spark_pool_t *pool, float dt, const float gravity[3]);
+int      sh4der_spark_quad(const sh4der_spark_t *s, const sh4der_spark_view_t *view, sh4der_spark_vtx_t out[4]);
+int      sh4der_spark_init(void *texture, int width, int height, int txr_format);           /* Dreamcast */
+unsigned sh4der_spark_draw(const sh4der_spark_pool_t *pool, const sh4der_spark_view_t *view,
+                           const sh4der_spark_screen_t *screen);                             /* Dreamcast, inside the TR list */
+```
+
+A shot, in a client: a `KEEP` billboard at the muzzle (2 frames), a `KEEP | RETREAT | TAIL0` streak from the muzzle to the hit (4 frames), and at the hit a billboard plus `sh4der_spark_burst` along the reflected shot. `test/spark_test.c`: sizes and facing of both shapes, the spin, the pixel floor, the near cut (drawn, no corner nearer than the near plane), end on (refused by the area guard), retreat, tail fade, the linear fade and the n frame life, velocity and gravity, the pool rule, the atlas cells and inset, bad arguments, and a busy pool over 12 frames through the area guard; both maths back ends and -ffast-math.
+
+### Spark tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_SPARK_MAX | 24 | Quads the pool holds (96 vertices a frame at most) |
+| SH4DER_SPARK_MIN_PX | 0.8 | Least streak width on screen, pixels |
+| SH4DER_SPARK_INSET | 0.0078125 | Cell edge kept out of the bilinear read, texture units: half a texel of a 64 texel atlas |
+| SH4DER_SPARK_LIFE_MAX | 60.0 | Longest life, seconds (the age counter is 16 bit milliseconds) |
 
 ## The frame read
 
