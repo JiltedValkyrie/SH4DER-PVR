@@ -2,6 +2,8 @@
 """SH4DER-PVR street driving demo: from a clean checkout to a disc image, one script.
 
     python demo/pl4nar/build.py --sh4zam <checkout> [--rtt] [--blender <exe>] [--mkdcdisc <exe>] [--out <dir>] [--pin]
+    python demo/pl4nar/build.py --dry-run [the same options]      say what would run and what is missing; nothing is
+                                                                 fetched, written or built (tools/test_build_dry.py)
 
 Run it in a shell where the KallistiOS environment is sourced (kos-cc on the PATH). Steps, each refusing to go on
 when it fails:
@@ -42,6 +44,38 @@ def run(step, argv, cwd=ROOT):
         raise SystemExit("%s failed (exit %d)" % (step, r.returncode))
 
 
+def dry_run(a):
+    """Print the seven steps and the state of everything they need. Reads only: no network, no file written, no build.
+    Exit code 0 when the credits check passes (a missing tool is reported, not an error: this is the list to fix)."""
+    py = sys.executable
+    have = lambda exe: "found" if shutil.which(exe) else "MISSING"   # noqa: E731
+    try:
+        import PIL  # noqa: F401
+        pillow = "found"
+    except ImportError:
+        pillow = "MISSING"
+    zam = "found" if a.sh4zam and os.path.isdir(os.path.join(a.sh4zam, "include", "sh4zam")) else "MISSING (--sh4zam)"
+    print("DRY_RUN tools: kos-cc %s, make %s, SH4ZAM %s, Blender %s, mkdcdisc %s, Pillow %s"
+          % (have("kos-cc"), have("make"), zam, have(a.blender), have(a.mkdcdisc), pillow))
+    r = subprocess.run([py, os.path.join("tools", "check_credits.py")], cwd=ROOT, capture_output=True, text=True)
+    print("DRY_RUN 1 credits: %s" % (r.stdout.strip().splitlines() or ["no output"])[-1])
+    f = subprocess.run([py, os.path.join("tools", "fetch.py"), "--check"], cwd=ROOT, capture_output=True, text=True)
+    rows = [ln.split() for ln in f.stdout.splitlines() if ln.strip()]
+    print("DRY_RUN 2 fetch: %d packs, %d present, %d not pinned%s"
+          % (len(rows), sum(1 for w in rows if w[0] == "have"), sum(1 for w in rows if w[-2:] == ["NOT", "pinned"]), " (would need --pin)" if not a.pin else ""))
+    print("DRY_RUN 3 coupe: %s" % ("build/gen/coupe.obj is there, kept" if os.path.exists(os.path.join(GEN, "coupe.obj")) else "would run tools/coupe.py"))
+    todo = [os.path.basename(s) for s, _b, _w in LODS if not os.path.exists(os.path.join(LOD, os.path.basename(s)))]
+    print("DRY_RUN 4 lod: %d of %d models to cut in Blender%s" % (len(todo), len(LODS), ": " + ", ".join(todo) if todo else ""))
+    print("DRY_RUN 5 bake: would run tools/bake.py -> build/gen/assets_gen.c, assets_gen.h")
+    print("DRY_RUN 6 make: would run make SH4ZAM=... DEMO_BUILD=<n>%s -> build/pl4nar-demo.elf" % (" RTT=1" if a.rtt else " (no RTT: a 1024 wide target)"))
+    n = 1
+    if os.path.isdir(a.out):
+        n = 1 + max([int(m.group(1)) for m in (re.match(r"pl4nar-demo-b(\d+)\.cdi$", x) for x in os.listdir(a.out)) if m] or [0])
+    print("DRY_RUN 7 image: would write %s" % os.path.join(a.out, "pl4nar-demo-b%d.cdi" % n))
+    print("DRY_RUN_OK" if r.returncode == 0 else "DRY_RUN_FAILED credits")
+    return 0 if r.returncode == 0 else 1
+
+
 def fresh(path):
     """A generated file is rebuilt under a name that is free: move nothing, delete nothing."""
     return not os.path.exists(path)
@@ -56,7 +90,10 @@ def main():
     ap.add_argument("--rtt", action="store_true", help="the KallistiOS in use has pvr_scene_begin_rtt")
     ap.add_argument("--pin", action="store_true", help="accept packs that have no sha256 in the table yet")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2)
+    ap.add_argument("--dry-run", action="store_true", help="print the steps and what is missing; fetch, write and build nothing")
     a = ap.parse_args()
+    if a.dry_run:
+        return dry_run(a)
     if not a.sh4zam or not os.path.isdir(os.path.join(a.sh4zam, "include", "sh4zam")):
         raise SystemExit("--sh4zam: a SH4ZAM checkout (it has include/sh4zam)")
     if not shutil.which("kos-cc"):
