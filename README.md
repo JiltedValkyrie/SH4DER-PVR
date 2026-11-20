@@ -804,7 +804,7 @@ A shot, in a client: a `KEEP` billboard at the muzzle (2 frames), a `KEEP | RETR
 
 | Step | Work | Time |
 | --- | --- | --- |
-| Lookup, a body | a vertex: one normalise (FSRRA), two dots, one FTRV, one reciprocal | 0.43 ms for 1,623 vertices (about 60 cycles a vertex): measured on an emulator, one run of the first client, with three dots and the water kernel; this version is one dot and one power call lighter (estimate: 15 to 20 % less); not measured on a console |
+| Lookup, a body | a vertex: one normalise (FSRRA), two dots, one FTRV, one reciprocal | 0.43 ms for 1,623 vertices: measured on an emulator (its clock is not cycle-true), one run of the first client, with three dots and the water kernel; this version is one dot and one power call lighter (estimate: 15 to 20 % less); not measured on a console |
 | Lookup, a flat surface | a vertex: one normalise, one dot, one FTRV, one reciprocal | estimate: under the body's |
 | Mirror pass, CPU | the world's low detail submitted a second time | estimate: your world pass x the share of it you mirror |
 | Mirror pass, PVR | a second render, of the target's area: 32 tiles at 256 x 128, 128 at 512 x 256 | not measured. The PVR renders one scene at a time, so the screen's scene queues behind the mirror's and the mirror's behind the last screen's; a timer round the pass reads that queue (15 ms at 512 x 256 in the first client, on an emulator), not the pass. Read `pvr_get_stats` and time your two waits apart |

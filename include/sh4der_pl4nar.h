@@ -363,8 +363,8 @@ static inline unsigned sh4der_pl4nar_shade_n(const sh4der_pl4nar_view_t *v, cons
     for (i = 0; i < count; i++) {
         const float *p = pos + (size_t)i * ps, *q = n + (size_t)i * ns;
 
-        __builtin_prefetch(p + ps);                          /* a hint: past the end it reads nothing */
-        __builtin_prefetch(q + ns);
+        __builtin_prefetch((const char *)p + 32);            /* one cache line ahead; a hint: past the end it reads nothing */
+        __builtin_prefetch((const char *)q + 32);
         sh4der_pl4nar_shade_(v, p, q, m, &out[i]);
     }
     return count;
@@ -408,6 +408,8 @@ static inline unsigned sh4der_pl4nar_flat_n(const sh4der_pl4nar_view_t *v, const
     sh4der_pl4nar_begin(v);
     for (i = 0; i < count; i++) {
         const float d = sh4der_pl4nar_flat(v, pos + (size_t)i * ps, m, &out[i]);
+
+        __builtin_prefetch((const char *)(pos + (size_t)i * ps) + 32);
 
         if (w) w[i] = d;
     }
