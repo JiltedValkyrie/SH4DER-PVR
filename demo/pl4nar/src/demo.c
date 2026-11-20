@@ -188,18 +188,18 @@ void demo_update(const demo_input_t *in, float dt) {
         s_size = (s_size + 1u) % 3u;
         gfx_reflect_resize(s_sizes[s_size][0], s_sizes[s_size][1]);
     }
-    /* arcade car: hand scalar integration (no vector work) */
-    if (in->gas > 0.05f)        s_car.v += in->gas * 13.0f * dt;
-    if (in->brake > 0.05f)      s_car.v -= in->brake * (s_car.v > 0.5f ? 26.0f : 7.0f) * dt;
-    s_car.v -= s_car.v * 0.22f * dt;
+    /* arcade car: each step is a x b + c, one FMAC (shz_fmaf); the rates are constants x dt */
+    if (in->gas > 0.05f)        s_car.v = shz_fmaf(in->gas, 13.0f * dt, s_car.v);
+    if (in->brake > 0.05f)      s_car.v = shz_fmaf(in->brake, -(s_car.v > 0.5f ? 26.0f : 7.0f) * dt, s_car.v);
+    s_car.v = shz_fmaf(s_car.v, -0.22f * dt, s_car.v);
     s_car.v = shz_clampf(s_car.v, -8.0f, 46.0f);
     rate = 1.25f * shz_saturatef(shz_fabsf(s_car.v) * (1.0f / 5.0f)) * shz_invf(1.0f + shz_fabsf(s_car.v) * (1.0f / 28.0f));
-    s_car.h -= in->steer * rate * dt * (s_car.v < 0.0f ? -1.0f : 1.0f);       /* right-handed: a right turn lowers the heading */
+    s_car.h = shz_fmaf(in->steer * rate, s_car.v < 0.0f ? dt : -dt, s_car.h);   /* right-handed: a right turn lowers the heading */
     s_car.h = shz_clampf(s_car.h, -0.85f, 0.85f);
     {
         const shz_sincos_t sc = shz_sincosf(s_car.h);
-        s_car.x += sc.sin * s_car.v * dt;
-        s_car.z += sc.cos * s_car.v * dt;
+        s_car.x = shz_fmaf(sc.sin, s_car.v * dt, s_car.x);
+        s_car.z = shz_fmaf(sc.cos, s_car.v * dt, s_car.z);
     }
     if (s_car.x > LANE_MAX)  { s_car.x = LANE_MAX;  if (s_car.h > 0.0f) s_car.h -= s_car.h * shz_saturatef(4.0f * dt); }
     if (s_car.x < -LANE_MAX) { s_car.x = -LANE_MAX; if (s_car.h < 0.0f) s_car.h -= s_car.h * shz_saturatef(4.0f * dt); }
@@ -419,8 +419,8 @@ static void draw_buildings(int roofs) {
 /* Opaque model, palette colour x (AMBIENT + DIFFUSE x n . sun). XMTRX is s_vp x translate x rotate on return. */
 static void draw_model(const mdl_t *m, float x, float z, float yaw) {
     const shz_sincos_t sc = shz_sincosf(yaw);
-    /* the sun in model space (rotation by -yaw about Y): hand, three scalar products */
-    const float lm[3] = { s_sun[0] * sc.cos - s_sun[2] * sc.sin, s_sun[1], s_sun[0] * sc.sin + s_sun[2] * sc.cos };
+    /* the sun in model space (rotation by -yaw about Y): two FMACs (shz_fmaf), once a model */
+    const float lm[3] = { shz_fmaf(s_sun[0], sc.cos, -s_sun[2] * sc.sin), s_sun[1], shz_fmaf(s_sun[0], sc.sin, s_sun[2] * sc.cos) };
     unsigned i;
     if (m->nv > SCRATCH_N) {
         if (!(s_refused & 1u)) { s_refused |= 1u; printf("demo: model of %u vertices refused (scratch holds %u)\n", (unsigned)m->nv, (unsigned)SCRATCH_N); }

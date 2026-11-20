@@ -28,7 +28,7 @@ void gfx_cull(int mode) { s_cull = mode == GFX_CULL_BACK ? -1.0f : mode == GFX_C
 
 static void out_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
     const float area2 = shz_vec2_cross(shz_vec2_init(b->x - a->x, b->y - a->y), shz_vec2_init(c->x - a->x, c->y - a->y));
-    if (s_cull != 0.0f) { if (area2 * s_cull < GFX_MIN_AREA2) return; }
+    if (s_cull != 0.0f) { if (!(area2 * s_cull >= GFX_MIN_AREA2)) return; }     /* written so that a NaN is dropped too */
     else {                                                     /* no area: the PVR would draw a line (the library's guard). cx, cy, w is
                                                                   (x w, y w, w), so the guard's x / z is the pixel. With a cull mode the
                                                                   signed area above has already dropped it: the guard has no sign */
