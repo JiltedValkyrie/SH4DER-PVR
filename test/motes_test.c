@@ -37,7 +37,7 @@ static sh4der_spark_view_t view_at(float dist) {
 static sh4der_spark_screen_t screen_default(void) {
     sh4der_spark_screen_t s;
 
-    s.cx = 320.0f; s.cy = 240.0f; s.focal_y_px = 320.0f;
+    s = sh4der_spark_screen_make(320.0f, 240.0f, 320.0f);
     return s;
 }
 
@@ -148,6 +148,24 @@ static void census(void) {
         if (n > hi) hi = n;
     }
     CHECK(lo >= 85u && hi <= 130u);                                      /* the mock counts 91 - 117 in range */
+}
+
+/* The depth key of a vertex: the plain 1 / z by default, z_base + z_scale / z when a client sets them, and a zero or negative
+   scale read as 1 (a record that was zero-filled before the pair existed). */
+static void depth_key(void) {
+    sh4der_spark_screen_t s = screen_default();
+    const float iz = 1.0f / 40.0f;
+
+    CHECK(s.z_base == 0.0f && s.z_scale == 1.0f);
+    CHECK(NEAR_(sh4der_spark_depth(&s, iz), iz, 1e-7f));                 /* the old behaviour: 1 / z */
+    s.z_base = 0.5f; s.z_scale = 10.0f;
+    CHECK(NEAR_(sh4der_spark_depth(&s, iz), 0.5f + 10.0f * iz, 1e-6f));  /* the engine's scale */
+    CHECK(sh4der_spark_depth(&s, 1.0f / 20.0f) > sh4der_spark_depth(&s, iz));   /* nearer still has the larger key */
+    memset(&s, 0, sizeof(s));
+    s.cx = 320.0f; s.cy = 240.0f; s.focal_y_px = 320.0f;                 /* zero depth pair: the plain key, never a flat 0 */
+    CHECK(NEAR_(sh4der_spark_depth(&s, iz), iz, 1e-7f));
+    s.z_scale = -3.0f;
+    CHECK(NEAR_(sh4der_spark_depth(&s, iz), iz, 1e-7f));
 }
 
 /* The screen side, the light under the least size, the dimming of big sprites, the colour and the quad. */
@@ -271,6 +289,7 @@ int main(void) {
     rule_and_curves();
     census();
     screen_rules();
+    depth_key();
     limits();
     mask_and_finite();
     if (fails) { fprintf(stderr, "motes_test: %d failure(s)\n", fails); return 1; }

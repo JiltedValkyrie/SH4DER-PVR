@@ -774,6 +774,8 @@ unsigned sh4der_spark_draw(const sh4der_spark_pool_t *pool, const sh4der_spark_v
                            const sh4der_spark_screen_t *screen);                             /* Dreamcast, inside the TR list */
 ```
 
+The screen record `sh4der_spark_screen_t` (shared by the spark, bolt and motes draws) is `cx`, `cy`, `focal_y_px` and a depth pair: the vertex depth key is `z_base + z_scale / z` (`sh4der_spark_depth`). A client whose world geometry sends `z_base + z_scale / depth` (an engine that scales the key, for instance by 10) sets the same pair so the sprites sit at the right depth and are not hidden behind near geometry. `sh4der_spark_screen_make(cx, cy, focal_y_px)` fills the plain key (z_base 0, z_scale 1); a `z_scale` of 0 or less is read as 1, so a record that was zero-filled before the pair existed draws as it did. A record built field by field on the stack must set both fields (or use `_make`): an unset field is garbage. `test/motes_test.c` checks the key.
+
 A shot, in a client: a `KEEP` billboard at the muzzle (2 frames), a `KEEP | RETREAT | TAIL0` streak from the muzzle to the hit (4 frames), and at the hit a billboard plus `sh4der_spark_burst` along the reflected shot. `test/spark_test.c`: sizes and facing of both shapes, the spin, the pixel floor, the near cut (drawn, no corner nearer than the near plane), end on (refused by the area guard), retreat, tail fade, the linear fade and the n frame life, velocity and gravity, the pool rule, the atlas cells and inset, bad arguments, and a busy pool over 12 frames through the area guard; both maths back ends and -ffast-math.
 
 ### Spark tuning

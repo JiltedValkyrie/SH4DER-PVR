@@ -374,11 +374,34 @@ static inline int sh4der_spark_quad(const sh4der_spark_t *s, const sh4der_spark_
 
 /* ---- the KallistiOS draw (src/sh4der_spark.c; nothing off the Dreamcast) ---- */
 
-/** \brief The screen for sh4der_spark_draw: pixel x = cx + focal_px x / z, pixel y = cy - focal_y_px y / z,
-    depth key = 1 / z (larger is nearer, the KallistiOS convention). */
+/** \brief The screen for the sprite draws (sh4der_spark_draw, sh4der_bolt_draw, sh4der_motes_draw_*): pixel x = cx + focal_px x / z,
+    pixel y = cy - focal_y_px y / z, depth key = z_base + z_scale / z (larger is nearer, the KallistiOS convention).
+    The depth pair lets a client put the sprites on the same depth scale as its own world geometry: a world that sends
+    z_base + z_scale / depth (for instance z_scale 10) needs the same here, or the sprites sit far behind near geometry.
+    z_base 0 and z_scale 1 (or 0, see below) give the plain 1 / z key. */
 typedef struct sh4der_spark_screen {
     float cx, cy, focal_y_px;
+    float z_base;                      /**< \brief Added to every depth key (0 = none). */
+    float z_scale;                     /**< \brief Multiplies 1 / z (0 or a negative value = 1, so a record that was zero-filled or built before
+                                           this field existed keeps the plain key). */
 } sh4der_spark_screen_t;
+
+/** \brief A screen record with the plain depth key 1 / z (z_base 0, z_scale 1). */
+static inline sh4der_spark_screen_t sh4der_spark_screen_make(float cx, float cy, float focal_y_px) {
+    sh4der_spark_screen_t s;
+
+    s.cx = cx; s.cy = cy; s.focal_y_px = focal_y_px;
+    s.z_base = 0.0f; s.z_scale = 1.0f;
+    return s;
+}
+
+/** \brief The depth key of a vertex whose reciprocal depth is iz (= 1 / z): z_base + z_scale x iz, with z_scale 0 or less read as 1.
+    Pure maths, host tested; the three Dreamcast draws send exactly this as the vertex z. */
+static inline float sh4der_spark_depth(const sh4der_spark_screen_t *screen, float iz) {
+    const float k = screen->z_scale > 0.0f ? screen->z_scale : 1.0f;
+
+    return sh4der_fma_(k, iz, screen->z_base);
+}
 
 /** \brief Compile the polygon header for an atlas the caller loaded: texture pointer, its width and height
     (powers of two), its KallistiOS texture format word (PVR_TXRFMT_RGB565 | PVR_TXRFMT_VQ_ENABLE ...).

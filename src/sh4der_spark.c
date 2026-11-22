@@ -69,7 +69,7 @@ unsigned sh4der_spark_draw(const sh4der_spark_pool_t *pool, const sh4der_spark_v
             v.flags = k == 3 ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
             v.x = shz_fmaf(q[k].x * iz, view->focal_px, screen->cx);
             v.y = shz_fmaf(q[k].y * iz, -screen->focal_y_px, screen->cy);
-            v.z = iz;
+            v.z = sh4der_spark_depth(screen, iz);       /* z_base + z_scale / z: the client's own depth scale */
             v.u = q[k].u; v.v = q[k].v;
             v.argb = q[k].argb; v.oargb = 0;
             pvr_prim(&v, sizeof(v));
