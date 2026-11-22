@@ -53,6 +53,9 @@ extern "C" {
 #define SH4DER_BLOOM_COLS   5                     /**< \brief Ribbon columns: edge, mid, centre, mid, edge. */
 #define SH4DER_BLOOM_RIM    8                     /**< \brief Tip disc rim vertices (8: no hexagonal flat beyond the tip). */
 #define SH4DER_BLOOM_DISC_MAX 24                  /**< \brief Rim vertices sh4der_bloom_disc_n() takes at most (a round glow: 16). */
+#define SH4DER_BLOOM_RINGS_MAX 8                  /**< \brief Rings sh4der_bloom_rings() takes at most. */
+#define SH4DER_BLOOM_RINGS_VERTS (1 + SH4DER_BLOOM_RINGS_MAX * SH4DER_BLOOM_DISC_MAX)   /**< \brief Vertices of the largest ring glow (193: indices fit a byte). */
+#define SH4DER_BLOOM_RINGS_TRIS (SH4DER_BLOOM_DISC_MAX * (2 * SH4DER_BLOOM_RINGS_MAX - 1))   /**< \brief Triangles of the largest ring glow (360). */
 #define SH4DER_BLOOM_VERTS  24                    /**< \brief ROWS x COLS + 1 + RIM. */
 #define SH4DER_BLOOM_TRIS   24                    /**< \brief (ROWS-1) x (COLS-1) x 2 + RIM: the budget, 24 for one blade. */
 
@@ -139,6 +142,17 @@ void sh4der_bloom_disc_feather(float xyz[][3], float level[], const float centre
 
 /** \brief sh4der_bloom_disc_feather()'s triangles into tris (3 x rim of them: the centre's fan, then the band); the count. */
 unsigned sh4der_bloom_disc_feather_tris(unsigned rim, uint8_t tris[][3]);
+
+/** \brief A round glow with a level a ring: the centre at `peak`, then `rings` rings of `seg` vertices each at radius[j] and level ring_level[j] (j = 0 the
+    innermost; the rings need not be evenly spaced). A sun disc with a halo, a lamp, a lens-flare ghost: set the levels from the falloff you want, the PVR
+    interpolates linearly between the rings. The glow faces `eye`. rings is clamped to 1 .. SH4DER_BLOOM_RINGS_MAX, seg to 3 .. SH4DER_BLOOM_DISC_MAX;
+    a non-finite radius reads as 0. xyz and level need 1 + rings x seg entries. Maths only. Index it with sh4der_bloom_rings_tris. */
+void sh4der_bloom_rings(float xyz[][3], float level[], const float centre[3], const float eye[3], float peak, const float radius[],
+                        const float ring_level[], unsigned rings, unsigned seg);
+
+/** \brief The triangles of sh4der_bloom_rings() into tris: a fan from the centre over the first ring (seg of them), then 2 x seg between each pair of rings;
+    the count, seg + 2 x seg x (rings - 1). Same clamps; 0 for no ring or under 3 segments. Index data only. */
+unsigned sh4der_bloom_rings_tris(unsigned rings, unsigned seg, uint8_t tris[][3]);
 
 /** \brief The blade's bloom this frame: the ribbon and the tip disc, facing `eye` (the camera in the blade's space).
     `blade` and `frame` are the blade effect's params and this instance's frame (the tubes, the blocker, the pulse,

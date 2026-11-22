@@ -207,6 +207,64 @@ unsigned sh4der_bloom_disc_feather_tris(unsigned rim_n, uint8_t tris[][3]) {
     return n;
 }
 
+/* A round glow with a level a ring. Vertex 0 is the centre at peak; ring j (0 = innermost) is vertices 1 + j seg .. seg + j seg at radius[j], level ring_level[j].
+   One unit ring from sh4der_bloom_disc_n gives the directions facing the eye, each ring scales it. rings is clamped to 1 .. SH4DER_BLOOM_RINGS_MAX and seg to
+   3 .. SH4DER_BLOOM_DISC_MAX (seg below 3 or rings 0 writes nothing); a non-finite radius reads as 0. xyz and level need 1 + rings x seg entries. Maths only. */
+void sh4der_bloom_rings(float xyz[][3], float level[], const float centre[3], const float eye[3], float peak, const float radius[],
+                        const float ring_level[], unsigned rings, unsigned seg) {
+    float unit[1 + SH4DER_BLOOM_DISC_MAX][3], lv[1 + SH4DER_BLOOM_DISC_MAX];
+    unsigned j, k;
+    int c;
+
+    if (rings < 1 || seg < 3)   /* no glow: nothing is written (the caller sized its arrays for what it asked for) */
+        return;
+    if (rings > SH4DER_BLOOM_RINGS_MAX)
+        rings = SH4DER_BLOOM_RINGS_MAX;
+    if (seg > SH4DER_BLOOM_DISC_MAX)
+        seg = SH4DER_BLOOM_DISC_MAX;
+    sh4der_bloom_disc_n(unit, lv, centre, 1.0f, eye, peak, seg);   /* the ring directions, radius 1 (unit[k + 1] = centre + direction k) */
+    for (c = 0; c < 3; c++)
+        xyz[0][c] = centre[c];
+    level[0] = peak;
+    for (j = 0; j < rings; j++) {
+        const float r = sh4der_finite_(radius[j]) ? radius[j] : 0.0f;
+
+        for (k = 0; k < seg; k++) {
+            for (c = 0; c < 3; c++)
+                xyz[1 + j * seg + k][c] = sh4der_lerp_(centre[c], unit[1 + k][c], r);   /* centre + r x direction */
+            level[1 + j * seg + k] = ring_level[j];
+        }
+    }
+}
+
+/* Triangle indices for the layout of sh4der_bloom_rings: the centre's fan over ring 0, then 2 seg triangles between ring j and ring j + 1. The count. */
+unsigned sh4der_bloom_rings_tris(unsigned rings, unsigned seg, uint8_t tris[][3]) {
+    unsigned j, k, n = 0;
+
+    if (rings < 1 || seg < 3)
+        return 0;
+    if (rings > SH4DER_BLOOM_RINGS_MAX)
+        rings = SH4DER_BLOOM_RINGS_MAX;
+    if (seg > SH4DER_BLOOM_DISC_MAX)
+        seg = SH4DER_BLOOM_DISC_MAX;
+    for (k = 0; k < seg; k++) {   /* the centre's fan */
+        tris[n][0] = 0; tris[n][1] = (uint8_t)(1 + k); tris[n][2] = (uint8_t)(1 + (k + 1) % seg);
+        n++;
+    }
+    for (j = 0; j + 1 < rings; j++) {   /* the band from ring j to ring j + 1 */
+        for (k = 0; k < seg; k++) {
+            const uint8_t a = (uint8_t)(1 + j * seg + k), b = (uint8_t)(1 + j * seg + (k + 1) % seg);
+            const uint8_t a2 = (uint8_t)(a + seg), b2 = (uint8_t)(b + seg);
+
+            tris[n][0] = a; tris[n][1] = a2; tris[n][2] = b;
+            n++;
+            tris[n][0] = b; tris[n][1] = a2; tris[n][2] = b2;
+            n++;
+        }
+    }
+    return n;
+}
+
 /* The blade's tubes at (y, z): the brightest tube's feathered weight (sh4der_blade_intensity's tube term). */
 static float tube_at(const sh4der_blade_frame_t *f, float y, float z) {
     float tube = 0.0f;

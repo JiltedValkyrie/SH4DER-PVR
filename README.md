@@ -274,6 +274,9 @@ void sh4der_bloom_disc_n(float xyz[][3], float level[], const float centre[3], f
 void sh4der_bloom_disc_feather(float xyz[][3], float level[], const float centre[3], float radius, float feather, const float eye[3], float peak,
                                unsigned rim);
 unsigned sh4der_bloom_disc_feather_tris(unsigned rim, uint8_t tris[][3]);
+void sh4der_bloom_rings(float xyz[][3], float level[], const float centre[3], const float eye[3], float peak, const float radius[],
+                        const float ring_level[], unsigned rings, unsigned seg);
+unsigned sh4der_bloom_rings_tris(unsigned rings, unsigned seg, uint8_t tris[][3]);
 int sh4der_bloom_blade(sh4der_bloom_mesh_t *mesh, const sh4der_bloom_params_t *params, const sh4der_blade_params_t *blade,
                        const sh4der_blade_frame_t *frame, const float eye[3]);
 void sh4der_bloom_argb(const sh4der_bloom_mesh_t *mesh, const float edge[3], const float core[3], uint8_t a, uint32_t *out, size_t out_stride);

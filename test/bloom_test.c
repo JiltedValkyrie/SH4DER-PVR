@@ -281,6 +281,62 @@ static int feathered_disc(void) {
     return 0;
 }
 
+/* sh4der_bloom_rings: the centre at the peak, each ring at its radius and level facing the eye, the counts, every index in range and used, the clamps, a
+   non-finite radius reading as 0. */
+static int ring_glow(void) {
+    static const float centre[3] = { 1.0f, 2.0f, 3.0f }, eye[3] = { 1.0f, -5.0f, 3.0f };
+    static const float rad[3] = { 0.1f, 0.2f, 0.4f }, lev[3] = { 0.9f, 0.5f, 0.0f };
+    float xyz[SH4DER_BLOOM_RINGS_VERTS][3], level[SH4DER_BLOOM_RINGS_VERTS];
+    uint8_t tris[SH4DER_BLOOM_RINGS_TRIS][3];
+    int used[SH4DER_BLOOM_RINGS_VERTS] = { 0 };
+    unsigned j, k, n;
+    int c;
+
+    sh4der_bloom_rings(xyz, level, centre, eye, 1.0f, rad, lev, 3, 16);
+    if (level[0] != 1.0f || xyz[0][0] != 1.0f || xyz[0][1] != 2.0f || xyz[0][2] != 3.0f)
+        return fail("rings centre");
+    for (j = 0; j < 3; j++)
+        for (k = 0; k < 16; k++) {
+            float d[3], r2 = 0.0f;
+
+            for (c = 0; c < 3; c++) {
+                d[c] = xyz[1 + j * 16 + k][c] - centre[c];
+                r2 += d[c] * d[c];
+            }
+            /* the eye looks down y, so every ring lies in the x / z plane */
+            if (!near(sqrtf(r2), rad[j], 0.0005f) || level[1 + j * 16 + k] != lev[j] || !near(d[1], 0.0f, 0.0005f))
+                return fail("rings radius, level or facing");
+        }
+    n = sh4der_bloom_rings_tris(3, 16, tris);
+    if (n != 16 + 2 * 16 * 2)
+        return fail("rings triangle count");
+    for (k = 0; k < n; k++)
+        for (c = 0; c < 3; c++) {
+            if (tris[k][c] > 48)
+                return fail("rings index");
+            used[tris[k][c]] = 1;
+        }
+    for (k = 0; k <= 48; k++)
+        if (!used[k])
+            return fail("rings: a vertex unused");
+    if (sh4der_bloom_rings_tris(8, 24, tris) != 24 + 2 * 24 * 7 || sh4der_bloom_rings_tris(99, 99, tris) != 24 + 2 * 24 * 7)
+        return fail("rings largest count and clamps");
+    if (sh4der_bloom_rings_tris(0, 16, tris) != 0 || sh4der_bloom_rings_tris(3, 2, tris) != 0)
+        return fail("rings refuse a glow with no ring or under 3 segments");
+    level[0] = -7.0f;
+    sh4der_bloom_rings(xyz, level, centre, eye, 1.0f, rad, lev, 0, 16);
+    if (level[0] != -7.0f)
+        return fail("rings 0 writes nothing");
+    {
+        static const float bad[1] = { NAN };
+
+        sh4der_bloom_rings(xyz, level, centre, eye, 1.0f, bad, lev, 1, 8);
+        if (!near(xyz[1][0], centre[0], 0.0001f) || !near(xyz[1][2], centre[2], 0.0001f))
+            return fail("rings non-finite radius reads as 0");
+    }
+    return 0;
+}
+
 /* Checks that each invalid bloom param set is refused and gives a dark mesh, and that a blocker depth past -1 is refused. */
 static int bad_params(void) {
     sh4der_blade_params_t bp;
@@ -316,7 +372,7 @@ static int bad_params(void) {
 }
 
 int main(void) {
-    if (shipped() || ramp() || white_structure() || geometry() || flare() || round_disc() || feathered_disc() || bad_params())
+    if (shipped() || ramp() || white_structure() || geometry() || flare() || round_disc() || feathered_disc() || ring_glow() || bad_params())
         return 1;
     printf("bloom_test: ok\n");
     return 0;
