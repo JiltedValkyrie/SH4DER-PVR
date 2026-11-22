@@ -1,6 +1,6 @@
 # SH4DER-PVR (SH4DOW-DC is included, in the folder sh4dow-dc; SH4DOW= names another checkout)
 #
-#   make test                       host check of the plain C path: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, example/blade
+#   make test                       host check of the plain C path: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/pl4nar_test, test/pool_test, example/blade
 #   make test-shz SH4ZAM=<checkout> host check of the SH4ZAM path (SH4ZAM's software back-end, 0.10 or later): every test
 #   make dc SH4ZAM=<checkout>       Dreamcast library build/libsh4der_core.a (KallistiOS environment sourced)
 #   make test-dc SH4ZAM=<checkout>  build/*_test.elf: every test on the Dreamcast path
@@ -12,8 +12,8 @@ CC      ?= cc
 CFLAGS  ?= -O3
 WARN     = -std=c99 -Wall -Wextra
 BUILD    = build
-SRC      = src/sh4der_core.c src/sh4der_blade.c src/sh4der_holo.c src/sh4der_bloom.c src/sh4der_glow.c src/sh4der_frame.c src/sh4der_warp.c src/sh4der_trail.c src/sh4der_lens.c src/sh4der_focus.c src/sh4der_visor.c src/sh4der_torch.c src/sh4der_ca.c src/sh4der_shafts.c src/sh4der_spark.c src/sh4der_bolt.c src/sh4der_motes.c
-HDR      = include/sh4der_core.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_bolt.h include/sh4der_motes.h
+SRC      = src/sh4der_core.c src/sh4der_blade.c src/sh4der_holo.c src/sh4der_bloom.c src/sh4der_glow.c src/sh4der_frame.c src/sh4der_warp.c src/sh4der_trail.c src/sh4der_lens.c src/sh4der_focus.c src/sh4der_visor.c src/sh4der_torch.c src/sh4der_ca.c src/sh4der_shafts.c src/sh4der_spark.c src/sh4der_pl4nar.c src/sh4der_bolt.c src/sh4der_motes.c
+HDR      = include/sh4der_core.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_pl4nar.h include/sh4der_pool.h include/sh4der_bolt.h include/sh4der_motes.h
 
 # kos-cc and kos-ar are the KallistiOS wrappers: they add its flags, its include paths and, when linking, its libraries.
 # Not named KOS_CC / KOS_AR: the KallistiOS environment already sets those to the bare compiler and archiver.
@@ -26,9 +26,15 @@ DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC ships in this repository: the soft shadows, and the column feather every effect here uses
 SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test uvwarp_test water_test ocean_scene_test sss_test spark_test bolt_test motes_test
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test bolt_test motes_test
 
-.PHONY: test test-shz dc test-dc demo clean
+.PHONY: test test-shz dc test-dc demo clean pl4nar-demo
+
+# The street driving demo (demo/pl4nar): planar reflection, light pools and halos. One script from a clean checkout to an image:
+# it fetches CC0 art, cuts it in Blender, bakes, compiles and runs mkdcdisc. PL4NAR_ARGS: e.g. --rtt --pin (see demo/pl4nar/README.md).
+pl4nar-demo:
+		est -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
+	$(PYTHON) demo/pl4nar/build.py --sh4zam $(SH4ZAM) $(PL4NAR_ARGS)
 
 test: $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/core_test
@@ -54,6 +60,8 @@ test: $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/sss_test
 	$(BUILD)/uvwarp_test
 	$(BUILD)/spark_test
+	$(BUILD)/pl4nar_test
+	$(BUILD)/pool_test
 	$(BUILD)/bolt_test
 	$(BUILD)/motes_test
 	$(BUILD)/blade
@@ -84,6 +92,8 @@ $(BUILD)/water_test: test/water_test.c include/sh4der_water.h include/sh4der_sss
 $(BUILD)/sss_test: test/sss_test.c include/sh4der_sss.h
 $(BUILD)/uvwarp_test: test/uvwarp_test.c
 $(BUILD)/spark_test: test/spark_test.c
+$(BUILD)/pl4nar_test: test/pl4nar_test.c include/sh4der_water.h include/sh4der_sss.h
+$(BUILD)/pool_test: test/pool_test.c
 $(BUILD)/bolt_test: test/bolt_test.c
 $(BUILD)/motes_test: test/motes_test.c
 $(BUILD)/blade: example/blade.c
@@ -112,6 +122,8 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/sss_test
 	$(BUILD)/shz/uvwarp_test
 	$(BUILD)/shz/spark_test
+	$(BUILD)/shz/pl4nar_test
+	$(BUILD)/shz/pool_test
 	$(BUILD)/shz/bolt_test
 	$(BUILD)/shz/motes_test
 
@@ -139,7 +151,9 @@ $(BUILD)/libsh4der_core.a: $(SRC) $(HDR)
 	$(DC_CC) $(DC_FLAGS) -c src/sh4der_torch.c -o $(BUILD)/sh4der_torch.o
 	$(DC_CC) $(DC_FLAGS) -c src/sh4der_ca.c -o $(BUILD)/sh4der_ca.o
 	$(DC_CC) $(DC_FLAGS) -c src/sh4der_shafts.c -o $(BUILD)/sh4der_shafts.o
-	$(DC_AR) rcs $@ $(BUILD)/sh4der_ca.o $(BUILD)/sh4der_shafts.o $(BUILD)/sh4der_frame.o $(BUILD)/sh4der_core.o $(BUILD)/sh4der_blade.o $(BUILD)/sh4der_holo.o $(BUILD)/sh4der_bloom.o $(BUILD)/sh4der_glow.o $(BUILD)/sh4der_warp.o $(BUILD)/sh4der_trail.o $(BUILD)/sh4der_lens.o $(BUILD)/sh4der_focus.o $(BUILD)/sh4der_visor.o $(BUILD)/sh4der_torch.o
+	$(DC_CC) $(DC_FLAGS) -c src/sh4der_pl4nar.c -o $(BUILD)/sh4der_pl4nar.o
+	$(DC_CC) $(DC_FLAGS) -c src/sh4der_spark.c -o $(BUILD)/sh4der_spark.o
+	$(DC_AR) rcs $@ $(BUILD)/sh4der_ca.o $(BUILD)/sh4der_shafts.o $(BUILD)/sh4der_frame.o $(BUILD)/sh4der_core.o $(BUILD)/sh4der_blade.o $(BUILD)/sh4der_holo.o $(BUILD)/sh4der_bloom.o $(BUILD)/sh4der_glow.o $(BUILD)/sh4der_warp.o $(BUILD)/sh4der_trail.o $(BUILD)/sh4der_lens.o $(BUILD)/sh4der_focus.o $(BUILD)/sh4der_visor.o $(BUILD)/sh4der_torch.o $(BUILD)/sh4der_spark.o $(BUILD)/sh4der_pl4nar.o
 
 # The demo disc (demo/): one program that shows the effects, as a .cdi image for a Dreamcast, a GDEMU or an emulator.
 # PYTHON turns the models into a C header; MKDCDISC writes the image (https://gitlab.com/simulant/mkdcdisc).
@@ -178,7 +192,7 @@ clean:
 
 # Separate sunset scene; original effects gallery remains `make demo`.
 .PHONY: ocean ocean-preview test-water
-OCEAN_CDI ?= $(BUILD)/ocean/sh4der-ocean-b8.cdi
+OCEAN_CDI ?= $(BUILD)/ocean/sh4der-ocean-b9.cdi
 OCEAN_HEADERS = demo/ocean_scene.h include/sh4der_water.h include/sh4der_sss.h $(SH4DOW)/include/sh4dow_heightfield.h
 ocean: $(OCEAN_CDI)
 $(BUILD)/ocean/sh4der-ocean.elf: demo/ocean.c $(OCEAN_HEADERS) $(BUILD)/libsh4der_core.a
@@ -195,7 +209,21 @@ ocean-preview: $(BUILD)/ocean-preview
 test-water: $(BUILD)/water_test
 	$(BUILD)/water_test
 
-$(BUILD)/shz/water_test $(BUILD)/water_test.elf: include/sh4der_water.h $(SH4DOW)/include/sh4dow_heightfield.h
+$(BUILD)/shz/water_test $(BUILD)/water_test.elf $(BUILD)/shz/pl4nar_test $(BUILD)/pl4nar_test.elf: include/sh4der_water.h include/sh4der_sss.h $(SH4DOW)/include/sh4dow_heightfield.h
 
 $(BUILD)/ocean_scene_test: test/ocean_scene_test.c $(OCEAN_HEADERS)
 $(BUILD)/shz/ocean_scene_test $(BUILD)/ocean_scene_test.elf: $(OCEAN_HEADERS)
+
+# Torch walk: a first-person walk over a dark floor with the torch, to see the normal map (highlight power 2: add passes of grey maps made from the normals, then the picture
+# twice) lit by it (demo/torchwalk_ab.c, include/sh4der_bump.h). The R trigger fires.
+# TORCHWALK_STAGE names a folder whose files go on the disc (the demo reads TWTEX.BIN from it if it is there); without it the demo makes its own textures.
+.PHONY: torchwalk-ab
+TORCHWALK_AB_CDI ?= $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.cdi
+TORCHWALK_STAGE ?=
+torchwalk-ab: $(TORCHWALK_AB_CDI)
+$(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.elf: demo/torchwalk_ab.c include/sh4der_bump.h $(BUILD)/libsh4der_core.a
+	@mkdir -p $(BUILD)/torchwalk_ab
+	$(DC_CC) $(DC_FLAGS) $(DCE_INC) demo/torchwalk_ab.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
+$(TORCHWALK_AB_CDI): $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.elf
+	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	$(MKDCDISC) -e $< $(if $(TORCHWALK_STAGE),-D "$(TORCHWALK_STAGE)") -o $@ -N -n SH4DER-TORCHWALK-AB

@@ -399,6 +399,14 @@ static inline uint32_t sh4der_lens_flash_argb(float level, const float rgb[3], i
     return sh4der_lens_argb_(level, rgb[0], rgb[1], rgb[2]);
 }
 
+#ifdef _arch_dreamcast
+/* The Dreamcast draw side (src/sh4der_lens.c). */
+int sh4der_lens_init(void);
+int sh4der_lens_vignette_setup(float w, float h);
+void sh4der_lens_vignette_draw(void);
+void sh4der_lens_grain(uint32_t frame, float w, float h);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
