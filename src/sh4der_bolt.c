@@ -12,7 +12,7 @@
 
 /* The bolt state and the quad maths are sh4der_bolt.h (host tested). This file is the PVR side: one polygon header (32 B, the only memory it
    holds) and 4 vertices a quad through pvr_prim, on the caller's translucent list. Per frame, TA: one header + at most
-   8 x (12 + 3 x 6) core quads and 8 x 12 halo quads (default look: 84 + 48 quads, 528 vertices, 16.9 KB). One layer, ONE / ONE: the quads add, so
+   8 x (12 + 3 x 6) core quads and 8 x 12 halo quads (default look: 36 + 24 quads, 240 vertices, 7.7 KB). One layer, ONE / ONE: the quads add, so
    their order does not matter and nothing is sorted here. Both guards of sh4der_guard.h: an uncompiled header draws nothing, a triangle with no screen
    area is not sent. Compiles to nothing off the Dreamcast. */
 

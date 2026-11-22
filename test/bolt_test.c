@@ -53,8 +53,8 @@ static void defaults_and_params(void) {
 
     sh4der_bolt_params_default(&p);
     CHECK(sh4der_bolt_params_valid(&p));
-    CHECK(p.strands == 6 && p.segs == 8 && p.forks == 2 && p.fork_segs == 3 && p.keep_segs == 4);
-    CHECK(sh4der_bolt_segments(&p) == 6u * (8u + 2u * 3u));            /* 84 core quads; the halo adds 48 on the main strands */
+    CHECK(p.strands == 4 && p.segs == 6 && p.forks == 1 && p.fork_segs == 3 && p.keep_segs == 3);
+    CHECK(sh4der_bolt_segments(&p) == 4u * (6u + 1u * 3u));/* 36 core quads; the halo adds 24 on the main strands */
     CHECK(NEAR_(p.reroll_s * 30.0f, 4.0f, 0.01f));                     /* 4 pictures at 30 a second */
     q = p; q.strands = 0; CHECK(!sh4der_bolt_params_valid(&q));
     q = p; q.strands = 9; CHECK(!sh4der_bolt_params_valid(&q));
@@ -68,7 +68,7 @@ static void defaults_and_params(void) {
     q = p; q.reroll_s = 0.0f; CHECK(!sh4der_bolt_params_valid(&q));
     q = p; q.fork_lo = 1.0f; q.fork_hi = 0.5f; CHECK(!sh4der_bolt_params_valid(&q));
     q = p; q.halo_scale = 0.5f; CHECK(!sh4der_bolt_params_valid(&q));
-    q = p; q.forks = 0; q.fork_segs = 0; CHECK(sh4der_bolt_params_valid(&q) && sh4der_bolt_segments(&q) == 6u * 8u);   /* no forks: fork_segs is ignored */
+    q = p; q.forks = 0; q.fork_segs = 0; CHECK(sh4der_bolt_params_valid(&q) && sh4der_bolt_segments(&q) == 4u * 6u);   /* no forks: fork_segs is ignored */
     CHECK(!sh4der_bolt_params_valid(NULL));
 }
 
@@ -120,16 +120,16 @@ static void segments(void) {
     anchors_default(an);
     CHECK(sh4der_bolt_init(&b, &p, an, 7u));
     n = sh4der_bolt_segments(&p);
-    CHECK(n == 84);
+    CHECK(n == 36);
     for (k = 0; k < n; k++) {
         CHECK(sh4der_bolt_segment(&b, &p, an, k, t, h, &isf));
         forks += (unsigned)isf;
-        if (!isf && k % 14u != 7u) {                                   /* the next main segment of the strand starts where this one ends */
+        if (!isf && k % 9u != 5u) {                                   /* the next main segment of the strand starts where this one ends */
             CHECK(sh4der_bolt_segment(&b, &p, an, k + 1u, t2, h2, &isf2));
             CHECK(!isf2 && t2[0] == h[0] && t2[1] == h[1] && t2[2] == h[2]);
         }
     }
-    CHECK(forks == 6u * 2u * 3u);
+    CHECK(forks == 4u * 1u * 3u);
     CHECK(!sh4der_bolt_segment(&b, &p, an, n, t, h, &isf));
     CHECK(sh4der_bolt_segment(&b, &p, an, 0, t, h, &isf) && NEAR_(t[0], an[0].root[0], 1e-4f) && NEAR_(t[1], an[0].root[1], 1e-4f) && NEAR_(t[2], an[0].root[2], 1e-4f));   /* strand 0 starts on its root */
 }
@@ -250,7 +250,7 @@ static void quads(void) {
             haloq++;
         }
     }
-    CHECK(mainq + forkq == n && forkq == 36 && mainq == 48 && haloq == 48);   /* 84 core quads and 48 halo ribbons */
+    CHECK(mainq + forkq == n && forkq == 12 && mainq == 24 && haloq == 24);   /* 36 core quads and 24 halo ribbons */
 
     /* the same strands ten times farther away: still the same width on the screen */
     for (c = 0; c < SH4DER_BOLT_STRANDS_MAX; c++) {

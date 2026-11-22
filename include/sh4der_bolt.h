@@ -30,7 +30,7 @@
     sh4der_bolt_draw (KallistiOS, src/sh4der_bolt.c), or sh4der_bolt_quad for a client that submits its own vertices.
 
     Memory: the bolt state is 3,328 B at the largest size (8 strands), the caller's; the draw holds one polygon header
-    (32 B). Defaults (6 strands, 8 segments, 2 forks of 3): 84 core quads + 48 halo quads = 264 triangles, 528
+    (32 B). Defaults (4 strands, 6 segments, 1 fork of 3): 36 core quads + 24 halo quads = 120 triangles, 240
     vertices a frame. VRAM 0 (untextured). Sound RAM 0. The random numbers are a linear congruential step kept in the
     state (no libm); the maths is SH4ZAM through sh4der_core.h (normalise, cross, fused multiply-add, divide).
     Floats in arrays the caller owns (4-byte aligned); nothing casts a byte pointer.
@@ -59,11 +59,11 @@ extern "C" {
 #define SH4DER_BOLT_SEGS_MAX      12      /**< \brief Segments of a main polyline. */
 #define SH4DER_BOLT_FORKS_MAX     3       /**< \brief Forks a strand holds. */
 #define SH4DER_BOLT_FORK_SEGS_MAX 6       /**< \brief Segments of a fork. */
-#define SH4DER_BOLT_STRANDS       6       /**< \brief Default strands (a visible branch count of 4 - 8 with the forks). */
-#define SH4DER_BOLT_SEGS          8       /**< \brief Default main segments. */
-#define SH4DER_BOLT_FORKS         2       /**< \brief Default forks a strand. */
+#define SH4DER_BOLT_STRANDS       4       /**< \brief Default strands (a visible branch count of 4 - 8 with the forks). */
+#define SH4DER_BOLT_SEGS          6       /**< \brief Default main segments. */
+#define SH4DER_BOLT_FORKS         1       /**< \brief Default forks a strand. */
 #define SH4DER_BOLT_FORK_SEGS     3       /**< \brief Default fork segments. */
-#define SH4DER_BOLT_KEEP_SEGS     4       /**< \brief Main segments a re-roll keeps (half of a strand). */
+#define SH4DER_BOLT_KEEP_SEGS     3       /**< \brief Main segments a re-roll keeps (half of a strand). */
 #define SH4DER_BOLT_WANDER        0.45f   /**< \brief Sideways step as a share of the segment length, each of the two sideways axes. */
 #define SH4DER_BOLT_SEG_JITTER    0.25f   /**< \brief Segment length varies by +- this share. */
 #define SH4DER_BOLT_FORK_LEN      0.35f   /**< \brief Fork length as a share of the strand length. */

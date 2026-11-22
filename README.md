@@ -794,7 +794,7 @@ A shot, in a client: a `KEEP` billboard at the muzzle (2 frames), a `KEEP | RETR
 - **Re-roll.** Every `reroll_s` (4 pictures at 30 a second) the strand is drawn again with a new gain of 1 +- `gain_jitter`. The first `keep_segs` segments and every fork that leaves them stay; the rest and the other forks are new. A long pause is one re-roll, never a burst. The seed fixes the whole sequence.
 - **Width.** Constant on the screen: `width_px` pixels at any distance (`width = width_px x z / focal_px`), the halo `halo_scale` times wider at `halo_gain` of the brightness, on the main strands only.
 - **Draw.** Untextured quads through `sh4der_spark_quad`, translucent list, ONE / ONE, depth test on, depth write off, no culling. Quads add, so the order does not matter. Both guards of `sh4der_guard.h`.
-- **Cost (default look: 6 strands, 8 segments, 2 forks of 3).** RAM: the state, about 3.3 KB (8 strand maximum), the caller's; one polygon header, 32 B. VRAM: 0. AICA: 0. TA a frame: one header + 4 vertices a quad, 84 core quads + 48 halo quads = 264 triangles, 528 vertices, 16.9 KB. SH4ZAM for all maths; `SH4DER_CORE_NO_SH4ZAM` for plain C.
+- **Cost (default look: 4 strands, 6 segments, 1 fork of 3, 8 visible branches).** RAM: the state, about 3.3 KB (8 strand maximum), the caller's; one polygon header, 32 B. VRAM: 0. AICA: 0. TA a frame: one header + 4 vertices a quad, 36 core quads + 24 halo quads = 120 triangles, 240 vertices, 7.7 KB. SH4ZAM for all maths; `SH4DER_CORE_NO_SH4ZAM` for plain C.
 
 ```c
 void     sh4der_bolt_params_default(sh4der_bolt_params_t *p);
