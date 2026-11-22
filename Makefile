@@ -33,7 +33,7 @@ TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_te
 # The street driving demo (demo/pl4nar): planar reflection, light pools and halos. One script from a clean checkout to an image:
 # it fetches CC0 art, cuts it in Blender, bakes, compiles and runs mkdcdisc. PL4NAR_ARGS: e.g. --rtt --pin (see demo/pl4nar/README.md).
 pl4nar-demo:
-		est -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
+	test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
 	$(PYTHON) demo/pl4nar/build.py --sh4zam $(SH4ZAM) $(PL4NAR_ARGS)
 
 test: $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
