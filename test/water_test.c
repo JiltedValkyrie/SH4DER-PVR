@@ -20,7 +20,7 @@ int main(void){
     s.dx=s.dz=0;sh4der_water_normal(s,n);sh4der_water_reflect(n,v,r);assert(closef(r[1],1,0.0005f));
     assert(closef(sh4der_water_fresnel(1),0.0204f,0.0001f));assert(closef(sh4der_water_fresnel(0),1,0.0001f));
     for(i=0;i<=100;++i){float f=sh4der_water_fresnel(i*0.01f);assert(f>=0.0203f&&f<=1.0001f);}
-    sh4der_water_transmit(incident,absorb,0,out);assert(closef(out[0],1,0.04f));
+    sh4der_water_transmit(incident,absorb,0,out);assert(closef(out[0],1,0.00002f));assert(sh4der_water_exp(0)==1.0f);assert(closef(sh4der_water_exp(-0.012f),expf(-0.012f),1e-6f));
     sh4der_water_transmit(incident,absorb,5,out);assert(out[0]<out[1]&&out[1]<out[2]);
     assert(sh4dow_heightfield_sun(h,9,9,1,sun,0.001f,0.05f,shade,scratch));
     for(i=0;i<81;++i)assert(shade[i]==0);

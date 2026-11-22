@@ -37,13 +37,9 @@ typedef struct {
     float dx, dz;       /* slopes: height change per world unit along x and z (dimensionless, 0 = flat), the input of sh4der_water_normal */
 } sh4der_water_surface_t;
 
-/* exp(x): SH4ZAM's expf on the Dreamcast, the C library's on the host. */
+/* exp(x): the series of sh4der_sss_exp_ (accurate near 0, the same on both paths; shz_expf read exp(-0.012) = 0.963). */
 static inline float sh4der_water_exp(float x) {
-#ifndef SH4DER_CORE_NO_SH4ZAM
-    return shz_expf(x);
-#else
-    return expf(x);
-#endif
+    return sh4der_sss_exp_(x);
 }
 /* x to the fifth power (the Schlick Fresnel exponent): SH4ZAM's integer power on the Dreamcast, powf on the host. */
 static inline float sh4der_water_pow5(float x) {

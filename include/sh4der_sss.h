@@ -51,6 +51,7 @@
 #ifndef SH4DER_SSS_H
 #define SH4DER_SSS_H
 
+#include <string.h>
 #include "sh4der_core.h"
 
 #ifdef __cplusplus
@@ -67,12 +68,19 @@ typedef struct {
     float wrap_offset;    /**< \brief wrap / (1 + wrap), set by sh4der_sss_init. */
 } sh4der_sss_t;
 
+/* exp(x) by range reduction, the same on both paths: x = k ln2 + r, |r| <= 0.347, Taylor to r^6 (relative error under 3e-7), 2^k from the exponent bits.
+   Not shz_expf: its fast form reads exp(-0.012) = 0.963 (sh4der_look.h), so a path of 0 lost 4 % of the light. x is held to -87 .. 88 (no denormal, no infinity).
+   Hand loop: SH4ZAM has no exact form. memcpy, not a pointer cast: the bits of a float on the stack. */
 static inline float sh4der_sss_exp_(float x) {
-#ifndef SH4DER_CORE_NO_SH4ZAM
-    return shz_expf(x);
-#else
-    return expf(x);
-#endif
+    float r, s;
+    int32_t k;
+    uint32_t bits;
+    x = x < -87.0f ? -87.0f : x > 88.0f ? 88.0f : x;
+    k = (int32_t)(x * 1.44269504f + (x < 0.0f ? -0.5f : 0.5f));
+    r = x - (float)k * 0.693147181f;
+    bits = (uint32_t)(k + 127) << 23;
+    memcpy(&s, &bits, sizeof(s));
+    return s * (1.0f + r * (1.0f + r * (0.5f + r * (1.0f / 6.0f + r * (1.0f / 24.0f + r * (1.0f / 120.0f + r * (1.0f / 720.0f)))))));
 }
 
 /** \brief Fill p. wrap >= 0 (0: only light straight behind counts); distortion any (0: none). */

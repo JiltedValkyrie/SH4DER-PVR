@@ -11,11 +11,16 @@ int main(void) {
     const float tint[3] = {1.0f, 0.58f, 0.30f}, absorb[3] = {0.50f, 0.13f, 0.07f};
     const float view[3] = {0, 0, 1}, behind[3] = {0, 0, -1}, front[3] = {0, 0, 1}, side[3] = {1, 0, 0}, n[3] = {0, 1, 0};
     const float tol = 4 * SH4DER_TEST_TOL;
-    const float exp_rel = 0.04f; /* SH4ZAM shz_expf is a fast approximation: about 3 % (water_test uses the same bound) */
+    const float exp_rel = 0.00002f; /* sh4der_sss_exp_ is a series, relative error under 3e-7 (shz_expf read 3 % low near 0) */
     sh4der_sss_t p, w, d;
     float out[3], prev[3] = {2, 2, 2};
     unsigned i, c;
 
+    /* the exponential: exactly 1 at 0, the series against the C library over -20 .. 10, the clamps */
+    assert(sh4der_sss_exp_(0.0f) == 1.0f);
+    assert(closef(sh4der_sss_exp_(-0.012f), expf(-0.012f), 1e-6f));
+    for (i = 0; i <= 600; ++i) { const float x = -20.0f + 0.05f * (float)i, e = expf(x); assert(fabsf(sh4der_sss_exp_(x) - e) <= 2e-6f * e + 1e-30f); }
+    assert(sh4der_sss_exp_(-260.0f) < 1e-30f && sh4der_sss_exp_(-1.0e9f) < 1e-30f && sh4der_sss_exp_(200.0f) > 1e37f && sh4der_sss_exp_(200.0f) < 3.4e38f);
     sh4der_sss_init(&p, tint, absorb, 0.25f, 0.0f, 0.0f);
     /* back-light geometry: full straight behind, none side-on or front-lit */
     assert(closef(sh4der_sss_back(&p, view, behind, n), 1, tol));
