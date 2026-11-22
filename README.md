@@ -55,6 +55,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | water | `sh4der_water.h` | Directional waves, filtered ripple normals, Fresnel; crest transmission through sss; sunset client uses SH4DOW heightfield sun visibility | textured mesh + offset RGB; optional framebuffer bloom | v0.50 |
 | sss | `sh4der_sss.h` | Back-lit transmission, a sub-surface scattering stand-in: light through a thin part toward the eye, tinted by absorption over a path-length proxy (wave crests, backlit skin and ears, leaves, wax, ice, cloth) | per-vertex RGB for the offset colour or vertex colour | v0.50 |
 | guard | `sh4der_guard.h` | Two checks for what an emulator forgives and a real console does not: a triangle with no screen area, and a polygon header that was never compiled | nothing (inline tests) | v0.10 |
+| bump | `sh4der_bump.h` | The PowerVR's own normal map pass (its bump unit): pack a normal map texel from a height map, pack the light into the offset colour, build the polygon headers, send a polygon; two ways to put the level on screen (the Halo overlay, the KallistiOS two pass); the hot pass on top (the torch's hot core on the normal map's bright texels) | a normal map texture (16 bit, twiddled), one more polygon per lit surface, 4 KB for the hot pass's grey map at 64 x 64 | v0.10 |
 | uvwarp | `sh4der_uvwarp.h` | A texture coordinate pushed per vertex by a small two-channel table (64 x 16 is 2 KB, from a source distortion map): weight x table(u + su t, v + sv t), bilinear, both axes wrapping, unsigned; a prepared form (`sh4der_uvwarp_prepare` once, `sh4der_uvwarp_offset_p` a vertex, or `sh4der_uvwarp_offset_pn` without the input gates for a loop that checked once) for a mesh loop. For what a material does per pixel and the PVR cannot (an arc, a banner, a water strip). | nothing (the mesh's own UV: a table and a weight a vertex) | v0.10 |
 | spark | `sh4der_spark.h` | A fixed pool of 24 short-lived additive quads that face the camera, in two shapes: a billboard (a muzzle flash, an impact flash) and a streak (a tracer whose tail retreats to its hit, a spark that flies and falls), with a least width in pixels, a fade along the length, a burst helper and a pool rule (sparks die first, a flash or tracer is never lost to one). Sizes, colours, lives and atlas cells are the caller's table | one atlas texture (64 x 64 VQ: 3 KB), additive ONE / ONE on the translucent list, depth test on, write off | v0.10 |
 | pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
@@ -971,6 +972,28 @@ The models are made by `demo/tools/make_models.py` (boxes and wedges, no outside
 
 `demo/pl4nar`: a second disc, its own program. A coupe on a street through a 45 second day: the street reflected on the car (`sh4der_pl4nar`), lamp pools, headlight beams and blob shadows (`sh4der_pool`), lamp halos that also pass over the car in the reflection (`sh4der_spark_quad`). `make pl4nar-demo SH4ZAM=...` (or `python demo/pl4nar/build.py`) goes from a clean checkout to an image: it fetches CC0 art that is not in this repository, builds the hero car from numbers, cuts the stock models in Blender and bakes. `demo/pl4nar/README.md` has the controls, the costs and what is not yet proven; `demo/pl4nar/AGENT_WORKFLOW.md` is the checklist for an agent putting the same effects into another engine; `demo/pl4nar/CREDITS.md` every licence.
 
+## The normal map effect
+
+`sh4der_bump.h` (header only; the Dreamcast part sits under `_arch_dreamcast`): the PowerVR's own normal map pass, called its bump unit. A normal map texel is a surface normal kept as two bytes (S the slope, R the direction it leans in); the light travels in the polygon's offset colour (K1, K2, K3, Q); for every pixel the hardware returns a brightness that leaves the polygon as its colour, to be multiplied onto a lit picture. One light direction per polygon, so a large floor is cut into cells. The functions and constants keep the name `bump`, as the hardware and KallistiOS do.
+
+- **The texture.** `sh4der_bump_from_height` writes a twiddled normal map texture from an 8-bit height map (`side` a power of two up to 256, edges wrap). `sh4der_bump_texel` packs one normal. The layout is KallistiOS's `pvrtex` (`pxlFloattoSpherical`); a flat texel is `0xff00`. No mip levels.
+- **The light.** `sh4der_bump_toward` gives the unit direction to the torch; `sh4der_bump_oargb` packs it for a surface frame (`sh4der_bump_frame_t`: the world directions of u, of v, and the normal): K2 = strength x 255 x (light along the normal), K3 = strength x 255 x (light along the surface), K1 = 255 - K2, Q the direction round the surface. `sh4der_bump_oargb_kos` is KallistiOS's `pvr_pack_bump` instead (K1 = 255 - h x 255).
+- **The overlay (Halo's).** Draw the lit base first (opaque list), then the polygon on the translucent list with `sh4der_bump_header_overlay` (DESTCOLOR x ZERO): the level multiplies what is on screen. The vertex colour is `sh4der_bump_fade_argb(strength)`, a grey that fades the effect (white is none). It can only darken.
+- **The two pass (the KallistiOS `bumpmap` example).** `sh4der_bump_header_pass` on the opaque list with vertex colour 0 leaves only the level; then the base on the translucent list under `sh4der_bump_header_apply` (DESTCOLOR x ZERO) is multiplied by it.
+- **The hot pass.** The overlay darkens; the torch's hot core brightens. `sh4der_bump_header_core` puts the library torch's hot core blend (DESTCOLOR x ONE: the frame times 1 + level) on a texture: a grey map of Nz, how much each texel of the normal map faces the viewer (255 x cos of the slope S, 8 bit, twiddled, a 64 x 64 map is 4 KB, grey ramp from `sh4der_bump_hot_palette`). Draw it after the overlay over the same lit cells, vertex colour at each corner = the cell's strength x boost x the torch's tint (`sh4der_bump_hot_argb`; the library's boost is 100 %). Bright texels of the map blow out first, dark ones stay, so the hot core follows the relief. The torch sits at the eye, so the half vector is the view and Nz stands for N.H: no light direction goes into it; a light off the view axis (gunfire) uses the same map as an estimate. Cost: one more pass over the lit cells, 4 KB of video memory at 64 x 64, nothing in RAM beyond the build buffer.
+- **The polygon.** `sh4der_bump_submit_fan` sends a convex polygon of up to 12 corners as one strip, under a header, every vertex with the offset colour; a header that was never compiled sends nothing (`sh4der_guard.h`).
+- **Not checked on a real console.** Which way the light's azimuth turns against the texture's v axis (`sh4der_bump_frame_t.flip` turns it round), whether the K1 difference between Halo's and KallistiOS's offset colour shows, and the hot pass (header, blend and look). The torch walk A/B demo has a row for the first two and a variant for the third.
+- **The cost.** One more polygon pass over each lit surface for the overlay (the pixels are filled twice), one more for the hot pass, the normal map texture (a 64 x 64 map is 8 KB, 128 x 128 is 32 KB), the hot pass's grey map (4 KB at 64 x 64), and one offset colour per cell. Nothing is allocated.
+
+### Normal map tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_BUMP_STRENGTH | 0.65 | Share of 255 the light terms K2 and K3 reach (Halo's value) |
+| SH4DER_BUMP_TWO_PI | 6.28318530718 | 2 pi, for the angle packing |
+| SH4DER_BUMP_HALF_PI | 1.57079632679 | pi / 2, the slope's range |
+| SH4DER_BUMP_MAX_FAN | 12 | Most corners a polygon sent by `sh4der_bump_submit_fan` may have |
+
 ## Recommended settings
 
 The numbers the author's own game and demo disc use, found by eye. Each header repeats its own under "Recommended settings".
@@ -1104,3 +1127,22 @@ The demo has a PRESET row (QUALITY, the original look; PERFORMANT: SH4DOW off, a
 200 triangles, with the triangle and vertex counts, CPU and render milliseconds and
 TA use on the readout), SUN AZIMUTH / SUN ELEVATION rows (the water, transmission,
 SH4DOW and reflection follow the sun) and the camera height on LT / RT.
+
+## Torch walk A/B demo
+
+`demo/torchwalk_ab.c`, `make torchwalk-ab SH4ZAM=...` (KallistiOS environment, python and mkdcdisc as for `make demo`): a first-person walk (left stick walks, right stick looks with the second stick inverted, X turns the torch on and off) over a dark floor and four walls, to see the PowerVR's normal map pass lit by the torch, and the same light put on by ordinary blend passes of grey textures made from the normal map. Cells, the torch's cone and the range fade are the same in every variant. The R trigger fires: a flickering point light at the muzzle (6 m reach) that the cells lean to, and the base is lit by it.
+
+The L trigger cycles the variant; a label at the bottom right names it and reads out what it costs (draws a lit cell takes at most, lit cells, TA bytes the relief passes sent last frame, video memory the variant needs, CPU / render / frame ms):
+
+| Variant | What it draws | Draws a lit cell | Video memory (64 x 64) |
+| --- | --- | --- | --- |
+| 0 | the normal map pass alone: the base, then the overlay (DESTCOLOR x ZERO) | 2 | 8 KB |
+| A2 | the hot pass: 0, then one more pass, the grey Nz map, DESTCOLOR x ONE, vertex colour = strength x boost; bright texels blow out, dark stay | 3 | +4 KB |
+| B | per-axis grey: no bump unit; a flat level, then the grey maps Nz, Nx, Ny (the + or - copy by the light's sign) added (ONE x ONE), then the picture multiplied on. 8-bit maps through a 565 palette and a 565 frame: banding is expected | 5 | 20 KB (5 maps) |
+| C | highlight power 2: no bump unit; (N.H)^2 from three square maps and three signed product maps added at half level, then the picture multiplied on twice; a flat texel stays the picture, a slope facing the half vector goes up to twice it. Broad, follows the light | 8 | 36 KB (9 maps) |
+
+The costs are from the code (the demo's label measures them on a console); fill is the cost to read: B and C draw five to eight layers over the lit cone. Nothing here is checked on a real console: the hot pass, the signs of the axes in B and C, and the 565 palette's banding. BUMP FILTER bilinear is the game's sampler; it leaves a thin wrong line where the azimuth wraps (the label marks it).
+
+Rows (D-pad up / down picks a row, left / right / A changes it, Y hides the readout): BUMP, TORCH, FLOOR (the relief painted into the picture, or a clean picture with the relief put back by the hardware), PASS (the Halo overlay or the KallistiOS two pass; the variants use the overlay), AZIMUTH, GRAIN, VIGNETTE (the lens module), TORCH EDGE, TORCH REACH, TORCH CORE, BUMP AREA, BUMP FADE and BUMP RANGE (the normal map fades out and stops at this distance: 4 to 24 m; 1 world unit is taken as 3 m), WALLS BUMP, BUMP EDGE SOFT, BUMP FILTER, WIREFRAME and the rows of the tessellation methods. The readout shows the CPU, frame and render times, the effect's own cost and its cost against the effect off (START measures), the TA buffer, and the video memory the effect holds apart from the base.
+
+The textures are made in code (octagon panels, grooves, vent slits and a rib, and a wall of panels), so the program runs from nothing. `TORCHWALK_STAGE=<folder>` puts that folder's files on the disc; a `TWTEX.BIN` in it (textures in the PVR formats; header and entry layout in `load_private` in the demo) replaces the generated ones. The file is never part of this repository. The demo is not a game and has no tests.
