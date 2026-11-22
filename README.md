@@ -785,6 +785,32 @@ A shot, in a client: a `KEEP` billboard at the muzzle (2 frames), a `KEEP | RETR
 | SH4DER_SPARK_INSET | 0.0078125 | Cell edge kept out of the bilinear read, texture units: half a texel of a 64 texel atlas |
 | SH4DER_SPARK_LIFE_MAX | 60.0 | Longest life, seconds (the age counter is 16 bit milliseconds) |
 
+## The bolt effect (branching strands that re-roll)
+
+`include/sh4der_bolt.h` (the state and the quad maths, inline, host tested) and `src/sh4der_bolt.c` (the KallistiOS draw). Thin jagged strands run from a root along a direction, each with a few forks, and the whole pattern is drawn again a few times a second while its first half stays put. Lightning, an arc, a spark gap, a discharge, cracks of light, a lit root system. The caller gives roots, directions and lengths (world units) and the colours; nothing here knows a ship or a sky.
+
+- **Strand.** A polyline of `segs` segments from the root. Each step goes along the direction with a seeded sideways wander (`wander` of the segment length on two axes) and a length jitter. State is offsets from the root, so a moving root drags the bolt without a re-roll.
+- **Forks.** `forks` a strand, each of `fork_segs` segments, leaving a main point at an angle of `fork_lo` .. `fork_hi` radians. A fork is dimmer (`fork_gain`) and has no halo.
+- **Re-roll.** Every `reroll_s` (4 pictures at 30 a second) the strand is drawn again with a new gain of 1 +- `gain_jitter`. The first `keep_segs` segments and every fork that leaves them stay; the rest and the other forks are new. A long pause is one re-roll, never a burst. The seed fixes the whole sequence.
+- **Width.** Constant on the screen: `width_px` pixels at any distance (`width = width_px x z / focal_px`), the halo `halo_scale` times wider at `halo_gain` of the brightness, on the main strands only.
+- **Draw.** Untextured quads through `sh4der_spark_quad`, translucent list, ONE / ONE, depth test on, depth write off, no culling. Quads add, so the order does not matter. Both guards of `sh4der_guard.h`.
+- **Cost (default look: 6 strands, 8 segments, 2 forks of 3).** RAM: the state, about 3.3 KB (8 strand maximum), the caller's; one polygon header, 32 B. VRAM: 0. AICA: 0. TA a frame: one header + 4 vertices a quad, 84 core quads + 48 halo quads = 264 triangles, 528 vertices, 16.9 KB. SH4ZAM for all maths; `SH4DER_CORE_NO_SH4ZAM` for plain C.
+
+```c
+void     sh4der_bolt_params_default(sh4der_bolt_params_t *p);
+int      sh4der_bolt_params_valid(const sh4der_bolt_params_t *p);
+int      sh4der_bolt_init(sh4der_bolt_t *b, const sh4der_bolt_params_t *p, const sh4der_bolt_anchor_t *anchors, uint32_t seed);
+void     sh4der_bolt_update(sh4der_bolt_t *b, const sh4der_bolt_params_t *p, const sh4der_bolt_anchor_t *anchors, float dt);
+unsigned sh4der_bolt_segments(const sh4der_bolt_params_t *p);
+int      sh4der_bolt_quad(const sh4der_bolt_t *b, const sh4der_bolt_params_t *p, const sh4der_bolt_anchor_t *anchors,
+                          unsigned k, int halo, const sh4der_spark_view_t *view, sh4der_spark_vtx_t out[4]);
+int      sh4der_bolt_init_draw(void);                                                          /* Dreamcast */
+unsigned sh4der_bolt_draw(const sh4der_bolt_t *b, const sh4der_bolt_params_t *p, const sh4der_bolt_anchor_t *anchors,
+                          const sh4der_spark_view_t *view, const sh4der_spark_screen_t *screen);   /* Dreamcast, inside the TR list */
+```
+
+`test/bolt_test.c`: defaults and bad params, seed determinism, strand shape and forks, segment count and chaining, the re-roll clock and what a re-roll keeps (the kept share of the bolt, .4 - .8), the gain range, quad width in pixels at two distances, the halo, fork dimming, the near plane, and no NaN over 100 re-rolls.
+
 ## The frame read
 
 `sh4der_frame.h`, `src/sh4der_frame.c`: the look and the glow work from the frame the CPU reads off the screen, and that frame is one or two frames old, and which one changes from frame to frame. An effect that takes "last frame's" gain or glow off the read corrects the wrong frame and pulses. So every frame carries a stamp: `sh4der_frame_next` numbers it (0..7) and keeps the eye's gain and the glow's strength it is drawn with; `sh4der_frame_stamp_draw` lays a small block of that number's colour at the top left; `sh4der_frame_read` samples the screen on the grid and reads the stamp back, so the client takes off exactly what the read frame carried (`sh4der_frame_degain`, the glow's `sh4der_glow_unfeed`). The read gives two grids: one sample a cell for the eye, and the darker of two samples a cell for the glow, so one hot pixel alone in its cell (a texture's grain, a letter's stroke) lights nothing. `sh4der_frame_hot` is how hard a light is looked at: a client grows and whitens its sun by it. An emulator shows the CPU a black screen unless it copies the drawn frame into video memory (its framebuffer emulation).
