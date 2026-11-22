@@ -24,7 +24,8 @@
       with distance. n triangles, n + 2 vertices.
 
     Both write world positions and packed colours; the caller transforms and
-    submits them (fan order: triangle k is vertices 0, k + 1, k + 2), with its
+    submits them (fan order: a WEDGE's triangle k is vertices 0, k + 1, k + 2; a DISC's is
+    0, k + 1, (k + 1) % n + 1, because its rim closes on itself), with its
     own area guard (sh4der_tri_area_ok) and a compiled header. Lift the fan a
     little off the ground along the plane's normal (2 to 4 cm at car scale) so
     the depth test does not fight the ground. The array a call writes must hold
@@ -43,6 +44,8 @@
       stage, glowing pads, blob shadows.
 
     \author Jilted Valkyrie
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_POOL_H
@@ -57,7 +60,7 @@ extern "C" {
 /** \name Default tuning
     @{ */
 #define SH4DER_POOL_MAX_N   16     /**< \brief Most triangles in one fan. */
-#define SH4DER_POOL_TAU     6.28318530718f
+#define SH4DER_POOL_TAU     6.28318530718f   /**< \brief 2 pi: radians in a full turn. */
 /** @} */
 
 /** \brief One vertex of a fan: world position, packed colour (alpha in the top byte). */

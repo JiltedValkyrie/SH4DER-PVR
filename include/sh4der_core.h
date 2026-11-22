@@ -20,6 +20,25 @@
     - A breath tracker: a pose's own breathing turned into 0 (out) .. 1 (in).
     - A glint: a soft quad's brightness by camera depth.
 
+    GLOSSARY (words used across these headers; the README's PVR glossary says the same):
+    - SH4DOW-DC: the shadow library shipped beside this one (folder sh4dow-dc). It supplies the soft-edge feather
+      (sh4dow_feather_in_) and the smoothstep sh4dow_smooth01 that the effects use.
+    - SH4ZAM: the SH-4 math library (Falco Girgis, MIT) whose shz_* functions do the maths on the Dreamcast.
+    - "hand:" in a comment marks a line written as plain C because SH4ZAM has no equivalent operation for it.
+    - TA (Tile Accelerator): the PVR front end that takes the polygons the program sends and sorts them into tiles.
+    - OP list / TR list: the two main polygon lists the TA takes. OP = opaque polygons (depth tested, any order);
+      TR = translucent polygons (blended, drawn after the opaque ones, optionally sorted by depth: autosort).
+      A punch-through (PT) list holds polygons whose texels are fully on or fully off.
+    - EOL (end of list): the flag on a strip's last vertex (PVR_CMD_VERTEX_EOL) that ends the polygon strip.
+    - Twiddled: a texture stored in Morton order (the bits of x and y interleaved) that the PVR reads fastest; the
+      non-twiddled (linear) layout is row after row.
+    - Front buffer: the finished picture currently on screen. Direct render / render to texture: drawing into a
+      texture instead of the screen, to read it back as a texture later.
+    - Stride register: the PVR setting that tells it how many pixels apart texture rows are when it reads a
+      non-twiddled texture (it must match the width the data was written with).
+    - XMTRX: the SH-4's back bank of 16 floats holding a 4 x 4 matrix; FTRV multiplies a 4-vector by it in one
+      instruction. FSRRA: the SH-4 reciprocal-square-root instruction (about 1 / sqrt(x), fast and approximate).
+
     Order: sh4der_ramp_colours once at load. sh4der_breath_push once a frame
     per instance; its result goes to the effect's prepare step.
 
@@ -37,6 +56,8 @@
 
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_CORE_H
@@ -151,6 +172,7 @@ static inline __attribute__((always_inline)) int sh4der_finite_(float x) {
     return (v.u & 0x7f800000u) != 0x7f800000u;
 }
 
+/* 1 when x is finite and within 0 .. 1 (a share or a level), else 0 (NaN, infinity and out-of-range values give 0). */
 static inline int sh4der_unit_(float x) {
     return sh4der_finite_(x) && x >= 0.0f && x <= 1.0f;
 }
@@ -166,6 +188,8 @@ static inline void sh4der_cross_(const float a[3], const float b[3], float out[3
 
     out[0] = c.x; out[1] = c.y; out[2] = c.z;
 }
+/* NOTE: len2_ and len3_ return the SQUARED length (a x a + b x b [+ c x c]), with no square root. Callers compare it with a squared
+   radius (for example inner x inner) instead of taking a root. */
 static inline float sh4der_len2_(float a, float b) { return shz_vec2_magnitude_sqr(shz_vec2_init(a, b)); }
 static inline float sh4der_len3_(float a, float b, float c) { return shz_mag_sqr3f(a, b, c); }
 static inline float sh4der_min1_(float x) { return shz_fminf(x, 1.0f); }
@@ -174,7 +198,7 @@ static inline __attribute__((always_inline)) float sh4der_frac_(float x) { retur
 static inline __attribute__((always_inline)) float sh4der_trunc_(float x) { return shz_truncf(x); }   /* toward zero, |x| under 2^31 */
 static inline __attribute__((always_inline)) float sh4der_lerp_(float a, float b, float t) { return shz_lerpf(a, b, t); }
 static inline float sh4der_div_(float a, float b) { return shz_divf(a, b); }
-static inline float sh4der_recip_pos_(float x) { return shz_invf_fsrra(x); }   /* x > 0: every caller checked the sign */
+static inline float sh4der_recip_pos_(float x) { return shz_invf_fsrra(x); }   /* 1 / x built on the SH-4's FSRRA instruction; x > 0 only: every caller checked the sign */
 static inline __attribute__((always_inline)) float sh4der_fma_(float a, float b, float c) { return shz_fmaf(a, b, c); }   /* a * b + c, one FMAC */
 static inline float sh4der_dot3_(const float a[3], const float b[3]) {
     return shz_vec3_dot(shz_vec3_init(a[0], a[1], a[2]), shz_vec3_init(b[0], b[1], b[2]));
@@ -198,6 +222,7 @@ static inline void sh4der_cross_(const float a[3], const float b[3], float out[3
     out[1] = a[2] * b[0] - a[0] * b[2];
     out[2] = a[0] * b[1] - a[1] * b[0];
 }
+/* The plain C mirror of the above: the same SQUARED lengths, no square root. */
 static inline float sh4der_len2_(float a, float b) { return a * a + b * b; }
 static inline float sh4der_len3_(float a, float b, float c) { return a * a + b * b + c * c; }
 static inline float sh4der_min1_(float x) { return x > 1.0f ? 1.0f : x; }

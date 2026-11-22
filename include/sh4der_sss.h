@@ -37,12 +37,15 @@
     SH4DER_CORE_NO_SH4ZAM for the plain C path.
 
     Version: v0.50
-    The effect: thin edges glow in the light's colour, deeper red-shifted (or the caller's
-      absorption) as the path grows.
+    The effect: thin edges glow in the light's colour; as the path through the material grows,
+      the channels with the larger absorption die out first (with a large red absorption the
+      light turns blue-green, as in deep water).
     Developed for: the sunset ocean's crest transmission.
     Use it for: water crests, backlit skin and ears, leaves, wax, ice, cloth.
 
     \author Jilted Valkyrie
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_SSS_H
@@ -57,7 +60,7 @@ extern "C" {
 /** \brief Material and light tuning. Fill with sh4der_sss_init (it precomputes the wrap terms). */
 typedef struct {
     float tint[3];        /**< \brief Colour of the light entering, RGB 0..1 (the light's colour, say). */
-    float absorption[3];  /**< \brief Loss per unit path, per channel (>= 0). Larger red = deeper goes blue-green. */
+    float absorption[3];  /**< \brief Loss per unit path, per channel (>= 0). A larger red value removes more red as the path grows, which leaves blue-green. */
     float gain;           /**< \brief Overall strength. */
     float distortion;     /**< \brief Normal share in the through direction; 0 = straight through. */
     float wrap_scale;     /**< \brief 1 / (1 + wrap), set by sh4der_sss_init. */

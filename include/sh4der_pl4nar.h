@@ -80,6 +80,8 @@
       mirrors: anything that lies in, or near, one plane.
 
     \author Jilted Valkyrie
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_PL4NAR_H

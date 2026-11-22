@@ -147,7 +147,12 @@ static void census(void) {
         if (n < lo) lo = n;
         if (n > hi) hi = n;
     }
-    CHECK(lo >= 85u && hi <= 130u);                                      /* the mock counts 91 - 117 in range */
+    /* What is counted: of the 210 slots, how many sh4der_motes_slot reports as drawn at one instant (the loop above samples 21
+       times, 4.3 s apart). A slot is drawn between the moment its dot has opened (about 6 % of its life) and the moment it has
+       faded under cull_k (about 58 %), so about half of 210, roughly 107, are alive at any time. 85 .. 130 is that figure with
+       margin for the hash's spread; 91 .. 117 is the range an earlier reference model of the same effect produced, which is
+       the only source of those two numbers (it is not in this repository). */
+    CHECK(lo >= 85u && hi <= 130u);
 }
 
 /* The depth key of a vertex: the plain 1 / z by default, z_base + z_scale / z when a client sets them, and a zero or negative
@@ -216,13 +221,17 @@ static void limits(void) {
     sh4der_spark_view_t v = view_at(1200.0f);
     const sh4der_spark_screen_t sc = screen_default();
     static sh4der_motes_draw_t d[SH4DER_MOTES_DRAW_MAX], all[SH4DER_MOTES_DRAW_MAX];
-    unsigned n_all, n_cap, i, j, weakest_kept_ok = 1;
+    unsigned n_all, n_cap, i, j;
     float t = 12.0f, min_kept = 1e30f, max_dropped = 0.0f;
 
     sh4der_motes_params_default(&p);
     p.max_draw = 128u;
     n_all = sh4der_motes_collect(&p, e, 2u, t, &v, &sc, all);
-    CHECK(n_all > 40u);                                                 /* the mock draws 55 - 68 */
+    /* n_all = sprites that survive every cut (alive, in front of the near plane, on screen, inside the lod distance) for two
+       emitters, one at the origin and one 1000 units away, seen from 1200 units. An earlier reference model of the effect drew
+       55 - 68 of them (that model is not in this repository); 40 is a floor well under that, so the cap test below has enough
+       sprites to choose between. */
+    CHECK(n_all > 40u);
     p.max_draw = 30u;
     n_cap = sh4der_motes_collect(&p, e, 2u, t, &v, &sc, d);
     CHECK(n_cap == 30u);
@@ -234,7 +243,6 @@ static void limits(void) {
         if (!kept && all[i].score > max_dropped) max_dropped = all[i].score;
     }
     CHECK(min_kept >= max_dropped);                                     /* the brightest are the ones kept */
-    (void)weakest_kept_ok;
 
     p.max_draw = 128u;
     v = view_at(5000.0f);

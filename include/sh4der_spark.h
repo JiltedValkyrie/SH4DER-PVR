@@ -71,6 +71,8 @@
       sparkler, fireflies, any few dozen bright short-lived things.
 
     \author Jilted Valkyrie
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_SPARK_H
@@ -91,8 +93,8 @@ extern "C" {
 /** @} */
 
 #define SH4DER_SPARK_FREE      0u   /**< \brief Shape of an empty slot. */
-#define SH4DER_SPARK_BILLBOARD 1u
-#define SH4DER_SPARK_STREAK    2u
+#define SH4DER_SPARK_BILLBOARD 1u   /**< \brief Shape of a camera-facing square sprite (a flash, a spark dot); q[0] half size, q[1] spin. */
+#define SH4DER_SPARK_STREAK    2u   /**< \brief Shape of a line sprite from head to tail (a tracer, a spark's trail), turned to face the camera; q is the tail. */
 
 #define SH4DER_SPARK_KEEP    1u     /**< \brief Never pushed out by a quad without KEEP (a flash, a tracer). */
 #define SH4DER_SPARK_RETREAT 2u     /**< \brief Streak: the tail moves to the head over the life. */
@@ -134,6 +136,7 @@ typedef struct sh4der_spark_vtx {
     uint32_t argb;     /**< \brief 0xFF and the colour x the life gain (black on a TAIL0 tail). */
 } sh4der_spark_vtx_t;
 
+/** \brief Empties the pool: every slot becomes free and the live count 0. Call once before the first spawn, or to clear all sparks. */
 static inline void sh4der_spark_reset(sh4der_spark_pool_t *pool) {
     unsigned i;
 

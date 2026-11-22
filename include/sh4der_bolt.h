@@ -29,7 +29,7 @@
     Per frame: sh4der_bolt_update(bolt, params, anchors, dt) once, then inside the caller's translucent list
     sh4der_bolt_draw (KallistiOS, src/sh4der_bolt.c), or sh4der_bolt_quad for a client that submits its own vertices.
 
-    Memory: the bolt state is 3,328 B at the largest size (8 strands), the caller's; the draw holds one polygon header
+    Memory: the bolt state is 3,304 B at the largest size (8 strands: 1,248 B main points + 2,016 B fork points + 24 B fork_at + 16 B of random state, counters and gain), the caller's; the draw holds one polygon header
     (32 B). Defaults (4 strands, 6 segments, 1 fork of 3): 36 core quads + 24 halo quads = 120 triangles, 240
     vertices a frame. VRAM 0 (untextured). Sound RAM 0. The random numbers are a linear congruential step kept in the
     state (no libm); the maths is SH4ZAM through sh4der_core.h (normalise, cross, fused multiply-add, divide).
@@ -42,6 +42,8 @@
 
     \author Jilted Valkyrie
     \author Junior (Claude, an AI by Anthropic): the effect
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_BOLT_H
@@ -81,10 +83,21 @@ extern "C" {
 
 /** \brief The look of a bolt. Fill it with sh4der_bolt_params_default and change what you need. */
 typedef struct sh4der_bolt_params {
-    uint32_t strands, segs, forks, fork_segs, keep_segs;
-    float wander, seg_jitter, fork_len, fork_lo, fork_hi;
-    float width_px, halo_scale, halo_gain, fork_gain;
-    float reroll_s, gain_jitter;
+    uint32_t strands;      /**< \brief Strands (separate jagged lines), 1 .. SH4DER_BOLT_STRANDS_MAX. */
+    uint32_t segs;         /**< \brief Straight segments in a strand's main polyline, 3 .. SH4DER_BOLT_SEGS_MAX. */
+    uint32_t forks;        /**< \brief Forks (side branches) a strand has, 0 .. SH4DER_BOLT_FORKS_MAX. */
+    uint32_t fork_segs;    /**< \brief Segments in a fork, 1 .. SH4DER_BOLT_FORK_SEGS_MAX (ignored when forks is 0). */
+    uint32_t keep_segs;    /**< \brief Main segments a re-roll keeps unchanged, 0 .. segs (the rest are redrawn). */
+    float wander;          /**< \brief Sideways step of each point as a share of the segment length, 0 .. 2. */
+    float seg_jitter;      /**< \brief Random variation of each segment's length, +- this share, 0 .. 0.9. */
+    float fork_len;        /**< \brief Fork length as a share of the strand length, above 0 up to 1. */
+    float fork_lo, fork_hi;   /**< \brief Smallest and largest angle a fork leaves its strand at, radians, 0 < lo <= hi <= 2.0. */
+    float width_px;        /**< \brief Core strand width on screen, pixels, 0.1 .. 16. */
+    float halo_scale;      /**< \brief Halo width as a multiple of the core width, 1 .. 16. */
+    float halo_gain;       /**< \brief Halo brightness as a share of the core's, 0 .. 1. */
+    float fork_gain;       /**< \brief Fork brightness as a share of the main strand's, 0 .. 1. */
+    float reroll_s;        /**< \brief Seconds between re-rolls (the pattern shifts), above 0. */
+    float gain_jitter;     /**< \brief Random brightness change of each roll, 1 +- this, 0 .. 0.9. */
     uint32_t core_argb, halo_argb;   /**< \brief Peak colours (the alpha byte is not used); the gain scales them down from their peak. */
 } sh4der_bolt_params_t;
 
@@ -118,8 +131,9 @@ static inline void sh4der_bolt_params_default(sh4der_bolt_params_t *p) {
 }
 
 /** \brief 1 when every field is in range and finite: strands 1 .. 8, segs 3 .. 12, forks 0 .. 3, fork_segs 1 .. 6 (forks 0 ignores it),
-    keep_segs 0 .. segs, shares in 0 .. 1 (wander 0 .. 2), fork angles 0 < lo <= hi < pi / 2 + 0.5, width_px 0.1 .. 16,
-    halo_scale 1 .. 16, reroll_s above 0. */
+    keep_segs 0 .. segs, wander 0 .. 2, seg_jitter and gain_jitter 0 .. 0.9, fork_len above 0 up to 1, halo_gain and
+    fork_gain 0 .. 1, fork angles 0 < lo <= hi <= 2.0 (about 115 degrees), width_px 0.1 .. 16, halo_scale 1 .. 16,
+    reroll_s above 0. NULL gives 0. */
 static inline int sh4der_bolt_params_valid(const sh4der_bolt_params_t *p) {
     if (!p || p->strands < 1 || p->strands > SH4DER_BOLT_STRANDS_MAX || p->segs < 3 || p->segs > SH4DER_BOLT_SEGS_MAX ||
         p->forks > SH4DER_BOLT_FORKS_MAX || p->keep_segs > p->segs) return 0;

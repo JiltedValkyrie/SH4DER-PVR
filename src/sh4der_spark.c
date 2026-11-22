@@ -27,6 +27,10 @@
 
 static pvr_poly_hdr_t spark_hdr __attribute__((aligned(32)));
 
+/* Builds the one polygon header the sparks use: translucent list, additive (ONE / ONE), bilinear, texture x vertex colour,
+   depth tested but never written, no culling. texture is the caller's atlas in VRAM (width x height texels, a power of two
+   each) and txr_format its PVR format flags. Call once before sh4der_spark_draw.
+   Returns 1 on success. Returns 0 when texture is NULL; the header is then zeroed so that sh4der_spark_draw draws nothing. */
 int sh4der_spark_init(void *texture, int width, int height, int txr_format) {
     pvr_poly_cxt_t c;
 
@@ -44,6 +48,10 @@ int sh4der_spark_init(void *texture, int width, int height, int txr_format) {
     return 1;
 }
 
+/* Sends every live spark of the pool as one camera-facing quad (a billboard or a streak) to the translucent list.
+   pool is the spark state, view the camera (focal length in pixels, near plane) and screen the screen centre and depth scale.
+   Call inside the translucent list of an open scene. Returns the number of quads sent (units: quads). Returns 0 for NULL
+   input, an empty pool, or an uncompiled header. A quad with no screen area (a streak seen end on, a far billboard) is skipped. */
 unsigned sh4der_spark_draw(const sh4der_spark_pool_t *pool, const sh4der_spark_view_t *view, const sh4der_spark_screen_t *screen) {
     unsigned i, sent = 0;
     int k, hdr_sent = 0;

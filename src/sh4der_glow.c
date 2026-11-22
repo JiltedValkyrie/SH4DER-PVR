@@ -144,10 +144,12 @@ void sh4der_glow_draw_halo(const sh4der_glow_t *g, float x, float y, float w, fl
     }
 }
 
-/* One copy of the map over the rectangle, scaled by s about (su, sv), as a SH4DER_GLOW_MESH_X x _Y grid of strips: the fade is by each vertex's own distance from the
-   sun, so a sun in the middle of the screen keeps its rays (four corners alone gave the corners' fade: about none there). i: the copy's number (its weight), 0: `flat`
-   on every vertex (a shaft copy). */
-/* Copies are drawn in the translucent list with the big map's header, which is ADD. */
+/* One copy of the map over the rectangle (x, y, w, h in pixels, depth z), scaled by s about the point (su, sv) in 0..1 screen
+   space, drawn as a SH4DER_GLOW_MESH_X x _Y grid of strips in the translucent list with the big map's header, which is ADD.
+   The fade is computed per vertex from its own distance from the sun, so a sun in the middle of the screen keeps its rays
+   (four corners alone gave only the corners' fade, which is about none there).
+   i is the ray copy's number (1..6), which sets its weight through sh4der_glow_ray_colour with sun_fade (0..1, sun on screen)
+   and share (0..1, how much of the sun is visible); i = 0 means a shaft copy, whose every vertex gets the flat colour `flat` (0..1). */
 static void glow_copy(const sh4der_glow_t *g, float x, float y, float w, float h, float z, float s, float su, float sv, int i, float sun_fade, float share, float flat) {
     int gx, gy, k;
     for (gy = 0; gy < SH4DER_GLOW_MESH_Y; gy++) {

@@ -27,6 +27,10 @@
 static pvr_poly_hdr_t motes_hdr_pt __attribute__((aligned(32)));     /* the compiled punch-through, textured header */
 static pvr_poly_hdr_t motes_hdr_op __attribute__((aligned(32)));     /* the compiled opaque, untextured header */
 
+/* Builds the polygon header for the masked motes: punch-through list, textured with the caller's 16 x 16 mask, no filtering
+   (hard 1-bit dots), depth tested and depth written, no culling. texture is the mask in VRAM (owned by the caller) and txr_format
+   its PVR texture format flags. Call once before sh4der_motes_draw_masked.
+   Returns 1 on success; returns 0 when texture is NULL or the compiled header fails the sh4der_guard.h check. */
 int sh4der_motes_init_masked(void *texture, int txr_format) {
     pvr_poly_cxt_t c;
 
@@ -39,6 +43,9 @@ int sh4der_motes_init_masked(void *texture, int txr_format) {
     return sh4der_poly_hdr_ok((const uint32_t *)(const void *)&motes_hdr_pt);
 }
 
+/* Builds the polygon header for the flat motes: opaque list, untextured (no VRAM used), depth tested and depth written,
+   no culling. Takes no arguments; call once before sh4der_motes_draw_flat.
+   Returns 1 on success, 0 when the compiled header fails the sh4der_guard.h check (then the flat draw sends nothing). */
 int sh4der_motes_init_flat(void) {
     pvr_poly_cxt_t c;
 
@@ -74,7 +81,9 @@ static int send_quad(const sh4der_spark_vtx_t q[4], const sh4der_spark_view_t *v
     return 1;
 }
 
-/* The shared loop: sends the sprites that pass `want`, behind the header `hdr` (sent once, before the first quad). */
+/* The shared loop: sends the sprites of d[0..n-1] that pass the two filters, behind the header `hdr` (sent once, before the
+   first quad). only_flat nonzero skips sprites whose flat flag is clear; only_masked nonzero skips sprites whose flat flag is set;
+   both zero sends every sprite. Returns the number of sprites sent; returns 0 for NULL input or an uncompiled header. */
 static unsigned draw_list(const pvr_poly_hdr_t *hdr, const sh4der_motes_draw_t *d, unsigned n, int only_flat, int only_masked,
                           const sh4der_spark_view_t *view, const sh4der_spark_screen_t *screen) {
     unsigned i, sent = 0;
@@ -92,11 +101,18 @@ static unsigned draw_list(const pvr_poly_hdr_t *hdr, const sh4der_motes_draw_t *
     return sent;
 }
 
+/* Draws n sprites from d on the punch-through list through the mask texture. all = 0 sends only the masked sprites (those with
+   the flat flag clear); all nonzero also sends the flat ones through the same textured header (they then use the mask too).
+   view and screen are the camera and screen constants. Returns the number of sprites sent (units: sprites); returns 0 for
+   NULL input or when sh4der_motes_init_masked has not succeeded. A sprite with no screen area is skipped, not counted. */
 unsigned sh4der_motes_draw_masked(const sh4der_motes_draw_t *d, unsigned n, int all, const sh4der_spark_view_t *view,
                                   const sh4der_spark_screen_t *screen) {
     return draw_list(&motes_hdr_pt, d, n, 0, !all, view, screen);
 }
 
+/* Draws only the flat sprites (flat flag set, 2 - 3 px, untextured) of d[0..n-1] on the opaque list. Same view / screen
+   arguments as sh4der_motes_draw_masked. Returns the number of sprites sent; returns 0 for NULL input or when
+   sh4der_motes_init_flat has not succeeded. */
 unsigned sh4der_motes_draw_flat(const sh4der_motes_draw_t *d, unsigned n, const sh4der_spark_view_t *view,
                                 const sh4der_spark_screen_t *screen) {
     return draw_list(&motes_hdr_op, d, n, 1, 0, view, screen);

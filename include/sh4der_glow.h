@@ -74,6 +74,8 @@
 
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_GLOW_H
@@ -101,7 +103,7 @@ extern "C" {
 #define SH4DER_GLOW_STRENGTH    0.45f   /**< \brief Glow at full bloom (one draw: 0..1). */
 #define SH4DER_GLOW_RADIUS      0.5f    /**< \brief Share of the strength on the wide 20 x 15 halo. */
 #define SH4DER_GLOW_DARKEN_MAX  0.25f   /**< \brief Most the darken layer takes off (D cap). */
-#define SH4DER_GLOW_RAYS        4       /**< \brief Ray copies (3..6). */
+#define SH4DER_GLOW_RAYS        4       /**< \brief Default ray copies; 3..6 looks right, and sh4der_glow_draw_rays accepts and clamps to 1..6. */
 #define SH4DER_GLOW_RAY_STEP    0.12f   /**< \brief Scale step per copy about the sun (copy i at 1 - i x step). */
 #define SH4DER_GLOW_RAY_WEIGHT  0.35f   /**< \brief First copy's weight. */
 #define SH4DER_GLOW_RAY_DECAY   0.6f    /**< \brief Weight ratio from one copy to the next. */
@@ -260,7 +262,7 @@ static inline float sh4der_glow_sun_fade(float su, float sv) {
 
 /** \brief A corner's colour weight in one ray copy: weight(i) x distance fade x sun fade x share, clamped 0..1.
     The distance is the corner's from the sun in screen heights, fading to 0 at SH4DER_GLOW_RAY_REACH.
-    `sun_fade` from sh4der_glow_sun_fade, `share` 0..1 (the lit share of the sun's probe). */
+    `sun_fade` from sh4der_glow_sun_fade, `share` 0..1 (how much of the sun is visible: 1 unobstructed, 0 fully hidden, as the caller measures it, for example from a visibility test at the sun's position). */
 static inline float sh4der_glow_ray_colour(int i, float su, float sv, float cu, float cv, float sun_fade, float share) {
     const float dx = (cu - su) * SH4DER_GLOW_ASPECT, dy = cv - sv;
     const float t = sh4der_div_(sh4der_len2_(dx, dy), SH4DER_GLOW_RAY_REACH * SH4DER_GLOW_RAY_REACH);
@@ -285,7 +287,7 @@ typedef struct sh4der_glow {
     uint8_t lut[256];                          /**< \brief The weights (sh4der_glow_lut). */
     uint16_t stage[SH4DER_GLOW_TEX_W * SH4DER_GLOW_TEX_H];           /**< \brief RAM staging, 16 KB. */
     uint16_t stage_small[SH4DER_GLOW_SMALL_TEX_W * SH4DER_GLOW_SMALL_TEX_H];   /**< \brief RAM staging, 1 KB. */
-    uint8_t keep;                              /**< \brief Share (of 256) of the map before kept by each upload: 0 = none (the start), 128 = half. The read is of a frame
+    uint8_t keep;                              /**< \brief Weight of the previous map kept on each upload, 0 .. 255 out of 256: 0 = none (the start), 128 = half. The read is of a frame
                                                     that carries the glow and is one or two frames old; an eased map does not pulse with it. */
 } sh4der_glow_t;
 

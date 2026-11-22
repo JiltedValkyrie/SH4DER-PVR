@@ -41,6 +41,8 @@
 
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_LENS_H
@@ -347,8 +349,8 @@ static inline float sh4der_lens_hit_alpha(float age) {
     return sh4der_sat_(sh4der_div_(SH4DER_LENS_HIT_LIFE_S - age, SH4DER_LENS_HIT_LIFE_S - SH4DER_LENS_HIT_HOLD_S));
 }
 
-/** \brief The wedge as a strip of 4 (V0 V1 / V2 V3): V0, V1 on the screen edge where the direction leaves it (alpha
-    alpha x HIT_ALPHA), V2, V3 DEPTH inward (alpha 0), the inner edge TAPER x WIDTH. The edge point is on the screen rectangle.
+/** \brief The wedge as a strip of 4 (V0 V1 / V2 V3): V0, V1 on the screen edge where the direction leaves it (alpha =
+    the `alpha` argument x HIT_ALPHA), V2, V3 DEPTH inward (alpha 0), the inner edge TAPER x WIDTH. The edge point is on the screen rectangle.
     `w`, `h` the screen size. Returns 4. */
 static inline unsigned sh4der_lens_hit_quad(const sh4der_lens_hit_t *hit, float w, float h, float alpha, sh4der_lens_vtx_t out[4]) {
     const float hw = 0.5f * w, hh = 0.5f * h;
@@ -401,9 +403,18 @@ static inline uint32_t sh4der_lens_flash_argb(float level, const float rgb[3], i
 
 #ifdef _arch_dreamcast
 /* The Dreamcast draw side (src/sh4der_lens.c). */
+
+/* Once per PVR start: makes the grain tile (8 KB of video memory) and the six polygon headers. Returns 1 when ready, 0 when
+   video memory is short (the lens then draws what it can, without grain). A second call does nothing. */
 int sh4der_lens_init(void);
+/* Builds the vignette's rim table for a screen of w x h pixels. Call once after init and again whenever the screen size
+   changes. Returns 1 when the table is ready, 0 on a bad size (the vignette then draws nothing). */
 int sh4der_lens_vignette_setup(float w, float h);
+/* Draws the vignette (the darkened screen edge) on the translucent list. No arguments; draws nothing until
+   sh4der_lens_vignette_setup has returned 1. Its depth key lies under the HUD. */
 void sh4der_lens_vignette_draw(void);
+/* Draws the film grain over a w x h screen on the translucent list; frame is the frame counter, which moves the tile
+   so the grain changes each frame. Draws nothing when init found no video memory for the tile. */
 void sh4der_lens_grain(uint32_t frame, float w, float h);
 #endif
 

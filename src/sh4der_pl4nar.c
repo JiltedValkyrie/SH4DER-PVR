@@ -28,8 +28,13 @@
 #include <kos.h>
 #include "sh4der_pl4nar.h"
 
+/* Returns 1 when x is a power of two (the PVR only takes texture sides of 8, 16, ... 1024), else 0 (zero counts as not). */
 static int pl4nar_pow2(unsigned x) { return x && !(x & (x - 1u)); }
 
+/* Allocates the render target in video memory: w x h pixels of RGB565 (2 B each) at a row pitch of w (with
+   SH4DER_PL4NAR_HAVE_RTT) or 1024 (without), so pitch x h x 2 B in all. w and h must each be a power of two from 8 to 1024.
+   On success fills t (tex, w, h, bytes, pitch, u_scale = w / pitch) and returns 1. Returns 0 and leaves t zeroed (tex NULL)
+   when t is NULL, a side is out of range or not a power of two, or video memory is full. */
 int sh4der_pl4nar_target_init(sh4der_pl4nar_target_t *t, unsigned w, unsigned h) {
     if (!t) return 0;
     t->tex = NULL; t->w = t->h = t->bytes = t->pitch = 0u; t->u_scale = 1.0f;
@@ -42,10 +47,12 @@ int sh4der_pl4nar_target_init(sh4der_pl4nar_target_t *t, unsigned w, unsigned h)
     t->tex = (void *)pvr_mem_malloc(t->pitch * h * 2u);
     if (!t->tex) { t->pitch = 0u; return 0; }
     t->w = w; t->h = h; t->bytes = t->pitch * h * 2u;
-    t->u_scale = (float)w * (1.0f / (float)t->pitch);      /* hand: one divide at load, both powers of two */
+    t->u_scale = (float)w * (1.0f / (float)t->pitch);      /* hand: no SH4ZAM equivalent for one load-time divide; pitch and w are both powers of two, so the result is exact */
     return 1;
 }
 
+/* Frees the render target's video memory and zeroes t. Waits for the PVR to finish with the target first, so it is safe to
+   call right after the last pass. A NULL t or an already-freed target does nothing. */
 void sh4der_pl4nar_target_free(sh4der_pl4nar_target_t *t) {
     if (!t || !t->tex) return;
     pvr_wait_ready();               /* the last scene's lists are with the renderer */
@@ -54,6 +61,9 @@ void sh4der_pl4nar_target_free(sh4der_pl4nar_target_t *t) {
     t->tex = NULL; t->w = t->h = t->bytes = t->pitch = 0u; t->u_scale = 1.0f;
 }
 
+/* Opens a render-to-texture scene on t: everything sent until sh4der_pl4nar_target_end is drawn into the target, not onto
+   the screen. Returns 1 when the scene is open, 0 when t is NULL, has no texture, or the KallistiOS call refuses
+   (then nothing is open and target_end must not be called). */
 int sh4der_pl4nar_target_begin(const sh4der_pl4nar_target_t *t) {
     if (!t || !t->tex) return 0;
 #ifdef SH4DER_PL4NAR_HAVE_RTT
@@ -68,8 +78,14 @@ int sh4der_pl4nar_target_begin(const sh4der_pl4nar_target_t *t) {
     return 1;
 }
 
+/* Closes the render-to-texture scene opened by sh4der_pl4nar_target_begin and hands its lists to the PVR renderer.
+   The render runs in the background; the target is readable as a texture once it finishes. */
 void sh4der_pl4nar_target_end(void) { pvr_scene_finish(); }
 
+/* One whole reflection pass: opens the target scene, loads the mirrored view into the matrix registers
+   (sh4der_pl4nar_begin), calls draw(view, user) so the caller can submit the mirrored world, then closes the scene.
+   view is the mirrored camera; user is passed through to draw untouched. Returns 1 when the pass ran. Returns 0 (and
+   draws nothing) when view or draw is NULL or the target scene could not be opened. */
 int sh4der_pl4nar_pass(const sh4der_pl4nar_target_t *t, const sh4der_pl4nar_view_t *view, sh4der_pl4nar_draw_fn draw, void *user) {
     if (!view || !draw || !sh4der_pl4nar_target_begin(t)) return 0;
     sh4der_pl4nar_begin(view);
@@ -78,6 +94,11 @@ int sh4der_pl4nar_pass(const sh4der_pl4nar_target_t *t, const sh4der_pl4nar_view
     return 1;
 }
 
+/* Compiles the polygon header of the reflection layer: translucent list, the target as an RGB565 texture (bilinear,
+   clamped, Gouraud so the reflection share can change across a face), alpha = vertex alpha, depth tested against the surface
+   itself and not written. additive 0 blends source-alpha over the surface (a mix); nonzero adds on top (a glint).
+   hdr must point at a 32 B aligned pvr_poly_hdr_t buffer. Returns 1 on success. Returns 0 when hdr is NULL, or t has no
+   texture (hdr is then zeroed, so submitting it draws nothing useful). */
 int sh4der_pl4nar_layer_header(const sh4der_pl4nar_target_t *t, void *hdr, unsigned additive) {
     pvr_poly_cxt_t c;
 

@@ -207,7 +207,7 @@ unsigned sh4der_bloom_disc_feather_tris(unsigned rim_n, uint8_t tris[][3]) {
     return n;
 }
 
-/* A round glow with a level a ring. Vertex 0 is the centre at peak; ring j (0 = innermost) is vertices 1 + j seg .. seg + j seg at radius[j], level ring_level[j].
+/* A round glow made of concentric rings, each ring with its own radius and its own brightness level. Vertex 0 is the centre at peak; ring j (0 = innermost) is vertices 1 + j seg .. seg + j seg at radius[j], level ring_level[j].
    One unit ring from sh4der_bloom_disc_n gives the directions facing the eye, each ring scales it. rings is clamped to 1 .. SH4DER_BLOOM_RINGS_MAX and seg to
    3 .. SH4DER_BLOOM_DISC_MAX (seg below 3 or rings 0 writes nothing); a non-finite radius reads as 0. xyz and level need 1 + rings x seg entries. Maths only. */
 void sh4der_bloom_rings(float xyz[][3], float level[], const float centre[3], const float eye[3], float peak, const float radius[],
@@ -313,12 +313,25 @@ int sh4der_bloom_blade(sh4der_bloom_mesh_t *m, const sh4der_bloom_params_t *p, c
         }
         return 0;
     }
+    /* Step 1, facing the ribbon: v is the vector from the middle of the blade's axis to the eye. across() turns it into w, the
+       unit direction in the y-z plane that lies across the blade as seen from the eye, so the flat ribbon always shows its
+       full width to the viewer (a billboard around the x axis). */
     v[0] = eye[0] - 0.5f * (p->x0 + p->x1);
     v[1] = eye[1] - blade->axis[0];
     v[2] = eye[2] - blade->axis[1];
     across(v, w);
+    /* Step 2, the rows: three rows along x (the root at x0, the tip at x1, the end of the tail at x1 + tail). `along` is the
+       ribbon's own brightness at each row: root level, tip level, and 0 at the tail end so it fades to nothing. */
     xs[0] = p->x0; xs[1] = p->x1; xs[2] = p->x1 + p->tail;
     along[0] = p->root; along[1] = p->tip; along[2] = 0.0f;
+    /* Step 3, each vertex's level (0..1 brightness). For row r and column c:
+         off     = the vertex's signed distance from the axis across the ribbon (-W .. W in 5 columns, W = half_width);
+         prof    = the ribbon's cross-section: 1 near the middle, feathering to 0 at the edges (inner = flat part);
+         tube    = how much the blade's bright tubes light this spot (tube_floor keeps a dim base where there is no tube);
+         kb      = the blocker knot's extra glow, a feathered bump of width boost_reach around each blocker's x, scaled by
+                   boost, and by along / tip so that it follows the ribbon's own level (zero at the root and tail: no edge);
+         level   = prof x fade x (glow x along x tube + kb), i.e. the cross-section, times the caller's fade, times the
+                   pulsing glow shaped by the along-the-ribbon level and the tube pattern, plus the knot. */
     for (r = 0, i = 0; r < SH4DER_BLOOM_ROWS; r++) {
         /* the knot rides the ribbon's own along level (0 at the root and the tail): no edge where the ribbon starts or ends */
         const float kb = p->tip > 0.0f ? p->boost * knot_at(f, p, xs[r]) * along[r] * sh4der_recip_pos_(p->tip) : 0.0f;
@@ -338,6 +351,11 @@ int sh4der_bloom_blade(sh4der_bloom_mesh_t *m, const sh4der_bloom_params_t *p, c
     centre[0] = p->x1;
     centre[1] = blade->axis[0];
     centre[2] = blade->axis[1];
+    /* Step 4, the lens flare disc at the tip. v becomes the unit vector from the tip to the eye (reusing v, the step 1 value is no
+       longer needed). v[0] is then the cosine of the angle between the blade's +x direction and the line of sight: 1 when
+       looking straight down the blade at its tip, 0 when side on. The flare grows from flare_floor (side on) to full strength
+       once that cosine passes flare_cos, through a smooth 0..1 step (sh4dow_smooth01, from the shadow library shipped beside
+       this one), so the flare is brightest when the blade points at the viewer. */
     v[0] = eye[0] - centre[0];   /* the lens flare: the blade (+x) against the unit way to the eye */
     v[1] = eye[1] - centre[1];
     v[2] = eye[2] - centre[2];

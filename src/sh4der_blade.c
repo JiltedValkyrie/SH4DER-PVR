@@ -122,22 +122,38 @@ int sh4der_blade_prepare(sh4der_blade_frame_t *f, const sh4der_blade_params_t *p
         return 0;
     }
     fade = sh4der_finite_(fade) ? sh4der_sat_(fade) : 0.0f;   /* the bit test first: -ffast-math folds a NaN compare away */
+    /* u: where the animation is inside its repeating cycle, 0..1 (0 at tick 0, back to 0 after p->period ticks). Everything
+       below is a function of u, so the whole blade loops seamlessly. */
     u = sh4der_div_((float)(tick % p->period), (float)p->period);
 
+    /* The pulse: a cosine "breathing" that goes 0 -> 1 -> 0 and happens p->pulses times per cycle. 0.5 x (1 - cos) maps the
+       cosine's -1..1 onto 0..1, starting at 0 (dimmest) at u = 0. */
     sh4der_sincos_(TWO_PI * sh4der_frac_((float)p->pulses * u), &s, &c);
     f->pulse = 0.5f * (1.0f - c);
+    /* Glow = base brightness plus amp x pulse, then floored. Light = a blade-wide brightness factor that dips by
+       light_swing at the dimmest pulse and is scaled by the caller's fade. */
     f->glow = p->glow_base + p->glow_amp * f->pulse;
-    if (f->glow < SH4DER_BLADE_MIN_GLOW) f->glow = SH4DER_BLADE_MIN_GLOW;   /* the pulse never goes fully dark (AMOUNT 1 would reach 0) */
+    if (f->glow < SH4DER_BLADE_MIN_GLOW) f->glow = SH4DER_BLADE_MIN_GLOW;   /* the pulse never goes fully dark (the glow formula can reach 0 for some parameter choices; the floor is SH4DER_BLADE_MIN_GLOW) */
     f->light = (1.0f - p->light_swing * (1.0f - f->pulse)) * fade;
     f->fade = fade;
+    /* A vertex's brightness is (lo + hi x tube) x blockers: lo is the dim level everywhere on the blade (the glow's floor
+       share), hi is the extra level the tubes add (the rest of the glow). fade_x0 and inv_fade_len (1 / the fade length)
+       set the smooth start-up ramp along x so the blade has no hard edge where its shape is cut; the reciprocal lets the
+       per-vertex code multiply instead of divide. */
     f->lo = f->glow * p->floor;
     f->fade_x0 = p->fade_x0;
     f->inv_fade_len = sh4der_recip_pos_(p->fade_x1 - p->fade_x0);
     f->hi = f->glow * (1.0f - p->floor);
+    /* A travelling ripple along x (used by sh4der_blade_intensity when ripple_depth > 0): k is radians per unit of x, and the
+       phase is the pulse's angle, so the ripple moves in step with the pulse. */
     f->ripple_k = TWO_PI * p->ripple_freq;
     f->ripple_phase = TWO_PI * sh4der_frac_((float)p->pulses * u);
     f->ripple_depth = p->ripple_depth;
 
+    /* Each tube is a bright rod running along x that orbits the blade's centre line (p->axis = the y, z of that line) on a
+       circle of radius rho. turns = whole revolutions per cycle (the sign sets the direction), phase = start angle in
+       cycles (0..1). The loop stores its current (y, z) centre plus the soft-edge numbers the per-vertex test needs:
+       inner radius, outer radius squared (so no square root per vertex), 1 / feather width, and its weight. */
     f->tube_count = p->tube_count;
     for (i = 0; i < p->tube_count; i++) {
         const sh4der_tube_t *t = &p->tube[i];
@@ -150,6 +166,10 @@ int sh4der_blade_prepare(sh4der_blade_frame_t *f, const sh4der_blade_params_t *p
         f->tube_inv_feather[i] = sh4der_recip_pos_(t->outer - t->inner);
         f->tube_weight[i] = t->weight;
     }
+    /* Each blocker is a dark knot that slides along the blade and also orbits. Its x position moves from x0 to x1 and
+       restarts, `passes` times per cycle (phase offsets the start, in cycles); its (y, z) orbits the axis at radius rho,
+       turns revolutions per cycle. The rest are the same soft-edge numbers as the tubes, plus depth (-1..1: the share of
+       light it takes away at its core, so the vertex is multiplied by 1 - depth x falloff; a negative depth brightens). */
     f->blocker_count = p->blocker_count;
     for (i = 0; i < p->blocker_count; i++) {
         const sh4der_blocker_t *k = &p->blocker[i];

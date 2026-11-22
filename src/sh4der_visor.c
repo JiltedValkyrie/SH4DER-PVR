@@ -112,7 +112,9 @@ void sh4der_visor_draw_thermal(const sh4der_visor_gpu_t *g, float amount) {
 /* Draw the grain over the full screen on the TR list, multiplied over the frame. The texture offset changes with frame,
    so the grain moves from frame to frame. */
 void sh4der_visor_draw_grain(const sh4der_visor_gpu_t *g, unsigned frame) {
-    /* scroll the tile across the screen: 640 / 32 = 20 tiles across, 480 / 32 = 15 down */
+    /* Scroll the tile across the screen. The quad's u runs over SH4DER_FOCUS_SCREEN_W / SH4DER_VISOR_GRAIN_TEX tiles across and
+       SH4DER_FOCUS_SCREEN_H / SH4DER_VISOR_GRAIN_TEX down (20 x 15 for a 640 x 480 frame and a 32 pixel tile). The frame counter
+       wraps at 97 and 89, two different primes, so the u and v offsets only line up again after 97 x 89 frames. */
     const float du = (float)(frame % 97u) * SH4DER_VISOR_GRAIN_SPEED_U;
     const float dv = (float)(frame % 89u) * SH4DER_VISOR_GRAIN_SPEED_V;
     pvr_prim(&g->grain_hdr, sizeof(pvr_poly_hdr_t));

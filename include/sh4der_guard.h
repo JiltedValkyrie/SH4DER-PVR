@@ -43,6 +43,8 @@
     Use it for: any fan, ring, strip or full-screen filter you build yourself.
 
     \author Jilted Valkyrie
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_GUARD_H

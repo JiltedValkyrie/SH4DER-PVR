@@ -74,7 +74,10 @@ static void billboard(void) {
     CHECK(NEAR_((q[0].x + q[3].x) * 0.5f, 3.0f, 1e-4f) && NEAR_((q[0].y + q[3].y) * 0.5f, -2.0f, 1e-4f));
     CHECK(q[0].u == 0.5f && q[0].v == 0.5f && q[3].u == 1.0f && q[3].v == 1.0f && q[1].u == 0.5f && q[1].v == 1.0f);   /* cell 3 of 2 x 2 */
     CHECK(NEAR_(q[0].x, -4.0f, 1e-4f) && NEAR_(q[0].y, 5.0f, 1e-4f));                 /* no spin: axis aligned, 0 = left top */
-    pool.s[0].q[1] = 0.78539816f;                                                     /* an eighth of a turn: a diamond */
+    /* The test writes the spark's spin angle (radians) straight into the pool slot. q[1] is the spin field of a billboard; no public
+       call sets it after the spark is made, because a spin is fixed when the spark is created. Writing it here lets the test check the
+       rotated corners without adding a setter just for the test. */
+    pool.s[0].q[1] = 0.78539816f;                                                     /* an eighth of a turn (pi / 4): a diamond */
     CHECK(sh4der_spark_quad(&pool.s[0], &vw, q) == 1);
     CHECK(NEAR_(dist(&q[0], &q[1]), 14.0f, 1e-3f) && NEAR_(q[0].x, 3.0f - 7.0f * 1.41421356f, 2e-3f) && NEAR_(q[0].y, -2.0f, 2e-3f));
     vw.inset = SH4DER_SPARK_INSET;

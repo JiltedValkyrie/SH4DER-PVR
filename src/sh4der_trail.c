@@ -20,7 +20,10 @@
 
 #include <dc/video.h>
 
-/* The column mask: 8 x 8 ARGB1555, alpha 1 on even columns, 0 on odd, black, pre-twiddled for the PVR's texture layout. */
+/* The column mask: 8 x 8 ARGB1555, alpha 1 on even columns, 0 on odd, black. The texture is stored twiddled (the PVR's
+   Morton-order texel layout, where x and y bits are interleaved), so the words below are in storage order, not row order:
+   in that order each pair of equal values is one texel pair, which is why the pattern reads 1, 1, 0, 0 in memory yet gives
+   alternating columns on screen. 0x8000 = alpha 1, black; 0x0000 = alpha 0, black. */
 static const uint16_t trail_mask_data[SH4DER_TRAIL_MASK_BYTES / 2] __attribute__((aligned(4))) = {
     0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000,
     0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000, 0x8000, 0x8000, 0x0000, 0x0000,
@@ -35,8 +38,8 @@ pvr_ptr_t sh4der_trail_setup(void) {
     pvr_ptr_t mask = pvr_mem_malloc(SH4DER_TRAIL_MASK_BYTES);
     if (!mask) return NULL;
     pvr_txr_load(trail_mask_data, mask, SH4DER_TRAIL_MASK_BYTES);
-    vid_set_dithering(false);
-    pvr_set_vertical_scale(1.0f);
+    vid_set_dithering(false);          /* dithering would add a pattern to the front buffer that every later copy would re-blend and amplify */
+    pvr_set_vertical_scale(1.0f);      /* 1.0 = no vertical stretch, so the buffer's rows map 1:1 onto the copy's texture rows */
     return mask;
 }
 
@@ -45,7 +48,10 @@ pvr_ptr_t sh4der_trail_setup(void) {
 void sh4der_trail_src_get(sh4der_trail_src_t *s) {
     s->fb = pvr_get_front_buffer();
     s->flat = 0;
-    s->hi_chip = ((uintptr_t)s->fb & PVR_RAM_SIZE) != 0;   /* which half of the 64-bit view the front buffer maps to */
+    /* hi_chip: 1 when the front buffer lies in the upper half of video memory (its address has the PVR_RAM_SIZE bit set). The two
+       halves of the 64-bit view are the two memory chips, and the column swap runs in opposite directions on them, so
+       trail_copy_pass picks its u offset from this flag. flat = 0: the offsets are applied (set it to 1 afterwards to turn them off). */
+    s->hi_chip = ((uintptr_t)s->fb & PVR_RAM_SIZE) != 0;
     pvr_txr_set_stride(640);
 }
 
@@ -110,7 +116,32 @@ void sh4der_trail_mask(pvr_ptr_t mask, float z) {
     }
 }
 
-/* One column parity of the history, moved (dx, dy): the feed route's copy (halves of 320, the u offsets for parity and chip). */
+/* One column parity of the history, moved (dx, dy): the feed route's copy.
+
+   Background. The "feed route" reads the picture already on screen (the front buffer) as a texture, so the previous frame is
+   available as history for 0 bytes of extra video memory. Read back as a texture through the PVR's 64-bit view of video
+   memory, the two 32-bit halves of each 64-bit word come out in the wrong order on alternate columns (see sh4der_trail.h).
+   A naive copy would therefore have every other column swapped with its neighbour.
+
+   What this function does about it. A copy is drawn twice (see sh4der_trail_copy), once for the even columns and once for the
+   odd ones. Which columns a pass touches is chosen by the destination alpha that sh4der_trail_mask wrote (alpha 1 on even
+   columns, 0 on odd): the even pass blends with DESTALPHA, the odd pass with INVDESTALPHA, so each pass only lands on its own
+   columns. Each pass also shifts the texture coordinate u by a tiny amount, uo, that lands the sample on the correct
+   column:
+     - uo is 1/1024 of the texture width (one texel of the 1024 wide texture) in magnitude. The texture is 1024 wide even
+       though the picture is 640, because the front buffer's row pitch is read as 1024 here.
+     - even pass: 0 on the low half of the buffer, +2/1024 on the high half (hi_chip), the two texel step that undoes the
+       swap there;
+     - odd pass: +1/1024 on the high half, -1/1024 on the low half, the one texel step in the direction that undoes the swap.
+     - flat (s->flat set by the caller) turns the offsets off for a setup in which they would shift the picture instead.
+   Without the offsets, or with the wrong sign, the history appears one or two pixels sideways in alternate columns, which
+   shows as comb-like fringes on every edge. Without the two passes and the mask, the same swap shows on every column.
+
+   The quad is drawn as two halves of 320 pixels each (the loop over `half`) instead of one 640 wide quad: the screen x of a
+   half is half x 320 plus its own 0 or 320 corner, and the second half samples one texel (1/1024) further down in v. v runs
+   0 to 960/1024 for the 480 screen rows (two texture rows per screen row). These last details come from the library's own
+   hardware measurements of the front buffer's layout; they cannot be derived from the code alone or checked on the host,
+   so treat them as measured constants, not as something this file proves. */
 static void trail_copy_pass(const sh4der_trail_src_t *s, int odd, int dx, int dy, uint32_t argb, float z) {
     pvr_poly_cxt_t c;
     pvr_poly_hdr_t hdr;

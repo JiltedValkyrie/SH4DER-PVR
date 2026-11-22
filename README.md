@@ -1,5 +1,53 @@
 # SH4DER-PVR
 
+## Start here
+
+SH4DER-PVR is a set of graphics effects for the Sega Dreamcast: screen post-processing, per-vertex light and small particle systems, made for a console with no shaders. Each effect is a small module: you take the one you need and call a few functions once a frame. The SH-4 CPU does the thinking a shader would do, and the PVR (the graphics chip) does the drawing. The maths is plain C that is tested on a PC, and on the console it runs through SH4ZAM.
+
+- **One effect, one header, one optional `.c`.** An effect is `include/sh4der_<name>.h` (the state, the maths and the tuning numbers, usually inline and testable on a PC) plus, only when it draws, `src/sh4der_<name>.c` (the KallistiOS draw part, compiled for the Dreamcast only). "Header only" in the guide below means there is no `.c` file at all.
+- **SH4ZAM** is the SH-4 maths library (square roots, sines, cosines, vectors, matrices). It is used header-only through `sh4der_core.h`, which wraps it in small `sh4der_*_` helpers. Define `SH4DER_CORE_NO_SH4ZAM` to get the same steps in plain C for a PC build.
+- **KallistiOS** is the Dreamcast SDK. Only the `.c` files talk to it (PVR lists, render targets, direct render); the headers never need it.
+- **Build and test** (the comment at the top of the `Makefile` lists every target):
+  - `make test` runs every test on a PC with the plain C path.
+  - `make test-shz SH4ZAM=<checkout>` runs the same tests with SH4ZAM's software back-end (SH4ZAM 0.10 or later).
+  - `make dc SH4ZAM=<checkout>` builds the Dreamcast library `build/libsh4der_core.a` (KallistiOS environment sourced); `make test-dc SH4ZAM=<checkout>` builds the tests as Dreamcast programs.
+- Unfamiliar word? See the [PVR glossary](#pvr-glossary). First effect to try: [blade](#the-blade-effect), which has a complete example. Adding your own: [Adding an effect](#adding-an-effect).
+
+## Guide
+
+Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header states it; "see section" means the section gives no single number.
+
+| Name | What it does | When to use it | Cost (RAM / VRAM / CPU) | Files | Section |
+| --- | --- | --- | --- | --- | --- |
+| ao | Darkens creases from the angle between faces (at bake time) and adds a screen cavity cue from a small map. | Baked crevice shading for a model, or a cheap cavity cue on a finished frame. | see section | `sh4der_ao.h` (header only) | [section](#the-ao-effect) |
+| blade | Light tubes orbit an axis, a soft blocker runs through them and a pulse breathes over both, all written into vertex colours. | Energy blades, glowing rods, anything that is a bright tube. | RAM 144 B a frame + 136 B params; VRAM 0; CPU two 2D tests and one 3D test a vertex | `sh4der_blade.h` + `sh4der_blade.c` | [section](#the-blade-effect) |
+| bloom | A feathered glow ribbon and tip disc round a blade (24 triangles), plus `sh4der_bloom_rings` for a round glow with its own level per ring. | A soft halo round a blade, a sun disc, a lamp or a lens-flare ghost. | RAM the caller's vertices; VRAM 0; 24 triangles a blade | `sh4der_bloom.h` + `sh4der_bloom.c` | [section](#the-bloom-effect) |
+| bolt | Thin jagged branching strands that are re-rolled a few times a second while their first half stays put. | Lightning, electric arcs, spark gaps, cracks of light. | RAM about 3.3 KB state; VRAM 0; 240 vertices a frame (default look) | `sh4der_bolt.h` + `sh4der_bolt.c` | [section](#the-bolt-effect-branching-strands-that-re-roll) |
+| bump | A normal map lit by a moving light, put on with ordinary blend passes (the PVR bump unit is not used). | Relief on a large flat surface (a floor, a wall) lit by a torch or other moving light. | RAM 12 KB of normals at 64 x 64; VRAM 36 KB for nine grey maps at 64 x 64; up to eight draws a lit cell | `sh4der_bump.h` (header only) | [section](#the-normal-map-effect) |
+| ca | The frame texture (the world drawn into a render target) and chromatic aberration through it: red, green and blue copies at slightly different scales. | A lens colour fringe, or any effect that needs the whole frame as a texture. | VRAM 160 KB (320 x 240) or 640 KB (640 x 480); three small meshes | `sh4der_ca.h` + `sh4der_ca.c` | [section](#the-frame-texture-and-chromatic-aberration) |
+| core | The shared parts: the soft feather edge, tube and blocker shapes, the breath tracker, the glint, the colour ramp and the SH4ZAM helpers. | Always included by the other modules; use it directly to build an effect of your own. | VRAM 0; RAM only the small breath tracker state; see section | `sh4der_core.h` + `sh4der_core.c` | [section](#the-core-shared-parts) |
+| focus | Fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rectangle sharp. | Tilt-shift looks, a sharp subject with a soft background. | RAM 1,440 B working rows; VRAM 16 KB (128 x 64 RGB565) | `sh4der_focus.h` + `sh4der_focus.c` | [section](#the-focus-effect) |
+| frame | Reads the finished frame back on a grid and stamps every frame with a number, so a read knows which frame it saw. | Whenever look, glow or shafts need to measure the picture without being fooled by frame delay. | see section; VRAM a small 4 x 4 pixel stamp block | `sh4der_frame.h` + `sh4der_frame.c` | [section](#the-frame-read) |
+| glow | Screen bloom from a small bright map of the frame, a wide halo, a balancing darken layer and god rays. | Bright lights bleeding into the picture, sun shafts. | RAM 17 KB staging; VRAM 17 KB (two maps) | `sh4der_glow.h` + `sh4der_glow.c` | [section](#the-glow-effect) |
+| guard | Two checks for what an emulator forgives and a real console does not: a triangle with no screen area, and a polygon header that was never compiled. | Before sending any hand-made quad or fan to the PVR. | RAM 0; VRAM 0; a few multiplies a triangle | `sh4der_guard.h` (header only) | [section](#real-hardware-notes) |
+| holo | A light inside a translucent body follows the body's own breathing (the slow rise and fall of the chest). | Holograms, ghosts, anything see-through with an inner glow. | RAM 272 B a frame + 44 B params; VRAM 0; one load a vertex | `sh4der_holo.h` + `sh4der_holo.c` | [section](#the-holo-effect) |
+| lens | Overlays that need no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash. | Camera look, damage indicators, flashes. | VRAM 8 KB (64 x 64 grain tile); vertex-colour meshes | `sh4der_lens.h` + `sh4der_lens.c` | [section](#the-lens-effect) |
+| look | An eye that adapts to the frame's brightness both ways, a grade (a straight line per channel) and glare in the fog. | Auto exposure and a colour grade for the whole picture. | CPU 4,800 uncached loads + a 64-bin count a frame; VRAM 0; 0 to 6 full-screen quads | `sh4der_look.h` (header only) | [section](#the-look-effect) |
+| motes | A steady field of drifting specks (embers, dust, pollen, ash) with nothing stored per speck. | Ambient floating particles round the player or a source. | RAM no state, 3,072 B collect buffer at 96 sprites; VRAM 512 B mask; at most 96 sprites a frame by default | `sh4der_motes.h` + `sh4der_motes.c` | [section](#the-motes-effect-a-steady-field-of-drifting-specks) |
+| pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); about 0.43 ms for 1,623 vertices measured on an emulator | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
+| pool | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing (also a dark blob shadow). | Street lamp pools and headlight beams on ground polygons too big to light per vertex. | RAM 16 B a vertex (176 B for a 10 triangle disc); VRAM 0 | `sh4der_pool.h` (header only) | [section](#the-pool-effect-light-pools-on-a-plane) |
+| shafts | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light. | Light shafts through a dark scene, the dark twin of the glow's god rays. | RAM 16 KB; VRAM 16 KB (128 x 64 RGB565) | `sh4der_shafts.h` + `sh4der_shafts.c` | [section](#the-shadow-shafts) |
+| spark | A fixed pool of 24 short-lived additive quads that face the camera, as billboards or streaks. | Muzzle flashes, tracers, impact sparks, lamp halos. | RAM 1,256 B pool; VRAM 3 KB atlas; 96 vertices a frame at most | `sh4der_spark.h` + `sh4der_spark.c` | [section](#the-spark-effect-pooled-additive-quads) |
+| sss | Back-lit transmission, a sub-surface scattering stand-in: light through a thin part toward the eye, tinted by absorption. | Ears against the sun, leaves, wax, ice, cloth, wave crests. | RAM 40 B parameter block; VRAM 0; about 12 multiplies and three exponentials a vertex | `sh4der_sss.h` (header only) | [section](#the-sss-effect-back-lit-transmission) |
+| taa | Temporal anti-aliasing maths: sub-pixel jitter, a history weight that falls with camera speed, and a pan shift. | Smoothing a still picture without ghosting a moving one. | VRAM 0 for the history (it rides the front buffer); see section | `sh4der_taa.h` (header only) | [section](#the-temporal-aa-maths) |
+| torch | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, and the fog table bends to black for reach. | First-person flashlights in dark levels. | VRAM 0; 288 triangles (306 vertices) a frame | `sh4der_torch.h` + `sh4der_torch.c` | [section](#the-torch-effect) |
+| trail | The frame before drawn over this one through a copy of the front buffer: motion blur by speed and the temporal AA blend. | Motion blur and temporal smoothing. | VRAM 128 B mask, 0 for the history; full-screen layers | `sh4der_trail.h` + `sh4der_trail.c` | [section](#the-trail-effect) |
+| uvwarp | Pushes each vertex's texture coordinate by a small two-channel table that scrolls with time. | A crawling arc, a rippling banner, a shimmering water strip: any distortion map the PVR cannot read per pixel. | RAM 2 KB per 64 x 16 table; VRAM 0; a bilinear read a vertex | `sh4der_uvwarp.h` (header only) | [section](#the-uvwarp-effect-per-vertex-texture-offset) |
+| visor | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a thermal ramp and a fade. | Helmet and goggle overlays. | VRAM 2 KB grain + 128 B scanlines; RAM 128 B ramp | `sh4der_visor.h` + `sh4der_visor.c` | [section](#the-visor-effect) |
+| warp | The frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble, radial blur, pixelate and dither. | Shockwaves, heat haze, underwater, speed blur. | VRAM the frame texture: 160 KB at 320 x 240, 640 KB at 640 x 480 | `sh4der_warp.h` + `sh4der_warp.c` | [section](#the-warp-effect) |
+| water | Directional waves with filtered ripple normals, Fresnel, a reflected direction and crest transmission through sss. | Sea and lake surfaces computed per vertex. | RAM the caller's wave table; VRAM 0; one sine and cosine pair per wave per sample | `sh4der_water.h` (header only) | [section](#the-water-effect-waves-and-fresnel) |
+
+
 Graphics effects for the Sega Dreamcast: screen post-processing and per-vertex light, on a machine with no shaders.
 
 The SH-4 (the Dreamcast's main CPU) does the thinking a shader would do: it reads the finished frame back on a small grid, measures it, builds small maps and lights vertices. The PVR (the Dreamcast's graphics chip) does the drawing it is good at: blended full-screen layers, small filtered textures, the fog table. Nothing here is brute force.
@@ -948,7 +996,7 @@ unsigned sh4der_bolt_draw(const sh4der_bolt_t *b, const sh4der_bolt_params_t *p,
 
 - **Stateless rule.** An emitter owns `ceil(rate x life_hi)` slots (210 at 30 a second and 7 s). Slot i has its own life between `life_lo` and `life_hi` and its own phase; at time t it is `age` seconds into generation `gen`. Every pick (start box, velocity, acceleration, size) is an integer hash of (slot, generation, salt), so a slot starts somewhere new each loop and the field does not visibly repeat. Position is start + v x age + a x age^2 / 2.
 - **Curves.** Alpha rises 0 -> 1 over `alpha_in` of the life; the mask opens as alpha passes `clip` (the dot grows from nothing, no pop, no blending); colour holds to `col_hold`, falls to the fade colour at `col_end`; a speck dimmer than `cull_k` is not drawn (40 % of the quads on the default look).
-- **On screen.** Side = size x focal / depth pixels, held between `min_px` and `max_px`; under `min_px` the sprite is `min_px` wide with brightness x (true / min_px)^2 (the same light in fewer pixels); over `big_px` it is dimmed to `big_k`. An emitter past `lod_cut` is not drawn. The `max_draw` brightest (brightness x screen area) are kept.
+- **On screen.** Side = size x focal / depth pixels, held between `min_px` and `max_px`; under `min_px` the sprite is `min_px` wide with brightness x (true / min_px)^2 (the same light in fewer pixels); over `big_px` it is dimmed to `big_k`. An emitter past `lod_cut` is not drawn. The `max_draw` brightest (brightness x screen area) are kept; `max_draw` defaults to 96 and may be 1 .. 128 (`SH4DER_MOTES_DRAW_MAX`).
 - **Draw.** Punch-through list over one 16 x 16 round mask (`sh4der_motes_mask_make`, 512 B VRAM, no filtering, depth write on), or untextured in the opaque list for sprites of `flat_px` or less (0 B). Both guards of `sh4der_guard.h`.
 - **Cost (default look, three emitters, two in range).** RAM: no state; the caller's collect buffer is 32 B x `max_draw` (3,072 B at 96); params 136 B; one emitter 16 B; two polygon headers 64 B. VRAM: 512 B (mask, optional). AICA: 0. TA a frame: one header + 4 vertices a sprite, at most 96 sprites: 12.3 KB. CPU: one hash set and one position per live slot, SH4ZAM for all maths.
 
@@ -996,6 +1044,34 @@ float sh4der_frame_hot(float facing);
 | SH4DER_FRAME_STAMP_PX | 4 | The stamp block's side, pixels |
 | SH4DER_FRAME_HISTORY | 8 | Frames of history kept |
 | SH4DER_FRAME_HOT_FROM | 0.85 | Cosine off the view axis from which a faced sun grows |
+
+## The core (shared parts)
+
+`include/sh4der_core.h` and `src/sh4der_core.c`. Every other module includes this header. It holds what the effects share, so each effect stays a few lines. It draws nothing itself.
+
+- **Calls.** `sh4der_ramp_colours` (EDGE and CORE colours from a texture's average colour, once at load), `sh4der_breath_raw` / `sh4der_breath_reset` / `sh4der_breath_push` (the breath tracker: a pose's own breathing turned into 0 (out) .. 1 (in), pushed once a frame per instance), `sh4der_glint` (a flare quad's brightness by camera depth), and the inline helpers (`sh4der_sat_`, `sh4der_lerp_`, `sh4der_fma_`, `sh4der_dot3_`, `sh4der_norm3_`, `sh4der_sincos_`, `sh4der_feather_`, `sh4der_ramp_` and others). Each helper is one SH4ZAM call on the console and a plain C mirror under `SH4DER_CORE_NO_SH4ZAM`.
+- **Cost.** RAM: the breath tracker is a small struct the caller owns; everything else is stateless. VRAM: 0. AICA: 0. CPU: a helper is one SH4ZAM instruction or call.
+- **Limits.** The feather is SH4DOW-DC's (`sh4dow_feather_in_`), so `sh4dow-dc/include` must be on the include path. Non-finite inputs read as "no effect this frame".
+
+## The uvwarp effect (per-vertex texture offset)
+
+`include/sh4der_uvwarp.h`, header only, all inline. The PVR cannot move a texture lookup per pixel, but it can move a vertex's texture coordinate. A mesh with enough vertices along the motion (an electric arc, a flag, a water strip) gets most of a distortion map's wobble that way. The offset is `weight x table(u + su t, v + sv t)`, read bilinear, both axes wrapping, each channel 0..1 and unsigned.
+
+- **The table.** `sh4der_uvwarp_t`: a pointer to w x h pairs of bytes (R, G), row-major, w and h each 1 .. 256 (`SH4DER_UVWARP_SIDE_MAX`). The caller owns it and builds it by a box filter from the source map; 64 x 16 is 2 KB.
+- **The calls.** `sh4der_uvwarp_sample` (the table at one point), `sh4der_uvwarp_offset` (weight x table, with the scroll), and a prepared form for a mesh loop: `sh4der_uvwarp_prepare` once a frame, then `sh4der_uvwarp_offset_p` a vertex (or `_pn` where the caller checked the input once).
+- **The weight.** Per vertex, the caller's, 0..1. Fade it to 0 at the ends of a mesh or its ends slide off their anchors.
+- **Cost.** RAM: the table, 2 KB at 64 x 16. VRAM: 0. AICA: 0. CPU: one bilinear read (four byte pairs) and a few fused multiply-adds a vertex. SH4ZAM for all maths.
+- **Limits.** Coordinates must be finite and under 2^23 in size; anything else, or a bad table, gives 0, 0. Wrap the time to the scroll's period now and then: the plain form loses precision as time grows (the prepared form does not). Accuracy is 1.1e-3 of the table range at worst.
+
+## The water effect (waves and Fresnel)
+
+`include/sh4der_water.h`, header only, all inline, built on `sh4der_sss.h`. A sea or lake surface worked out per vertex, with no texture needed for the shape of the waves.
+
+- **Waves.** `sh4der_water_wave_t` is one directional wave (unit direction, amplitude, wavelength, speed, phase, and a `ripple` flag). Long waves move the geometry; ripples change only the normal. `sh4der_water_sample` adds up a wave table at an (x, z) point and a time and returns the height and slope; its `footprint` argument fades out waves too short for the sampling distance.
+- **Shading.** `sh4der_water_normal` (unit normal from the slope), `sh4der_water_reflect` (the reflected sky direction), `sh4der_water_fresnel` (Schlick's term at the air to water value 0.0204).
+- **Light through water.** `sh4der_water_transmit` (absorption over a path, a thin wrapper over `sh4der_sss_absorb`) and `sh4der_water_crest_sss` (crest transmission: crest 0..1 is the coverage, the path runs from thick to thin; an artistic proxy, not a multiple-scattering solve).
+- **Cost.** RAM: the caller's wave table (24 B a wave). VRAM: 0. AICA: 0. CPU: one sine and cosine pair and a few fused multiply-adds per wave per sample. SH4ZAM for all maths; `SH4DER_CORE_NO_SH4ZAM` for plain C.
+- **Limits.** Directions must be unit and wavelength above 0 (others are skipped). The result is a per-vertex value: a mesh needs enough vertices for the waves you want to see.
 
 ## The demo disc
 
@@ -1109,7 +1185,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 ## Build and test
 
 ```sh
-make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, example/blade
+make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/pl4nar_test, test/pool_test, example/blade
 make test-shz SH4ZAM=/path/to/sh4zam   # host, the SH4ZAM path on SH4ZAM's software back-end
 make dc SH4ZAM=/path/to/sh4zam   # Dreamcast: build/libsh4der_core.a (KallistiOS environment sourced)
 make test-dc SH4ZAM=/path/to/sh4zam  # Dreamcast: build/*_test.elf
@@ -1158,6 +1234,28 @@ What an emulator forgives and a real Dreamcast does not. Each of these was seen 
 - **Aligned colours.** The calls that write 32-bit colours or floats through a byte stride (`sh4der_bloom_argb`, the blade and holo colour writers, SH4DOW-DC's `sh4dow_shade`) need the stride to be a multiple of 4 and the array 4-byte aligned. The SH-4 stops on a misaligned 32-bit store.
 - **Sized arrays.** A call that takes a count writes that many entries and no more; a count outside its documented range writes nothing and returns 0 where it returns a count.
 - **Numbers.** Angles, gains and sizes that are not finite are treated as "no effect this frame" (a cut for the TAA and the trail), not carried into the next frame.
+
+## PVR glossary
+
+Plain meanings of the terms the sections above use.
+
+- **TA (tile accelerator).** The front end of the PVR. The CPU sends it polygons as vertex commands, and it sorts them into per-tile lists for the renderer.
+- **OP list (opaque polygons).** The list for solid polygons. The depth buffer sorts them, so the order you send them in does not matter.
+- **TR list (translucent polygons).** The list for blended polygons (additive light, alpha). The PVR sorts them per pixel, so there is no hand sorting. Most effects here draw in this list.
+- **PT list (punch-through polygons).** The list for polygons whose texture pixels are either fully solid or fully absent (a 1-bit mask). The motes effect uses it.
+- **Punch-through.** A texture pixel that is either drawn solid or skipped, with no blending in between.
+- **EOL (end of list flag).** A bit on the last vertex of a strip that tells the TA the strip ends there. A vertex without it makes the next vertices join the same strip.
+- **Twiddled texture.** A texture whose texels are stored in a Z-order (interleaved bits of x and y) instead of row by row, which is how the PVR reads fast. The normal map textures here are twiddled.
+- **VQ (vector quantised) texture.** A compressed texture: a small codebook of 2 x 2 texel blocks and one byte a block that picks one. The spark atlas (64 x 64) is 3 KB this way.
+- **Stride texture.** A texture read row by row at a set width instead of twiddled, which a render target needs. The **stride register** is the PVR's single setting for that width, so every stride texture of a program shares it (`sh4der_ca.h` sets it).
+- **Direct render.** Sending vertices straight to the TA through the store queues, with no copy in RAM first. The fastest path for small polygons.
+- **Store queue.** Two 32-byte write buffers in the SH-4 that burst a whole 32-byte line to a hardware address (the TA or VRAM). Direct render uses them, so nothing else may use them between a list's begin and finish.
+- **Front buffer.** The picture the video output is showing right now. Reading or copying it (`sh4der_trail.h`, `sh4der_frame.h`) gives the frame before without any texture memory.
+- **XMTRX.** The SH-4's second bank of four-by-four matrix registers. Load a matrix into it once, then each vertex is one FTRV. Nothing else that uses XMTRX may run in between.
+- **FTRV.** The SH-4 instruction that multiplies a four-element vector by the matrix in XMTRX in one go: a whole vertex transform.
+- **FSRRA.** The SH-4 instruction for a fast reciprocal square root (1 / sqrt(x)). It makes a vector normalise cheap; SH4ZAM wraps it.
+- **SH4DOW-DC.** The shadow and soft-edge helper library shipped in the `sh4dow-dc` folder. The effects use its column feather (a soft edge: full inside, fading to nothing outside).
+- **`hand:` in a comment.** Marks a line of arithmetic written by hand because SH4ZAM has no equivalent op for that exact step (a scalar product, a constant scale, a compare). The comment says why. Every other maths step goes through SH4ZAM.
 
 ## Credits and license
 

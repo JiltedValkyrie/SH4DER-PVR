@@ -24,6 +24,9 @@
 
 static pvr_poly_hdr_t bolt_hdr __attribute__((aligned(32)));   /* the compiled additive, untextured header */
 
+/* Builds the one polygon header the bolts use: untextured, Gouraud, additive (ONE / ONE), depth tested but never written, no culling.
+   Call once after pvr_init, before the first sh4der_bolt_draw. Takes no arguments and allocates nothing.
+   Returns 1 when the compiled header passes the sh4der_guard.h check, 0 when it does not (then sh4der_bolt_draw draws nothing). */
 int sh4der_bolt_init_draw(void) {
     pvr_poly_cxt_t c;
 
@@ -62,6 +65,12 @@ static int send_quad(const sh4der_spark_vtx_t q[4], const sh4der_spark_view_t *v
     return 1;
 }
 
+/* Sends every visible bolt quad to the translucent list: first the wide halo ribbons, then the thin bright cores.
+   b is the bolt state, p its parameters (must pass sh4der_bolt_params_valid), anchors the strand start points and directions,
+   view the camera (focal length in pixels, near plane) and screen the screen centre and depth scale (all in the caller's units).
+   Call inside the translucent list of an open scene. Returns the number of quads actually sent (units: quads, not vertices).
+   Bad input (any NULL pointer, invalid parameters, or an uncompiled header from a failed init) draws nothing and returns 0.
+   A quad with no screen area, or one behind the near plane, is skipped and not counted. */
 unsigned sh4der_bolt_draw(const sh4der_bolt_t *b, const sh4der_bolt_params_t *p, const sh4der_bolt_anchor_t *anchors, const sh4der_spark_view_t *view,
                           const sh4der_spark_screen_t *screen) {
     unsigned k, n, pass, sent = 0;

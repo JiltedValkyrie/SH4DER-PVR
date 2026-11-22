@@ -38,6 +38,8 @@
 
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_BLOOM_H
@@ -108,7 +110,7 @@ typedef struct sh4der_bloom_mesh {
     float level[SH4DER_BLOOM_VERTS];
 } sh4der_bloom_mesh_t;
 
-/** \brief The triangles: the ribbon's 16 (row-major quads), then the disc's 6 (centre = vertex 15). */
+/** \brief The triangles: the ribbon's 16 (row-major quads), then the disc's SH4DER_BLOOM_RIM (8) rim triangles (centre = vertex 15). 16 + 8 = SH4DER_BLOOM_TRIS. */
 extern const uint8_t sh4der_bloom_tris[SH4DER_BLOOM_TRIS][3];
 
 /** \brief The default blade bloom tuning (the SH4DER_BLOOM_* values). */
@@ -131,7 +133,7 @@ int sh4der_bloom_params_valid(const sh4der_bloom_params_t *params);
 void sh4der_bloom_disc(float xyz[][3], float level[], const float centre[3], float radius, const float eye[3], float peak);
 
 /** \brief The same disc with `rim` rim vertices (3..SH4DER_BLOOM_DISC_MAX; clamped): rounder, rim triangles
-    (0, k, k + 1). The tip disc is sh4der_bloom_disc (6, one vertex down the blade); a round glow takes 16. */
+    (0, k, k + 1). The tip disc is sh4der_bloom_disc (SH4DER_BLOOM_RIM = 8 rim vertices); a round glow takes 16. */
 void sh4der_bloom_disc_n(float xyz[][3], float level[], const float centre[3], float radius, const float eye[3], float peak, unsigned rim);
 
 /** \brief A round disc with a soft edge of share `feather` (0: a hard edge .. 1: soft from the centre; clamped): the centre and an inner ring at

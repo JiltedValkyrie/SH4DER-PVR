@@ -14,7 +14,7 @@
 */
 
 /* The maths is sh4der_lens.h (host tested). This file is the PVR side: the grain tile (8 KB VRAM, the only memory the lens
-   takes), four polygon headers and one vertex strip per overlay. Per frame, TA: the vignette 9 bands x 66 vertices (594, 288
+   takes), six polygon headers (vignette, grain multiply, grain boost, hit, flash additive, flash alpha) and one vertex strip per overlay. Per frame, TA: the vignette 9 bands x 66 vertices (594, 288
    triangles), the grain 8 vertices, a hit 4 per wedge, the flash 4. Layers: vignette 1 (multiply), grain 2 (multiply, boost), flash
    1 (additive or alpha). Compiles to nothing off the Dreamcast. */
 

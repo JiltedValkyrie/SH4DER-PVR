@@ -43,6 +43,8 @@
 
     \author Jilted Valkyrie
     \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
+
+    PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */
 
 #ifndef SH4DER_VISOR_H
@@ -231,6 +233,9 @@ static inline float sh4der_visor_fade(sh4der_visor_fade_t *f, int on, float dt) 
 /* KOS draw code (src/sh4der_visor.c). */
 #include <dc/pvr.h>
 
+/** \brief Everything the visor keeps in video memory and compiled polygon headers, filled by sh4der_visor_init (Dreamcast only):
+    the thermal map, a header per look-layer kind, the grain and scanline tile textures (blank until the caller uploads them) and
+    the headers that draw the grain, the scanlines and the vignette. */
 typedef struct sh4der_visor_gpu {
     sh4der_focus_gpu_t thermal;      /**< \brief The thermal map (the focus texture type). */
     pvr_poly_hdr_t layer[4];         /**< \brief One untextured header per look layer kind (MULTIPLY, BOOST, ADD, INVERT). */

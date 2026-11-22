@@ -121,10 +121,15 @@ static void segments(void) {
     CHECK(sh4der_bolt_init(&b, &p, an, 7u));
     n = sh4der_bolt_segments(&p);
     CHECK(n == 36);
+    /* Segment numbering with the default parameters: each strand owns a run of 9 consecutive segment numbers, its 6 main segments
+       first and then its 3 fork segments, so strand i starts at k = 9 i. The last main segment of a strand is number 5 in that
+       run; the segment after it belongs to the fork, so it does not continue the main line and is skipped by the join test. */
+    #define BOLT_TEST_RUN  (SH4DER_BOLT_SEGS + SH4DER_BOLT_FORKS * SH4DER_BOLT_FORK_SEGS)   /* 6 + 1 x 3 = 9 segments a strand */
+    #define BOLT_TEST_LAST (SH4DER_BOLT_SEGS - 1u)                                          /* index of the last main segment: 5 */
     for (k = 0; k < n; k++) {
         CHECK(sh4der_bolt_segment(&b, &p, an, k, t, h, &isf));
         forks += (unsigned)isf;
-        if (!isf && k % 9u != 5u) {                                   /* the next main segment of the strand starts where this one ends */
+        if (!isf && k % BOLT_TEST_RUN != BOLT_TEST_LAST) {                                 /* the next main segment of the strand starts where this one ends */
             CHECK(sh4der_bolt_segment(&b, &p, an, k + 1u, t2, h2, &isf2));
             CHECK(!isf2 && t2[0] == h[0] && t2[1] == h[1] && t2[2] == h[2]);
         }
@@ -139,7 +144,7 @@ static void reroll(void) {
     static sh4der_bolt_t b, before;
     sh4der_bolt_params_t p;
     sh4der_bolt_anchor_t an[SH4DER_BOLT_STRANDS_MAX];
-    unsigned i, f, s, changed, forks_kept, forks_total, r;
+    unsigned i, f, s, changed, r;
     float gmin = 9.0f, gmax = 0.0f;
     unsigned same = 0, total = 0;
 
@@ -159,22 +164,19 @@ static void reroll(void) {
 
     before = b;
     sh4der_bolt_update(&b, &p, an, 1.0f);
-    changed = 0; forks_kept = 0; forks_total = 0;
+    changed = 0;
     for (i = 0; i < p.strands; i++) {
         for (s = 0; s <= p.keep_segs; s++)                              /* points 0 .. keep_segs: the kept segments */
             CHECK(memcmp(b.main[i][s], before.main[i][s], sizeof b.main[i][s]) == 0);
         for (s = p.keep_segs + 1u; s <= p.segs; s++) changed += memcmp(b.main[i][s], before.main[i][s], sizeof b.main[i][s]) != 0;
         for (f = 0; f < p.forks; f++) {
-            forks_total++;
             if (before.fork_at[i][f] <= p.keep_segs) {                  /* it left the kept part: it stays, whole */
                 CHECK(b.fork_at[i][f] == before.fork_at[i][f]);
                 CHECK(memcmp(b.fork[i][f], before.fork[i][f], sizeof b.fork[i][f]) == 0);
-                forks_kept++;
             }
         }
     }
     CHECK(changed >= 4u * (p.segs - p.keep_segs));                      /* the rest is drawn again */
-    (void)forks_total; (void)forks_kept;
 
     /* how much of the bolt a re-roll keeps: segments whose two ends are unchanged, over 300 re-rolls */
     CHECK(sh4der_bolt_init(&b, &p, an, 4242u));
