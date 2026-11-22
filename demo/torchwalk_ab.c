@@ -1,17 +1,11 @@
-/* Torch walk A/B: the PowerVR's normal map pass (its bump unit) next to the same light put on by ordinary blend passes of grey textures made from the normal map.
- * The L trigger cycles the variant (a label at the bottom right names it and shows its cost), the R trigger fires (a point light at the muzzle):
- *   0   the PVR bump pass alone (the level overlay of sh4der_bump.h; nothing else changes while the R trigger is up).
- *   A2  the hot pass: the bump pass, then one more pass over the lit cells: the grey map Nz (from the normal map's slope byte S), blend DESTCOLOR x ONE (the frame
- *       times 1 + level), vertex colour = the cell's strength x boost x the torch's tint. Bright texels blow out first, dark ones stay (sh4der_bump_header_core).
- *   B   no bump unit: the bump unit's own sum K1 + K2 Nz + K3 (planar) rebuilt from three add passes (ONE x ONE) of 8-bit grey maps onto a flat level, then the picture
- *       multiplied on (DESTCOLOR x ZERO). The grey maps go through a 565 palette and a 565 frame: banding expected.
- *   C   no bump unit: (N.H)^2 from six add passes (three squares, three signed products) at half level, then the picture multiplied on twice (DESTCOLOR x the source colour =
- *       2 x picture x level): a flat texel stays the picture, a slope facing the half vector goes up to twice it. Power 2 only: a broad highlight.
- * Signed terms (Nx, Nx Ny ...) are stored biased (0.5 + 0.5 x value / the map's largest), in a + and a - copy; a cell draws the copy its light's sign asks for and the
- * bias is taken off the flat level, so the sum is exact up to the clamps (the level never below 0, a weight never above 1).
+/* Torch walk: a first-person walk over a big dark floor with the SH4DER-PVR torch, to see the normal map lit by it.
+ * The normal map is put on by the highlight power 2 method, with no bump unit: (N.H)^2 from add passes of 8-bit grey textures made from the normal map (three squares,
+ * three signed products) onto a flat level kept at half, then the picture multiplied on twice (DESTCOLOR x the source colour = 2 x picture x level): a flat texel stays
+ * the picture, a slope facing the half vector goes up to twice it. Power 2 only: a broad highlight. Signed terms (Nx Ny ...) are stored biased (0.5 + 0.5 x value / the
+ * map's largest), in a + and a - copy; a cell draws the copy its light's sign asks for and the bias is taken off the flat level, so the sum is exact up to the clamps
+ * (the level never below 0, a weight never above 1). The R trigger fires (a point light at the muzzle).
  * Not checked on a real console.
  *
- * The walk: a first-person walk over a big dark floor with the SH4DER-PVR torch, to see the PowerVR's own bump mapping lit by it.
  * Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
  *
  * Left stick walks, right stick looks (INVERT Y: stick up looks down). X turns the torch on and off (the prompt fades the first time).
@@ -20,18 +14,16 @@
  * The floor comes in two forms, to compare them (row FLOOR):
  *   baked  the relief painted into the picture, as the game draws it today; the torch lights it per vertex and the screen
  *          carve + boost shape the beam (the SH4DER torch, nothing else).
- *   clean  the picture without relief, and the relief put back by the PVR's bump mapping (sh4der_bump.h), the light being the torch:
- *          each 0.5 world unit cell gets its own light direction in its offset colour.
- * Row PASS picks how the level is put on screen: the overlay Halo ships, or the two passes of the KallistiOS bumpmap example.
- * Row METHOD picks who makes the relief: the PVR's bump unit, TESS VERTEX (the cells in the beam cut small, each vertex lit by the bump map's normal), or
+ *   clean  the picture without relief, and the relief put back by the normal map (sh4der_bump.h), the light being the torch:
+ *          each 0.5 world unit cell gets its own light direction.
+ * Row METHOD picks who makes the relief: the normal map's grey passes, TESS VERTEX (the cells in the beam cut small, each vertex lit by the normal map's normal), or
  * TESS EXTRUDE (the same cut, each vertex pushed in by a height map, row EXTRUDE DEPTH, and lit by the slope of the mesh it makes).
  *
  * The textures are made in code (a panel / groove / vent pattern), so the program runs from nothing. If the disc carries TWTEX.BIN
  * (made by a private script from other textures), those are used instead; the file is never part of the source.
  *
  * Costs, per frame, measured by the readout: cpu ms (cells, clipping, light), frame ms, render ms (PVR), VRAM free, texture KB, TA KB.
- * Not checked on a real console: the bump light's azimuth against the texture's v axis (row AZIMUTH turns it round) and the K1 term
- * (row PASS compares Halo's against the KallistiOS one).
+ * Not checked on a real console: the light's azimuth against the texture's v axis (row AZIMUTH turns it round).
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,25 +74,24 @@ static const float SKY_HORIZON[3] = { 0.090f, 0.115f, 0.175f };
 #define PROMPT_FADE_S 0.325f
 
 /* ---- the controls ---- */
-enum { ROW_BUMP, ROW_TORCH, ROW_FLOOR, ROW_PASS, ROW_AZIMUTH, ROW_GRAIN, ROW_VIGNETTE, ROW_EDGE, ROW_REACH, ROW_HOT, ROW_BAREA, ROW_BFADE, ROW_BRANGE, ROW_WALLS, ROW_SOFT, ROW_BFILTER, ROW_BHOT, ROW_WIRE, ROW_SCHEME, ROW_INVY, ROW_METHOD, ROW_TLEVELS, ROW_TSPACE, ROW_TCAP, ROW_NSTR, ROW_HSTR, ROW_DEPTH, ROWS };
-static const char *const row_name[ROWS] = { "BUMP", "TORCH", "FLOOR", "PASS", "AZIMUTH", "GRAIN", "VIGNETTE", "TORCH EDGE", "TORCH REACH", "TORCH CORE", "BUMP AREA", "BUMP FADE", "BUMP RANGE", "WALLS BUMP", "BUMP EDGE SOFT", "BUMP FILTER", "BUMP HOT", "WIREFRAME", "CONTROLS", "INVERT Y", "METHOD", "TESS LEVELS", "MIN SPACING", "TRI CAP", "NORMAL STRENGTH", "HOT STRENGTH", "EXTRUDE DEPTH" };
-static const unsigned row_count[ROWS] = { 2, 2, 4, 2, 2, 2, 2, 6, 4, 4, 4, 3, 21, 2, 2, 2, 5, 3, 2, 2, 3, 5, 5, 5, 5, 5, 5 };   /* FLOOR has four values */   /* values a row cycles through */
+enum { ROW_BUMP, ROW_TORCH, ROW_FLOOR, ROW_AZIMUTH, ROW_GRAIN, ROW_VIGNETTE, ROW_EDGE, ROW_REACH, ROW_HOT, ROW_BAREA, ROW_BFADE, ROW_BRANGE, ROW_WALLS, ROW_SOFT, ROW_BFILTER, ROW_WIRE, ROW_SCHEME, ROW_INVY, ROW_METHOD, ROW_TLEVELS, ROW_TSPACE, ROW_TCAP, ROW_NSTR, ROW_HSTR, ROW_DEPTH, ROWS };
+static const char *const row_name[ROWS] = { "NORMAL MAP", "TORCH", "FLOOR", "AZIMUTH", "GRAIN", "VIGNETTE", "TORCH EDGE", "TORCH REACH", "TORCH CORE", "NORMAL MAP AREA", "NORMAL MAP FADE", "NORMAL MAP RANGE", "WALLS NORMAL MAP", "NORMAL MAP EDGE SOFT", "NORMAL MAP FILTER", "WIREFRAME", "CONTROLS", "INVERT Y", "METHOD", "TESS LEVELS", "MIN SPACING", "TRI CAP", "NORMAL STRENGTH", "HOT STRENGTH", "EXTRUDE DEPTH" };
+static const unsigned row_count[ROWS] = { 2, 2, 3, 2, 2, 2, 6, 4, 4, 4, 3, 21, 2, 2, 2, 3, 2, 2, 3, 5, 5, 5, 5, 5, 5 };   /* values a row cycles through */
 static const float edge_deg[6] = { 18.0f, 22.0f, 26.0f, 31.0f, 36.0f, 42.0f };   /* the beam's half angle: 22 degrees is a 129 px disc, 31 a 194 px one (1.5 x the radius) */
 static const float reach_wu[4] = { 5.0f, 7.0f, 10.0f, 12.0f };                     /* the torch's reach in world units */
 static const float hot_scale[4] = { 0.5f, 1.0f, 1.5f, 2.0f };                      /* the hot centre's size */
 static const float barea_scale[4] = { 0.75f, 1.0f, 1.25f, 1.5f };                  /* the bump's cone edge as a share of the torch's */
 static const float bfade_ratio[3] = { 0.50f, 0.65f, 0.80f };                       /* the bump's full-strength cone as a share of its edge: lower = a longer, softer fade */
 static float torch_cos2_outer, torch_cos2_inner, bump_cos2_outer, bump_cos2_inner;  /* set each frame by cones_update */
-/* The defaults: FLOOR 1 = clean + bump (0 baked diffuse, 2 combined, 3 native), PASS 0 = overlay, AZIMUTH 0 = the bump's y runs up the image
-   (pvrtex and Halo's palette), torch edge 26 deg (index 2 of edge_deg), reach 7 wu, core 200 %, bump area 150 %, bump fade 80 % (full strength to 80 % of the edge),
-   bump range 5 m (index 1: 4 + 1 m, in 1 m steps to 24 m), walls bump on, edge soft on (strength per vertex), bump filter nearest (the game's).
-        bump torch floor pass azimuth grain vig edge reach core area fade range walls soft filter hot wire controls invertY method levels spacing cap nstr hstr depth */
+/* The defaults: FLOOR 1 = clean + normal map (0 baked diffuse, 2 combined), AZIMUTH 1 = the frame flipped (the texel's y runs down the image), torch edge 31 deg (index 3 of edge_deg),
+   reach 5 wu, core 200 %, normal map area 150 %, fade 65 %, normal map range 5 m (index 1: 4 + 1 m, in 1 m steps to 24 m), walls on, edge soft on (strength per vertex),
+   filter bilinear, METHOD the grey passes, single stick, invert Y on.
+        map torch floor azimuth grain vig edge reach core area fade range walls soft filter wire controls invertY method levels spacing cap nstr hstr depth */
 static const float tspace_cm[5] = { 4.0f, 5.0f, 9.0f, 15.0f, 20.0f };           /* MIN SPACING: the finest sub-quad edge allowed, in cm */
 static const unsigned tcap_v[5] = { 1000u, 2000u, 4000u, 8000u, 12000u };       /* TRI CAP: the most triangles the subdivided cells may hold */
 static const float strength_v[5] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f };             /* NORMAL STRENGTH and HOT STRENGTH: 0 .. 200 % */
 static const float depth_cm[5] = { 0.5f, 1.0f, 2.0f, 3.0f, 5.0f };               /* EXTRUDE DEPTH: from the top of the relief to its lowest point */
-static const float hot_level[5] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f };   /* BUMP HOT: 0 .. 200 %: the lit side of a groove brightened (sh4der_bump.h HOT pass) */
-static int opt[ROWS] = {  1,   0,    1,    0,   0,      1,   1,  3,   0,    3,   3,   1,   0,    1,   1,   0,   0,   0,   0,   1,   0,   4,   0,   3,   2,   2,   2 };   /* the defaults: METHOD PVR bump unit, edge 31 deg, reach 5 wu, core 200 %, area 150 %, fade 65 %, range 4 m, hot 0 %, wireframe off, single stick, invert Y on */
+static int opt[ROWS] = {  1,   0,    1,       1,     1,   1,  3,   0,    3,   3,   1,    1,    1,   1,     1,   0,   0,   1,   0,   4,   0,   3,   2,   2,   2 };
 static int row_pick = ROW_BUMP, hud_show = 0;   /* hud_show: the menu (the rows and the readout) is open; it starts closed */
 
 /* ---- the textures ---- */
@@ -109,14 +100,14 @@ static int row_pick = ROW_BUMP, hud_show = 0;   /* hud_show: the menu (the rows 
 #define BUMP_SIDE 64
 #define PRIVATE_FILE "/cd/TWTEX.BIN"
 typedef struct { pvr_ptr_t mem; uint32_t fmt, side, mips, kb, bytes; } tex_t;   /* bytes: what was allocated */
-static tex_t tex_baked, tex_clean, tex_bump, tex_wall, tex_wbump, tex_nbump;   /* nbump: the game's own 64 x 64 bump (NATIVE) */   /* the walls: a base and a bump of their own */
+static tex_t tex_baked, tex_clean, tex_wall;   /* the walls: a base of their own; the normal maps are not textures: only their normals are kept, in RAM */
 static uint16_t pic_buf[BASE_SIDE * BASE_SIDE] __attribute__((aligned(32)));
 static uint16_t bump_buf[BUMP_SIDE * BUMP_SIDE] __attribute__((aligned(32)));
 static uint8_t height_big[BASE_SIDE * BASE_SIDE];
 static uint8_t height_small[BUMP_SIDE * BUMP_SIDE];
 static unsigned tex_kb_total;
 static int private_textures;
-/* The bump maps' normals kept in RAM for the vertex method: int8 x, y, z (x 127) per texel, row-major, the map's own side (128 x 128 = 48 KB, 64 x 64 = 12 KB). */
+/* The normal maps' normals kept in RAM (the grey maps and the vertex method read them): int8 x, y, z (x 127) per texel, row-major, the map's own side (128 x 128 = 48 KB, 64 x 64 = 12 KB). */
 static int8_t nrm_floor[3 * 128 * 128], nrm_wall[3 * 128 * 128];
 static unsigned nrm_floor_side, nrm_wall_side;
 /* The height maps for TESS EXTRUDE: one byte a texel, row-major from the top, 255 = the top of the relief. The placeholder's are the fields its pictures were made
@@ -139,12 +130,11 @@ static float height_median(const uint8_t *h, unsigned side) {
     }
     return (float)i * (1.0f / 255.0f);
 }
-/* VRAM by owner, in bytes, counted at allocation: the effect is the bump map, the torch's (none: vertex colours only) and the lens's grain tile; the base is the floor pictures and the text. */
-static unsigned vram_bump_b, vram_nbump_b, vram_wbump_b, vram_torch_b, vram_lens_b, vram_floor_b, vram_wall_b, vram_text_b;
+/* VRAM by owner, in bytes, counted at allocation: the effect is the grey maps (nine a surface), the torch's (none: vertex colours only) and the lens's grain tile; the base is the floor pictures and the text. */
+static unsigned vram_gmap_b, vram_torch_b, vram_lens_b, vram_floor_b, vram_wall_b, vram_text_b;
 
 /* ---- the headers ---- */
-static pvr_poly_hdr_t hdr_sky, hdr_op_baked, hdr_op_clean, hdr_overlay, hdr_pass, hdr_apply, hdr_torch[2], hdr_hud, hdr_prompt;
-static pvr_poly_hdr_t hdr_op_wall, hdr_overlay_wall, hdr_pass_wall, hdr_apply_wall, hdr_overlay_native, hdr_apply_baked, hdr_fprompt, hdr_ovb_floor, hdr_ovb_wall, hdr_ovb_native, hdr_hot_floor, hdr_hot_wall, hdr_hot_native, hdr_hotb_floor, hdr_hotb_wall, hdr_hotb_native, hdr_wire;   /* hotb: the hot pass with a bilinear bump */   /* ovb: the overlay with a bilinear bump */   /* the walls' own headers: their texture */
+static pvr_poly_hdr_t hdr_sky, hdr_op_baked, hdr_op_clean, hdr_op_wall, hdr_torch[2], hdr_hud, hdr_prompt, hdr_fprompt, hdr_wire;   /* hdr_op_*: the opaque base pictures; the walls' own: their texture */
 static pvr_ptr_t hud_mem, prompt_mem, fprompt_mem;
 static uint16_t hud_pixels[512 * HUD_H] __attribute__((aligned(32)));
 static uint16_t prompt_pixels[256 * 8] __attribute__((aligned(32)));   /* drawn 2x on screen: whole texels, no filter */
@@ -158,28 +148,22 @@ static float torch_power;
 static int prompt_state;     /* 0 shown, 1 fading, 2 gone for good */
 static float prompt_t;
 
-#define AB_PASS_MAX 6          /* A/B: the most grey passes a cell takes (C) */
+#define AB_PASS_MAX 6          /* the most grey passes a cell takes: three squares, three products */
 /* ---- one floor cell, ready to send ---- */
 typedef struct {
     sh4der_bump_vert_t v[9];   /* a quad cut by five planes has up to nine corners */
     uint8_t n;
-    uint8_t bump;              /* a bump polygon is sent for this cell */
-    uint8_t wall;              /* 1: a wall cell (the wall's picture and bump), 0: the floor's */
-    uint32_t overlay_argb, oargb_halo, oargb_kos;
-    uint32_t oargb_hot[2];     /* BUMP HOT: the offset colour of each of its (up to two) passes, one strength for the cell (the mean of its corners) */
-    uint32_t hot_v[2][9];      /* EDGE SOFT: the same per corner: K3 scaled by the strength there, Q the same on every corner */
-    uint8_t hot_n;             /* how many hot passes this cell takes (0..2) */
-    uint32_t vfade[9];         /* BUMP EDGE SOFT: the overlay's vertex colour at each corner (its strength there), so the strength changes smoothly over the cell */
-    float sv[9];               /* A/B: the strength at each corner, as a number (vfade is the same, packed) */
-    float ab_w[AB_PASS_MAX];   /* B, C: each grey pass's weight at full strength */
-    float ab_k;                /* B, C: what the flat level loses at full strength: the level is 1 - strength x ab_k */
-    uint8_t ab_t[AB_PASS_MAX]; /* B, C: the grey map each pass draws (G_*) */
-    uint8_t ab_n;              /* B, C: the passes */
+    uint8_t bump;              /* the normal map is drawn on this cell */
+    uint8_t wall;              /* 1: a wall cell (the wall's picture and normal map), 0: the floor's */
+    float sv[9];               /* the strength at each corner */
+    float ab_w[AB_PASS_MAX];   /* each grey pass's weight at full strength */
+    float ab_k;                /* what the flat level loses at full strength: the level is 1 - strength x ab_k */
+    uint8_t ab_t[AB_PASS_MAX]; /* the grey map each pass draws (G_*) */
+    uint8_t ab_n;              /* the passes */
 } cell_t;
 static cell_t cells[MAX_CELLS];
 static unsigned cell_count;
 static unsigned frame_tris;
-static unsigned hot_cells;         /* cells that took a hot pass this frame */
 static unsigned tess_cells_n, tess_prims, tess_tris, tess_lv_used, tess_vb;   /* the vertex method this frame: cells subdivided, pieces, triangles, the level it settled on, vertex bytes */
 static float tess_ms, tplan_ms, tshade_ms, temit_ms, tsend_ms;   /* the whole build, and its parts: levels, the vertices (place + light), strips / clip, and the send to the PVR */
 /* The vertex method's pieces, ready to send: screen vertices in strips (the last of a strip carries the end flag), one run per subdivided cell (its header). */
@@ -194,29 +178,27 @@ static int ab_state;               /* START: 0 idle, 1 measuring with the effect
 static float ab_t;
 static int ab_saved_bump, ab_saved_torch, ab_reset_request;
 
-/* ---- the A/B of the relief (L trigger): the variants, the grey maps, the gunfire ---- */
-enum { AB_BUMP, AB_A2, AB_B, AB_C, AB_MODES };
-/* The grey maps of one surface (8-bit paletted, the bump map's own side): Nz; Nx and Ny biased, a + and a - copy; the squares; the products biased, + and -. */
-enum { G_Z, G_XP, G_XN, G_YP, G_YN, G_XX, G_YY, G_ZZ, G_XYP, G_XYN, G_XZP, G_XZN, G_YZP, G_YZN, G_COUNT };
+/* ---- the normal map: the grey maps, the gunfire ---- */
+/* The grey maps of one surface (8-bit paletted, the normal map's own side): the squares Nx^2, Ny^2, Nz^2; the products NxNy, NxNz, NyNz biased, a + and a - copy. */
+enum { G_XX, G_YY, G_ZZ, G_XYP, G_XYN, G_XZP, G_XZN, G_YZP, G_YZN, G_COUNT };
 enum { M_X, M_Y, M_XX, M_YY, M_XY, M_XZ, M_YZ, M_COUNT };   /* what each map's values were divided by (the largest in the map), so a map uses its whole range */
 #define AB_PAL_BANK 0u         /* the grey ramp's palette bank (nothing else in the demo is paletted) */
-#define AB_BOOST 1.0f          /* A2: the hot core's level at full strength (the library's boost, 100 %) */
-#define AB_SPEC 1.0f           /* C: the highlight's gain */
+#define AB_SPEC 1.0f           /* the highlight's gain */
 #define GUN_RADIUS 2.0f        /* wu: the muzzle light reaches 6 m */
 #define GUN_GAIN 1.1f
 static const float GUN_TINT[3] = { 1.0f, 0.72f, 0.35f };
 static const float GUN_VIEW[3] = { 0.10f, -0.08f, 0.25f };   /* the muzzle in view space (right, up, forward), wu: 30 cm right, 24 cm down, 75 cm ahead */
-static int ab_mode, gun_held;
+static int gun_held;
 static float gun_power, gun_pos[3];
 static pvr_ptr_t g_mem[2][G_COUNT];        /* [0 the floor, 1 the walls] */
-static unsigned g_side[2], g_bytes[2];     /* the maps' side (0: none, the surface keeps the bump pass) and the bytes of one map */
+static unsigned g_side[2], g_bytes[2];     /* the maps' side (0: none, the surface is drawn flat) and the bytes of one map */
 static float g_m[2][M_COUNT];
 static uint8_t g_buf[128 * 128] __attribute__((aligned(32)));
-static pvr_poly_hdr_t hdr_g_add[2][G_COUNT][2], hdr_a2[2][2], hdr_apply2[3], hdr_ablabel;   /* [surface][map][0 nearest, 1 bilinear]; apply2: floor clean, floor baked, walls */
+static pvr_poly_hdr_t hdr_g_add[2][G_COUNT][2], hdr_apply2[3], hdr_ablabel;   /* [surface][map][0 nearest, 1 bilinear]; apply2: floor clean, floor baked, walls */
 static pvr_ptr_t ab_label_mem;
 static uint16_t ab_label_px[256 * 64] __attribute__((aligned(32)));
-static unsigned ab_lit;                    /* cells that took the relief this frame */
-static uint32_t ab_ta;                     /* what the relief's translucent passes sent to the TA this frame, bytes */
+static unsigned ab_lit;                    /* cells that took the normal map this frame */
+static uint32_t ab_ta;                     /* what the normal map's translucent passes sent to the TA this frame, bytes */
 
 /* ---- hand-made maths: pack a float colour (SH4ZAM has no packer) ---- */
 static uint32_t pack_argb(float r, float g, float b) {
@@ -296,7 +278,7 @@ static void make_bump(uint16_t *out) {
 
 /* ------------------------------------------------------------------------ */
 /* The private textures: TWTEX.BIN on the disc, if it is there. Header (all 32-bit little endian words): 'TWTX', version 1, count;
-   then count entries of 8 words: kind (0 baked, 1 clean, 2 bump), side, fmt (0 ARGB1555, 1 RGB565, 2 ARGB4444, 3 bump), flags (1 twiddled,
+   then count entries of 8 words: kind (0 baked, 1 clean, 2 normal map), side, fmt (0 ARGB1555, 1 RGB565, 2 ARGB4444, 3 bump), flags (1 twiddled,
    2 VQ, 4 mips), offset, size, 0, 0. Data at the offsets, 32-byte aligned. */
 /* Decode a bump texture (twiddled KallistiOS texels: S = slope byte xor 0xff, R = direction byte) into normals. Texel x along +u, y up the image, z out of the surface. */
 static void nrm_decode(int8_t *out, unsigned *side_out, const uint16_t *tw, unsigned side) {
@@ -330,7 +312,18 @@ static int load_private(void) {
                 *(entry[0] == 6u ? &hgt_floor_side : &hgt_wall_side) = entry[1];
             continue;
         }
-        t = entry[0] == 0 ? &tex_baked : entry[0] == 1 ? &tex_clean : entry[0] == 2 ? &tex_bump : entry[0] == 3 ? &tex_wall : entry[0] == 4 ? &tex_wbump : entry[0] == 5 ? &tex_nbump : NULL;
+        if (entry[0] == 2u || entry[0] == 4u || entry[0] == 5u) {   /* a normal map (the PVR bump texel format): only its normals are kept, in RAM: no video memory. Kind 5, the game's own 64 x 64, is not used */
+            if (entry[0] != 5u && entry[1] >= 8u && entry[1] <= 128u && (entry[1] & (entry[1] - 1u)) == 0u && entry[5] >= entry[1] * entry[1] * 2u && entry[5] <= (1u << 20)) {
+                void *nd = memalign(32, (entry[5] + 31u) & ~31u);   /* memalign(32): a uint16_t view is aligned */
+                if (nd && fseek(f, (long)entry[4], SEEK_SET) == 0 && fread(nd, 1, entry[5], f) == entry[5]) {
+                    nrm_decode(entry[0] == 2u ? nrm_floor : nrm_wall, entry[0] == 2u ? &nrm_floor_side : &nrm_wall_side, (const uint16_t *)nd, entry[1]);
+                    got++;
+                }
+                free(nd);
+            }
+            continue;
+        }
+        t = entry[0] == 0 ? &tex_baked : entry[0] == 1 ? &tex_clean : entry[0] == 3 ? &tex_wall : NULL;
         if (!t || entry[5] == 0 || entry[5] > (1u << 20) || entry[1] < 8u || entry[1] > 1024u || (entry[1] & (entry[1] - 1u)) != 0u)
             continue;   /* an unknown kind, no data, or a side the PVR cannot take (a bad TWTEX.BIN must not become a bad header) */
         data = memalign(32, (entry[5] + 31u) & ~31u);
@@ -343,7 +336,7 @@ static int load_private(void) {
         if (t->mem) {
             static const uint32_t colour[3] = { PVR_TXRFMT_ARGB1555, PVR_TXRFMT_RGB565, PVR_TXRFMT_ARGB4444 };
             pvr_txr_load(data, t->mem, (entry[5] + 31u) & ~31u);
-            fmt = entry[2] == 3 ? PVR_TXRFMT_BUMP : colour[entry[2] > 2 ? 2 : entry[2]];
+            fmt = colour[entry[2] > 2 ? 2 : entry[2]];
             fmt |= (entry[3] & 1u) ? PVR_TXRFMT_TWIDDLED : PVR_TXRFMT_NONTWIDDLED;
             if (entry[3] & 2u)
                 fmt |= PVR_TXRFMT_VQ_ENABLE;
@@ -353,15 +346,13 @@ static int load_private(void) {
             t->kb = (entry[5] + 1023u) / 1024u;
             t->bytes = (entry[5] + 31u) & ~31u;
             tex_kb_total += t->kb;
-            if ((entry[0] == 2 || entry[0] == 4) && entry[1] <= 128u && entry[5] >= entry[1] * entry[1] * 2u)   /* the bump's normals, for the vertex method: data is memalign(32), a uint16_t view is aligned */
-                nrm_decode(entry[0] == 2 ? nrm_floor : nrm_wall, entry[0] == 2 ? &nrm_floor_side : &nrm_wall_side, (const uint16_t *)data, entry[1]);
             got++;
         }
         free(data);
     }
     fclose(f);
     (void)got;
-    return tex_baked.mem && tex_clean.mem && tex_bump.mem;   /* the floor's three; the walls' two are optional */
+    return tex_baked.mem && tex_clean.mem && nrm_floor_side;   /* the floor's two pictures and its normal map; the walls' two are optional */
 }
 
 static void upload_placeholder(tex_t *t, const uint16_t *data, unsigned bytes, uint32_t fmt, unsigned side) {
@@ -381,7 +372,7 @@ static void upload_placeholder(tex_t *t, const uint16_t *data, unsigned bytes, u
 
 /* The placeholder wall: an original procedural sci-fi industrial wall, made in code. The 128 x 128 tile is cut into rectangular panels of varied sizes (the cuts
    run to the tile's edge, so it tiles), each raised or recessed to one of four levels with a 2 texel seam round it; some panels carry vents (slits), some a pipe.
-   Hard edged, grey-blue metal with a small tone change per panel. The base and the bump come from the same height field: 128 x 128 RGB565 = 32 KB each. */
+   Hard edged, grey-blue metal with a small tone change per panel. The base and the normal map come from the same height field; the base is 128 x 128 RGB565 = 32 KB, the normal map stays in RAM. */
 #define WALL_SIDE 128
 static uint8_t wall_h[WALL_SIDE * WALL_SIDE], wall_tone[WALL_SIDE * WALL_SIDE];
 static uint16_t wall_bump_buf[WALL_SIDE * WALL_SIDE] __attribute__((aligned(32)));
@@ -438,9 +429,7 @@ static void greeble_split(unsigned x0, unsigned y0, unsigned w, unsigned h, unsi
 static void make_wall_placeholders(void) {
     unsigned x, y;
     if (tex_wall.mem) pvr_mem_free(tex_wall.mem);   /* a half-loaded private pair is dropped: both or neither */
-    if (tex_wbump.mem) pvr_mem_free(tex_wbump.mem);
     memset(&tex_wall, 0, sizeof(tex_wall));
-    memset(&tex_wbump, 0, sizeof(tex_wbump));
     greeble_split(0, 0, WALL_SIDE, WALL_SIDE, 0, 0x51a7u);
     for (y = 0; y < WALL_SIDE; y++) {
         for (x = 0; x < WALL_SIDE; x++) {
@@ -453,35 +442,26 @@ static void make_wall_placeholders(void) {
     nrm_decode(nrm_wall, &nrm_wall_side, wall_bump_buf, WALL_SIDE);
     memcpy(hgt_wall, wall_h, sizeof(wall_h));
     hgt_wall_side = WALL_SIDE;
-    upload_placeholder(&tex_wbump, wall_bump_buf, sizeof(wall_bump_buf), PVR_TXRFMT_BUMP | PVR_TXRFMT_TWIDDLED, WALL_SIDE);
 }
 
 static void make_textures(void) {
     static uint16_t clean[BASE_SIDE * BASE_SIDE] __attribute__((aligned(32)));
     if (load_private()) {
         private_textures = 1;
-        if (!tex_wall.mem || !tex_wbump.mem)
+        if (!tex_wall.mem || !nrm_wall_side)
             make_wall_placeholders();   /* the private file has no wall textures: the placeholder walls */
-        if (!tex_nbump.mem)
-            tex_nbump = tex_bump;       /* no native bump in the file: NATIVE shares the helper's map (and takes no memory of its own) */
         return;
     }
     /* nothing partly loaded: free what the private path made and use the placeholder */
     if (tex_baked.mem) pvr_mem_free(tex_baked.mem);
     if (tex_clean.mem) pvr_mem_free(tex_clean.mem);
-    if (tex_bump.mem) pvr_mem_free(tex_bump.mem);
-    if (tex_nbump.mem) pvr_mem_free(tex_nbump.mem);
     memset(&tex_baked, 0, sizeof(tex_baked));
     memset(&tex_clean, 0, sizeof(tex_clean));
-    memset(&tex_bump, 0, sizeof(tex_bump));
-    memset(&tex_nbump, 0, sizeof(tex_nbump));
     tex_kb_total = 0;
     make_pictures(clean, pic_buf);
     upload_placeholder(&tex_baked, pic_buf, sizeof(pic_buf), PVR_TXRFMT_RGB565 | PVR_TXRFMT_TWIDDLED, BASE_SIDE);
     upload_placeholder(&tex_clean, clean, sizeof(clean), PVR_TXRFMT_RGB565 | PVR_TXRFMT_TWIDDLED, BASE_SIDE);
-    make_bump(bump_buf);
-    upload_placeholder(&tex_bump, bump_buf, sizeof(bump_buf), PVR_TXRFMT_BUMP | PVR_TXRFMT_TWIDDLED, BUMP_SIDE);
-    upload_placeholder(&tex_nbump, bump_buf, sizeof(bump_buf), PVR_TXRFMT_BUMP | PVR_TXRFMT_TWIDDLED, BUMP_SIDE);   /* the placeholder's native is the same 64 x 64 */
+    make_bump(bump_buf);   /* the normal map, made in RAM: its normals are all that is kept */
     nrm_decode(nrm_floor, &nrm_floor_side, bump_buf, BUMP_SIDE);
     memcpy(hgt_floor, height_small, sizeof(height_small));
     hgt_floor_side = BUMP_SIDE;
@@ -489,15 +469,10 @@ static void make_textures(void) {
 }
 
 /* ------------------------------------------------------------------------ */
-/* The A/B grey maps: made once from the normals the bump maps decode to (nrm_floor, nrm_wall: the same texels the bump unit reads), 14 a surface, each side x side
-   bytes of video memory (64 x 64 = 4 KB, 128 x 128 = 16 KB). Byte work only. */
+/* The grey maps: made once from the normals the normal maps decode to (nrm_floor, nrm_wall), nine a surface, each side x side bytes of video memory (64 x 64 = 4 KB,
+   128 x 128 = 16 KB). Byte work only. */
 static float ab_map_value(unsigned g, const float n[3], const float *m) {
     switch (g) {
-    case G_Z: return n[2];
-    case G_XP: return 0.5f + 0.5f * n[0] / m[M_X];
-    case G_XN: return 0.5f - 0.5f * n[0] / m[M_X];
-    case G_YP: return 0.5f + 0.5f * n[1] / m[M_Y];
-    case G_YN: return 0.5f - 0.5f * n[1] / m[M_Y];
     case G_XX: return n[0] * n[0] / m[M_XX];
     case G_YY: return n[1] * n[1] / m[M_YY];
     case G_ZZ: return n[2] * n[2];
@@ -512,13 +487,13 @@ static float ab_map_value(unsigned g, const float n[3], const float *m) {
 
 static void ab_make_maps(void) {
     unsigned s, g, x, y, k;
-    sh4der_bump_hot_palette(AB_PAL_BANK);   /* the grey ramp (RGB565: 32 to 64 levels) */
+    sh4der_bump_grey_palette(AB_PAL_BANK);   /* the grey ramp (RGB565: 32 to 64 levels) */
     for (s = 0; s < 2u; s++) {
         const int8_t *nrm = s ? nrm_wall : nrm_floor;
         const unsigned side = s ? nrm_wall_side : nrm_floor_side;
         float *m = g_m[s];
         if (side < 8u || side > 128u)
-            continue;   /* no normals kept for this surface: it keeps the bump pass in every variant */
+            continue;   /* no normals kept for this surface: it is drawn as the plain picture */
         for (k = 0; k < M_COUNT; k++)
             m[k] = 0.02f;   /* a flat map: no division by nothing */
         for (k = 0; k < side * side; k++) {
@@ -545,12 +520,12 @@ static void ab_make_maps(void) {
             pvr_txr_load(g_buf, g_mem[s][g], side * side);
         }
         if (g < G_COUNT) {
-            printf("torchwalk: A/B grey maps: no video memory for surface %u (map %u): it keeps the bump pass\n", s, g);
+            printf("torchwalk: grey maps: no video memory for surface %u (map %u): it is drawn flat\n", s, g);
             continue;
         }
         g_side[s] = side;
         g_bytes[s] = side * side;
-        printf("torchwalk: A/B grey maps surface %u: %u x %u, %u maps x %u B; largest x1000: nx %d ny %d nxny %d nxnz %d nynz %d\n", s, side, side, (unsigned)G_COUNT, side * side,
+        printf("torchwalk: grey maps surface %u: %u x %u, %u maps x %u B; largest x1000: nx %d ny %d nxny %d nxnz %d nynz %d\n", s, side, side, (unsigned)G_COUNT, side * side,
                (int)(m[M_X] * 1000.0f), (int)(m[M_Y] * 1000.0f), (int)(m[M_XY] * 1000.0f), (int)(m[M_XZ] * 1000.0f), (int)(m[M_YZ] * 1000.0f));
     }
 }
@@ -593,7 +568,6 @@ static void ab_make_headers(void) {
         for (f = 0; f < 2u; f++) {
             for (g = 0; g < G_COUNT; g++)
                 ab_header(&hdr_g_add[s][g][f], g_mem[s][g], g_side[s], f ? PVR_FILTER_BILINEAR : PVR_FILTER_NEAREST, PVR_BLEND_ONE);
-            sh4der_bump_header_core(&hdr_a2[s][f], g_mem[s][G_Z], g_side[s], AB_PAL_BANK, f ? PVR_FILTER_BILINEAR : PVR_FILTER_NEAREST);   /* A2: the frame x (1 + Nz x level) */
         }
     }
     ab_header_apply2(&hdr_apply2[0], &tex_clean);
@@ -610,21 +584,6 @@ static void ab_make_headers(void) {
 }
 
 /* ------------------------------------------------------------------------ */
-/* Halo's overlay header (sh4der_bump_header_overlay) with the bump texture's filter chosen: the helper's is NEAREST, as the game's. */
-static void make_overlay_filtered(pvr_poly_hdr_t *hdr, const tex_t *t, int filter) {
-    pvr_poly_cxt_t c;
-    pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_BUMP | PVR_TXRFMT_TWIDDLED, t->side, t->side, t->mem, filter);
-    c.gen.culling = PVR_CULLING_NONE;
-    c.gen.fog_type = PVR_FOG_DISABLE;
-    c.gen.specular = PVR_SPECULAR_ENABLE;
-    c.depth.write = PVR_DEPTHWRITE_DISABLE;
-    c.depth.comparison = PVR_DEPTHCMP_GEQUAL;
-    c.txr.env = PVR_TXRENV_DECAL;
-    c.blend.src = PVR_BLEND_DESTCOLOR;
-    c.blend.dst = PVR_BLEND_ZERO;
-    pvr_poly_compile(hdr, &c);
-}
-
 static void make_headers(void) {
     pvr_poly_cxt_t c;
     /* the sky: untextured, opaque, behind everything */
@@ -645,30 +604,12 @@ static void make_headers(void) {
     c.txr.env = PVR_TXRENV_MODULATE;
     c.txr.mipmap = tex_clean.mips ? PVR_MIPMAP_ENABLE : PVR_MIPMAP_DISABLE;
     pvr_poly_compile(&hdr_op_clean, &c);
-    /* bump: the overlay (Halo's), and the two passes of the KallistiOS example */
-    sh4der_bump_header_overlay(&hdr_overlay, tex_bump.mem, tex_bump.side);
-    sh4der_bump_header_pass(&hdr_pass, tex_bump.mem, tex_bump.side);
-    sh4der_bump_header_apply(&hdr_apply, tex_clean.mem, tex_clean.fmt, tex_clean.side, (int)tex_clean.mips);
-    pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, tex_wall.fmt, tex_wall.side, tex_wall.side, tex_wall.mem, PVR_FILTER_BILINEAR);   /* the walls: their base, bump, two pass headers */
+    pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, tex_wall.fmt, tex_wall.side, tex_wall.side, tex_wall.mem, PVR_FILTER_BILINEAR);   /* the walls' base */
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.fog_type = PVR_FOG_DISABLE;
     c.txr.env = PVR_TXRENV_MODULATE;
     c.txr.mipmap = tex_wall.mips ? PVR_MIPMAP_ENABLE : PVR_MIPMAP_DISABLE;
     pvr_poly_compile(&hdr_op_wall, &c);
-    sh4der_bump_header_overlay(&hdr_overlay_wall, tex_wbump.mem, tex_wbump.side);
-    sh4der_bump_header_pass(&hdr_pass_wall, tex_wbump.mem, tex_wbump.side);
-    sh4der_bump_header_apply(&hdr_apply_wall, tex_wall.mem, tex_wall.fmt, tex_wall.side, (int)tex_wall.mips);
-    make_overlay_filtered(&hdr_ovb_floor, &tex_bump, PVR_FILTER_BILINEAR);   /* BUMP FILTER bilinear: the same overlays with a bilinear bump */
-    make_overlay_filtered(&hdr_ovb_wall, &tex_wbump, PVR_FILTER_BILINEAR);
-    make_overlay_filtered(&hdr_ovb_native, &tex_nbump, PVR_FILTER_BILINEAR);
-    sh4der_bump_header_hot(&hdr_hot_floor, tex_bump.mem, tex_bump.side);   /* BUMP HOT: the picture x (1 + the level of the slopes facing the torch) */
-    sh4der_bump_header_hot(&hdr_hot_wall, tex_wbump.mem, tex_wbump.side);
-    sh4der_bump_header_hot(&hdr_hot_native, tex_nbump.mem, tex_nbump.side);
-    sh4der_bump_header_hot_filtered(&hdr_hotb_floor, tex_bump.mem, tex_bump.side, PVR_FILTER_BILINEAR);   /* BUMP FILTER bilinear: the hot side is sampled like the shadow side */
-    sh4der_bump_header_hot_filtered(&hdr_hotb_wall, tex_wbump.mem, tex_wbump.side, PVR_FILTER_BILINEAR);
-    sh4der_bump_header_hot_filtered(&hdr_hotb_native, tex_nbump.mem, tex_nbump.side, PVR_FILTER_BILINEAR);
-    sh4der_bump_header_overlay(&hdr_overlay_native, tex_nbump.mem, tex_nbump.side);   /* NATIVE: Halo's own overlay header (level.c make_headers_work) on its shipped map */
-    sh4der_bump_header_apply(&hdr_apply_baked, tex_baked.mem, tex_baked.fmt, tex_baked.side, (int)tex_baked.mips);   /* two pass with the baked base (COMBINED) */
     pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_ARGB1555 | PVR_TXRFMT_NONTWIDDLED, 256, 8, fprompt_mem, PVR_FILTER_NONE);
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.fog_type = PVR_FOG_DISABLE;
@@ -873,7 +814,7 @@ static unsigned poly_count;
 
 /* ---- where the CPU time goes: microseconds summed over a second, by slice. The waits for the PVR are not in any of them.
    The effect's own sections (bump light, bump submit, torch draw) are summed as "effect". ---- */
-enum { SL_INPUT, SL_CORNERS, SL_CLIP, SL_PROJECT, SL_BUMPLIGHT, SL_HUD, SL_SUBMIT, SL_BUMPSUB, SL_TORCH, SL_LENS, SL_HOT, SL_WIRE, SL_TESS, SL_TPLAN, SL_TSHADE, SL_TEMIT, SL_TSEND, SL_COUNT };   /* PLAN, SHADE and EMIT are inside SL_TESS; SEND is in the submit */   /* SL_HOT is inside SL_BUMPSUB: shown on its own, not added again */
+enum { SL_INPUT, SL_CORNERS, SL_CLIP, SL_PROJECT, SL_BUMPLIGHT, SL_HUD, SL_SUBMIT, SL_BUMPSUB, SL_TORCH, SL_LENS, SL_WIRE, SL_TESS, SL_TPLAN, SL_TSHADE, SL_TEMIT, SL_TSEND, SL_COUNT };   /* PLAN, SHADE and EMIT are inside SL_TESS; SEND is in the submit */
 static uint32_t slice_us[SL_COUNT], slice_hud_max;
 
 /* Clip outcode of a corner: bit 0 behind the near plane, 1 left, 2 right, 3 below, 4 above of the guard band. A cell whose four corners share a bit is
@@ -894,64 +835,42 @@ static void corner_make_lit(const surf_t *sf, int a, int c, float inv_r2) {
     corner_lit[idx] = 1;
 }
 
-/* The variant a cell is drawn by: the one picked when the cell takes the relief by the overlay and its surface has grey maps, else the bump pass. */
-static int ab_cell_mode(const cell_t *cl) {
-    return cl->bump && !opt[ROW_PASS] && g_side[cl->wall] ? ab_mode : AB_BUMP;
+/* 1 when the normal map is drawn on the cell: it takes the effect and its surface has grey maps. */
+static int cell_has_map(const cell_t *cl) {
+    return cl->bump && g_side[cl->wall];
 }
 
-/* B and C: the grey passes of one cell for its light (unit, world, the one the bump pass uses), at full strength; the corners' strengths scale them at the send.
-   B is the bump unit's sum, 1 + s (N.L - Lz) with s = SH4DER_BUMP_STRENGTH x strength (flat stays 1, as the overlay). With Nx = m (2 G - 1) for the biased map G
-   (the + copy; the - copy holds -Nx): s Nx Lx = 2 s m |Lx| G - s m |Lx|, the copy picked by Lx's sign; the same for y; the flat level takes the rest:
-   1 - s (Lz + m |Lx| + m |Ly|).
-   C is 1 + s k ((N.H)^2 - Hz^2), H the half vector of the light and the eye (the torch sits at the eye: H is the light), kept at half level so it can pass 1:
-   (N.H)^2 = sum Ni^2 Hi^2 + sum 2 Hi Hj Ni Nj: three square maps, three products biased like B's.
+/* The grey passes of one cell for its light (unit, world), at full strength; the corners' strengths scale them at the send.
+   The level is 1 + s k ((N.H)^2 - Hz^2), H the half vector of the light and the eye (the torch sits at the eye: H is the light), kept at half level so it can pass 1:
+   (N.H)^2 = sum Ni^2 Hi^2 + sum 2 Hi Hj Ni Nj: three square maps, three products biased (a + and a - copy, the one the sign asks for).
    A pass whose weight would not change a byte is left out, its bias with it. */
 static void ab_cell(cell_t *cl, const sh4der_bump_frame_t *f, const float light[3], const float centre[3]) {
+    static const uint8_t sq_map[3] = { G_XX, G_YY, G_ZZ }, cr_map[3] = { G_XYP, G_XZP, G_YZP }, cr_a[3] = { 0, 0, 1 }, cr_b[3] = { 1, 2, 2 };
     const float *m = g_m[cl->wall];
-    float d[3], k = 0.0f;
+    const float S = SH4DER_BUMP_STRENGTH * AB_SPEC;
+    const float sq_m[3] = { m[M_XX], m[M_YY], 1.0f }, cr_m[3] = { m[M_XY], m[M_XZ], m[M_YZ] };
+    float d[3], h[3], k;
     unsigned n = 0, i;
-    if (ab_mode == AB_B) {
-        const float S = SH4DER_BUMP_STRENGTH;
-        d[0] = sh4der_dot3_(light, f->t);
-        d[1] = (f->flip ? 1.0f : -1.0f) * sh4der_dot3_(light, f->b);   /* the texel's y runs up the picture, as sh4der_bump_local_ */
-        d[2] = sh4der_sat_(sh4der_dot3_(light, f->n));
-        if (S * d[2] >= 0.004f) {
-            cl->ab_t[n] = G_Z; cl->ab_w[n++] = S * d[2];
-            k += S * d[2];
-        }
-        for (i = 0; i < 2u; i++) {
-            const float a = S * shz_fabsf(d[i]) * m[i ? M_Y : M_X];
-            if (2.0f * a < 0.004f)
-                continue;
-            cl->ab_t[n] = (uint8_t)((i ? G_YP : G_XP) + (d[i] < 0.0f ? 1u : 0u)); cl->ab_w[n++] = 2.0f * a;
-            k += a;
-        }
-    } else {
-        static const uint8_t sq_map[3] = { G_XX, G_YY, G_ZZ }, cr_map[3] = { G_XYP, G_XZP, G_YZP }, cr_a[3] = { 0, 0, 1 }, cr_b[3] = { 1, 2, 2 };
-        const float S = SH4DER_BUMP_STRENGTH * AB_SPEC;
-        const float sq_m[3] = { m[M_XX], m[M_YY], 1.0f }, cr_m[3] = { m[M_XY], m[M_XZ], m[M_YZ] };
-        float h[3];
-        sh4der_bump_toward(centre, cam, h);   /* toward the eye */
-        h[0] += light[0]; h[1] += light[1]; h[2] += light[2];
-        sh4der_norm3_(h);
-        d[0] = sh4der_dot3_(h, f->t);
-        d[1] = (f->flip ? 1.0f : -1.0f) * sh4der_dot3_(h, f->b);
-        d[2] = sh4der_sat_(sh4der_dot3_(h, f->n));
-        k = S * d[2] * d[2];   /* the flat texel's own (N.H)^2, taken off so flat stays the picture */
-        for (i = 0; i < 3u; i++) {
-            const float w = 0.5f * S * d[i] * d[i] * sq_m[i];
-            if (w < 0.004f)
-                continue;
-            cl->ab_t[n] = sq_map[i]; cl->ab_w[n++] = w;
-        }
-        for (i = 0; i < 3u; i++) {
-            const float hh = 2.0f * d[cr_a[i]] * d[cr_b[i]];
-            const float w = S * shz_fabsf(hh) * cr_m[i];
-            if (w < 0.004f)
-                continue;
-            cl->ab_t[n] = (uint8_t)(cr_map[i] + (hh < 0.0f ? 1u : 0u)); cl->ab_w[n++] = w;
-            k += w;
-        }
+    sh4der_bump_toward(centre, cam, h);   /* toward the eye */
+    h[0] += light[0]; h[1] += light[1]; h[2] += light[2];
+    sh4der_norm3_(h);
+    d[0] = sh4der_dot3_(h, f->t);
+    d[1] = (f->flip ? 1.0f : -1.0f) * sh4der_dot3_(h, f->b);
+    d[2] = sh4der_sat_(sh4der_dot3_(h, f->n));
+    k = S * d[2] * d[2];   /* the flat texel's own (N.H)^2, taken off so flat stays the picture */
+    for (i = 0; i < 3u; i++) {
+        const float w = 0.5f * S * d[i] * d[i] * sq_m[i];
+        if (w < 0.004f)
+            continue;
+        cl->ab_t[n] = sq_map[i]; cl->ab_w[n++] = w;
+    }
+    for (i = 0; i < 3u; i++) {
+        const float hh = 2.0f * d[cr_a[i]] * d[cr_b[i]];
+        const float w = S * shz_fabsf(hh) * cr_m[i];
+        if (w < 0.004f)
+            continue;
+        cl->ab_t[n] = (uint8_t)(cr_map[i] + (hh < 0.0f ? 1u : 0u)); cl->ab_w[n++] = w;
+        k += w;
     }
     cl->ab_k = k;
     cl->ab_n = (uint8_t)n;
@@ -1049,7 +968,6 @@ static void build_cells(void) {
         cell_t *cl = &cells[cell_count++];
         cl->n = (uint8_t)n;
         cl->bump = 0;
-        cl->hot_n = 0;
         cl->wall = pl->surf != 0;
         for (k = 0; k < n; k++) {
             const float iz_ = shz_invf(pv[k].p[2]);
@@ -1064,23 +982,20 @@ static void build_cells(void) {
     }
     t3 = timer_us_gettime64();
     slice_us[SL_PROJECT] += (uint32_t)(t3 - t2);
-    for (q = 0; q < poly_count; q++) {   /* the bump light of each cell: the torch (by the beam's cone) or, torch off, the sky from above; then the distance cut */
+    for (q = 0; q < poly_count; q++) {   /* the normal map's light of each cell: the torch (by the beam's cone) or, torch off, the sky from above; then the distance cut */
         const poly_t *pl = &polys[q];
         const surf_t *sf = &surf[pl->surf];
         cell_t *cl = &cells[q];
-        float centre[3], dv[3], light[3] = { 0.0f, 1.0f, 0.0f }, strength = BUMP_SKY_STRENGTH, hot_str = 0.0f, vmax_cell = 0.0f;
-        float dist2, dist_m, ha = 0.0f, hb = 0.0f;
-        unsigned np = 0;
-        uint32_t hot_full = 0;
-        const int hot_on = hot_level[opt[ROW_BHOT]] > 0.0f && torch_power > 0.0f;   /* BUMP HOT follows the torch only: none with it off */
+        float centre[3], dv[3], light[3] = { 0.0f, 1.0f, 0.0f }, strength = BUMP_SKY_STRENGTH;
+        float dist2, dist_m;
         if (opt[ROW_METHOD] || !(opt[ROW_BUMP] && (pl->surf == 0 ? opt[ROW_FLOOR] : opt[ROW_WALLS])))
-            continue;   /* this surface's bump is off, or the vertex method is in use (no bump pass) */
+            continue;   /* this surface's normal map is off, or the vertex method is in use (no grey passes) */
         surf_point(sf, (float)pl->a + 0.5f, (float)pl->c + 0.5f, centre);
         dv[0] = centre[0] - cam[0]; dv[1] = centre[1] - cam[1]; dv[2] = centre[2] - cam[2];
         dist2 = shz_vec3_magnitude_sqr(shz_vec3_init(dv[0], dv[1], dv[2]));
         dist_m = shz_sqrtf(dist2) * WU_M;
         if (dist_m - CELL * 0.7071f * WU_M >= range_m)
-            continue;   /* the cell's nearest point is past the range: no bump polygon, no fill, no TA data */
+            continue;   /* the cell's nearest point is past the range: no grey passes, no TA data */
         /* the sky light for a wall comes from above the room too, not along its normal: straight up */
         if (torch_power > 0.0f) {
             const float cosa = sh4der_dot3_(dv, fwd) * shz_inv_sqrtf(dist2 + 1.0e-12f);
@@ -1104,17 +1019,11 @@ static void build_cells(void) {
         }
         strength *= 1.0f - shz_smoothstepf(dist_m, range_m * BUMP_RANGE_FADE, range_m);   /* an ease to nothing over the last quarter of the range */
         cl->bump = strength > 0.004f;
-        cl->overlay_argb = sh4der_bump_fade_argb(strength);
         for (k = 0; k < pl->n; k++)
             cl->sv[k] = strength;
-        hot_str = strength;
-        if (hot_on) {   /* the hot light of the cell once: strength 1, scaled per cell or per corner below */
-            np = sh4der_bump_hot_split(hot_level[opt[ROW_BHOT]], &ha, &hb);
-            hot_full = sh4der_bump_oargb_hot(light, &frame[pl->surf], 1.0f);
-        }
         if (opt[ROW_SOFT]) {   /* the same strength, at each corner of the cut cell: the pool's edge and the range cut dissolve instead of stepping a cell at a time */
             const cv_t *pv = pl->v;
-            float vmax = 0.0f, vsum = 0.0f;
+            float vmax = 0.0f;
             for (k = 0; k < pl->n; k++) {
                 const float r2 = shz_vec3_magnitude_sqr(shz_vec3_init(pv[k].p[0], pv[k].p[1], pv[k].p[2]));
                 const float dm = shz_sqrtf(r2) * WU_M;
@@ -1127,36 +1036,15 @@ static void build_cells(void) {
                 if (gun_power > 0.0f)
                     sv = shz_fmaxf(sv, gun_at_view(pv[k].p));
                 sv *= 1.0f - shz_smoothstepf(dm, range_m * BUMP_RANGE_FADE, range_m);
-                cl->vfade[k] = sh4der_bump_fade_argb(sv);
                 cl->sv[k] = sv;
-                if (hot_on) {
-                    cl->hot_v[0][k] = sh4der_bump_hot_scale(hot_full, ha * sv * torch_power);
-                    cl->hot_v[1][k] = sh4der_bump_hot_scale(hot_full, hb * sv * torch_power);
-                }
                 vmax = shz_fmaxf(vmax, sv);
-                vsum += sv;
             }
             cl->bump = vmax > 0.004f;
-            vmax_cell = vmax * torch_power;   /* the hot strength is the torch's: times its power */
-            hot_str = vsum / (float)pl->n;   /* the hot pass has one strength per cell (its vertex colour is not read): the mean of the corners */
         }
-        hot_str *= torch_power;   /* cell mean x the torch's power (the corners' strengths carry it above) */
-        if (cl->bump && hot_on) {   /* BUMP HOT: the same light and frame as the overlay, the strength split over up to two passes */
-            if (np >= 1u && ha * hot_str >= 0.004f)
-                cl->oargb_hot[0] = sh4der_bump_hot_scale(hot_full, ha * hot_str);   /* the cell-mean path: the fallback when EDGE SOFT is off */
-            if (np >= 2u && hb * hot_str >= 0.004f)
-                cl->oargb_hot[1] = sh4der_bump_hot_scale(hot_full, hb * hot_str);
-            if (opt[ROW_SOFT])   /* per corner: judged by the strongest corner */
-                cl->hot_n = np >= 2u && hb * vmax_cell >= 0.004f ? 2u : (np >= 1u && ha * vmax_cell >= 0.004f ? 1u : 0u);
-            else
-                cl->hot_n = np >= 2u && hb * hot_str >= 0.004f ? 2u : (np >= 1u && ha * hot_str >= 0.004f ? 1u : 0u);
-        }
-        cl->oargb_halo = sh4der_bump_oargb(light, &frame[pl->surf], SH4DER_BUMP_STRENGTH);
-        cl->oargb_kos = sh4der_bump_oargb_kos(light, &frame[pl->surf], SH4DER_BUMP_STRENGTH * strength);
-        if (ab_mode >= AB_B && ab_cell_mode(cl) >= AB_B)
+        if (cell_has_map(cl))
             ab_cell(cl, &frame[pl->surf], light, centre);
     }
-    slice_us[SL_BUMPLIGHT] += (uint32_t)(timer_us_gettime64() - t3);
+        slice_us[SL_BUMPLIGHT] += (uint32_t)(timer_us_gettime64() - t3);
     tess_cells_n = tess_prims = tess_tris = tess_vb = 0;
     tess_vn = tess_runs = tess_drop = 0;
     if (opt[ROW_METHOD]) {   /* the vertex method: subdivide the cells in the torch's cone and range */
@@ -1629,7 +1517,7 @@ static void sky_draw(void) {
                                                { 0.0f, SCR_H, 0.0001f, 0, 0, hor }, { SCR_W, SCR_H, 0.0001f, 0, 0, hor } };
         /* four corners as a fan: 0, 1, 3, 2 round the edge */
         const sh4der_bump_vert_t q1[4] = { sky[0], sky[1], sky[3], sky[2] }, q2[4] = { ground[0], ground[1], ground[3], ground[2] };
-        ta_bytes += 64u + 32u * (sh4der_bump_submit_fan(&hdr_sky, q1, 4, 0) + sh4der_bump_submit_fan(&hdr_sky, q2, 4, 0));
+        ta_bytes += 64u + 32u * (sh4der_bump_submit_fan(&hdr_sky, q1, 4) + sh4der_bump_submit_fan(&hdr_sky, q2, 4));
     }
 }
 
@@ -1667,69 +1555,46 @@ static void tess_send(int clean) {
 
 static void floor_op(void) {
     unsigned i;
-    const int clean = opt[ROW_FLOOR] == 1 || opt[ROW_FLOOR] == 3;   /* clean + bump and native draw on the clean base; baked and combined on the baked */
+    const int clean = opt[ROW_FLOOR] == 1;   /* clean + normal map draws on the clean base; baked and combined on the baked */
     sh4der_bump_vert_t tmp[9];
     hdr_cur = NULL;
     for (i = 0; i < cell_count; i++) {
         const cell_t *cl = &cells[i];
         if (cl->n < 3u)
             continue;   /* a cell the vertex method subdivided: its pieces are drawn instead */
-        if (ab_cell_mode(cl) >= AB_B) {   /* B, C: no picture yet: the flat level the grey passes add onto (C keeps it at half), untextured */
-            const float half = ab_mode == AB_C ? 0.5f : 1.0f;
+        if (cell_has_map(cl)) {   /* no picture yet: the flat level the grey passes add onto, kept at half, untextured */
             unsigned k;
             for (k = 0; k < cl->n; k++) {
-                const float g = half * shz_saturatef(1.0f - cl->sv[k] * cl->ab_k);
+                const float g = 0.5f * shz_saturatef(1.0f - cl->sv[k] * cl->ab_k);
                 tmp[k] = cl->v[k];
                 tmp[k].argb = pack_argb(g, g, g);
             }
             if (hdr_use(&hdr_sky))
-                ta_bytes += 32u * sh4der_bump_send_fan(tmp, cl->n, 0u);
-            continue;
-        }
-        if (opt[ROW_PASS] && cl->bump && (cl->wall || opt[ROW_FLOOR] != 3)) {   /* the example's first pass: the bump polygon with colour 0 leaves the light level; NATIVE is the overlay only, the two pass is not the game's */
-            unsigned k;
-            for (k = 0; k < cl->n; k++) {
-                tmp[k] = cl->v[k];
-                tmp[k].argb = 0u;
-            }
-            if (hdr_use(cl->wall ? &hdr_pass_wall : &hdr_pass))
-                ta_bytes += 32u * sh4der_bump_send_fan(tmp, cl->n, cl->oargb_kos);
+                ta_bytes += 32u * sh4der_bump_send_fan(tmp, cl->n);
         } else if (hdr_use(cl->wall ? &hdr_op_wall : clean ? &hdr_op_clean : &hdr_op_baked)) {
-            ta_bytes += 32u * sh4der_bump_send_fan(cl->v, cl->n, 0u);
+            ta_bytes += 32u * sh4der_bump_send_fan(cl->v, cl->n);
         }
     }
     if (opt[ROW_METHOD])
         tess_send(clean);
 }
 
-/* The variants' translucent passes, after the bump overlay (the list draws in the order sent; the cells do not cover each other).
-   A2: one pass over the lit cells. B, C: map by map (a header a map and a surface), then the picture multiplied on. */
-static void ab_tr(void) {
+/* The normal map's translucent passes, after the base (the list draws in the order sent; the cells do not cover each other): map by map (a header a map and a surface),
+   then the picture, lit per vertex as the base is, multiplied on twice (DESTCOLOR x the source colour). */
+static void floor_tr(void) {
     sh4der_bump_vert_t tmp[9];
     const int filt = opt[ROW_BFILTER] ? 1 : 0;
     unsigned i, k, t, p;
-    if (ab_mode == AB_BUMP)
+    hdr_cur = NULL;
+    ab_lit = 0;
+    if (!opt[ROW_BUMP])
         return;
-    if (ab_mode == AB_A2) {
-        static const float tint[3] = { 1.0f, SH4DER_TORCH_TINT_G, SH4DER_TORCH_TINT_B };
-        if (torch_power <= 0.0f && gun_power <= 0.0f)
-            return;   /* the hot core is the torch's (and the flash's): none under the sky alone */
+    for (i = 0; i < cell_count; i++)
+        ab_lit += cells[i].bump ? 1u : 0u;
+    for (t = 0; t < G_COUNT; t++) {
         for (i = 0; i < cell_count; i++) {
             const cell_t *cl = &cells[i];
-            if (ab_cell_mode(cl) != AB_A2 || !hdr_use(&hdr_a2[cl->wall][filt]))
-                continue;
-            for (k = 0; k < cl->n; k++) {
-                tmp[k] = cl->v[k];
-                tmp[k].argb = sh4der_bump_hot_argb(cl->sv[k] * AB_BOOST, tint);
-            }
-            ta_bytes += 32u * sh4der_bump_send_fan(tmp, cl->n, 0u);
-        }
-        return;
-    }
-    for (t = ab_mode == AB_B ? G_Z : G_XX; t <= (ab_mode == AB_B ? (unsigned)G_YN : (unsigned)G_YZN); t++) {
-        for (i = 0; i < cell_count; i++) {
-            const cell_t *cl = &cells[i];
-            if (ab_cell_mode(cl) != ab_mode)
+            if (!cell_has_map(cl))
                 continue;
             for (p = 0; p < cl->ab_n && cl->ab_t[p] != t; p++)
                 ;
@@ -1740,72 +1605,14 @@ static void ab_tr(void) {
                 tmp[k] = cl->v[k];
                 tmp[k].argb = pack_argb(g, g, g);
             }
-            ta_bytes += 32u * sh4der_bump_send_fan(tmp, cl->n, 0u);
+            ta_bytes += 32u * sh4der_bump_send_fan(tmp, cl->n);
         }
     }
-    for (i = 0; i < cell_count; i++) {   /* the picture, lit per vertex as the base is, times the level (C: twice) */
-        const cell_t *cl = &cells[i];
-        const int baked = opt[ROW_FLOOR] == 2;
-        if (ab_cell_mode(cl) != ab_mode)
-            continue;
-        if (hdr_use(ab_mode == AB_C ? &hdr_apply2[cl->wall ? 2 : baked] : cl->wall ? &hdr_apply_wall : baked ? &hdr_apply_baked : &hdr_apply))
-            ta_bytes += 32u * sh4der_bump_send_fan(cl->v, cl->n, 0u);
-    }
-}
-
-static void floor_tr(void) {
-    unsigned i;
-    sh4der_bump_vert_t tmp[9];
-    hdr_cur = NULL;
-    ab_lit = 0;
-    if (!opt[ROW_BUMP])
-        return;
     for (i = 0; i < cell_count; i++) {
         const cell_t *cl = &cells[i];
-        if (!cl->bump)
-            continue;
-        ab_lit++;
-        if (ab_cell_mode(cl) >= AB_B)
-            continue;   /* B, C: no bump unit; ab_tr draws the cell */
-        if (opt[ROW_PASS] && (cl->wall || opt[ROW_FLOOR] != 3)) {   /* the example's second pass: the base picture multiplied by that level */
-            if (hdr_use(cl->wall ? &hdr_apply_wall : opt[ROW_FLOOR] == 2 ? &hdr_apply_baked : &hdr_apply))
-                ta_bytes += 32u * sh4der_bump_send_fan(cl->v, cl->n, 0u);
-        } else if (hdr_use(cl->wall ? (opt[ROW_BFILTER] ? &hdr_ovb_wall : &hdr_overlay_wall) :
-                           opt[ROW_FLOOR] == 3 ? (opt[ROW_BFILTER] ? &hdr_ovb_native : &hdr_overlay_native) : (opt[ROW_BFILTER] ? &hdr_ovb_floor : &hdr_overlay))) {   /* Halo's overlay: the bump level multiplied onto the lit base already drawn */
-            unsigned k;
-            for (k = 0; k < cl->n; k++) {
-                tmp[k] = cl->v[k];
-                tmp[k].argb = opt[ROW_SOFT] ? cl->vfade[k] : cl->overlay_argb;   /* soft: the strength at this corner, Gouraud-interpolated over the cell */
-            }
-            ta_bytes += 32u * sh4der_bump_send_fan(tmp, cl->n, cl->oargb_halo);
-        }
+        if (cell_has_map(cl) && hdr_use(&hdr_apply2[cl->wall ? 2 : opt[ROW_FLOOR] == 2]))
+            ta_bytes += 32u * sh4der_bump_send_fan(cl->v, cl->n);
     }
-    hot_cells = 0;
-    if (hot_level[opt[ROW_BHOT]] > 0.0f) {   /* BUMP HOT, after the overlay: the lit side of each groove brightened; the overlay's two-pass is not mixed with it */
-        const uint64_t h0 = timer_us_gettime64();
-        unsigned pass;
-        const unsigned passes = hot_level[opt[ROW_BHOT]] > 1.0f ? 2u : 1u;   /* the cells are built surface by surface (floor, then the walls), so a pass changes header twice at most */
-        for (pass = 0; pass < passes; pass++) {
-            for (i = 0; i < cell_count; i++) {
-                const cell_t *cl = &cells[i];
-                unsigned k;
-                if (!cl->bump || cl->hot_n <= pass || (opt[ROW_PASS] && (cl->wall || opt[ROW_FLOOR] != 3)))
-                    continue;
-                if (!hdr_use(cl->wall ? (opt[ROW_BFILTER] ? &hdr_hotb_wall : &hdr_hot_wall) :
-                             opt[ROW_FLOOR] == 3 ? (opt[ROW_BFILTER] ? &hdr_hotb_native : &hdr_hot_native) : (opt[ROW_BFILTER] ? &hdr_hotb_floor : &hdr_hot_floor)))
-                    continue;
-                for (k = 0; k < cl->n; k++) {
-                    tmp[k] = cl->v[k];
-                    tmp[k].argb = 0xffffffffu;   /* DECAL: the vertex colour is not read */
-                }
-                ta_bytes += 32u * (opt[ROW_SOFT] ? sh4der_bump_send_fan_v(tmp, cl->n, cl->hot_v[pass]) : sh4der_bump_send_fan(tmp, cl->n, cl->oargb_hot[pass]));
-                if (pass == 0u)
-                    hot_cells++;
-            }
-        }
-        slice_us[SL_HOT] += (uint32_t)(timer_us_gettime64() - h0);
-    }
-    ab_tr();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1867,9 +1674,7 @@ static const char *row_value(int row, char *buf, size_t cap) {
     switch (row) {
     case ROW_BUMP: return opt[ROW_BUMP] ? "on" : "off";
     case ROW_TORCH: return opt[ROW_TORCH] ? "on" : "off";
-    case ROW_FLOOR: return opt[ROW_FLOOR] == 0 ? "baked diffuse (DCE today)" : opt[ROW_FLOOR] == 1 ? "clean + bump (helper)" :
-                           opt[ROW_FLOOR] == 2 ? "combined: baked + bump" : "native: game's 64x64 bump";
-    case ROW_PASS: return opt[ROW_PASS] ? "KOS 2 pass" : "Halo overlay";
+    case ROW_FLOOR: return opt[ROW_FLOOR] == 0 ? "baked diffuse (DCE today)" : opt[ROW_FLOOR] == 1 ? "clean + normal map" : "combined: baked + normal map";
     case ROW_AZIMUTH: return opt[ROW_AZIMUTH] ? "y down" : "y up (pvrtex, Halo)";
     case ROW_GRAIN: return opt[ROW_GRAIN] ? "on" : "off";
     case ROW_VIGNETTE: return opt[ROW_VIGNETTE] ? "on" : "off";
@@ -1881,12 +1686,11 @@ static const char *row_value(int row, char *buf, size_t cap) {
     case ROW_BRANGE: snprintf(buf, cap, "%d m (fades from %d m)", 4 + opt[ROW_BRANGE], (int)((float)(4 + opt[ROW_BRANGE]) * BUMP_RANGE_FADE)); return buf;
     case ROW_WALLS: return opt[ROW_WALLS] ? "on" : "off";
     case ROW_SOFT: return opt[ROW_SOFT] ? "on: strength per vertex" : "off: one strength per cell";
-    case ROW_BFILTER: return opt[ROW_BFILTER] ? "bilinear (untested on hardware)" : "nearest (the game's)";
-    case ROW_BHOT: snprintf(buf, cap, "%d %% (%u cells)", (int)(hot_level[opt[ROW_BHOT]] * 100.0f), hot_cells); return buf;
-    case ROW_WIRE: return opt[ROW_WIRE] == 0 ? "off" : opt[ROW_WIRE] == 1 ? "all: cyan cells, orange bump, green tess" : "bump (orange) / tess (green) only";
+    case ROW_BFILTER: return opt[ROW_BFILTER] ? "bilinear" : "nearest";
+    case ROW_WIRE: return opt[ROW_WIRE] == 0 ? "off" : opt[ROW_WIRE] == 1 ? "all: cyan cells, orange normal map, green tess" : "normal map (orange) / tess (green) only";
     case ROW_SCHEME: return opt[ROW_SCHEME] ? "dual stick: left moves, right looks" : "single stick: stick looks, YAXB move";
     case ROW_INVY: return opt[ROW_INVY] ? "on: stick up looks down" : "off: stick up looks up";
-    case ROW_METHOD: return opt[ROW_METHOD] == 0 ? "PVR bump unit" : opt[ROW_METHOD] == 1 ? "TESS VERTEX (bump map normals)" :
+    case ROW_METHOD: return opt[ROW_METHOD] == 0 ? "NORMAL MAP (grey passes)" : opt[ROW_METHOD] == 1 ? "TESS VERTEX (normal map normals)" :
                             hgt_floor_side ? "TESS EXTRUDE (pushed in by height)" : "TESS EXTRUDE (no height map: flat)";
     case ROW_TLEVELS: snprintf(buf, cap, "%d (%d cm sub-quads)", opt[ROW_TLEVELS] + 1, (int)(150.0f / (float)(1 << (opt[ROW_TLEVELS] + 1)))); return buf;
     case ROW_TSPACE: snprintf(buf, cap, "%d cm", (int)tspace_cm[opt[ROW_TSPACE]]); return buf;
@@ -1917,7 +1721,7 @@ static void floor_prompt_update(void) {
 
 static float frame_ms, cpu_ms, render_ms;
 static unsigned ta_kb, ta_max_kb;
-static float eff_own_ms, eff_cpu_delta_ms, eff_rnd_delta_ms, hot_ms;   /* the effect (bump + torch): its own sections, and the cost against the effect off */
+static float eff_own_ms, eff_cpu_delta_ms, eff_rnd_delta_ms;   /* the effect (normal map + torch): its own sections, and the cost against the effect off */
 static int eff_delta_valid;
 static float eff_ta_delta_kb;   /* the TA vertex data the effect adds per frame: on minus off, a one-second average */
 #define KB(b) ((((b) + 1023u) / 1024u) % 10000u)   /* whole KB, four digits at most: the readout lines have a fixed width */
@@ -1926,8 +1730,8 @@ static void hud_update(void) {
     static char prev[8][80];
     unsigned i;
     snprintf(ln[0], 80, "%s: %s   %s", row_name[row_pick], row_value(row_pick, v, sizeof(v)), opt[ROW_SCHEME] ? "(up/down row, left/right/A)" : "(D-pad row/change, B close)");
-    snprintf(ln[1], 80, "edge %d reach %d core %d%% area %d%% fade %d%% range %dm hot %d%%", (int)edge_deg[opt[ROW_EDGE]], (int)reach_wu[opt[ROW_REACH]],
-             (int)(hot_scale[opt[ROW_HOT]] * 100.0f), (int)(barea_scale[opt[ROW_BAREA]] * 100.0f), (int)(bfade_ratio[opt[ROW_BFADE]] * 100.0f), 4 + opt[ROW_BRANGE], (int)(hot_level[opt[ROW_BHOT]] * 100.0f));
+    snprintf(ln[1], 80, "edge %d reach %d core %d%% area %d%% fade %d%% range %dm", (int)edge_deg[opt[ROW_EDGE]], (int)reach_wu[opt[ROW_REACH]],
+             (int)(hot_scale[opt[ROW_HOT]] * 100.0f), (int)(barea_scale[opt[ROW_BAREA]] * 100.0f), (int)(bfade_ratio[opt[ROW_BFADE]] * 100.0f), 4 + opt[ROW_BRANGE]);
     snprintf(ln[2], 80, "cpu %d.%d frm %d.%d rnd %d.%d ms  VRAM free %lu KB", (int)cpu_ms, ((int)(cpu_ms * 10.0f)) % 10, (int)frame_ms,
              ((int)(frame_ms * 10.0f)) % 10, (int)render_ms, ((int)(render_ms * 10.0f)) % 10, (unsigned long)(pvr_mem_available() / 1024u));
     if (ab_state)
@@ -1944,15 +1748,14 @@ static void hud_update(void) {
         else
             snprintf(reg, sizeof(reg), "%u/%u", ta_kb, ta_max_kb);
         if (eff_delta_valid)
-            snprintf(ln[4], 80, "tris %u cells %u hot %u %d.%dms TA %uKB (%+d) reg %s wire %uKB", frame_tris, cell_count, hot_cells, (int)hot_ms, ((int)(hot_ms * 10.0f)) % 10, ta_counted_kb, (int)eff_ta_delta_kb, reg, wire_kb);
+            snprintf(ln[4], 80, "tris %u cells %u TA %uKB (%+d) reg %s wire %uKB", frame_tris, cell_count, ta_counted_kb, (int)eff_ta_delta_kb, reg, wire_kb);
         else
-            snprintf(ln[4], 80, "tris %u cells %u hot %u %d.%dms TA %uKB reg %s wire %uKB", frame_tris, cell_count, hot_cells, (int)hot_ms, ((int)(hot_ms * 10.0f)) % 10, ta_counted_kb, reg, wire_kb);
+            snprintf(ln[4], 80, "tris %u cells %u TA %uKB reg %s wire %uKB", frame_tris, cell_count, ta_counted_kb, reg, wire_kb);
     }
-    snprintf(ln[5], 80, "VRAM effect: floor %u nat %u wall %u torch %u lens %u = %u KB", KB(vram_bump_b), KB(vram_nbump_b), KB(vram_wbump_b), KB(vram_torch_b),
-             KB(vram_lens_b), KB(vram_bump_b + vram_nbump_b + vram_wbump_b + vram_torch_b + vram_lens_b));
+    snprintf(ln[5], 80, "VRAM effect: maps %u torch %u lens %u = %u KB", KB(vram_gmap_b), KB(vram_torch_b), KB(vram_lens_b), KB(vram_gmap_b + vram_torch_b + vram_lens_b));
     snprintf(ln[6], 80, "VRAM base: floor %u wall %u text %u = %u KB (%s)", KB(vram_floor_b), KB(vram_wall_b), KB(vram_text_b),
              KB(vram_floor_b + vram_wall_b + vram_text_b), private_textures ? "priv" : "plhd");
-    if (opt[ROW_METHOD]) {   /* the vertex method needs no bump pass and no video memory of its own: only the normals kept in RAM */
+    if (opt[ROW_METHOD]) {   /* the vertex method needs no grey passes and no video memory of its own: only the normals kept in RAM */
         snprintf(ln[5], 80, "tess %u cells %u strips %u tris (cap %u) L%u %dcm TA+%uKB drop %u", tess_cells_n, tess_prims, tess_tris, tcap_v[opt[ROW_TCAP]], tess_lv_used,
                  (int)(150.0f / (float)(1u << tess_lv_used)), (tess_vb + 1023u) / 1024u, tess_drop);
         snprintf(ln[6], 80, "VRAM effect 0 KB; RAM normals %u heights %u KB, verts %u/%u", ((nrm_floor_side * nrm_floor_side + nrm_wall_side * nrm_wall_side) * 3u + 1023u) / 1024u,
@@ -1961,7 +1764,7 @@ static void hud_update(void) {
         snprintf(ln[7], 80, "tess %d.%d ms = plan %d.%d shade %d.%d emit %d.%d | send %d.%d ms", MS1(tess_ms), MS1(tplan_ms), MS1(tshade_ms), MS1(temit_ms), MS1(tsend_ms));
 #undef MS1
     } else {
-        snprintf(ln[7], 80, "method: PVR bump unit (METHOD row: TESS VERTEX)");
+        snprintf(ln[7], 80, "method: normal map, grey passes (METHOD row: TESS VERTEX)");
     }
     {   /* the texture is rebuilt and uploaded only when a line changed */
         int same = 1;
@@ -1979,23 +1782,18 @@ static void hud_update(void) {
     pvr_txr_load(hud_pixels, hud_mem, sizeof(hud_pixels));
 }
 
-/* The variant's label, always on screen (bottom right): its name, the draws a lit cell takes at most, the lit cells, the TA bytes its translucent passes sent last frame,
-   the video memory of the textures it needs, and the last second's cpu / render / frame ms. Rebuilt and uploaded only when a line changed. */
+/* The label, always on screen (bottom right): its name, the draws a lit cell takes at most (the level, six grey passes, the picture), the lit cells, the TA bytes the
+   normal map's passes sent last frame, the video memory of the grey maps, and the last second's cpu / render / frame ms. Rebuilt and uploaded only when a line changed. */
 static void ab_label_update(void) {
-    static const char *const name[AB_MODES] = { "0: PVR bump (as is)", "A2: hot core on bright texels", "B: per-axis grey, banding expected", "C: highlight power 2" };
-    static const uint8_t draws[AB_MODES] = { 2, 3, 5, 8 };   /* 0: base + overlay; A2: + 1; B: level + 3 grey + picture; C: level + 6 grey + picture */
-    static const uint8_t maps[AB_MODES] = { 0, 1, 5, 9 };
     static char prev[4][44];
     char ln[4][44];
-    const unsigned bump_b = vram_bump_b + vram_wbump_b;
-    const unsigned vb = (ab_mode <= AB_A2 ? bump_b : 0u) + maps[ab_mode] * (g_bytes[0] + g_bytes[1]);
     unsigned i;
     memset(ln, 0, sizeof(ln));
-    snprintf(ln[0], 43, "%s", name[ab_mode]);
-    snprintf(ln[1], 43, "draws/cell <=%u lit %u TA %lu B", (unsigned)draws[ab_mode], ab_lit, (unsigned long)ab_ta);
-    snprintf(ln[2], 43, "VRAM %uKB cpu %d.%d rnd %d.%d frm %d.%d ms", KB(vb), (int)cpu_ms, ((int)(cpu_ms * 10.0f)) % 10, (int)render_ms, ((int)(render_ms * 10.0f)) % 10,
+    snprintf(ln[0], 43, "normal map: highlight power 2");
+    snprintf(ln[1], 43, "draws/cell <=8 lit %u TA %lu B", ab_lit, (unsigned long)ab_ta);
+    snprintf(ln[2], 43, "VRAM %uKB cpu %d.%d rnd %d.%d frm %d.%d ms", KB(vram_gmap_b), (int)cpu_ms, ((int)(cpu_ms * 10.0f)) % 10, (int)render_ms, ((int)(render_ms * 10.0f)) % 10,
              (int)frame_ms, ((int)(frame_ms * 10.0f)) % 10);
-    snprintf(ln[3], 43, "L next  R fire  filter %s", opt[ROW_BFILTER] ? "bilinear*" : "nearest");   /* * bilinear: the game's sampler, a thin wrong line where the azimuth wraps */
+    snprintf(ln[3], 43, "R fire  filter %s", opt[ROW_BFILTER] ? "bilinear" : "nearest");
     if (!memcmp(prev, ln, sizeof(prev)))
         return;
     memcpy(prev, ln, sizeof(prev));
@@ -2077,25 +1875,19 @@ static void measure_start(void) {   /* START: the effect off, then on (ab_tick) 
    closed (hold: Y forward, A back, X strafe left, B strafe right); D-pad UP toggles the torch, D-pad DOWN opens the menu, START measures the effect. While the menu is
    OPEN the face buttons do not move: D-pad up / down pick a row, left / right change it, A changes it too, B or START closes it (the stick still looks).
    DUAL STICK (the earlier scheme, row CONTROLS): the left stick moves, the right stick looks, X toggles the torch, Y opens and closes the menu, the D-pad picks and
-   changes rows (up / down, left / right, A), START measures. In both, the L trigger cycles the A/B variant and the R trigger fires. */
+   changes rows (up / down, left / right, A), START measures. In both, the R trigger fires. */
 static void input(float dt) {
     static uint32_t last;
-    static int lt_prev;
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
     uint32_t down, held;
     float mv_f = 0.0f, mv_r = 0.0f, look_x = 0.0f, look_y = 0.0f;
-    int lt;
     if (!st)
         return;
     held = st->buttons;
     down = held & ~last;
     last = held;
-    lt = st->ltrig > 160;   /* the left trigger cycles the A/B variant; the right trigger fires while it is held (the wireframe is the WIREFRAME row's only) */
-    if (lt && !lt_prev)
-        ab_mode = (ab_mode + 1) % AB_MODES;
-    lt_prev = lt;
-    gun_held = st->rtrig > 160;
+    gun_held = st->rtrig > 160;   /* the right trigger fires while it is held (the wireframe is the WIREFRAME row's only) */
     if (opt[ROW_SCHEME] == 0) {   /* single stick */
         if (hud_show) {           /* the menu is open */
             if (down & CONT_DPAD_UP) row_pick = (row_pick + ROWS - 1) % ROWS;
@@ -2170,9 +1962,7 @@ int main(void) {
     hgt_floor_ref = height_median(hgt_floor, hgt_floor_side);
     hgt_wall_ref = height_median(hgt_wall, hgt_wall_side);
     make_prompt();
-    vram_bump_b = tex_bump.bytes;
-    vram_wbump_b = tex_wbump.bytes;
-    vram_nbump_b = tex_nbump.mem == tex_bump.mem ? 0u : tex_nbump.bytes;   /* shared with the helper's map: no memory of its own */
+    vram_gmap_b = G_COUNT * (g_bytes[0] + g_bytes[1]);
     vram_floor_b = tex_baked.bytes + tex_clean.bytes;
     vram_wall_b = tex_wall.bytes;
     vram_text_b = (unsigned)(sizeof(hud_pixels) + sizeof(prompt_pixels) + sizeof(fprompt_pixels) + sizeof(ab_label_px));
@@ -2188,8 +1978,8 @@ int main(void) {
     cones_update();
     hud_update();   /* the readout once now: its texture holds nothing until the first update */
     ab_label_update();
-    printf("torchwalk: VRAM effect bump floor %u native %u wall %u torch %u lens %u = %u KB; base floor %u wall %u text %u = %u KB\n", KB(vram_bump_b), KB(vram_nbump_b),
-           KB(vram_wbump_b), KB(vram_torch_b), KB(vram_lens_b), KB(vram_bump_b + vram_nbump_b + vram_wbump_b + vram_torch_b + vram_lens_b), KB(vram_floor_b), KB(vram_wall_b), KB(vram_text_b), KB(vram_floor_b + vram_wall_b + vram_text_b));
+    printf("torchwalk: VRAM effect maps %u torch %u lens %u = %u KB; base floor %u wall %u text %u = %u KB\n", KB(vram_gmap_b), KB(vram_torch_b), KB(vram_lens_b),
+           KB(vram_gmap_b + vram_torch_b + vram_lens_b), KB(vram_floor_b), KB(vram_wall_b), KB(vram_text_b), KB(vram_floor_b + vram_wall_b + vram_text_b));
     printf("torchwalk: %s, textures %u KB, VRAM free %lu KB\n", private_textures ? "private textures" : "placeholder textures", tex_kb_total,
            (unsigned long)(pvr_mem_available() / 1024u));
     previous = win_t0 = timer_us_gettime64();
@@ -2261,7 +2051,7 @@ int main(void) {
         t = timer_us_gettime64();
         {
             const uint32_t b0 = ta_bytes;
-            floor_tr();   /* the bump polygons (the effect's submit), and the A/B variant's passes */
+            floor_tr();   /* the normal map's passes (the effect's submit) */
             ab_ta = ta_bytes - b0;
         }
         t_tr = timer_us_gettime64() - t;
@@ -2344,7 +2134,6 @@ int main(void) {
             frame_ms = (float)win_frame_us * 1.0e-3f / fr;
             render_ms = (float)win_rnd_ns * 1.0e-6f / fr;
             eff_own_ms = (float)((opt[ROW_METHOD] ? slice_us[SL_TESS] + slice_us[SL_TSEND] : slice_us[SL_BUMPLIGHT] + slice_us[SL_BUMPSUB]) + slice_us[SL_TORCH]) * 1.0e-3f / fr;
-            hot_ms = (float)slice_us[SL_HOT] * 1.0e-3f / fr;   /* inside the bump submit above */
             tess_ms = (float)slice_us[SL_TESS] * 1.0e-3f / fr;
             tplan_ms = (float)slice_us[SL_TPLAN] * 1.0e-3f / fr;
             tshade_ms = (float)slice_us[SL_TSHADE] * 1.0e-3f / fr;
@@ -2360,15 +2149,15 @@ int main(void) {
             }
             if (serial_lines < 60u) {   /* capped: serial is 115200 baud */
                 serial_lines++;
-                printf("torchwalk: cpu %lu us (in %lu corners %lu clip %lu proj %lu bumplight %lu hud %lu max %lu submit %lu bumpsub %lu torch %lu lens %lu hot %lu wire %lu) frm %lu rnd %lu us "
-                       "TA reg %u/%u counted %u KB cells %u effect %lu us | ab %d lit %u ab TA %lu B\n",
+                printf("torchwalk: cpu %lu us (in %lu corners %lu clip %lu proj %lu bumplight %lu hud %lu max %lu submit %lu bumpsub %lu torch %lu lens %lu wire %lu) frm %lu rnd %lu us "
+                       "TA reg %u/%u counted %u KB cells %u effect %lu us | lit %u normal map TA %lu B\n",
                        (unsigned long)(win_cpu_us / win_frames), (unsigned long)(slice_us[SL_INPUT] / win_frames), (unsigned long)(slice_us[SL_CORNERS] / win_frames),
                        (unsigned long)(slice_us[SL_CLIP] / win_frames), (unsigned long)(slice_us[SL_PROJECT] / win_frames), (unsigned long)(slice_us[SL_BUMPLIGHT] / win_frames),
                        (unsigned long)(slice_us[SL_HUD] / win_frames), (unsigned long)slice_hud_max, (unsigned long)(slice_us[SL_SUBMIT] / win_frames),
-                       (unsigned long)(slice_us[SL_BUMPSUB] / win_frames), (unsigned long)(slice_us[SL_TORCH] / win_frames), (unsigned long)(slice_us[SL_LENS] / win_frames), (unsigned long)(slice_us[SL_HOT] / win_frames), (unsigned long)(slice_us[SL_WIRE] / win_frames),
+                       (unsigned long)(slice_us[SL_BUMPSUB] / win_frames), (unsigned long)(slice_us[SL_TORCH] / win_frames), (unsigned long)(slice_us[SL_LENS] / win_frames), (unsigned long)(slice_us[SL_WIRE] / win_frames),
                        (unsigned long)(win_frame_us / win_frames), (unsigned long)(win_rnd_ns / 1000u / win_frames), ta_kb, ta_max_kb, ta_counted_kb, cell_count,
                        (unsigned long)(((opt[ROW_METHOD] ? slice_us[SL_TESS] + slice_us[SL_TSEND] : slice_us[SL_BUMPLIGHT] + slice_us[SL_BUMPSUB]) + slice_us[SL_TORCH]) / win_frames),
-                       ab_mode, ab_lit, (unsigned long)ab_ta);
+                       ab_lit, (unsigned long)ab_ta);
             }
             memset(slice_us, 0, sizeof(slice_us));
             slice_hud_max = 0;

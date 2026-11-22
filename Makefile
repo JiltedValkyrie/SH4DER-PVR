@@ -208,8 +208,8 @@ $(BUILD)/shz/water_test $(BUILD)/water_test.elf $(BUILD)/shz/pl4nar_test $(BUILD
 $(BUILD)/ocean_scene_test: test/ocean_scene_test.c $(OCEAN_HEADERS)
 $(BUILD)/shz/ocean_scene_test $(BUILD)/ocean_scene_test.elf: $(OCEAN_HEADERS)
 
-# Torch walk A/B: a first-person walk over a dark floor with the torch, to see the PowerVR's normal map pass (its bump unit) and the hot pass next to ordinary blend
-# passes of grey textures (demo/torchwalk_ab.c, include/sh4der_bump.h). The L trigger cycles the variant, the R trigger fires.
+# Torch walk: a first-person walk over a dark floor with the torch, to see the normal map (highlight power 2: add passes of grey maps made from the normals, then the picture
+# twice) lit by it (demo/torchwalk_ab.c, include/sh4der_bump.h). The R trigger fires.
 # TORCHWALK_STAGE names a folder whose files go on the disc (the demo reads TWTEX.BIN from it if it is there); without it the demo makes its own textures.
 .PHONY: torchwalk-ab
 TORCHWALK_AB_CDI ?= $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.cdi
