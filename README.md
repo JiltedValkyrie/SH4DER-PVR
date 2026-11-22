@@ -811,6 +811,35 @@ unsigned sh4der_bolt_draw(const sh4der_bolt_t *b, const sh4der_bolt_params_t *p,
 
 `test/bolt_test.c`: defaults and bad params, seed determinism, strand shape and forks, segment count and chaining, the re-roll clock and what a re-roll keeps (the kept share of the bolt, .4 - .8), the gain range, quad width in pixels at two distances, the halo, fork dimming, the near plane, and no NaN over 100 re-rolls.
 
+## The motes effect (a steady field of drifting specks)
+
+`include/sh4der_motes.h` (the field maths and the sprite quads, inline, host tested) and `src/sh4der_motes.c` (the KallistiOS draw). Embers, dust, pollen, ash, snow flecks: small square sprites born near an anchor in the world, drifting and falling, fading as they age and born again, drawn as hard 1-bit dots. Nothing is stored per speck: every value comes from (slot number, time), so the field costs no memory and never needs an update. The caller gives emitters (a position and a seed) and one params row; nothing here knows a game.
+
+- **Stateless rule.** An emitter owns `ceil(rate x life_hi)` slots (210 at 30 a second and 7 s). Slot i has its own life between `life_lo` and `life_hi` and its own phase; at time t it is `age` seconds into generation `gen`. Every pick (start box, velocity, acceleration, size) is an integer hash of (slot, generation, salt), so a slot starts somewhere new each loop and the field does not visibly repeat. Position is start + v x age + a x age^2 / 2.
+- **Curves.** Alpha rises 0 -> 1 over `alpha_in` of the life; the mask opens as alpha passes `clip` (the dot grows from nothing, no pop, no blending); colour holds to `col_hold`, falls to the fade colour at `col_end`; a speck dimmer than `cull_k` is not drawn (40 % of the quads on the default look).
+- **On screen.** Side = size x focal / depth pixels, held between `min_px` and `max_px`; under `min_px` the sprite is `min_px` wide with brightness x (true / min_px)^2 (the same light in fewer pixels); over `big_px` it is dimmed to `big_k`. An emitter past `lod_cut` is not drawn. The `max_draw` brightest (brightness x screen area) are kept.
+- **Draw.** Punch-through list over one 16 x 16 round mask (`sh4der_motes_mask_make`, 512 B VRAM, no filtering, depth write on), or untextured in the opaque list for sprites of `flat_px` or less (0 B). Both guards of `sh4der_guard.h`.
+- **Cost (default look, three emitters, two in range).** RAM: no state; the caller's collect buffer is 32 B x `max_draw` (3,072 B at 96); params 136 B; one emitter 16 B; two polygon headers 64 B. VRAM: 512 B (mask, optional). AICA: 0. TA a frame: one header + 4 vertices a sprite, at most 96 sprites: 12.3 KB. CPU: one hash set and one position per live slot, SH4ZAM for all maths.
+
+```c
+void     sh4der_motes_params_default(sh4der_motes_params_t *p);
+int      sh4der_motes_params_valid(const sh4der_motes_params_t *p);
+unsigned sh4der_motes_slots(const sh4der_motes_params_t *p);
+int      sh4der_motes_slot(const sh4der_motes_params_t *p, const sh4der_motes_emitter_t *e, unsigned slot, float t, sh4der_motes_ember_t *out);
+unsigned sh4der_motes_collect(const sh4der_motes_params_t *p, const sh4der_motes_emitter_t *em, unsigned n_em, float t,
+                              const sh4der_spark_view_t *view, const sh4der_spark_screen_t *screen, sh4der_motes_draw_t out[SH4DER_MOTES_DRAW_MAX]);
+int      sh4der_motes_quad(const sh4der_motes_draw_t *d, sh4der_spark_vtx_t out[4]);
+void     sh4der_motes_mask_make(uint16_t out[256]);
+int      sh4der_motes_init_masked(void *texture, int txr_format);                                 /* Dreamcast */
+int      sh4der_motes_init_flat(void);                                                           /* Dreamcast */
+unsigned sh4der_motes_draw_masked(const sh4der_motes_draw_t *d, unsigned n, int all, const sh4der_spark_view_t *view,
+                                  const sh4der_spark_screen_t *screen);                           /* Dreamcast, punch-through list */
+unsigned sh4der_motes_draw_flat(const sh4der_motes_draw_t *d, unsigned n, const sh4der_spark_view_t *view,
+                                const sh4der_spark_screen_t *screen);                             /* Dreamcast, opaque list */
+```
+
+`test/motes_test.c`: defaults and bad params, the hash (range, spread, salts differ), the stateless rule (same slot and time, same speck; a new generation starts elsewhere), the curves (opens at clip x alpha_in, colour hold and fade, nothing drawn when dark), the live count (85 - 130 of 210), screen side limits, the vertex colour, the quad corners, the cap keeps the brightest, lod cut, behind the eye, bad arguments, the round mask, no NaN over 200 frames. Both maths back ends.
+
 ## The frame read
 
 `sh4der_frame.h`, `src/sh4der_frame.c`: the look and the glow work from the frame the CPU reads off the screen, and that frame is one or two frames old, and which one changes from frame to frame. An effect that takes "last frame's" gain or glow off the read corrects the wrong frame and pulses. So every frame carries a stamp: `sh4der_frame_next` numbers it (0..7) and keeps the eye's gain and the glow's strength it is drawn with; `sh4der_frame_stamp_draw` lays a small block of that number's colour at the top left; `sh4der_frame_read` samples the screen on the grid and reads the stamp back, so the client takes off exactly what the read frame carried (`sh4der_frame_degain`, the glow's `sh4der_glow_unfeed`). The read gives two grids: one sample a cell for the eye, and the darker of two samples a cell for the glow, so one hot pixel alone in its cell (a texture's grain, a letter's stroke) lights nothing. `sh4der_frame_hot` is how hard a light is looked at: a client grows and whitens its sun by it. An emulator shows the CPU a black screen unless it copies the drawn frame into video memory (its framebuffer emulation).

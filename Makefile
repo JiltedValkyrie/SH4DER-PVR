@@ -1,6 +1,6 @@
 # SH4DER-PVR (SH4DOW-DC is included, in the folder sh4dow-dc; SH4DOW= names another checkout)
 #
-#   make test                       host check of the plain C path: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, example/blade
+#   make test                       host check of the plain C path: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, example/blade
 #   make test-shz SH4ZAM=<checkout> host check of the SH4ZAM path (SH4ZAM's software back-end, 0.10 or later): every test
 #   make dc SH4ZAM=<checkout>       Dreamcast library build/libsh4der_core.a (KallistiOS environment sourced)
 #   make test-dc SH4ZAM=<checkout>  build/*_test.elf: every test on the Dreamcast path
@@ -12,8 +12,8 @@ CC      ?= cc
 CFLAGS  ?= -O3
 WARN     = -std=c99 -Wall -Wextra
 BUILD    = build
-SRC      = src/sh4der_core.c src/sh4der_blade.c src/sh4der_holo.c src/sh4der_bloom.c src/sh4der_glow.c src/sh4der_frame.c src/sh4der_warp.c src/sh4der_trail.c src/sh4der_lens.c src/sh4der_focus.c src/sh4der_visor.c src/sh4der_torch.c src/sh4der_ca.c src/sh4der_shafts.c src/sh4der_spark.c src/sh4der_bolt.c
-HDR      = include/sh4der_core.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_bolt.h
+SRC      = src/sh4der_core.c src/sh4der_blade.c src/sh4der_holo.c src/sh4der_bloom.c src/sh4der_glow.c src/sh4der_frame.c src/sh4der_warp.c src/sh4der_trail.c src/sh4der_lens.c src/sh4der_focus.c src/sh4der_visor.c src/sh4der_torch.c src/sh4der_ca.c src/sh4der_shafts.c src/sh4der_spark.c src/sh4der_bolt.c src/sh4der_motes.c
+HDR      = include/sh4der_core.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_bolt.h include/sh4der_motes.h
 
 # kos-cc and kos-ar are the KallistiOS wrappers: they add its flags, its include paths and, when linking, its libraries.
 # Not named KOS_CC / KOS_AR: the KallistiOS environment already sets those to the bare compiler and archiver.
@@ -26,7 +26,7 @@ DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC ships in this repository: the soft shadows, and the column feather every effect here uses
 SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test uvwarp_test water_test ocean_scene_test sss_test spark_test bolt_test
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test uvwarp_test water_test ocean_scene_test sss_test spark_test bolt_test motes_test
 
 .PHONY: test test-shz dc test-dc demo clean
 
@@ -55,6 +55,7 @@ test: $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/uvwarp_test
 	$(BUILD)/spark_test
 	$(BUILD)/bolt_test
+	$(BUILD)/motes_test
 	$(BUILD)/blade
 
 $(BUILD)/%: $(SRC) $(HDR)
@@ -84,6 +85,7 @@ $(BUILD)/sss_test: test/sss_test.c include/sh4der_sss.h
 $(BUILD)/uvwarp_test: test/uvwarp_test.c
 $(BUILD)/spark_test: test/spark_test.c
 $(BUILD)/bolt_test: test/bolt_test.c
+$(BUILD)/motes_test: test/motes_test.c
 $(BUILD)/blade: example/blade.c
 
 test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
@@ -111,6 +113,7 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/uvwarp_test
 	$(BUILD)/shz/spark_test
 	$(BUILD)/shz/bolt_test
+	$(BUILD)/shz/motes_test
 
 $(BUILD)/shz/%: test/%.c $(SRC) $(HDR)
 	@test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
