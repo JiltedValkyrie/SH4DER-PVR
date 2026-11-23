@@ -118,8 +118,8 @@ static inline float sh4der_ca_sqrt_(float x) {
 /** \brief A channel's push for a screen of w x h pixels at `strength` (1 = the shipped split): the k in scale = 1 - k x r2.
     k = mult x SPLIT_PX x strength / (2 x half diagonal), with mult 2 for red, 1 for green, 0 for blue: the intended corner
     shift is SPLIT_PX x strength pixels for red, half of that for green, none for blue. (The factor 2 in mult cancels the 2
-    in the divisor; whether the corner shift is k x half diagonal or 2 k x half diagonal depends on how the mesh code
-    defines r2.) Once a mesh. */
+    in the divisor. sh4der_ca_r2 is 1 in the corner, so the corner sample moves by k x half diagonal pixels: red
+    3 x strength, green 1.5 x strength, blue 0.) Once a mesh. */
 static inline float sh4der_ca_push(int chan, float strength, float w, float h) {
     const float mult = chan == SH4DER_CA_RED ? 2.0f : chan == SH4DER_CA_GREEN ? 1.0f : 0.0f;
     const float half_diag = 0.5f * sh4der_ca_sqrt_(w * w + h * h);

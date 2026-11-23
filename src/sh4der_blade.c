@@ -133,7 +133,7 @@ int sh4der_blade_prepare(sh4der_blade_frame_t *f, const sh4der_blade_params_t *p
     /* Glow = base brightness plus amp x pulse, then floored. Light = a blade-wide brightness factor that dips by
        light_swing at the dimmest pulse and is scaled by the caller's fade. */
     f->glow = p->glow_base + p->glow_amp * f->pulse;
-    if (f->glow < SH4DER_BLADE_MIN_GLOW) f->glow = SH4DER_BLADE_MIN_GLOW;   /* the pulse never goes fully dark (the glow formula can reach 0 for some parameter choices; the floor is SH4DER_BLADE_MIN_GLOW) */
+    if (f->glow < SH4DER_BLADE_MIN_GLOW) f->glow = SH4DER_BLADE_MIN_GLOW;   /* the pulse never goes fully dark: the glow formula can reach 0 for some parameter choices, so it is floored at SH4DER_BLADE_MIN_GLOW */
     f->light = (1.0f - p->light_swing * (1.0f - f->pulse)) * fade;
     f->fade = fade;
     /* A vertex's brightness is (lo + hi x tube) x blockers: lo is the dim level everywhere on the blade (the glow's floor

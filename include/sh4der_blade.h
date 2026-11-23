@@ -65,7 +65,7 @@ extern "C" {
 #define SH4DER_BLADE_GLOW_AMP        0.45f   /**< \brief Glow added at the top of a pulse. */
 #define SH4DER_BLADE_FLOOR           0.40f   /**< \brief Share of the glow away from every tube. */
 #define SH4DER_BLADE_LIGHT_SWING     0.15f   /**< \brief Point light dip at the bottom of a pulse. */
-#define SH4DER_BLADE_MIN_GLOW        0.25f   /**< \brief Lowest glow a pulse reaches (the blade never goes fully transparent; a pulse AMOUNT of 1 would reach 0). */
+#define SH4DER_BLADE_MIN_GLOW        0.25f   /**< \brief Lowest glow a pulse reaches (the blade never goes fully transparent; sh4der_blade.c clamps the glow up to this floor). */
 #define SH4DER_BLADE_AXIS_Z          0.008f  /**< \brief Axis height (the blade's node origin). */
 #define SH4DER_BLADE_A_RHO           0.055f  /**< \brief Tube A orbit radius. */
 #define SH4DER_BLADE_A_INNER         0.012f  /**< \brief Tube A core radius. */
