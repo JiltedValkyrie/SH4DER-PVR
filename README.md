@@ -34,6 +34,9 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | lens | Overlays that need no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash. | Camera look, damage indicators, flashes. | VRAM 8 KB (64 x 64 grain tile); vertex-colour meshes | `sh4der_lens.h` + `sh4der_lens.c` | [section](#the-lens-effect) |
 | look | An eye that adapts to the frame's brightness both ways, a grade (a straight line per channel) and glare in the fog. | Auto exposure and a colour grade for the whole picture. | CPU 4,800 uncached loads + a 64-bin count a frame; VRAM 0; 0 to 6 full-screen quads | `sh4der_look.h` (header only) | [section](#the-look-effect) |
 | motes | A steady field of drifting specks (embers, dust, pollen, ash) with nothing stored per speck. | Ambient floating particles round the player or a source. | RAM no state, 3,072 B collect buffer at 96 sprites; VRAM 512 B mask; at most 96 sprites a frame by default | `sh4der_motes.h` + `sh4der_motes.c` | [section](#the-motes-effect-a-steady-field-of-drifting-specks) |
+| deform | A depth grid for soft ground: feet and wheels press dents in, a rim stands up round them, snow keeps the dent and mud closes it; plus a short list of footprint decals. | Footprints and trails in snow, mud, sand or ash under a ground mesh you already draw. | RAM 25 KB for a 160 x 160 window at 0.25 m (one byte a cell), 644 B for 32 decal prints; VRAM 0; four byte loads a ground vertex; no triangles of its own | `sh4der_deform.h` | [section](#the-deform-effect-ground-that-keeps-a-dent) |
+| mist | A fog bank with a shape: upright translucent sheets one behind the other, each with drifting noise and a top edge that fades out. | Ground fog in a street, a mist bank on water, steam, low cloud: fog that things walk into. | RAM 64 B; VRAM 8 KB for a 64 x 64 noise texture (the caller's); 4 triangles a slice, 48 at the default 12; fill is the cost (not measured) | `sh4der_mist.h` | [section](#the-mist-effect-a-bank-of-slices) |
+| rise | Points of light that sit still, lift off one after another, drift up with a sway, shrink and cool, and come to rest as stars that twinkle. Nothing stored per light. | Candles becoming stars, lanterns released, fireflies leaving a bush, sparks that turn into a night sky. | RAM 84 B parameter block, 0 a light; VRAM 0 of its own; about 50 multiplies and one sine-cosine pair a light a frame; at most N quads on the translucent list, additive (counts, not measured) | `sh4der_rise.h` | header comment |
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); about 0.43 ms for 1,623 vertices measured on an emulator | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
 | pool | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing (also a dark blob shadow). | Street lamp pools and headlight beams on ground polygons too big to light per vertex. | RAM 16 B a vertex (176 B for a 10 triangle disc); VRAM 0 | `sh4der_pool.h` (header only) | [section](#the-pool-effect-light-pools-on-a-plane) |
 | shafts | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light. | Light shafts through a dark scene, the dark twin of the glow's god rays. | RAM 16 KB; VRAM 16 KB (128 x 64 RGB565) | `sh4der_shafts.h` + `sh4der_shafts.c` | [section](#the-shadow-shafts) |
@@ -1018,6 +1021,35 @@ unsigned sh4der_motes_draw_flat(const sh4der_motes_draw_t *d, unsigned n, const 
 ```
 
 `test/motes_test.c`: defaults and bad params, the hash (range, spread, salts differ), the stateless rule (same slot and time, same speck; a new generation starts elsewhere), the curves (opens at clip x alpha_in, colour hold and fade, nothing drawn when dark), the live count (85 - 130 of 210), screen side limits, the vertex colour, the quad corners, the cap keeps the brightest, lod cut, behind the eye, bad arguments, the round mask, no NaN over 200 frames. Both maths back ends.
+
+## The deform effect (ground that keeps a dent)
+
+`include/sh4der_deform.h` (all inline, host tested; no `.c`: it draws nothing). The ground is a mesh the caller already owns; this module holds one byte of height a cell under it and answers "how high is the ground here?" for every vertex.
+
+- **Cells.** 128 is the untouched surface (`ceil_y`), 0 the hard bottom (`floor_y`), values above 128 the raised rim; one step is (ceil - floor) / 128. A 160 x 160 window at 0.25 m a cell covers 40 m and is 25,600 B.
+- **Stamp.** `sh4der_deform_stamp(x, z, bottom_y, radius, amount)` once a frame for each thing that presses (a foot bone, a capsule's bottom, a wheel). Under the source the ground goes to a bowl, `bottom_y` at the centre and `radius / 2` higher at the edge, never under the hard bottom; `amount` eases it in (1 = at once). It only presses down, so a lifted foot leaves its dent. From the edge out to 1.6 radii a rim rises, `rim` (default 0.25) of the dent's depth; a rim never fills an older dent.
+- **Keep or close.** `refill` is steps a second back toward the surface: 0 for snow (dents stay), a few for mud. Fractions carry over, so a slow refill is exact over time.
+- **Window.** `sh4der_deform_recentre(x, z)` once a frame with the camera or player: the window moves in whole cells and the storage wraps (no copy); cells that enter are fresh, a dent that leaves is gone.
+- **Read.** `sh4der_deform_height` (blended between four cells; the plain surface outside the window, so a larger mesh joins without a step), `sh4der_deform_depth` (0..1, to darken a vertex) and `sh4der_deform_slope` (rise per unit along x and z; the normal is (-sx, 1, -sz)).
+- **Sharpness.** A dent is no sharper than the mesh that shows it. For a crisp footprint on a coarse mesh use the print list: `sh4der_deform_prints_add / _tick / _quad` keep the last 32 prints and give each one's quad (four corners, texture coordinates, an alpha that fades at the end of its life) to draw as a blended decal just above the ground. The list also stands alone where the grid is not used.
+- **Not measured:** the cost on a console. The header's figures are counts (bytes and loads), not times.
+
+`test/deform_test.c`: defaults and bad arguments, the bowl and its hard bottom, the rim and its limit, ease-in that arrives, no lift by a later stamp, the height blend, depth, slope, refill with carry, the window (dents kept, dropped, a jump past its size, negative coordinates), the print list (size, direction, fade, replacement, triangle area).
+
+## The mist effect (a bank of slices)
+
+`include/sh4der_mist.h` (all inline, host tested; no `.c`: the caller projects and submits). Table fog tints what is far away but has no shape; this is the shape: a bank lying in a street with clear air above it.
+
+- **The bank.** `slices` upright sheets (default 12, at most 16) spaced evenly through `depth` along a direction in the ground plane, each `2 x half_width` wide, standing from `base_y` to `top_y`. The PVR's translucent sort orders the sheets with the scene, so a figure in the bank is hidden by the sheets in front of it.
+- **Soft top.** A sheet is three rows of vertices: base and feather line carry the slice's alpha, the top row 0, so the top `feather` metres fade out. A feather taller than the bank is the whole height; 0 or less is a hard top.
+- **Opacity.** `opacity` is the share of light the whole bank stops; `sh4der_mist_slice_alpha` gives the alpha one sheet needs for that (within 0.01 of the exact n-th root for 4 to 16 sheets and opacity up to 0.9).
+- **Movement.** Each sheet's texture slides sideways at its own speed (half of them the other way) and wobbles up and down, both hashed from the slice number and `seed`. There is no state: change the block's numbers over time to make the bank grow, thin or roll in.
+- **Near the eye.** A sheet fades over `near_fade` metres as the eye approaches it and is not drawn once the eye is level with it, so walking through the bank never shows a hard plane.
+- **Noise.** `sh4der_mist_noise` fills a tiling cloud pattern, one byte a texel, once at load; pack it as the alpha of a 16-bit texture.
+- **Draw.** `sh4der_mist_slice` gives six vertices in strip order (4 triangles): project them, run `sh4der_tri_area_ok`, submit with blend source alpha / 1 - source alpha, depth test on, depth write off, no culling.
+- **Fill is the cost and is not measured.** Every sheet covers its whole area on screen. Keep the bank low and partial (a band, not a wall across the view) or use fewer sheets.
+
+`test/mist_test.c`: defaults, the per-slice alpha against the exact root, a slice's vertices (place, rows, alpha, triangle areas), even spacing, the eye inside the bank, drift with time and seed, a turned bank, feather limits, bad arguments, the noise (range, seed, tiling).
 
 ## The frame read
 
