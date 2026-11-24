@@ -1,0 +1,189 @@
+{
+ "note": "Sources of the Match Light film, public set: CC0 sounds and one OFL font (the subtitle type, used by tools/narration.py). Nothing listed here is in the repository: tools/audio.py --fetch downloads each file into assets/files and checks its sha256. Every source has a row in CREDITS.md. The film's song is the 'music' entry below (a CC0 recording), given to tools/narration.py --music. This set has no sound bed (the optional 'bed' key of a manifest: a loop under the whole film). The sounds 'carriage' and 'spirit' have no CC0 source yet: a build from this manifest plays the film without them.",
+ "sources": [
+  {
+   "file": "ignition.flac",
+   "url": "https://opengameart.org/sites/default/files/ignition.flac",
+   "sha256": "bd8281bcee65bc705755fd36bdf40d04fadddd474f52fd481233523e178b4ea1",
+   "author": "qubodup",
+   "licence": "CC0 1.0",
+   "page": "https://opengameart.org/content/flare-ignition"
+  },
+  {
+   "file": "fire-1.wav",
+   "url": "https://opengameart.org/sites/default/files/fire-1.wav",
+   "sha256": "26702de8a195bcbafeae72034861d875a1b7917168a25106f4e1957ecdddf7e5",
+   "author": "AntumDeluge",
+   "licence": "CC0 1.0",
+   "page": "https://opengameart.org/content/fire-crackling"
+  },
+  {
+   "file": "wind woosh loop.ogg",
+   "url": "https://opengameart.org/sites/default/files/wind%20woosh%20loop.ogg",
+   "sha256": "0cfdbd3f21ed449689a9024264edf267d0037a6495813a7010827672ec191dac",
+   "author": "SketchMan3",
+   "licence": "CC0 1.0",
+   "page": "https://opengameart.org/content/wind-whoosh-loop"
+  },
+  {
+   "file": "qubodup-snow_steps_dry_0.7z",
+   "url": "https://opengameart.org/sites/default/files/qubodup-snow_steps_dry_0.7z",
+   "sha256": "44b2ead054a341bfa80842fdee85d2fc8a2da1ee202daf4ef114ca7a944fd329",
+   "author": "qubodup",
+   "licence": "CC0 1.0",
+   "page": "https://opengameart.org/content/4-dry-snow-steps",
+   "unpack": "snow_dry"
+  },
+  {
+   "file": "bell3_0.mp3",
+   "url": "https://opengameart.org/sites/default/files/bell3_0.mp3",
+   "sha256": "3716077eea41590357dd380db498ffed1a9cb32b0f1acf81f38ab5efab0f54ad",
+   "author": "n4",
+   "licence": "CC0 1.0",
+   "page": "https://opengameart.org/content/basic-sound-effects"
+  },
+  {
+   "file": "Aldrich-Regular.ttf",
+   "url": "https://raw.githubusercontent.com/google/fonts/06bfe0d62a98375cb09c942fa18e68bd32cff057/ofl/aldrich/Aldrich-Regular.ttf",
+   "sha256": "bcabd8e6db3e8cb59242e8dbdef30bfd9b25be600e2e8f506618008f99138d47",
+   "author": "Matthew Desmond (MADType)",
+   "licence": "SIL Open Font License 1.1",
+   "page": "https://fonts.google.com/specimen/Aldrich"
+  },
+  {
+   "file": "OFL-Aldrich.txt",
+   "url": "https://raw.githubusercontent.com/google/fonts/06bfe0d62a98375cb09c942fa18e68bd32cff057/ofl/aldrich/OFL.txt",
+   "sha256": "de985adf63cff6b1bcb7c5cb55f1c5850fb1d36289d20a0e26d97a281bfcf956",
+   "author": "Matthew Desmond (MADType)",
+   "licence": "SIL Open Font License 1.1 (the licence text itself, copied onto the disc)",
+   "page": "https://fonts.google.com/specimen/Aldrich"
+  },
+  {
+   "file": "4_music_box_tracks_ogg.zip",
+   "url": "https://opengameart.org/sites/default/files/4_music_box_tracks_ogg.zip",
+   "sha256": "93b451f01ea4d530ee41b2239ae23f9be7d5a3b55354bb9893c736a4bd193b2f",
+   "author": "Aureolus_Omicron",
+   "licence": "CC0 1.0",
+   "page": "https://opengameart.org/content/4-music-box-tracks"
+  },
+  {
+   "file": "Cinzel-wght.ttf",
+   "url": "https://raw.githubusercontent.com/google/fonts/06bfe0d62a98375cb09c942fa18e68bd32cff057/ofl/cinzel/Cinzel%5Bwght%5D.ttf",
+   "sha256": "f4d83d34d1f6c741193e4acf4b3dff9531e5a67b6aa65228d00a7db72a4e0f34",
+   "author": "Natanael Gama (The Cinzel Project Authors)",
+   "licence": "SIL Open Font License 1.1",
+   "page": "https://fonts.google.com/specimen/Cinzel"
+  },
+  {
+   "file": "OFL-Cinzel.txt",
+   "url": "https://raw.githubusercontent.com/google/fonts/06bfe0d62a98375cb09c942fa18e68bd32cff057/ofl/cinzel/OFL.txt",
+   "sha256": "f2b3029aba64c378bf0963b62945eee15e564fe4330b934c8f2eb058282b5e83",
+   "author": "The Cinzel Project Authors",
+   "licence": "SIL Open Font License 1.1 (the licence text itself, copied onto the disc)",
+   "page": "https://fonts.google.com/specimen/Cinzel"
+  },
+  {
+   "file": "CormorantGaramond-wght.ttf",
+   "url": "https://raw.githubusercontent.com/google/fonts/06bfe0d62a98375cb09c942fa18e68bd32cff057/ofl/cormorantgaramond/CormorantGaramond%5Bwght%5D.ttf",
+   "sha256": "b20b7d9626dd956b2c5e558692ad328b1f19e3275e2782db4fa07670d83f35e0",
+   "author": "Christian Thalmann (The Cormorant Project Authors)",
+   "licence": "SIL Open Font License 1.1",
+   "page": "https://fonts.google.com/specimen/Cormorant+Garamond"
+  },
+  {
+   "file": "OFL-CormorantGaramond.txt",
+   "url": "https://raw.githubusercontent.com/google/fonts/06bfe0d62a98375cb09c942fa18e68bd32cff057/ofl/cormorantgaramond/OFL.txt",
+   "sha256": "60700d351cac4650c51f3f9db318d2a420f8b45052dba2715eb5fec41f0f6956",
+   "author": "The Cormorant Project Authors",
+   "licence": "SIL Open Font License 1.1 (the licence text itself, copied onto the disc)",
+   "page": "https://fonts.google.com/specimen/Cormorant+Garamond"
+  }
+ ],
+ "sounds": {
+  "wind": {
+   "path": "files/wind woosh loop.ogg",
+   "rate": 11025,
+   "codec": "pcm16",
+   "dur": 5.9
+  },
+  "crackle": {
+   "path": "files/fire-1.wav",
+   "rate": 11025,
+   "codec": "pcm16"
+  },
+  "step0": {
+   "path": "unpack/snow_dry/qubodup-snow_steps_dry/snow_step_dry-01.flac",
+   "rate": 11025
+  },
+  "step1": {
+   "path": "unpack/snow_dry/qubodup-snow_steps_dry/snow_step_dry-02.flac",
+   "rate": 11025
+  },
+  "step2": {
+   "path": "unpack/snow_dry/qubodup-snow_steps_dry/snow_step_dry-03.flac",
+   "rate": 11025
+  },
+  "step3": {
+   "path": "unpack/snow_dry/qubodup-snow_steps_dry/snow_step_dry-04.flac",
+   "rate": 11025
+  },
+  "strike": {
+   "path": "files/ignition.flac",
+   "rate": 22050
+  },
+  "hiss": {
+   "path": "files/fire-1.wav",
+   "rate": 11025,
+   "dur": 0.6,
+   "af": "highpass=f=2500,volume=6dB,afade=t=out:st=0.1:d=0.5"
+  },
+  "flare": {
+   "path": "files/ignition.flac",
+   "rate": 22050,
+   "af": "asetrate=44100*0.7,aresample=44100,volume=3dB"
+  },
+  "bell": {
+   "path": "files/bell3_0.mp3",
+   "rate": 22050,
+   "dur": 2.5,
+   "af": "afade=t=out:st=1.5:d=1.0"
+  },
+  "lights": {
+   "path": "files/wind woosh loop.ogg",
+   "rate": 22050,
+   "stream": true,
+   "af": "aloop=loop=4:size=288000,asetrate=48000*2.0,aresample=48000,highpass=f=600,afade=t=in:d=2.0,atrim=0:7.0"
+  },
+  "star": {
+   "path": "files/wind woosh loop.ogg",
+   "rate": 11025,
+   "start": 1.0,
+   "dur": 1.2,
+   "af": "asetrate=48000*1.8,aresample=48000,afade=t=in:d=0.2,afade=t=out:st=0.35:d=0.3"
+  },
+  "sizzle": {
+   "path": "files/fire-1.wav",
+   "rate": 22050,
+   "stream": true,
+   "af": "aloop=loop=3:size=400000,highpass=f=1500,atrim=0:9.0"
+  }
+ },
+ "references": [
+  {
+   "note": "Not fetched and not shipped: the public-domain printing the narration's story beats were checked against. No translated text is quoted.",
+   "title": "The Fairy Tales of Hans Christian Andersen (Philadelphia: J. B. Lippincott, 1899; translator not named)",
+   "page": "https://archive.org/details/fairytalesofhans00ande",
+   "retrieved": "2026-11-23",
+   "sha256": {
+    "item_page.html": "ad917c3953074ed059f7c8650ae66fb73661d35ab8466404b7936a085016b023",
+    "fairytalesofhans00ande_djvu.txt": "13363371c29296b75c3a7a4480c1836edc33f1da12af55106a11ea043c8b9334"
+   }
+  }
+ ],
+ "music": {
+  "note": "The film's song: this member of the archive above, given to tools/narration.py --music after unpacking.",
+  "archive": "4_music_box_tracks_ogg.zip",
+  "member": "musicbox3_sad_tune.ogg",
+  "sha256": "4f1ca828a308aee091d900eaac55330dc1eb8890d2de5e103bfbf13d3e888fa2"
+ }
+}

@@ -1,0 +1,13 @@
+{
+ "note": "The end credits of the Match Light film: silent-film intertitle cards, in order. tools/credits.py lays them out (credits.bin). layout 'name': a label, a large name, then smaller lines; layout 'source': a label and up to three body lines of at most 36 characters; layout 'columns': a label and up to six body lines in two columns (the left column is filled first). Names and licence names are exactly those of CREDITS.md, but for the music card, where the author's handle Aureolus_Omicron is set as two words, 'Aureolus Omicron', as the director worded the card.",
+ "cards": [
+  {"layout": "name", "label": "Directed & Narrated By", "name": "Jilted Valkyrie", "lines": []},
+  {"layout": "name", "label": "Music", "name": "Aureolus Omicron", "lines": ["(CC0 1.0 Public Domain)"]},
+  {"layout": "name", "label": "Rendered On", "name": "Sega Dreamcast", "lines": ["SH-4 RISC, PowerVR"]},
+  {"layout": "source", "label": "Tale", "lines": ["The Little Match Girl", "Hans Christian Andersen, 1845", "Public domain"]},
+  {"layout": "columns", "label": "Sound", "lines": ["qubodup: Flare ignition", "qubodup: 4 dry snow steps", "AntumDeluge: Fire Crackling", "SketchMan3: wind whoosh loop", "n4: Basic Sound Effects"]},
+  {"layout": "source", "label": "Fonts", "lines": ["Aldrich: Matthew Desmond, 2011", "Cinzel: Natanael Gama", "Cormorant Garamond: C. Thalmann"]},
+  {"layout": "source", "label": "Font Licence", "lines": ["SIL Open Font License 1.1", "covers all three fonts above"]},
+  {"layout": "source", "label": "Libraries", "lines": ["KallistiOS: KOS License", "SH4ZAM: Falco Girgis & contributors", "SH4DER-PVR: Jilted Valkyrie"]}
+ ]
+}

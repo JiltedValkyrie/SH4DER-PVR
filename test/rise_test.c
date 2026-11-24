@@ -7,7 +7,8 @@
    source before time 0; lift-offs differ and are not in index order; height never falls while rising and ends
    at the sky; size and colour move monotonically; a star's position is fixed while its brightness twinkles
    inside the depth; bit-identical answers for the same (i, t); sh4der_rise_done flips at the last arrival;
-   the quad's size, centre and triangle areas; the packed colour.
+   the quad's size, centre and triangle areas; the packed colour; hostile input (every float of the block NaN or
+   infinite, a bad source or time, an enormous time, a bad quad size) is refused or stays finite.
 */
 
 #include <math.h>
@@ -36,7 +37,7 @@ static void source_of(uint32_t i, float s[3]) {
 /* Defaults and bad arguments (a rejected call must leave the output untouched). */
 static void defaults(void) {
     sh4der_rise_params_t p;
-    sh4der_rise_light_t o;
+    sh4der_rise_light_t o = { 0 };
     const float src[3] = { 0.0f, 1.0f, 0.0f };
     const unsigned char *b = (const unsigned char *)&o;
     size_t k;
@@ -79,7 +80,7 @@ static void seated(void) {
     sh4der_rise_init(&p);
     for (i = 0; i < N_LIGHTS; i++) {
         float s[3];
-        sh4der_rise_light_t o;
+        sh4der_rise_light_t o = { 0 };
 
         source_of(i, s);
         CHECK(sh4der_rise_light(&p, i, s, -1.0f, &o));
@@ -121,7 +122,7 @@ static void rising(void) {
     sh4der_rise_init(&p);
     for (i = 0; i < N_LIGHTS; i++) {
         float s[3], t, py, psize, pr, pg, pb, lift;
-        sh4der_rise_light_t o;
+        sh4der_rise_light_t o = { 0 };
         int saw_rising = 0;
 
         source_of(i, s);
@@ -161,7 +162,7 @@ static void star(void) {
     sh4der_rise_params_t p;
     uint32_t i;
     float s[3], lift;
-    sh4der_rise_light_t a, b;
+    sh4der_rise_light_t a = { 0 }, b = { 0 };
 
     sh4der_rise_init(&p);
     for (i = 0; i < 4u; i++) {
@@ -204,7 +205,7 @@ static void determinism(void) {
 
         source_of(i, s);
         for (t = -0.5f; t < 14.0f; t += 0.37f) {
-            sh4der_rise_light_t a, b;
+            sh4der_rise_light_t a = { 0 }, b = { 0 };
 
             CHECK(sh4der_rise_light(&p, i, s, t, &a));
             CHECK(sh4der_rise_light(&p, i, s, t, &b));
@@ -221,11 +222,11 @@ static void done(void) {
     float arrive = 0.0f;
     float t;
     float s[3];
-    sh4der_rise_light_t o;
+    sh4der_rise_light_t o = { 0 };
 
     sh4der_rise_init(&p);
     for (i = 0; i < N_LIGHTS; i++) {
-        const float a = sh4der_rise_liftoff(&p, i) + p.rise_time;
+        const float a = sh4der_rise_arrival(&p, i);
 
         if (a > arrive) {
             arrive = a;
@@ -249,8 +250,8 @@ static void quad(void) {
     const float right[3] = { 1.0f, 0.0f, 0.0f };
     const float up[3] = { 0.0f, 1.0f, 0.0f };
     static const int idx[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };   /* strip order: triangles 0 1 2 and 1 3 2 */
-    sh4der_rise_light_t l;
-    sh4der_rise_vtx_t q[4];
+    sh4der_rise_light_t l = { 0 };
+    sh4der_rise_vtx_t q[4] = { 0 };
     float cx = 0.0f, cy = 0.0f, cz = 0.0f;
     float tri[2][3][3];
     int k;
@@ -291,6 +292,88 @@ static void quad(void) {
     CHECK(sh4der_rise_argb(&l) == 0x80FF8000u);   /* 0.5 -> 128 (rounded), 1 -> 255, 0.5 -> 128, 0 -> 0 */
 }
 
+/* A float built from raw bits, so a NaN or an infinity exists whatever -ffast-math does to arithmetic. */
+static float from_bits(uint32_t bits) {
+    union {
+        uint32_t u;
+        float f;
+    } v;
+
+    v.u = bits;
+    return v.f;
+}
+
+#define BITS_INF  0x7f800000u    /* +infinity */
+#define BITS_NINF 0xff800000u    /* -infinity */
+#define BITS_NAN  0x7fc00000u    /* a quiet NaN */
+
+/* Hostile numbers: an invalid block or a non-finite input is refused and writes nothing; a huge finite time still
+   gives finite outputs. */
+static void hostile(void) {
+    sh4der_rise_params_t p;
+    sh4der_rise_light_t o = { 0 };
+    sh4der_rise_light_t keep = { 0 };
+    sh4der_rise_vtx_t q[4] = { 0 };
+    const float right[3] = { 1.0f, 0.0f, 0.0f };
+    const float up[3] = { 0.0f, 1.0f, 0.0f };
+    const float src[3] = { 0.0f, 1.0f, 0.0f };
+    const float bad[3] = { from_bits(BITS_INF), from_bits(BITS_NINF), from_bits(BITS_NAN) };
+    unsigned f;
+    unsigned k;
+
+    CHECK(sizeof(sh4der_rise_params_t) == 21u * sizeof(float));
+    printf("rise: sizeof(sh4der_rise_params_t) = %u\n", (unsigned)sizeof(sh4der_rise_params_t));
+    memset(&o, 0x55, sizeof(o));
+    memcpy(&keep, &o, sizeof(o));
+
+    /* every float of the block in turn: infinity, minus infinity, NaN -> invalid and refused */
+    for (f = 0; f < 20u; f++) {
+        for (k = 0; k < 3u; k++) {
+            float raw[21];
+
+            sh4der_rise_init(&p);
+            memcpy(raw, &p, sizeof(raw));                          /* the 20 floats come first, then the seed: view them as an array */
+            raw[f] = bad[k];
+            memcpy(&p, raw, sizeof(raw));
+            CHECK(!sh4der_rise_valid(&p));
+            CHECK(!sh4der_rise_light(&p, 0u, src, 1.0f, &o));
+            CHECK(!sh4der_rise_done(&p, 4u, 100.0f));
+        }
+    }
+    CHECK(memcmp(&o, &keep, sizeof(o)) == 0);
+
+    /* a source or a time that is not finite */
+    sh4der_rise_init(&p);
+    for (k = 0; k < 3u; k++) {
+        const float s0[3] = { bad[k], 1.0f, 0.0f };
+        const float s1[3] = { 0.0f, bad[k], 0.0f };
+        const float s2[3] = { 0.0f, 1.0f, bad[k] };
+
+        CHECK(!sh4der_rise_light(&p, 0u, s0, 1.0f, &o) && !sh4der_rise_light(&p, 0u, s1, 1.0f, &o));
+        CHECK(!sh4der_rise_light(&p, 0u, s2, 1.0f, &o) && !sh4der_rise_light(&p, 0u, src, bad[k], &o));
+        CHECK(!sh4der_rise_done(&p, 4u, bad[k]));
+    }
+    CHECK(memcmp(&o, &keep, sizeof(o)) == 0);
+
+    /* an enormous finite time: the light is a star and every output is finite */
+    CHECK(sh4der_rise_light(&p, 3u, src, 3.0e38f, &o) == 1 && o.phase == SH4DER_RISE_STAR);
+    CHECK(sh4der_finite_(o.x) && sh4der_finite_(o.y) && sh4der_finite_(o.z) && sh4der_finite_(o.size) && sh4der_finite_(o.alpha));
+    CHECK(sh4der_rise_light(&p, 3u, src, -3.0e38f, &o) == 1 && o.phase == SH4DER_RISE_SEATED);
+    CHECK(sh4der_rise_done(&p, 4u, 3.0e38f));
+
+    /* a quad of a light whose size is not finite or not positive is refused */
+    memset(q, 0x55, sizeof(q));
+    for (k = 0; k < 3u; k++) {
+        o.size = bad[k];
+        CHECK(!sh4der_rise_quad(&o, right, up, q));
+    }
+    o.size = 0.0f;
+    CHECK(!sh4der_rise_quad(&o, right, up, q));
+    o.size = -1.0f;
+    CHECK(!sh4der_rise_quad(&o, right, up, q));
+    CHECK(((const unsigned char *)q)[0] == 0x55 && ((const unsigned char *)q)[sizeof(q) - 1u] == 0x55);
+}
+
 int main(void) {
     defaults();
     seated();
@@ -300,10 +383,11 @@ int main(void) {
     determinism();
     done();
     quad();
+    hostile();
     if (fails) {
         fprintf(stderr, "rise_test: %d FAILED\n", fails);
         return 1;
     }
-    puts("rise: PASS defaults, bad arguments, seated, lift-off order, rising (height, size, colour), star (fixed, twinkle), determinism, done, quad, packed colour");
+    puts("rise: PASS defaults, bad arguments, seated, lift-off order, rising (height, size, colour), star (fixed, twinkle), determinism, done, quad, packed colour, hostile input");
     return 0;
 }

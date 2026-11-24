@@ -1,0 +1,17 @@
+{
+ "note": "The narrator's lines, one entry per shot of the shot table in matchlight_scene.h, in order. Written for this film in its own words from the story beats of Hans Christian Andersen's public-domain tale (1845); no translation is quoted. tools/narration.py turns them into the on-screen subtitles and, with a recording, into the voice track.",
+ "lines": [
+  {"shot": "M1", "text": "It is New Year's Eve, and the cold is deep. Snow falls on the dark street. Other people's windows glow. Nobody stops."},
+  {"shot": "M2", "text": "A girl walks in from the far end. She has sold no matches all day. She does not dare go home."},
+  {"shot": "M2b", "text": "She lost her slippers in the road, when two carriages rushed past."},
+  {"shot": "M3", "text": "She strikes a match. Its light is warm: an iron stove, with a fire blazing. Then the light goes out."},
+  {"shot": "M4", "text": "The match goes out. The cold comes back."},
+  {"shot": "M4b", "text": "She stays out in the cold, and sits down in the snow. Nobody comes."},
+  {"shot": "M5", "text": "She strikes a second match. A roast goose steams on its dish."},
+  {"shot": "M6", "text": "A third match. A Christmas tree, with candles on every branch. The candles rise, and they look like stars."},
+  {"shot": "M7", "text": "A star falls: a soul going to heaven."},
+  {"shot": "M8", "text": "A fourth match. Her grandmother appears, the only one who ever loved her."},
+  {"shot": "M9", "text": "Now she strikes the whole bundle at once. It is brighter than day. Her grandmother takes her hand. No cold, no hunger."},
+  {"shot": "M10", "text": "On New Year's morning, people find her, almost smiling. They do not know what she saw. Snow covers her."}
+ ]
+}

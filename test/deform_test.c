@@ -10,12 +10,15 @@
    cells and is the surface outside the window; depth and slope agree with the height; the refill closes dents and
    rims at its rate, carries fractions, and does nothing at rate 0; the window follows a point, keeps the dents that
    stay inside, drops the ones that leave, and survives a jump past its own size; the print list keeps the newest
-   prints, ages and fades them, and builds a quad of the asked size that every triangle of has area.
+   prints, ages and fades them, and builds a quad of the asked size that every triangle of has area; hostile input (NaN, infinity, huge radius,
+   position, dt and direction, a zero-area quad) is refused or clamped without a long loop or a change to the grid;
+   the true struct sizes are printed.
 */
 
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "../include/sh4der_deform.h"
 #include "../include/sh4der_guard.h"
 
@@ -205,13 +208,168 @@ static void prints(void) {
     for (i = 0; i < SH4DER_DEFORM_PRINTS; i++) CHECK(p.print[i].x >= 5.0f);    /* the five oldest were replaced */
 }
 
+/* A float built from raw bits, so a NaN or an infinity exists whatever -ffast-math does to arithmetic. */
+static float from_bits(uint32_t bits) {
+    union {
+        uint32_t u;
+        float f;
+    } v;
+
+    v.u = bits;
+    return v.f;
+}
+
+#define BITS_INF  0x7f800000u    /* +infinity */
+#define BITS_NINF 0xff800000u    /* -infinity */
+#define BITS_NAN  0x7fc00000u    /* a quiet NaN */
+
+/* 1 when the whole cell array still holds the undisturbed level */
+static int all_level(void) {
+    unsigned i;
+
+    for (i = 0; i < (unsigned)(W * H); i++) {
+        if (cells[i] != SH4DER_DEFORM_LEVEL) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* Hostile arguments: nothing may crash, loop for long, or change the grid (except a huge but legal radius, which may
+   only press the window). */
+static void hostile(void) {
+    sh4der_deform_t d;
+    static sh4der_deform_prints_t p;
+    sh4der_deform_corner_t q[4];
+    sh4der_deform_corner_t keep[4];
+    const float inf = from_bits(BITS_INF);
+    const float ninf = from_bits(BITS_NINF);
+    const float nan = from_bits(BITS_NAN);
+    const float bad[5] = { inf, ninf, nan, 1.0e30f, -1.0e30f };
+    unsigned k;
+    unsigned n;
+    clock_t t0;
+
+    /* the true sizes of the state structs (printed so a reader can see them; checked for both pointer widths) */
+    printf("deform: sizeof(sh4der_deform_t) = %u, sizeof(sh4der_deform_prints_t) = %u\n", (unsigned)sizeof(sh4der_deform_t),
+           (unsigned)sizeof(sh4der_deform_prints_t));
+    CHECK(sizeof(sh4der_deform_t) == (sizeof(void *) == 4u ? 52u : 56u));
+    CHECK(sizeof(sh4der_deform_prints_t) == 644u);
+
+    /* init refuses non-finite and absurd numbers and writes nothing */
+    memset(&d, 0, sizeof(d));
+    CHECK(sh4der_deform_init(&d, cells, W, H, nan, FLOOR_Y, CEIL_Y) == 0 && sh4der_deform_init(&d, cells, W, H, inf, FLOOR_Y, CEIL_Y) == 0);
+    CHECK(sh4der_deform_init(&d, cells, W, H, CELL, nan, CEIL_Y) == 0 && sh4der_deform_init(&d, cells, W, H, CELL, FLOOR_Y, inf) == 0);
+    CHECK(sh4der_deform_init(&d, cells, W, H, 1.0e-39f, FLOOR_Y, CEIL_Y) == 0);          /* 1 / cell overflows */
+    CHECK(sh4der_deform_init(&d, cells, 100000, H, CELL, FLOOR_Y, CEIL_Y) == 0);          /* window too wide */
+    CHECK(sh4der_deform_init(&d, cells, W, H, CELL, 0.0f, 1.0e-30f) == 0);                /* a step of 0 */
+    CHECK(d.cells == NULL);
+
+    /* a huge or non-finite stamp argument changes nothing, and returns at once */
+    fresh(&d);
+    t0 = clock();
+    for (k = 0; k < 5u; k++) {
+        CHECK(sh4der_deform_stamp(&d, bad[k], 3.0f, -0.1f, 0.3f, 1.0f) == 0);            /* x */
+        CHECK(sh4der_deform_stamp(&d, 3.0f, bad[k], -0.1f, 0.3f, 1.0f) == 0);            /* z */
+        CHECK(sh4der_deform_stamp(&d, 3.0f, 3.0f, bad[k], 0.3f, 1.0f) == 0);             /* bottom_y */
+        CHECK(sh4der_deform_stamp(&d, 3.0f, 3.0f, -0.1f, bad[k], 1.0f) == 0);            /* radius */
+        if (k != 3u) {                                                                  /* 1e30 is a finite amount, clamped to 1 */
+            CHECK(sh4der_deform_stamp(&d, 3.0f, 3.0f, -0.1f, 0.3f, bad[k]) == 0);        /* amount */
+        }
+    }
+    CHECK(sh4der_deform_stamp(&d, 3.0f, 3.0f, -0.1f, 1.0e4f, 1.0f) == 0);                /* a ten-kilometre radius: out of range */
+    CHECK(sh4der_deform_stamp(&d, 3.0f, 3.0f, -0.1f, 1.0e-30f, 1.0f) == 0);              /* a radius too small to use */
+    CHECK(sh4der_deform_stamp(&d, 3.0e38f, 3.0f, -0.1f, 0.3f, 1.0f) == 0);               /* a position whose cell index overflows */
+    CHECK(all_level());
+    /* the largest legal radius: one pass over the window at most, the whole window pressed, and fast */
+    n = sh4der_deform_stamp(&d, 4.0f, 3.0f, -0.1f, SH4DER_DEFORM_MAX_RADIUS, 1.0f);
+    CHECK(n > 0u && n <= (unsigned)(W * H));
+    CHECK((double)(clock() - t0) / (double)CLOCKS_PER_SEC < 1.0);                        /* "returns quickly" */
+
+    /* a position or a window that is not finite or far away */
+    fresh(&d);
+    for (k = 0; k < 3u; k++) {
+        CHECK(sh4der_deform_recentre(&d, bad[k], 0.0f) == 0 && sh4der_deform_recentre(&d, 0.0f, bad[k]) == 0);
+        CHECK(d.origin_x == 0 && d.origin_z == 0);
+    }
+    CHECK(sh4der_deform_recentre(&d, 3.0e38f, 0.0f) == 0 && d.origin_x == 0);            /* overflows once scaled to cells */
+    CHECK(sh4der_deform_recentre(&d, 1.0e30f, -1.0e30f) == (unsigned)(W * H));          /* held at the largest cell index */
+    CHECK(d.origin_x > 0 && d.origin_x < 20000000 && d.origin_z < 0 && d.origin_z > -20000000);
+    CHECK(sh4der_deform_stamp(&d, 1.0e30f, -1.0e30f, -0.1f, 0.3f, 1.0f) == 0);           /* far from the held window */
+    fresh(&d);
+    for (k = 0; k < 5u; k++) {                                                           /* reads at hostile positions */
+        float sx;
+        float sz;
+
+        CHECK(NEAR_(sh4der_deform_height(&d, bad[k], 1.0f), CEIL_Y, SH4DER_TEST_TOL));
+        CHECK(NEAR_(sh4der_deform_height(&d, 1.0f, bad[k]), CEIL_Y, SH4DER_TEST_TOL));
+        CHECK(sh4der_deform_depth(&d, bad[k], bad[k]) == 0.0f);
+        sh4der_deform_slope(&d, bad[k], 1.0f, &sx, &sz);
+        CHECK(sx == 0.0f && sz == 0.0f);
+    }
+
+    /* refill with a huge or non-finite dt, rate or carry */
+    fresh(&d);
+    d.refill = 4.0f;
+    cells[5] = 10;
+    CHECK(sh4der_deform_refill(&d, inf) == 0 && sh4der_deform_refill(&d, nan) == 0 && cells[5] == 10);
+    n = sh4der_deform_refill(&d, 1.0e30f);                                               /* closes everything, no overflow */
+    CHECK(n > 255u && n <= 1000000u && cells[5] == SH4DER_DEFORM_LEVEL);
+    CHECK(d.refill_carry >= 0.0f && d.refill_carry < 1.0f);
+    d.refill = 1.0e30f;
+    cells[5] = 10;
+    n = sh4der_deform_refill(&d, 1.0e30f);                                               /* the product overflows to infinity */
+    CHECK(n > 255u && n <= 1000000u && cells[5] == SH4DER_DEFORM_LEVEL);
+    d.refill = inf;
+    cells[5] = 10;
+    CHECK(sh4der_deform_refill(&d, 1.0f) == 0 && cells[5] == 10);
+    d.refill = 4.0f;
+    d.refill_carry = nan;                                                                /* a corrupt carry is dropped */
+    CHECK(sh4der_deform_refill(&d, 1.0f) == 4u && cells[5] == 14);
+
+    /* prints: refused positions and directions store nothing; an enormous direction is still unit length */
+    sh4der_deform_prints_reset(&p);
+    for (k = 0; k < 3u; k++) {
+        CHECK(sh4der_deform_prints_add(&p, bad[k], 0.0f, 0.0f, 1.0f) == 0);
+        CHECK(sh4der_deform_prints_add(&p, 0.0f, bad[k], 0.0f, 1.0f) == 0);
+        CHECK(sh4der_deform_prints_add(&p, 0.0f, 0.0f, bad[k], 1.0f) == 0);
+        CHECK(sh4der_deform_prints_add(&p, 0.0f, 0.0f, 1.0f, bad[k]) == 0);
+    }
+    CHECK(p.next == 0u && p.print[0].age < 0.0f);
+    CHECK(sh4der_deform_prints_add(&p, 1.0f, 2.0f, 1.0e30f, 1.0e30f) == 1);
+    CHECK(NEAR_(p.print[0].dir_x * p.print[0].dir_x + p.print[0].dir_z * p.print[0].dir_z, 1.0f, 0.0001f));
+    CHECK(sh4der_deform_prints_add(&p, 1.0f, 2.0f, 3.0e38f, -3.0e38f) == 1);
+    CHECK(NEAR_(p.print[1].dir_x * p.print[1].dir_x + p.print[1].dir_z * p.print[1].dir_z, 1.0f, 0.0001f));
+    sh4der_deform_prints_tick(&p, inf, 20.0f);                                           /* a non-finite dt or life: nothing ages */
+    sh4der_deform_prints_tick(&p, 1.0f, nan);
+    CHECK(p.print[0].age == 0.0f);
+
+    /* quads: a zero-area, non-finite or overflowing quad is dropped and nothing is written */
+    memset(q, 0x55, sizeof(q));
+    memcpy(keep, q, sizeof(q));
+    CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, 0.0f, 0.12f, 20.0f, 4.0f, q) == 0);   /* half_w 0 */
+    CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, 0.05f, 0.0f, 20.0f, 4.0f, q) == 0);   /* half_l 0 */
+    CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, -0.05f, 0.12f, 20.0f, 4.0f, q) == 0); /* negative */
+    CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, 1.0e-30f, 1.0e-30f, 20.0f, 4.0f, q) == 0);   /* the area underflows to 0 */
+    for (k = 0; k < 3u; k++) {
+        CHECK(sh4der_deform_prints_quad(&p, 0, bad[k], 0.05f, 0.12f, 20.0f, 4.0f, q) == 0);
+        CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, bad[k], 0.12f, 20.0f, 4.0f, q) == 0);
+        CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, 0.05f, bad[k], 20.0f, 4.0f, q) == 0);
+        CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, 0.05f, 0.12f, bad[k], 4.0f, q) == 0);
+        CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, 0.05f, 0.12f, 20.0f, bad[k], q) == 0);
+    }
+    CHECK(sh4der_deform_prints_quad(&p, 0, 0.01f, 3.0e38f, 3.0e38f, 20.0f, 4.0f, q) == 0);   /* a corner overflows */
+    CHECK(memcmp(q, keep, sizeof(q)) == 0);
+}
+
 int main(void) {
     defaults_and_bad();
     stamp();
     refill();
     window();
     prints();
+    hostile();
     if (fails) { fprintf(stderr, "deform_test: %d FAILED\n", fails); return 1; }
-    puts("deform: PASS defaults, bad arguments, stamp (bowl, floor, rim, ease-in, no lift), height blend, depth, slope, refill, window, prints");
+    puts("deform: PASS defaults, bad arguments, stamp (bowl, floor, rim, ease-in, no lift), height blend, depth, slope, refill, window, prints, hostile input");
     return 0;
 }

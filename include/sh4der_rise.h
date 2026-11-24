@@ -6,7 +6,7 @@
 */
 
 /** \file    sh4der_rise.h
-    \brief   Lights that sit still on something (candles on a tree, lamps, embers), then lift off one after
+    \brief   Lights that sit still on something (lamps, lanterns, embers), then lift off one after
              another, drift upward with a little sideways sway, shrink and cool, and come to rest as stars
              that stay and twinkle faintly.
 
@@ -18,7 +18,7 @@
 
     The stateless rule (the same idea as sh4der_motes.h): nothing is stored per light. The caller owns an
     array of N source positions; the state of light i at effect time t is a pure function of (i, t, params,
-    source), so the same (i, t) always gives the same answer and a paused or scrubbed film shows the same
+    source), so the same (i, t) always gives the same answer and a paused or scrubbed playback shows the same
     frame. Every random pick (lift-off jitter, arrival spot, sway phase, twinkle phase) is an integer hash
     of (i, seed, salt).
 
@@ -43,8 +43,8 @@
     SH4DER_CORE_NO_SH4ZAM for the plain C path. By hand: the integer hash and the colour byte packing.
 
     Version: v0.10
-    The effect: the candles of a tree lift off one by one and become stars.
-    Developed for: a short film's closing shot.
+    The effect: lights sitting on their sources lift off one by one and become stars.
+    Typical use: a field of small lights that leave a surface and settle in the sky.
     Use it for: lanterns released into the sky, fireflies leaving a bush, souls rising, campfire sparks that
       become stars, embers drifting off a pyre.
 
@@ -98,7 +98,7 @@ typedef struct sh4der_rise_params {
     float sky_spread;       /**< \brief Largest x / z distance of a star from its source, world units (>= 0). */
     float sway_amp;         /**< \brief Sideways drift amplitude while rising, world units (>= 0). */
     float sway_freq;        /**< \brief Sway cycles per second (>= 0). */
-    float size0;            /**< \brief Quad side while seated, world units (> 0): a candle flame. */
+    float size0;            /**< \brief Quad side while seated, world units (> 0): the seated light. */
     float size1;            /**< \brief Quad side as a star, world units (> 0): much smaller. */
     float col0[3];          /**< \brief Start colour r, g, b, each 0..1 (warm). */
     float col1[3];          /**< \brief End colour r, g, b, each 0..1 (cool white). */
@@ -124,9 +124,10 @@ typedef struct sh4der_rise_vtx {
     float u, v;             /**< \brief Texture coordinates 0..1. */
 } sh4der_rise_vtx_t;
 
-/** \brief Fill `p` with the defaults: stagger 0.4 s, jitter 3 s, rise 6 s, sky 60 units up with a 20 band,
-    spread 40, sway 1.5 units at 0.3 Hz, size 2 to 0.5, colour (255, 176, 96) to (220, 230, 255), brightness
-    1 to 0.8, twinkle depth 0.3 at 0.7 Hz, seed 0. A NULL pointer does nothing. */
+/** \brief Fill `p` with the DEFAULTS (these numbers are the defaults of this function, not fixed values of the effect):
+    stagger 0.4 s, jitter 3 s, rise 6 s, sky 60 units up with a 20 band, spread 40, sway 1.5 units at 0.3 Hz,
+    size 2 to 0.5, colour (255, 176, 96) to (220, 230, 255), brightness 1 to 0.8, twinkle depth 0.3 at 0.7 Hz,
+    seed 0. A NULL pointer does nothing. */
 static inline void sh4der_rise_init(sh4der_rise_params_t *p) {
     if (!p) {
         return;
@@ -195,6 +196,14 @@ static inline float sh4der_rise_liftoff(const sh4der_rise_params_t *p, uint32_t 
     return sh4der_fma_((float)i, p->stagger, p->jitter * sh4der_rise_hash01(i, p->seed, SH4DER_RISE_SALT_LIFT));
 }
 
+/** \brief Effect time (seconds) at which light i arrives and becomes a star: its lift-off plus rise_time. Not validated.
+    Deliberately NOT inlined: the phase of one light (sh4der_rise_light) and the end of the whole effect
+    (sh4der_rise_done) must compare against the very same number, and a build with -ffast-math may add the terms in
+    a different order at each place it inlines the sum. One compiled body gives one answer. */
+static __attribute__((noinline, unused)) float sh4der_rise_arrival(const sh4der_rise_params_t *p, uint32_t i) {
+    return sh4der_rise_liftoff(p, i) + p->rise_time;
+}
+
 /** \brief Light i of a field, source position `source` (x, y, z), at effect time t seconds (t < 0: all seated).
     Fills `out` and returns 1, or returns 0 and writes nothing for a NULL pointer, invalid params, a source or a
     t that is not finite. */
@@ -214,7 +223,7 @@ static inline int sh4der_rise_light(const sh4der_rise_params_t *p, uint32_t i, c
         u = 0.0f;
         phase = SH4DER_RISE_SEATED;
     } else {
-        phase = (t - lift >= p->rise_time) ? SH4DER_RISE_STAR : SH4DER_RISE_RISING;
+        phase = (t >= sh4der_rise_arrival(p, i)) ? SH4DER_RISE_STAR : SH4DER_RISE_RISING;   /* the number sh4der_rise_done compares with */
         u = sh4der_sat_(sh4der_div_(t - lift, p->rise_time));
     }
     s = u * u * sh4der_fma_(-2.0f, u, 3.0f);                    /* smoothstep: slow start, gentle settle */
@@ -278,13 +287,13 @@ static inline int sh4der_rise_done(const sh4der_rise_params_t *p, uint32_t n, fl
         return 0;
     }
     for (i = 0; i < n; i++) {
-        const float arrive = sh4der_rise_liftoff(p, i) + p->rise_time;
+        const float arrive = sh4der_rise_arrival(p, i);
 
         if (arrive > last) {
             last = arrive;
         }
     }
-    return (t - last) >= 0.0f;
+    return t >= last;
 }
 
 /** \brief The four world corners of a light's camera-facing quad, in strip order: top-left, top-right,

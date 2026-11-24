@@ -17,8 +17,18 @@
 */
 
 #include "../include/sh4der_ca.h"
+#include "../include/sh4der_guard.h"
+#include <string.h>
 
 #ifdef _arch_dreamcast
+
+/* 1 when hdr was compiled into a polygon header (sh4der_poly_hdr_ok): a header that is not must never reach the tile
+   accelerator. The words are read through a copy, so no wider pointer is cast. */
+static int ca_header_ok(const pvr_poly_hdr_t *hdr) {
+    uint32_t words[8];
+    memcpy(words, hdr, sizeof(words));
+    return sh4der_poly_hdr_ok(words);
+}
 
 /* Frees every frame texture in g and clears g->n. Safe with NULL. */
 void sh4der_ca_shutdown(sh4der_ca_gpu_t *g) {
@@ -105,6 +115,8 @@ void sh4der_ca_quad(const sh4der_ca_gpu_t *g, unsigned i, float alpha, float dx,
     int q;
     if (!g || i >= g->n || !g->tex[i])
         return;
+    if (!sh4der_finite_(alpha) || !sh4der_finite_(dx) || !sh4der_finite_(dy) || !sh4der_finite_(z) || !sh4der_finite_(scale) || !(scale > 0.0f))
+        return;   /* a number that is not one, or a quad of no area: nothing is sent */
     ca_header(g, i, &hdr, blend ? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY, g->half ? PVR_FILTER_BILINEAR : PVR_FILTER_NONE,
               blend ? PVR_TXRENV_MODULATEALPHA : PVR_TXRENV_REPLACE, PVR_BLEND_SRCALPHA, PVR_BLEND_INVSRCALPHA);
     if (g->half) {   /* filtered: texel centres, the texels past the picture are not its */
@@ -114,6 +126,8 @@ void sh4der_ca_quad(const sh4der_ca_gpu_t *g, unsigned i, float alpha, float dx,
         u0 = 0.0f; v0 = 0.0f;
         u1 = (float)g->size.w / (float)g->size.tex_w; v1 = (float)g->size.h / (float)g->size.tex_h;
     }
+    if (!ca_header_ok(&hdr))
+        return;
     pvr_prim(&hdr, sizeof(hdr));
     for (q = 0; q < 4; q++) {   /* KOS direct render: straight into the store queue */
         pvr_vertex_t *v = pvr_dr_target();
@@ -141,9 +155,13 @@ void sh4der_ca_channel(const sh4der_ca_gpu_t *g, unsigned i, int chan, float str
     int gx, gy, e;
     if (!g || i >= g->n || !g->tex[i] || !(w > 0.0f) || !(h > 0.0f))
         return;
+    if (!sh4der_finite_(w) || !sh4der_finite_(h) || !sh4der_finite_(z) || !sh4der_finite_(strength))
+        return;   /* a number that is not one: nothing is sent (w and h above 0 give every cell an area) */
     ca_header(g, i, &hdr, add ? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY, PVR_FILTER_BILINEAR, PVR_TXRENV_MODULATE, PVR_BLEND_ONE, PVR_BLEND_ONE);
     k = sh4der_ca_push(chan, strength, w, h);
     inv_diag2 = sh4der_div_(4.0f, w * w + h * h);
+    if (!ca_header_ok(&hdr))
+        return;
     for (gy = 0; gy < SH4DER_CA_MESH_Y; gy++) {
         pvr_prim(&hdr, sizeof(hdr));
         for (gx = 0; gx <= SH4DER_CA_MESH_X; gx++)

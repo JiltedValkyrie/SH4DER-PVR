@@ -10,17 +10,17 @@
              standing one behind the other, each with a slowly drifting noise
              texture and a top edge that fades out.
 
-    Cost first. RAM: the 64 B parameter block; nothing per slice. Video memory: one
+    Cost first. RAM: the parameter block (sh4der_mist_t, 17 four-byte fields, 68 B; the test prints the real size); nothing per slice. Video memory: one
     noise texture, the caller's: 64 x 64 at 16 bits is 8 KB (sh4der_mist_noise
     fills its alpha). Triangles: 4 a slice, so 48 for the default 12 slices, on the
     translucent list, blended. CPU: about 120 multiplies, 7 divides and one sine-cosine
     pair a slice a frame (a count, not a time; most of it is the per-slice alpha, which a caller may compute once). Fill is the real cost and is not measured:
     every slice covers its whole area on screen, so a bank that fills the frame is
     12 full-screen blended layers. Keep the bank low and partial (a band across the
-    street, not a wall across the view), or use fewer slices.
+    scene, not a wall across the view), or use fewer slices.
 
     Table fog (the PVR's fog by depth) tints what is far away, but it has no shape:
-    it cannot be a bank lying in a street with clear air above it. This module is
+    it cannot be a bank lying on the ground with clear air above it. This module is
     the shape: `slices` sheets spaced through `depth` world units along a direction
     in the ground plane, each `2 x half_width` wide and standing from `base_y` to
     `top_y`. The lowest part of a sheet has the slice's full alpha; over the top
@@ -36,8 +36,20 @@
     depth, opacity): every call recomputes from the block, there is no state.
 
     Close to the eye a sheet would cut across the picture as a hard plane, so a
-    sheet fades out as the eye comes within `near_fade` world units of it, and one
-    behind the eye is not drawn.
+    sheet fades out as the eye comes within `near_fade` world units of it. The test
+    is made once per sheet, on the sheet's centre line, as a distance along the
+    bank's direction (not along the camera's view direction): a sheet whose centre
+    line is level with the eye or behind it is not drawn at all (sh4der_mist_slice
+    returns 0); one whose centre line is ahead is returned whole, faded by that
+    distance, and is never cut. A sheet that is wide enough to reach behind the
+    camera's near plane, or that the bank's direction and the view direction
+    disagree about, therefore comes back with its vertices as they are: the
+    caller's own clipper (or the area guard) must deal with the part that is
+    behind the near plane.
+
+    Hostile input: sh4der_mist_valid checks every field of the block (finite and in
+    range); sh4der_mist_slice returns 0 for an invalid block, a non-finite time or
+    eye, or a time so large that the texture position overflows.
 
     The caller projects the six vertices of a slice (a strip, 4 triangles), runs
     its area guard (sh4der_tri_area_ok) and submits them with its own compiled
@@ -53,7 +65,7 @@
     Version: v0.10
     The effect: a low bank of mist with a soft top that drifts and seethes; things
       walk into it and are lost.
-    Developed for: a foggy night street in a short film demo.
+    Typical use: ground fog lying across a scene.
     Use it for: ground fog, a mist bank on water, steam over a vent, smoke under a
       ceiling (turn it over), dust in a valley, low cloud round a peak.
 
@@ -82,16 +94,30 @@ extern "C" {
 #define SH4DER_MIST_DRIFT        0.02f    /**< \brief Default sideways slide of the texture, texture widths a second. */
 #define SH4DER_MIST_SEETHE       0.03f    /**< \brief Default up-and-down wobble of the texture, texture heights. */
 #define SH4DER_MIST_SEETHE_RATE  0.4f     /**< \brief Default wobble speed, radians a second. */
-#define SH4DER_MIST_ALPHA_ROUNDS 5        /**< rief Newton rounds sh4der_mist_slice_alpha takes (each at most 16 multiplies and a divide). */
+#define SH4DER_MIST_ALPHA_ROUNDS 5        /**< \brief Newton rounds sh4der_mist_slice_alpha takes (each at most 16 multiplies and a divide). */
+#define SH4DER_MIST_TAU          6.2831853f /**< \brief 2 pi: radians in a full turn. */
 #define SH4DER_MIST_TILE         8.0f     /**< \brief Default world units one texture width covers across a slice. */
+/** @} */
+
+/** \name Input limits (sh4der_mist_valid refuses a block outside them)
+    @{ */
+#define SH4DER_MIST_MAX_COORD    1.0e6f   /**< \brief Largest position or height magnitude, world units. */
+#define SH4DER_MIST_MAX_EXTENT   1.0e5f   /**< \brief Largest half_width, depth, near_fade or feather magnitude, world units. */
+#define SH4DER_MIST_MIN_TILE     0.01f    /**< \brief Smallest tile, world units (keeps the texture coordinate u far from overflow). */
+#define SH4DER_MIST_MAX_RATE     1.0e3f   /**< \brief Largest drift, seethe or seethe_rate magnitude (widths, heights or radians a second). */
+#define SH4DER_MIST_DIR_MIN2     0.81f    /**< \brief Smallest squared length of (dir_x, dir_z): a direction within 10 % of unit. */
+#define SH4DER_MIST_DIR_MAX2     1.21f    /**< \brief Largest squared length of (dir_x, dir_z). */
 /** @} */
 
 /** \brief A bank. Fill it with sh4der_mist_init, then change any field. */
 typedef struct sh4der_mist {
-    float x, z;            /**< \brief Centre of the bank's NEAR face in the ground plane, world units. */
-    float dir_x, dir_z;    /**< \brief Unit direction in the ground plane the slices are stacked along (near to far). */
+    float x;               /**< \brief Centre of the bank's NEAR face in the ground plane, world units, x. */
+    float z;               /**< \brief Centre of the bank's NEAR face in the ground plane, world units, z. */
+    float dir_x;           /**< \brief Unit direction in the ground plane the slices are stacked along (near to far), x. */
+    float dir_z;           /**< \brief The same direction, z. */
     float half_width;      /**< \brief Half the bank's width across that direction, world units. */
-    float base_y, top_y;   /**< \brief Bottom and top of the bank, world heights. */
+    float base_y;          /**< \brief Bottom of the bank, world height. */
+    float top_y;           /**< \brief Top of the bank, world height (above base_y). */
     float feather;         /**< \brief Height of the soft top, world units; clamped to the bank's height. */
     float depth;           /**< \brief Distance from the first slice to the last, world units. */
     float opacity;         /**< \brief Share of light the whole bank stops, 0 .. 1 (1 - opacity is what comes through). */
@@ -106,7 +132,12 @@ typedef struct sh4der_mist {
 
 /** \brief One vertex of a slice: world position, texture coordinate, alpha 0 .. 1. */
 typedef struct sh4der_mist_vtx {
-    float x, y, z, u, v, alpha;
+    float x;               /**< \brief World position, x. */
+    float y;               /**< \brief World position, y. */
+    float z;               /**< \brief World position, z. */
+    float u;               /**< \brief Texture coordinate, u (grows with the width, wraps in the texture). */
+    float v;               /**< \brief Texture coordinate, v (1 at the base, 0 at the top, plus the wobble). */
+    float alpha;           /**< \brief Opacity, 0 .. 1. */
 } sh4der_mist_vtx_t;
 
 /* a 32-bit integer hash (hand: integer arithmetic; a well-mixed word from a slice number and a salt) */
@@ -126,9 +157,11 @@ static inline float sh4der_mist_unit_(uint32_t a, uint32_t b) {
     return (float)(sh4der_mist_hash_(a, b) >> 8) * (1.0f / 16777216.0f);
 }
 
-/** \brief Sets a bank to the defaults: at the origin, stacked along +z, 6 m wide (half_width 3), 0 to 3 m high, 12 m deep. */
+/** \brief Sets a bank to the DEFAULTS: at the origin, stacked along +z, 6 m wide (half_width 3), 0 to 3 m high, 12 m deep. */
 static inline void sh4der_mist_init(sh4der_mist_t *m) {
-    if (!m) return;
+    if (!m) {
+        return;
+    }
     m->x = 0.0f;
     m->z = 0.0f;
     m->dir_x = 0.0f;
@@ -155,41 +188,118 @@ static inline void sh4der_mist_init(sh4der_mist_t *m) {
     logarithm and an exponential for a difference the picture cannot show).
     Returns 0 for no slices or no opacity. */
 static inline float sh4der_mist_slice_alpha(float opacity, uint32_t slices) {
-    float a, through, target;
+    float a;
+    float through;
+    float target;
     int round;
     uint32_t k;
 
-    if (slices < 1u || !(opacity > 0.0f)) return 0.0f;
-    if (slices > SH4DER_MIST_MAX_SLICES) slices = SH4DER_MIST_MAX_SLICES;
+    if (slices < 1u || !sh4der_finite_(opacity) || !(opacity > 0.0f)) {
+        return 0.0f;
+    }
+    if (slices > SH4DER_MIST_MAX_SLICES) {
+        slices = SH4DER_MIST_MAX_SLICES;
+    }
     opacity = sh4der_sat_(opacity);
-    if (slices == 1u) return opacity;
+    if (slices == 1u) {
+        return opacity;
+    }
     target = 1.0f - opacity;                                    /* what must come through all the slices */
     a = sh4der_div_(opacity, (float)slices);
     for (round = 0; round < SH4DER_MIST_ALPHA_ROUNDS; round++) {
         float p = 1.0f;                                         /* (1 - a)^(n - 1), by repeated multiply: n is at most 16 */
 
-        for (k = 1u; k < slices; k++) p *= 1.0f - a;
+        for (k = 1u; k < slices; k++) {
+            p *= 1.0f - a;
+        }
         through = p * (1.0f - a);                               /* (1 - a)^n */
-        if (!(p > 1.0e-6f)) break;                              /* already opaque: no slope to follow */
+        if (!(p > 1.0e-6f)) {                                   /* already opaque: no slope to follow */
+            break;
+        }
         /* Newton on f(a) = (1 - a)^n - target, f'(a) = -n (1 - a)^(n - 1) */
         a = sh4der_sat_(a + sh4der_div_(through - target, (float)slices * p));
     }
     return a;
 }
 
+/* 1 when v is finite and |v| <= limit, else 0 */
+static inline int sh4der_mist_within_(float v, float limit) {
+    return sh4der_finite_(v) && sh4der_abs_(v) <= limit;
+}
+
+/** \brief 1 when every number of the block is finite and in its documented range, else 0 (also 0 for NULL).
+    Ranges: x, z, base_y, top_y within SH4DER_MIST_MAX_COORD; (dir_x, dir_z) of squared length SH4DER_MIST_DIR_MIN2 ..
+    SH4DER_MIST_DIR_MAX2; half_width > 0 and depth >= 0, each within SH4DER_MIST_MAX_EXTENT; top_y above base_y; feather
+    and near_fade within SH4DER_MIST_MAX_EXTENT (a negative one means none); opacity 0 .. 1; drift, seethe and
+    seethe_rate within SH4DER_MIST_MAX_RATE; tile SH4DER_MIST_MIN_TILE .. SH4DER_MIST_MAX_EXTENT; slices
+    1 .. SH4DER_MIST_MAX_SLICES. Any seed is valid. */
+static inline int sh4der_mist_valid(const sh4der_mist_t *m) {
+    float dir2;
+
+    if (!m) {
+        return 0;
+    }
+    if (!sh4der_mist_within_(m->x, SH4DER_MIST_MAX_COORD) || !sh4der_mist_within_(m->z, SH4DER_MIST_MAX_COORD) ||
+        !sh4der_mist_within_(m->base_y, SH4DER_MIST_MAX_COORD) || !sh4der_mist_within_(m->top_y, SH4DER_MIST_MAX_COORD) ||
+        !(m->top_y > m->base_y)) {
+        return 0;
+    }
+    if (!sh4der_mist_within_(m->dir_x, 2.0f) || !sh4der_mist_within_(m->dir_z, 2.0f)) {
+        return 0;
+    }
+    dir2 = sh4der_len2_(m->dir_x, m->dir_z);                     /* squared length: no root needed */
+    if (!(dir2 >= SH4DER_MIST_DIR_MIN2) || !(dir2 <= SH4DER_MIST_DIR_MAX2)) {
+        return 0;
+    }
+    if (!sh4der_mist_within_(m->half_width, SH4DER_MIST_MAX_EXTENT) || !(m->half_width > 0.0f) ||
+        !sh4der_mist_within_(m->depth, SH4DER_MIST_MAX_EXTENT) || !(m->depth >= 0.0f) ||
+        !sh4der_mist_within_(m->feather, SH4DER_MIST_MAX_EXTENT) || !sh4der_mist_within_(m->near_fade, SH4DER_MIST_MAX_EXTENT)) {
+        return 0;
+    }
+    if (!sh4der_unit_(m->opacity) || !sh4der_mist_within_(m->drift, SH4DER_MIST_MAX_RATE) ||
+        !sh4der_mist_within_(m->seethe, SH4DER_MIST_MAX_RATE) || !sh4der_mist_within_(m->seethe_rate, SH4DER_MIST_MAX_RATE)) {
+        return 0;
+    }
+    if (!sh4der_finite_(m->tile) || !(m->tile >= SH4DER_MIST_MIN_TILE) || !(m->tile <= SH4DER_MIST_MAX_EXTENT)) {
+        return 0;
+    }
+    return m->slices >= 1u && m->slices <= SH4DER_MIST_MAX_SLICES;
+}
+
 /** \brief The six vertices of slice i (0 = nearest the bank's near face) at time `time` seconds, seen from `eye`.
     Strip order: bottom-left, bottom-right, feather-left, feather-right, top-left, top-right: the two bottom rows carry
     the slice's alpha, the top row 0. `left` is the bank's left looking along its direction.
-    Returns SH4DER_MIST_SLICE_VERTS, or 0 when there is nothing to draw: a bad argument, a slice the eye is level with
-    or past (looking along the bank's direction), or one that has faded to nothing. Nothing is written when it returns 0. */
+    Returns SH4DER_MIST_SLICE_VERTS, or 0 when there is nothing to draw: a bad argument, an invalid block
+    (sh4der_mist_valid), a time or eye that is not finite or so large that a texture position overflows, a slice whose
+    centre line the eye is level with or past (measured along the bank's direction, see the file comment), or one that
+    has faded to nothing. Nothing is written when it returns 0. */
 static inline unsigned sh4der_mist_slice(const sh4der_mist_t *m, uint32_t i, float time, const float eye[3], sh4der_mist_vtx_t out[SH4DER_MIST_SLICE_VERTS]) {
-    float along, cx, cz, ahead, alpha, feather, mid_y, u0, u1, v_off, s, c, height, inv_h, v_mid;
-    float lx, lz;
+    float along;
+    float cx;
+    float cz;
+    float ahead;
+    float alpha;
+    float feather;
+    float mid_y;
+    float u0;
+    float u1;
+    float v_off;
+    float s;
+    float c;
+    float height;
+    float inv_h;
+    float v_mid;
+    float phase;
+    float lx;
+    float lz;
     unsigned k;
 
-    if (!m || !eye || !out || m->slices < 1u || m->slices > SH4DER_MIST_MAX_SLICES || i >= m->slices) return 0;
-    if (!(m->half_width > 0.0f) || !(m->top_y > m->base_y) || !(m->tile > 0.0f) || !(m->depth >= 0.0f)) return 0;
-    if (!sh4der_finite_(time) || !sh4der_finite_(eye[0]) || !sh4der_finite_(eye[1]) || !sh4der_finite_(eye[2])) return 0;
+    if (!m || !eye || !out || !sh4der_mist_valid(m) || i >= m->slices) {
+        return 0;
+    }
+    if (!sh4der_finite_(time) || !sh4der_finite_(eye[0]) || !sh4der_finite_(eye[1]) || !sh4der_finite_(eye[2])) {
+        return 0;
+    }
 
     /* where this slice stands: evenly through the depth, the first on the near face */
     along = m->slices > 1u ? m->depth * sh4der_div_((float)i, (float)(m->slices - 1u)) : 0.0f;
@@ -198,10 +308,16 @@ static inline unsigned sh4der_mist_slice(const sh4der_mist_t *m, uint32_t i, flo
 
     /* how far in front of the eye it is, measured along the bank's direction: behind or level = not drawn */
     ahead = sh4der_fma_(cx - eye[0], m->dir_x, (cz - eye[2]) * m->dir_z);
-    if (!(ahead > 0.0f)) return 0;
+    if (!sh4der_finite_(ahead) || !(ahead > 0.0f)) {
+        return 0;
+    }
     alpha = sh4der_mist_slice_alpha(m->opacity, m->slices);
-    if (m->near_fade > 0.0f) alpha *= sh4der_sat_(sh4der_div_(ahead, m->near_fade));
-    if (!(alpha > (1.0f / 255.0f))) return 0;                   /* under one step of an 8-bit alpha: invisible */
+    if (m->near_fade > 0.0f) {
+        alpha *= sh4der_sat_(sh4der_div_(ahead, m->near_fade));
+    }
+    if (!(alpha > (1.0f / 255.0f))) {                           /* under one step of an 8-bit alpha: invisible */
+        return 0;
+    }
 
     height = m->top_y - m->base_y;
     feather = m->feather < 0.0f ? 0.0f : m->feather > height ? height : m->feather;
@@ -210,11 +326,15 @@ static inline unsigned sh4der_mist_slice(const sh4der_mist_t *m, uint32_t i, flo
     v_mid = 1.0f - (mid_y - m->base_y) * inv_h;                 /* v runs 1 at the base to 0 at the top */
 
     /* the texture's place on this slice: its own slide speed (0.5 .. 1.5 of drift, half the slices the other way),
-       its own start, and a small wobble up and down */
+       its own start, and a small wobble up and down; a time large enough to overflow either is refused */
     u0 = sh4der_fma_(time * m->drift, (0.5f + sh4der_mist_unit_(i, m->seed)) * ((i & 1u) ? -1.0f : 1.0f), sh4der_mist_unit_(i, m->seed + 1u));
+    phase = sh4der_fma_(time, m->seethe_rate, sh4der_mist_unit_(i, m->seed + 2u) * SH4DER_MIST_TAU);
+    if (!sh4der_finite_(u0) || !sh4der_finite_(phase)) {
+        return 0;
+    }
     u0 = sh4der_frac_(u0);                                      /* keep it small: a large u loses texel precision */
     u1 = u0 + sh4der_div_(m->half_width + m->half_width, m->tile);
-    sh4der_sincos_(sh4der_fma_(time, m->seethe_rate, sh4der_mist_unit_(i, m->seed + 2u) * 6.2831853f), &s, &c);
+    sh4der_sincos_(phase, &s, &c);
     v_off = m->seethe * s;
     (void)c;
 
@@ -236,11 +356,18 @@ static inline unsigned sh4der_mist_slice(const sh4der_mist_t *m, uint32_t i, flo
 
 /* one octave of the noise: a hashed lattice of `cells` x `cells` values that wraps, blended smoothly between its points */
 static inline float sh4der_mist_lattice_(float fx, float fy, uint32_t cells, uint32_t seed) {
-    const float gx = fx * (float)cells, gy = fy * (float)cells;
-    const float ix = gx - sh4der_frac_(gx), iy = gy - sh4der_frac_(gy);
-    const uint32_t x0 = (uint32_t)ix % cells, y0 = (uint32_t)iy % cells, x1 = (x0 + 1u) % cells, y1 = (y0 + 1u) % cells;
-    float tx = gx - ix, ty = gy - iy;
-    float a, b;
+    const float gx = fx * (float)cells;
+    const float gy = fy * (float)cells;
+    const float ix = gx - sh4der_frac_(gx);
+    const float iy = gy - sh4der_frac_(gy);
+    const uint32_t x0 = (uint32_t)ix % cells;
+    const uint32_t y0 = (uint32_t)iy % cells;
+    const uint32_t x1 = (x0 + 1u) % cells;
+    const uint32_t y1 = (y0 + 1u) % cells;
+    float tx = gx - ix;
+    float ty = gy - iy;
+    float a;
+    float b;
 
     tx = tx * tx * (3.0f - 2.0f * tx);                          /* smoothstep: no crease at the lattice points */
     ty = ty * ty * (3.0f - 2.0f * ty);
@@ -254,13 +381,18 @@ static inline float sh4der_mist_lattice_(float fx, float fy, uint32_t cells, uin
     Three octaves (4, 8 and 16 cells across, weights 4 : 2 : 1). Run it once at load: about 30 multiplies a texel.
     Returns 1, or 0 for a bad argument (nothing is written). */
 static inline int sh4der_mist_noise(uint8_t *out, unsigned w, unsigned h, uint32_t seed) {
-    const float inv_w = w ? sh4der_div_(1.0f, (float)w) : 0.0f, inv_h = h ? sh4der_div_(1.0f, (float)h) : 0.0f;
-    unsigned x, y;
+    const float inv_w = w ? sh4der_div_(1.0f, (float)w) : 0.0f;
+    const float inv_h = h ? sh4der_div_(1.0f, (float)h) : 0.0f;
+    unsigned x;
+    unsigned y;
 
-    if (!out || w < 4u || h < 4u || w > 1024u || h > 1024u) return 0;
+    if (!out || w < 4u || h < 4u || w > 1024u || h > 1024u) {
+        return 0;
+    }
     for (y = 0; y < h; y++) {
         for (x = 0; x < w; x++) {
-            const float fx = (float)x * inv_w, fy = (float)y * inv_h;
+            const float fx = (float)x * inv_w;
+            const float fy = (float)y * inv_h;
             const float n = (4.0f * sh4der_mist_lattice_(fx, fy, 4u, seed) + 2.0f * sh4der_mist_lattice_(fx, fy, 8u, seed + 1u) +
                              sh4der_mist_lattice_(fx, fy, 16u, seed + 2u)) * (1.0f / 7.0f);
 

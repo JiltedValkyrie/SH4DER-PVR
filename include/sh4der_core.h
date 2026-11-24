@@ -193,6 +193,8 @@ static inline void sh4der_cross_(const float a[3], const float b[3], float out[3
 static inline float sh4der_len2_(float a, float b) { return shz_vec2_magnitude_sqr(shz_vec2_init(a, b)); }
 static inline float sh4der_len3_(float a, float b, float c) { return shz_mag_sqr3f(a, b, c); }
 static inline float sh4der_min1_(float x) { return shz_fminf(x, 1.0f); }
+static inline float sh4der_abs_(float x) { return shz_fabsf(x); }   /* |x| */
+static inline float sh4der_clamp_(float x, float lo, float hi) { return shz_clampf(x, lo, hi); }   /* x held between lo and hi (lo <= hi; x finite) */
 static inline __attribute__((always_inline)) float sh4der_sat_(float x) { return shz_saturatef(x); }
 static inline __attribute__((always_inline)) float sh4der_frac_(float x) { return shz_fractf(x); }   /* x - floor(x): 0..1, negatives too */
 static inline __attribute__((always_inline)) float sh4der_trunc_(float x) { return shz_truncf(x); }   /* toward zero, |x| under 2^31 */
@@ -226,6 +228,8 @@ static inline void sh4der_cross_(const float a[3], const float b[3], float out[3
 static inline float sh4der_len2_(float a, float b) { return a * a + b * b; }
 static inline float sh4der_len3_(float a, float b, float c) { return a * a + b * b + c * c; }
 static inline float sh4der_min1_(float x) { return x > 1.0f ? 1.0f : x; }
+static inline float sh4der_abs_(float x) { return x < 0.0f ? -x : x; }
+static inline float sh4der_clamp_(float x, float lo, float hi) { return x < lo ? lo : x > hi ? hi : x; }
 static inline __attribute__((always_inline)) float sh4der_sat_(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
 static inline __attribute__((always_inline)) float sh4der_frac_(float x) { return x - floorf(x); }
 static inline __attribute__((always_inline)) float sh4der_trunc_(float x) { return truncf(x); }

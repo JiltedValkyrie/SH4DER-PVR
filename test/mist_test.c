@@ -9,7 +9,8 @@
    triangles have area); slices are spaced evenly through the depth; a slice behind the eye is not drawn and one the
    eye is close to fades; the texture slides with time, differently on each slice, and the same time gives the same
    answer; the bank can be turned (a direction other than +z); the feather is held within the bank's height; bad
-   arguments write nothing; the noise is filled, uses most of its range, changes with the seed and tiles on both edges.
+   arguments write nothing; hostile input (every float field NaN / infinite / out of range, an enormous time or eye) draws nothing and writes
+   nothing, and the true struct size is printed; the noise is filled, uses most of its range, changes with the seed and tiles on both edges.
 */
 
 #include <math.h>
@@ -165,6 +166,126 @@ static void bad(void) {
     }
 }
 
+/* A float built from raw bits, so a NaN or an infinity exists whatever -ffast-math does to arithmetic. */
+static float from_bits(uint32_t bits) {
+    union {
+        uint32_t u;
+        float f;
+    } v;
+
+    v.u = bits;
+    return v.f;
+}
+
+#define BITS_INF  0x7f800000u    /* +infinity */
+#define BITS_NINF 0xff800000u    /* -infinity */
+#define BITS_NAN  0x7fc00000u    /* a quiet NaN */
+
+/* Hostile blocks and times: an invalid block draws nothing and writes nothing; no output is ever not finite. */
+static void hostile(void) {
+    sh4der_mist_t m;
+    sh4der_mist_vtx_t v[6];
+    sh4der_mist_vtx_t keep[6];
+    const float eye[3] = { 0.0f, 1.5f, -20.0f };
+    const float inf = from_bits(BITS_INF);
+    const float ninf = from_bits(BITS_NINF);
+    const float nan = from_bits(BITS_NAN);
+    const float bad[3] = { inf, ninf, nan };
+    unsigned f;
+    unsigned k;
+    unsigned n;
+
+    printf("mist: sizeof(sh4der_mist_t) = %u\n", (unsigned)sizeof(sh4der_mist_t));
+    CHECK(sizeof(sh4der_mist_t) == 68u);
+    memset(v, 0x55, sizeof(v));
+    memcpy(keep, v, sizeof(v));
+    sh4der_mist_init(&m);
+    CHECK(sh4der_mist_valid(&m) == 1 && sh4der_mist_valid(NULL) == 0);
+    CHECK(sh4der_mist_slice(&m, 0u, 0.0f, eye, v) == 6u);
+    memcpy(v, keep, sizeof(v));
+
+    /* every float field, set in turn to infinity, minus infinity and NaN: invalid, nothing drawn, nothing written */
+    for (f = 0; f < 15u; f++) {
+        for (k = 0; k < 3u; k++) {
+            float *field[15];
+
+            sh4der_mist_init(&m);
+            field[0] = &m.x;
+            field[1] = &m.z;
+            field[2] = &m.dir_x;
+            field[3] = &m.dir_z;
+            field[4] = &m.half_width;
+            field[5] = &m.base_y;
+            field[6] = &m.top_y;
+            field[7] = &m.feather;
+            field[8] = &m.depth;
+            field[9] = &m.opacity;
+            field[10] = &m.near_fade;
+            field[11] = &m.drift;
+            field[12] = &m.seethe;
+            field[13] = &m.seethe_rate;
+            field[14] = &m.tile;
+            *field[f] = bad[k];
+            CHECK(sh4der_mist_valid(&m) == 0);
+            CHECK(sh4der_mist_slice(&m, 0u, 0.0f, eye, v) == 0);
+        }
+    }
+    CHECK(memcmp(v, keep, sizeof(v)) == 0);
+
+    /* finite but out of range */
+    sh4der_mist_init(&m);
+    m.half_width = 1.0e30f;
+    CHECK(sh4der_mist_valid(&m) == 0 && sh4der_mist_slice(&m, 0u, 0.0f, eye, v) == 0);
+    sh4der_mist_init(&m);
+    m.tile = 1.0e-30f;                                             /* u would be infinite */
+    CHECK(sh4der_mist_valid(&m) == 0 && sh4der_mist_slice(&m, 0u, 0.0f, eye, v) == 0);
+    sh4der_mist_init(&m);
+    m.tile = 0.0f;
+    CHECK(sh4der_mist_valid(&m) == 0);
+    sh4der_mist_init(&m);
+    m.dir_x = 0.0f;
+    m.dir_z = 0.0f;                                                /* no direction */
+    CHECK(sh4der_mist_valid(&m) == 0);
+    sh4der_mist_init(&m);
+    m.opacity = 2.0f;
+    CHECK(sh4der_mist_valid(&m) == 0);
+    sh4der_mist_init(&m);
+    m.depth = -1.0f;
+    CHECK(sh4der_mist_valid(&m) == 0);
+    sh4der_mist_init(&m);
+    m.x = 1.0e30f;
+    CHECK(sh4der_mist_valid(&m) == 0);
+    sh4der_mist_init(&m);
+    m.slices = 0u;
+    CHECK(sh4der_mist_valid(&m) == 0);
+    sh4der_mist_init(&m);
+    m.slices = SH4DER_MIST_MAX_SLICES + 1u;
+    CHECK(sh4der_mist_valid(&m) == 0);
+    CHECK(memcmp(v, keep, sizeof(v)) == 0);                        /* none of that wrote */
+
+    /* a non-finite or enormous time, and a non-finite eye */
+    sh4der_mist_init(&m);
+    CHECK(sh4der_mist_slice(&m, 0u, inf, eye, v) == 0 && sh4der_mist_slice(&m, 0u, nan, eye, v) == 0);
+    m.drift = 1.0e3f;
+    CHECK(sh4der_mist_slice(&m, 0u, 1.0e38f, eye, v) == 0);        /* time x drift overflows: refused */
+    sh4der_mist_init(&m);
+    CHECK(sh4der_mist_slice(&m, 0u, 1.0e30f, eye, v) == 6u);       /* big but finite: every output still finite */
+    for (k = 0; k < 6u; k++) {
+        CHECK(sh4der_finite_(v[k].x) && sh4der_finite_(v[k].y) && sh4der_finite_(v[k].z));
+        CHECK(sh4der_finite_(v[k].u) && sh4der_finite_(v[k].v) && sh4der_finite_(v[k].alpha));
+    }
+    {
+        const float inf_eye[3] = { 0.0f, 1.5f, inf };
+        const float huge_eye[3] = { 3.0e38f, 1.5f, -3.0e38f };
+
+        memcpy(v, keep, sizeof(v));
+        CHECK(sh4der_mist_slice(&m, 0u, 0.0f, inf_eye, v) == 0);
+        n = sh4der_mist_slice(&m, 0u, 0.0f, huge_eye, v);
+        CHECK(n == 0u || (sh4der_finite_(v[0].x) && sh4der_finite_(v[0].u)));
+    }
+    CHECK(sh4der_mist_slice_alpha(nan, 12u) == 0.0f && sh4der_mist_slice_alpha(inf, 12u) <= 1.0f);
+}
+
 static void noise(void) {
     static uint8_t a[64 * 64], b[64 * 64];
     unsigned i, lo = 255u, hi = 0u, same = 0u;
@@ -193,8 +314,9 @@ int main(void) {
     defaults_and_alpha();
     slices();
     bad();
+    hostile();
     noise();
     if (fails) { fprintf(stderr, "mist_test: %d FAILED\n", fails); return 1; }
-    puts("mist: PASS defaults, slice alpha, slice vertices (place, rows, alpha, areas), spacing, eye inside, drift, turned bank, feather limits, bad arguments, noise (range, seed, tiling)");
+    puts("mist: PASS defaults, slice alpha, slice vertices (place, rows, alpha, areas), spacing, eye inside, drift, turned bank, feather limits, bad arguments, hostile input, noise (range, seed, tiling)");
     return 0;
 }
