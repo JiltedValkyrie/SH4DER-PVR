@@ -157,12 +157,12 @@ static inline int ml_shot_clamp(int shot) {
 /* The end credits: silent-film intertitle cards after the film. Card k is fully shown for ML_CREDIT_HOLD_S; between two
  * cards lies a dissolve of ML_CREDIT_DISSOLVE_S (one fades out as the next fades in, over a near-black ground); the
  * first card comes up from black inside its first ML_CREDIT_IN_S, and the last fades to black over ML_CREDIT_OUT_S. */
-#define ML_CREDIT_CARDS  8u
+#define ML_CREDIT_CARDS  9u
 #define ML_CREDIT_HOLD_S 3.0f
 #define ML_CREDIT_DISSOLVE_S 0.5f
 #define ML_CREDIT_IN_S   1.0f
 #define ML_CREDIT_OUT_S  1.0f
-/* Length of the credits, seconds: 8 holds, 7 dissolves and the last fade = 28.5 s. */
+/* Length of the credits, seconds: 9 holds, 8 dissolves and the last fade = 32 s. */
 #define ML_CREDITS_SECONDS ((float)ML_CREDIT_CARDS * ML_CREDIT_HOLD_S + (float)(ML_CREDIT_CARDS - 1u) * ML_CREDIT_DISSOLVE_S + ML_CREDIT_OUT_S)
 /* The title card: shown full screen before the first shot, over the first shot's first frame (the card is slightly
  * clear, so the falling snow glimmers through it). It comes up from black over ML_TITLE_IN_S and goes down to black
@@ -923,8 +923,11 @@ static inline float ml_snow_shade(float sx, float sz) {
 #define ML_TRAIL_GROUND_COL 12u         /* the ground grid column the patch replaces (x -0.5 .. 0.5) */
 #define ML_TRAIL_GROUND_ROW0 16u        /* the first ground row it replaces (z 14 .. 15) */
 #define ML_TRAIL_GROUND_ROWS 11u        /* ground rows replaced (z 14 .. 25) */
-#define ML_TRAIL_TUCK    0.02f          /* the patch's outer vertices reach this far under the ground grid, metres, and */
-#define ML_TRAIL_TUCK_Y  0.01f          /* sit this far below it, so the join shows no crack (the two meshes share no vertices) */
+/* The join of the patch and the ground grid (the two meshes share no vertices): the patch's outer vertices lie exactly on
+ * the ground's edge, and a strip of snow, the apron, lies just under the join on every side to back it. */
+#define ML_TRAIL_APRON_OUT 0.30f        /* the apron reaches this far under the ground grid, metres */
+#define ML_TRAIL_APRON_IN 0.20f         /* and this far under the patch (the footprints stay within 0.18 m of the middle, 0.32 m from the edge) */
+#define ML_TRAIL_APRON_DROP 0.015f      /* and lies this far under the surface, metres */
 
 /* A bare foot's pit: each foot presses two overlapping round stamps (heel and toe). Deliberately large for a child, so the
  * prints read at 11 to 20 m: 0.32 m wide, 0.46 m long, 0.20 m deep, with a raised rim. */
@@ -1460,6 +1463,7 @@ static inline unsigned ml_tris_counted(int shot) {
     unsigned n = 2u * (ML_GROUND_COLS * ML_GROUND_ROWS - ML_TRAIL_GROUND_ROWS);   /* ground, less the quads the trail patch replaces */
 
     n += 2u * ML_TRAIL_COLS * ML_TRAIL_ROWS;                  /* the trail patch */
+    n += 2u * (2u * ML_TRAIL_GROUND_ROWS + 2u);               /* its aprons: a quad a ground row on both long sides, one at each end */
 
     n += 5u * ML_HOUSES;                                      /* house walls */
     n += 2u * ml_count_windows(1);                            /* lit windows */

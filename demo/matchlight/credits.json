@@ -3,11 +3,12 @@
  "cards": [
   {"layout": "name", "label": "Directed & Narrated By", "name": "Jilted Valkyrie", "lines": []},
   {"layout": "name", "label": "Music", "name": "Aureolus Omicron", "lines": ["(CC0 1.0 Public Domain)"]},
-  {"layout": "name", "label": "Rendered On", "name": "Sega Dreamcast", "lines": ["SH-4 RISC, PowerVR"]},
+  {"layout": "name", "label": "Rendered In Real Time On", "name": "Sega Dreamcast", "lines": ["SH-4 RISC, PowerVR"]},
   {"layout": "source", "label": "Tale", "lines": ["The Little Match Girl", "Hans Christian Andersen, 1845", "Public domain"]},
   {"layout": "columns", "label": "Sound", "lines": ["qubodup: Flare ignition", "qubodup: 4 dry snow steps", "AntumDeluge: Fire Crackling", "SketchMan3: wind whoosh loop", "n4: Basic Sound Effects"]},
   {"layout": "source", "label": "Fonts", "lines": ["Aldrich: Matthew Desmond, 2011", "Cinzel: Natanael Gama", "Cormorant Garamond: C. Thalmann"]},
   {"layout": "source", "label": "Font Licence", "lines": ["SIL Open Font License 1.1", "covers all three fonts above"]},
-  {"layout": "source", "label": "Libraries", "lines": ["KallistiOS: KOS License", "SH4ZAM: Falco Girgis & contributors", "SH4DER-PVR: Jilted Valkyrie"]}
+  {"layout": "source", "label": "Libraries", "lines": ["KallistiOS: KOS License", "SH4ZAM: Falco Girgis & contributors", "SH4DER-PVR: Jilted Valkyrie"]},
+  {"layout": "name", "label": "Look Inspired By", "name": "NTSCRT", "lines": ["Finn McKenty"]}
  ]
 }

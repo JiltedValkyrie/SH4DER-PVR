@@ -29,6 +29,10 @@ Subtitle type: Aldrich, Copyright (c) Matthew Desmond, 2011, SIL Open Font Licen
 (`audio_public.json`); the disc carries a 16 pixel picture of its glyphs (`font.bin`, which does not use the font's name)
 and the licence text (`FONTLIC.TXT`).
 
+Thanks: Finn McKenty, author of NTSCRT (https://github.com/finnmckenty/NTSCRT), whose work on the look of old screens prompted this
+film's old-film look (end credits card "Look Inspired By"). No NTSCRT code is part of the film: the look is drawn by `sh4der_film`
+and `sh4der_lens`.
+
 Narration written for this film by the project, in its own words. Tale: Hans Christian Andersen, "Den lille Pige med
 Svovlstikkerne" (first published December 1845, Danish; public domain). Beats checked against "The Fairy Tales of Hans
 Christian Andersen" (Philadelphia: J. B. Lippincott, 1899; translator not named; public domain by 1899 publication in the

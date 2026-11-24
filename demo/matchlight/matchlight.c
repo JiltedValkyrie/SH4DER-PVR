@@ -20,7 +20,7 @@
  * type (font.bin: a glyph picture and table) and the timing (subs.bin: per sentence, each letter's place and moment)
  * are read from the disc at start; tools/narration.py makes both. Without the two files there are no subtitles.
  *
- * Pad: A pause / resume the clock; D-pad right / left next / previous shot; START show / hide the readout; B old-film look; Y lens pass; X show / hide the
+ * Pad: A pause / resume the clock; D-pad right / left next / previous shot; START play (from the title card); D-pad up show / hide the readout; B old-film look; Y lens pass; X show / hide the
  * debug caption (the shot's name and a few words on what it shows, on the upper letterbox bar; hidden at start).
  *
  * Sound: the effects of matchlight_scene.h (ml_sound_names) are loaded from the disc folder sfx/ with snd_sfx_load and
@@ -119,11 +119,21 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define FILM_TINT         0.15f         /* how much of that tint is mixed in, 0 .. 1 */
 #define FILM_TITLE_SCRATCHES 2u         /* scratch slots used over the title card */
 #define FILM_TITLE_SPECKS 6u            /* most specks a frame over the title card */
+#define FILM_WEAVE_PX     0.3f          /* gate weave: the picture wanders this many pixels at the most (the library's 1.0 read as camera shake) */
+#define FILM_WEAVE_HZ     1.2f          /* and this slowly, hertz */
 #define FILM_SEED         1845u         /* any number: picks where and when the wear falls */
 #define LENS_CA_STRENGTH  0.5f          /* chromatic aberration: red and blue 1.5 pixels apart in the screen's corner (the library's 1.0 is 3 pixels) */
 #define LENS_TAA_WEIGHT   0.45f         /* anti-aliasing: the share of the frame before in each frame; above 0.5 the falling snow smears */
+#define LENS_JITTER       0.5f          /* anti-aliasing: share of the library's sub-pixel offset that is used (a quarter pixel either way) */
 #define LENS_VRAM_RESERVE_KB 448u       /* video memory that must stay free after the frame textures are taken, KB */
 #define Z_LENS            1.0f          /* depth key of the frame texture on the screen (its depth test always passes) */
+#define PROMPT_GLYPHS     94u           /* the prompt needs font.bin to hold every printable ASCII glyph, in order */
+#define PROMPT_FIRST_CHAR 33u           /* the character of glyph number 0 */
+#define PROMPT_GAP_PX     3u            /* clear pixels between two letters of the prompt (letter-spaced capitals) */
+#define PROMPT_SPACE_PX   10u           /* width of its space, pixels */
+#define PROMPT_Y          434.0f        /* top of its letters, screen row: on the lower letterbox bar, where the subtitles are typed */
+#define PROMPT_PULSE_HZ   0.5f          /* its brightness swells and sinks once in two seconds */
+#define PROMPT_PULSE      0.3f          /* by this share: between 40 % and 100 % */
 #define TITLE_TILES       2u            /* texture tiles of the title card: a 640-texel width is not a size the PVR takes */
 #define TITLE_TILE_A_W    512u          /* width of the first tile, texels: the card's columns 0 .. 511 */
 #define TITLE_TILE_B_W    128u          /* width of the second: columns 512 .. 639 */
@@ -139,7 +149,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define CREDIT_HEAD_BYTES 16u           /* credits.bin: "CRD1", u16 cards, u16 glyphs, u16 width, u16 height, u32 bytes of card records */
 #define CREDIT_CARD_BYTES 4u            /* per card: u16 letters, u16 screen row of its accent rule */
 #define CREDIT_LETTER_BYTES 6u          /* per letter: u16 x, u16 y, u8 glyph number, u8 ink (255 = full) */
-#define CREDIT_DATA_BYTES 8192u         /* room for the card records (the eight cards take about 3 KB) */
+#define CREDIT_DATA_BYTES 8192u         /* room for the card records (the nine cards take about 3.3 KB) */
 #define POOL_Y            0.04f         /* the pool fans lie this high over the snow surface, metres */
 #define POOL_ALPHA_INNER  0.85f         /* centre alpha of the inner pool fan at full flame */
 #define POOL_OUTER_SCALE  1.8f          /* the outer, fainter fan is this many times wider than the inner one */
@@ -328,6 +338,7 @@ static int lens_cur;                                      /* the frame texture t
 static int lens_have;                                     /* 1: the other texture holds the frame before */
 static int lens_shot = -1;                                /* the shot of the frame before; -1: none */
 static float lens_weight;                                 /* this frame's share of the frame before, 0 .. LENS_TAA_WEIGHT */
+static int start_wait = 1;                                /* 1: the title card holds until START is pressed (set again each time the film runs) */
 static title_band_t title_band[TITLE_BANDS_MAX];         /* title.bin's bands, top to bottom */
 static unsigned title_bands;                              /* bands ready to draw; 0: no title card */
 static pvr_ptr_t title_tex[TITLE_TILES];                  /* the card's two tiles in video memory */
@@ -716,7 +727,7 @@ NOINLINE static void footprints_update(int shot, float progress) {
 
 /* Reads the trail patch's vertices out of the dent grid: height, pressed depth and moon shade (from the dent's slope) for
  * each. Only called when a footprint was added or the grid emptied, not every frame. The patch's outer ring of vertices is
- * not read from the grid: it is tucked just under the ground grid round it (see trail_draw). */
+ * not read from the grid: it lies on the ground grid's edge, at the ground's own height and colour (see trail_draw). */
 NOINLINE static void trail_rebuild(void) {
     unsigned i, j;
 
@@ -728,7 +739,7 @@ NOINLINE static void trail_rebuild(void) {
             float sx, sz;
 
             if (i == 0u || i == ML_TRAIL_COLS || j == 0u || j == ML_TRAIL_ROWS) {
-                trail_h[n] = GROUND_Y - ML_TRAIL_TUCK_Y;
+                trail_h[n] = GROUND_Y;               /* not used: trail_draw takes the ring from the ground grid */
                 trail_depth[n] = 0.0f;
                 trail_shade[n] = 1.0f;
                 continue;
@@ -805,10 +816,91 @@ static void ground_draw(const float amb[3], const float flame[3], float level, f
     }
 }
 
+/* The ground grid's surface at a point on or inside the quad column the trail patch replaces: height and colour as the
+ * coarse grid itself would show them there (both mixed from the four corners of the 1 m quad the point lies in, which on
+ * the quad's edge is the straight line between that edge's two corners). ground_draw must have run this frame: the
+ * corners' colours are read from its vertices. */
+static void seam_point(float x, float z, float *h, uint32_t *argb) {
+    const float u = sh4der_sat_((x - ML_TRAIL_X0) * (1.0f / ML_GROUND_DX));                       /* 0 .. 1 across the column */
+    const float rows = sh4der_clamp_((z - ML_TRAIL_Z0) * (1.0f / ML_GROUND_DZ), 0.0f, (float)ML_TRAIL_GROUND_ROWS);
+    unsigned r = (unsigned)sh4der_trunc_(rows);                                                  /* hand: the row of the 1 m quad */
+    float v;
+    unsigned n, k;
+    uint32_t out = 0xff000000u;
+
+    if (r >= ML_TRAIL_GROUND_ROWS) {
+        r = ML_TRAIL_GROUND_ROWS - 1u;                    /* the far edge belongs to the last quad */
+    }
+    v = rows - (float)r;                                  /* 0 .. 1 along that quad */
+    n = (ML_TRAIL_GROUND_ROW0 + r) * (ML_GROUND_COLS + 1u) + ML_TRAIL_GROUND_COL;                 /* its corner (column, row) */
+    *h = sh4der_lerp_(sh4der_lerp_(ground_h[n], ground_h[n + 1u], u),
+                      sh4der_lerp_(ground_h[n + ML_GROUND_COLS + 1u], ground_h[n + ML_GROUND_COLS + 2u], u), v);
+    for (k = 0; k < 3u; k++) {                            /* blue, green, red: each channel mixed as the height is */
+        const unsigned sh = 8u * k;
+        const float c00 = (float)((ground[n].argb >> sh) & 0xffu), c10 = (float)((ground[n + 1u].argb >> sh) & 0xffu);
+        const float c01 = (float)((ground[n + ML_GROUND_COLS + 1u].argb >> sh) & 0xffu);
+        const float c11 = (float)((ground[n + ML_GROUND_COLS + 2u].argb >> sh) & 0xffu);
+
+        out |= (uint32_t)(sh4der_lerp_(sh4der_lerp_(c00, c10, u), sh4der_lerp_(c01, c11, u), v) + 0.5f) << sh;   /* hand: the colour byte */
+    }
+    *argb = out;
+}
+
+/* Draws the aprons of the trail patch: narrow strips of snow a little under the surface, along the four sides of the
+ * patch, in the ground's own colours. The patch and the ground grid share no vertices, so along the join single pixels
+ * can fall between the two meshes; a ray through such a gap now meets snow just beneath instead of the far background.
+ * Two long strips of one quad per ground row, and one quad at each end. Uses the ground's vertices of this frame. */
+static void trail_aprons_draw(void) {
+    static vert_t apron[4];                               /* one quad at a time */
+    const float x_edge[2] = { ML_TRAIL_X0, ML_TRAIL_X0 + ML_GROUND_DX };
+    const float z_end[2] = { ML_TRAIL_Z0, ML_TRAIL_Z0 + (float)ML_TRAIL_GROUND_ROWS * ML_GROUND_DZ };
+    unsigned side, r, k;
+
+    for (side = 0; side < 2u; side++) {                   /* the long sides: left, right */
+        const float x_out = side == 0u ? x_edge[0] - ML_TRAIL_APRON_OUT : x_edge[1] + ML_TRAIL_APRON_OUT;   /* under the ground grid */
+        const float x_in = side == 0u ? x_edge[0] + ML_TRAIL_APRON_IN : x_edge[1] - ML_TRAIL_APRON_IN;      /* under the patch */
+
+        for (r = 0; r < ML_TRAIL_GROUND_ROWS; r++) {
+            for (k = 0; k < 4u; k++) {                    /* corners in strip order: (low x, near z), (low x, far z), (high x, near z), (high x, far z) */
+                const float z = ML_TRAIL_Z0 + (float)(r + (k & 1u)) * ML_GROUND_DZ;
+                const int low_x = (k & 2u) == 0u;
+                float w[3], h;
+                uint32_t argb;
+
+                seam_point(x_edge[side], z, &h, &argb);  /* the join's own height and colour at this row */
+                w[0] = (side == 0u) == low_x ? x_out : x_in;
+                w[1] = h - ML_TRAIL_APRON_DROP;
+                w[2] = z;
+                vert_set(&apron[k], w, argb);
+            }
+            (void)send_quad(&apron[0], &apron[1], &apron[2], &apron[3]);
+        }
+    }
+    for (side = 0; side < 2u; side++) {                   /* the two ends: near, far */
+        const float z_out = side == 0u ? z_end[0] - ML_TRAIL_APRON_OUT : z_end[1] + ML_TRAIL_APRON_OUT;
+        const float z_in = side == 0u ? z_end[0] + ML_TRAIL_APRON_IN : z_end[1] - ML_TRAIL_APRON_IN;
+
+        for (k = 0; k < 4u; k++) {
+            const int near_z = (k & 1u) == 0u;
+            float w[3], h;
+            uint32_t argb;
+
+            seam_point(x_edge[(k & 2u) ? 1 : 0], z_end[side], &h, &argb);
+            w[0] = x_edge[(k & 2u) ? 1 : 0];
+            w[1] = h - ML_TRAIL_APRON_DROP;
+            w[2] = (side == 0u) == near_z ? z_out : z_in;
+            vert_set(&apron[k], w, argb);
+        }
+        (void)send_quad(&apron[0], &apron[1], &apron[2], &apron[3]);
+    }
+}
+
 /* Lights and draws the trail patch: the fine strip of snow along the girl's walk, its vertices pressed down by the dent
- * grid so each footprint is a real pit with a dark far wall. The patch's outer ring reaches ML_TRAIL_TUCK under the ground
- * grid, ML_TRAIL_TUCK_Y below it, so the join has no crack. `dawn` (0..1) fills the pits again over the last shot ("the
- * prints gone under new snow"); the other arguments are those of ground_draw. */
+ * grid so each footprint is a real pit with a dark far wall. The patch's outer ring of vertices lies exactly on the edge
+ * of the ground grid's missing quads, at the height and in the colour the ground has there (seam_point), so the two
+ * meshes meet without a step or a change of shade; trail_aprons_draw backs the join. `dawn` (0..1) fills the pits again
+ * over the last shot ("the prints gone under new snow"); the other arguments are those of ground_draw, which must have
+ * run first. */
 static void trail_draw(const float amb[3], const float flame[3], float level, float radius, float dawn) {
     const float keep = 1.0f - dawn;                       /* share of each dent that is still there */
     unsigned i, j;
@@ -819,14 +911,19 @@ static void trail_draw(const float amb[3], const float flame[3], float level, fl
     for (j = 0; j <= ML_TRAIL_ROWS; j++) {
         for (i = 0; i <= ML_TRAIL_COLS; i++) {
             const unsigned n = j * (ML_TRAIL_COLS + 1u) + i;
-            const float out_x = i == 0u ? -ML_TRAIL_TUCK : (i == ML_TRAIL_COLS ? ML_TRAIL_TUCK : 0.0f);   /* the outer ring's reach */
-            const float out_z = j == 0u ? -ML_TRAIL_TUCK : (j == ML_TRAIL_ROWS ? ML_TRAIL_TUCK : 0.0f);
             const int ring = i == 0u || i == ML_TRAIL_COLS || j == 0u || j == ML_TRAIL_ROWS;
             float w[3];
 
-            w[0] = sh4der_fma_((float)i, ML_TRAIL_CELL, ML_TRAIL_X0) + out_x;
-            w[1] = ring ? trail_h[n] : trail_h[n] * keep;                       /* the tuck stays; a dent fills */
-            w[2] = sh4der_fma_((float)j, ML_TRAIL_CELL, ML_TRAIL_Z0) + out_z;
+            w[0] = sh4der_fma_((float)i, ML_TRAIL_CELL, ML_TRAIL_X0);
+            w[2] = sh4der_fma_((float)j, ML_TRAIL_CELL, ML_TRAIL_Z0);
+            if (ring) {                                                         /* on the ground grid's edge: the ground's own height and colour */
+                uint32_t argb;
+
+                seam_point(w[0], w[2], &w[1], &argb);
+                vert_set(&trail[n], w, argb);
+                continue;
+            }
+            w[1] = trail_h[n] * keep;                                           /* a dent fills as the dawn comes */
             vert_set(&trail[n], w, snow_argb(amb, level, sh4der_len2_(w[0] - flame[0], w[2] - flame[2]), radius, trail_depth[n] * keep,
                                              sh4der_lerp_(1.0f, trail_shade[n], keep)));
         }
@@ -839,6 +936,7 @@ static void trail_draw(const float amb[3], const float flame[3], float level, fl
             (void)send_quad(a, b, a + 1, b + 1);
         }
     }
+    trail_aprons_draw();
 }
 
 /* Draws the ten house fronts and their lit windows. A house is a front wall (quad), a gable (triangle) and a near side wall
@@ -1863,6 +1961,8 @@ NOINLINE static int film_setup(void) {
     film.keep_x0 = 0.5f * (float)ML_SCREEN_W - FILM_KEEP_HALF_X;   /* no scratch through the middle of the picture, where she is */
     film.keep_x1 = 0.5f * (float)ML_SCREEN_W + FILM_KEEP_HALF_X;
     film.seed = FILM_SEED;
+    film.weave_px = FILM_WEAVE_PX;
+    film.weave_hz = FILM_WEAVE_HZ;
     sh4der_lens_vig_default(&vig, (float)ML_SCREEN_W, (float)ML_BAND_H);
     vig.strength = FILM_VIG_STRENGTH;
     vig.spokes = FILM_VIG_SPOKES;
@@ -2048,8 +2148,8 @@ static void lens_step(const ml_where_t *w, float shift[2]) {
     }
     lens_shot = w->shot;
     sh4der_taa_step(&lens_taa, 0.0f, 0.0f, cam.focal_px, cam.focal_px, &f);
-    shift[0] += f.jitter[0];
-    shift[1] += f.jitter[1];
+    shift[0] += f.jitter[0] * LENS_JITTER;
+    shift[1] += f.jitter[1] * LENS_JITTER;
     lens_weight = f.cut || !lens_have ? 0.0f : LENS_TAA_WEIGHT;
 }
 
@@ -2210,6 +2310,56 @@ static void title_draw(float s) {
     }
     if (show < 1.0f && header_send(&hdr_fade)) {         /* up from black, and down to black before the first shot */
         screen_rect(0.0f, 0.0f, (float)ML_SCREEN_W, (float)ML_SCREEN_H, Z_HUD, (uint32_t)sh4der_fma_(1.0f - show, 255.0f, 0.5f) << 24, 0);
+    }
+}
+
+/* The prompt on the waiting title card: "PRESS START" in the subtitle type, centred on the lower letterbox bar, its
+ * brightness swelling and sinking slowly. `show` is the card's own fade (0 .. 1). Drawn only while the film waits for the
+ * button and when the subtitle type is loaded with all 94 printable ASCII glyphs (then glyph number = character - 33). The
+ * letters are capitals, so they are set by their tops: font.bin holds no baselines. */
+static void prompt_draw(float show) {
+    static const char text[] = "PRESS START";
+    float s, c, x, alpha;
+    unsigned i, k, width = 0;
+
+    if (!start_wait || sub_sentences == 0u || sub_glyphs != PROMPT_GLYPHS || !(show > 0.0f)) {
+        return;
+    }
+    for (i = 0; text[i] != 0; i++) {                     /* the line's width: each letter and a gap, a fixed step for the space */
+        width += text[i] == ' ' ? PROMPT_SPACE_PX : (unsigned)sub_glyph[(unsigned)text[i] - PROMPT_FIRST_CHAR][2] + PROMPT_GAP_PX;
+    }
+    sh4der_sincos_(sh4der_frac_(snow_time * PROMPT_PULSE_HZ) * 6.2831853f, &s, &c);
+    (void)c;
+    alpha = show * sh4der_fma_(s, PROMPT_PULSE, 1.0f - PROMPT_PULSE);    /* 1 - 2 x PROMPT_PULSE .. 1 of the card's fade */
+    if (!header_send(&hdr_sub)) {
+        return;
+    }
+    x = sh4der_trunc_(0.5f * ((float)ML_SCREEN_W - (float)width));      /* whole pixels: the letters are one texel to one pixel */
+    for (i = 0; text[i] != 0; i++) {
+        const uint8_t *gl;
+
+        if (text[i] == ' ') {
+            x += (float)PROMPT_SPACE_PX;
+            continue;
+        }
+        gl = sub_glyph[(unsigned)text[i] - PROMPT_FIRST_CHAR];
+        if (gl[2] >= 1u && gl[3] >= 1u) {
+            for (k = 0; k < 4u; k++) {                   /* strip order: left top, left bottom, right top, right bottom */
+                pvr_vertex_t v;
+
+                v.flags = k == 3u ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+                v.x = x + ((k & 2u) ? (float)gl[2] : 0.0f);
+                v.y = PROMPT_Y + ((k & 1u) ? (float)gl[3] : 0.0f);
+                v.z = Z_HUD;
+                v.u = (float)(gl[0] + ((k & 2u) ? gl[2] : 0u)) * (1.0f / (float)SUB_FONT_W);
+                v.v = (float)(gl[1] + ((k & 1u) ? gl[3] : 0u)) * (1.0f / (float)SUB_FONT_H);
+                v.argb = ((uint32_t)sh4der_fma_(sh4der_sat_(alpha), 255.0f, 0.5f) << 24) | (SUB_ARGB & 0x00ffffffu);
+                v.oargb = 0;
+                pvr_prim(&v, sizeof(v));
+            }
+            frame_tris += 2u;
+        }
+        x += (float)gl[2] + (float)PROMPT_GAP_PX;
     }
 }
 
@@ -2392,8 +2542,13 @@ static void jump_to_shot(int shot) {
     audio_resync = 1;                                  /* the streams follow the jump */
 }
 
-/* Reads the first controller: A pauses / resumes, D-pad right / left jump to the next / previous shot, START shows / hides
- * the readout, X shows / hides the debug caption, B switches the old-film look, Y the lens pass. Edge triggered (a held button acts once). */
+/* Reads the first controller: A pauses / resumes, D-pad right / left jump to the next / previous shot, START plays the film from
+ * the waiting title card, D-pad up shows / hides the readout, X shows / hides the debug caption, B switches the old-film look, Y the lens pass. Edge triggered (a held button acts once). */
+/* 1 when the film can wait on its title stretch for START: there is a card to show, or at least the type for the prompt. */
+static int wait_possible(void) {
+    return title_bands > 0u || (sub_sentences > 0u && sub_glyphs == PROMPT_GLYPHS);
+}
+
 NOINLINE static void pad_read(void) {
     static uint32_t last;
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
@@ -2427,7 +2582,15 @@ NOINLINE static void pad_read(void) {
             jump_to_shot(clock_s >= ML_FILM_SECONDS ? ML_SHOTS - 1 : cur_shot - 1);   /* from the credits: back to the last shot */
         }
     }
-    if (down & CONT_START) {
+    if ((down & CONT_START) && start_wait && clock_s >= ML_TITLE_START_S) {
+        start_wait = 0;                                /* play: the card goes down to black, then the first shot fades up */
+        if (clock_s < ML_TITLE_START_S + ML_TITLE_SECONDS - ML_TITLE_OUT_S) {
+            clock_s = ML_TITLE_START_S + ML_TITLE_SECONDS - ML_TITLE_OUT_S;
+        }
+        paused = 0;
+        audio_resync = 1;
+    }
+    if (down & CONT_DPAD_UP) {
         hud_on ^= 1;
     }
     if (down & CONT_Y) {
@@ -2591,6 +2754,7 @@ NOINLINE static void frame_draw(const ml_where_t *w, int lens) {
     if (w->title_s >= 0.0f) {
         title_draw(w->title_s);
         film_draw(w->clock, 1, 0);                       /* the card's own, lighter wear */
+        prompt_draw(ml_title_alpha(w->title_s));
     }
     if (cap_on && cap_shot == w->shot && header_send(&hdr_cap)) {
         screen_rect(CAP_X, CAP_Y, CAP_X + (float)CAP_W, CAP_Y + (float)CAP_H, Z_HUD, 0xffe0e0e0u, 1);
@@ -2670,7 +2834,7 @@ int main(void) {
         printf("matchlight: film look: %s\n", film_setup() ? "ready (B switches it)" : "none (no video memory for the grain tile)");
         printf("matchlight: title card: %s\n", title_setup() ? "title.bin loaded" : "none (title.bin missing or malformed)");
         (void)lens_setup();                              /* last: it takes what video memory the rest left, above a reserve */
-        clock_s = title_bands > 0u ? ML_TITLE_START_S : 0.0f;   /* the film opens on its title card when there is one */
+        clock_s = wait_possible() ? ML_TITLE_START_S : 0.0f;   /* the film opens on its title card (or on the bare prompt) and waits for START */
     }
     boot_stage(6, 0, 0, 200, "first update");
     boot_stage(7, 200, 0, 200, "first submit");
@@ -2690,8 +2854,12 @@ int main(void) {
             const float before = clock_s;
 
             clock_s = ml_wrap_clock(clock_s + dt);
-            if (title_bands == 0u && clock_s >= ML_TITLE_START_S) {
-                clock_s = 0.0f;                           /* no title card: its stretch of the loop is skipped */
+            if (clock_s < ML_TITLE_START_S) {
+                start_wait = 1;                           /* the film is running: the next title card waits for START again */
+            } else if (!wait_possible()) {
+                clock_s = 0.0f;                           /* no title card and no type for the prompt: the stretch is skipped */
+            } else if (start_wait && clock_s > ML_TITLE_START_S + ML_TITLE_IN_S) {
+                clock_s = ML_TITLE_START_S + ML_TITLE_IN_S;   /* the card is up: it holds here until START */
             }
             snow_time += dt;
             if (clock_s < before) {

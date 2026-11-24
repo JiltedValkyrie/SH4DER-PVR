@@ -1,7 +1,7 @@
 # Match Light: a 120 second short film demo
 
 A telling of Hans Christian Andersen's public-domain tale "The Little Match Girl" on a snowy night street, for one narrator's
-voice, played by a Dreamcast program: a title card, twelve shots (M1 .. M10 with M2b and M4b) in 120 seconds, then 28.5 seconds
+voice, played by a Dreamcast program: a title card, twelve shots (M1 .. M10 with M2b and M4b) in 120 seconds, then 32 seconds
 of end credits, then it loops. Every shape is built from numbers; the only files it reads are sound, the subtitle and credit type, and their
 timing. The host test passes and the Dreamcast build compiles with no warning; the numbers under "Cost" are counted from the
 tables, not measured on a console.
@@ -57,7 +57,8 @@ toolchain's SH compiler stopped with an internal error in its register reload pa
 | A | pause / resume the clock (the snow stops too) |
 | D-pad right / left | jump to the start of the next / previous shot; right from the last shot jumps to the credits |
 | Y | lens pass (chromatic aberration and temporal anti-aliasing) off / on (on at start) |
-| START | show / hide the readout: shot, time, frames a second, frame time, TA kilobytes used, triangles sent, VRAM free (hidden at start) |
+| START | play the film from the waiting title card |
+| D-pad up | show / hide the readout: shot, time, frames a second, frame time, TA kilobytes used, triangles sent, VRAM free (hidden at start) |
 | B | old-film look off / on (on at start) |
 | X | show / hide the debug caption: the shot's name and a few words on what it shows, on the upper letterbox bar (hidden at start) |
 
@@ -101,7 +102,7 @@ program draws one picture a frame and has no second one to dissolve with.
 The picture is laid under the wear of old film (B switches it): darker corners and grain (`sh4der_lens`), and from `sh4der_film`
 a brightness that swings by 5 % peak to peak at 1.3 and 2.1 hertz (far from a strobe: the effect refuses more than 8 % peak to peak or 3 hertz),
 a faint warm tint, up to three thin scratches that live 0.1 to 0.33 s and stay out of the middle of the picture, 6 to 12 dust
-specks a frame (at most two over the footprint trail in the low shot), and a gate weave of one pixel that moves the 3D picture
+specks a frame (at most two over the footprint trail in the low shot), and a gate weave of 0.3 pixel that moves the 3D picture
 only. Nothing is drawn on the letterbox bars, the subtitles or the credits; the title card gets a lighter wear. The film keeps
 its colour and its frame rate. Cost: 8 KB of video memory (the grain tile), about 4 KB of RAM, about 350 triangles.
 
@@ -110,7 +111,7 @@ its colour and its frame rate. Cost: 8 KB of video memory (the grain tile), abou
 The film's picture is drawn into a 640 x 480 frame texture (`sh4der_ca`) and put on the screen as three colour channels, each
 at its own scale about the centre: chromatic aberration at strength 0.5, red and blue 1.5 pixels apart in the corner, none in
 the middle. With a second frame texture the picture is anti-aliased over time (`sh4der_taa`): each frame is drawn a fraction
-of a pixel aside (eight offsets in turn) and the frame before is blended into it at 0.45, so an edge averages out and the
+of a pixel aside (eight offsets in turn, a quarter pixel at the most) and the frame before is blended into it at 0.45, so an edge averages out and the
 falling snow keeps its shape; a new shot keeps nothing of the frame before. The title card, the film wear, the bars, the
 subtitles and the credits are drawn after the pass, at full sharpness. Cost: 640 KB of video memory a frame texture (two:
 1,280 KB); the program takes two, one or none so that 448 KB stay free, and says which on the serial line. The picture is
@@ -126,7 +127,7 @@ Footprints are real pits. The ground grid's 1 m quads cannot show one, so the gr
 by the trail patch: 8 x 88 quads at 0.125 m whose vertices take their height, darkening and slope shade from the `sh4der_deform`
 grid. Each foot presses two round stamps (heel and toe) and SINKS in: the pit deepens for as long as that step's footfall
 sound plays. No two prints are alike: place, depth (0.12 to 0.20 m), size, length and the turn of the foot come from a seeded
-hash, so the film always has the same trail. A pit is about 0.24 m wide and 0.36 m long and ends before the next begins.
+hash, so the film always has the same trail. A pit is about 0.24 m wide and 0.36 m long and ends before the next begins. The patch's outer vertices lie on the ground grid's edge at the ground's own height and colour, and a strip of snow 1.5 cm under the surface backs the join on every side, so no line shows where the two meshes meet.
 
 ## Sound
 
@@ -152,20 +153,21 @@ sentences and 12 KB; the tool refuses more). Without an edit list the subtitles 
 
 ## Title card
 
-The film opens on a title card for 7 s: up from black over 1 s, down to black over 1 s, then the first shot fades up. The card
+The film opens on a title card that comes up from black over 1 s and then WAITS, with "PRESS START" pulsing on the lower bar (in the subtitle type; snow keeps falling behind the card). START sends the card down to black over 1 s, then the first shot fades up. After the credits the loop comes back to the card and waits again. The card
 is a 640 x 480 picture at full size and not compressed: two ARGB1555 tiles (512 x 512 and 128 x 512, ordered dither), 640 KB of
 video memory. Its translucency is kept apart from its colour, as bands of rows with one alpha each, and drawn as blended
 rectangles over the first shot's first frame: the card lies on the picture like a sheet of slightly clear film, and the
-falling snow glimmers through it. Without `title.bin` the film starts on its first shot. On the clock the card is the last
+falling snow glimmers through it. Without `title.bin` the prompt stands over the first shot's first frame; without the subtitle type as well the film just runs. On the clock the card is the last
 stretch of the loop (film, credits, card) and the program starts there, so no film time moved.
 
 ## End credits
 
-After the film come 28.5 s of silent-film intertitle cards: eight cards of 3 s, a 0.5 s dissolve between two cards, the first up
+After the film come 32 s of silent-film intertitle cards: nine cards of 3 s, a 0.5 s dissolve between two cards, the first up
 from black, the last down to black over 1 s. A card is a near-black ground with a hairline border, a label in letter-spaced
 capitals, one short amber rule, and a name, or up to three lines of at most 36 characters, or (the sound sources) up to six lines in two columns. `credits.bin` holds each letter's
 place and one 256 x 256 picture of the glyphs the cards use; `tools/credits.py` refuses a card list that is not exactly the
-eight cards the program shows.
+nine cards the program shows. One card thanks the author of NTSCRT, whose work on the look of old screens prompted the film's
+old-film look; no NTSCRT code is part of the film.
 
 ## Library modules used
 
@@ -176,7 +178,7 @@ eight cards the program shows.
 
 ## Cost (counted from the tables and constants, not measured on a console)
 
-- Triangles a frame, upper bound with no culling: 3,834 (M4b) to 3,980 (M9); the test prints each shot. The ground is 1,978 of
+- Triangles a frame, upper bound with no culling: 3,882 (M4b) to 4,028 (M9); the test prints each shot. The ground is 1,978 of
   them and the trail patch 1,408.
 - Video memory textures: about 921 KB (title card 640 KB, readout 64 KB, subtitle glyphs 64 KB, credit glyphs 128 KB, sprite atlas 8 KB, fog
   noise 8 KB, caption 8 KB, snow mask 0.5 KB), plus the KallistiOS frame buffers and two 512 KB TA vertex buffers.

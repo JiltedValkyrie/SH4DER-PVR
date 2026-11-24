@@ -183,7 +183,7 @@ $(PROBE_CDI): $(BUILD)/probe/sh4der-probe.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PROBE
 
-# The short film (demo/matchlight/): a 120 second snowy night street in twelve shots and 28.5 seconds of end credits, built
+# The short film (demo/matchlight/): a 120 second snowy night street in twelve shots and 32 seconds of end credits, built
 # from the snow depth grid, the fog bank, the rising lights, the spark pools and the motes. See demo/matchlight/README.md.
 # Needs SH4ZAM=<checkout>, as every Dreamcast target does.
 # MATCHLIGHT_CDI names the image; an existing image is never replaced (a new build takes a new number).

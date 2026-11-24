@@ -38,15 +38,15 @@ static void timeline(void) {
     CHECK(ML_SHOTS == 12 && ML_FILM_SECONDS == 120.0f && ML_SHOT_M10 == ML_SHOTS - 1);
     CHECK(ml_shots[0].start_s == 0.0f);
     CHECK(ml_shots[ML_SHOTS - 1].end_s == ML_FILM_SECONDS);
-    /* The end credits follow the film: 8 cards, 28.5 s; the clock wraps after both. */
+    /* The end credits follow the film: 9 cards, 32 s; the clock wraps after both. */
     {
         ml_where_t w = { 0 };
         unsigned k;
         float s;
 
-        CHECK(ML_CREDIT_CARDS == 8u && fabsf(ML_CREDITS_SECONDS - 28.5f) < 1.0e-4f && fabsf(ML_LOOP_SECONDS - 155.5f) < 1.0e-4f);
+        CHECK(ML_CREDIT_CARDS == 9u && fabsf(ML_CREDITS_SECONDS - 32.0f) < 1.0e-4f && fabsf(ML_LOOP_SECONDS - 159.0f) < 1.0e-4f);
         /* The title card is the loop's last stretch: 7 s, over the first shot's first frame, up from and down to black. */
-        CHECK(fabsf(ML_TITLE_START_S - 148.5f) < 1.0e-4f && ML_TITLE_SECONDS == 7.0f);
+        CHECK(fabsf(ML_TITLE_START_S - 152.0f) < 1.0e-4f && ML_TITLE_SECONDS == 7.0f);
         ml_locate(ML_TITLE_START_S + 2.0f, &w);
         CHECK(w.shot == ML_SHOT_M1 && w.seconds == 0.0f && w.progress == 0.0f && fabsf(w.title_s - 2.0f) < 1.0e-3f && w.credits_s < 0.0f);
         ml_locate(60.0f, &w);
