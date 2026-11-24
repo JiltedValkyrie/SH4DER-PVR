@@ -46,6 +46,14 @@ static const sh4der_water_wave_t ocean_waves[] = {
     {-0.60f,0.80f,0.0038f,0.43f,0.82f,3.2f,1},
     {0.80f,0.60f,0.0017f,0.25f,0.62f,5.3f,1}
 };
+/* Two hooks for a client that puts this water under its own sky (demo/cloudvolume.c): the wave table the water mesh reads, and the sky colour the
+ * environment texture is painted with. Left undefined they are this scene's own, so the ocean demo is unchanged. */
+#ifndef OCEAN_WAVE_SET
+#define OCEAN_WAVE_SET ocean_waves
+#endif
+#ifndef OCEAN_ENV_RGB
+#define OCEAN_ENV_RGB(d,sun,rgb) ocean_sky_rgb_sun(d,sun,rgb)
+#endif
 static const float ocean_fog_rgb[3] = {0.50f,0.29f,0.30f};
 /* The sun is the live vector that the water, the shadow sweep, the transmission, the reflection and the sky texture all read. Its first values are
  * the original sunset (azimuth 9.806 deg right of the view axis, elevation 3.440 deg); SUN AZIMUTH / SUN ELEVATION replace it (ocean_sun_vector). */
@@ -212,7 +220,7 @@ static void ocean_env_rows(const float sun[3],unsigned y0,unsigned y1) {
         float threshold=sh4der_warp_dither_threshold(x,y);
         /* hand: 2 inv, (1-r2) inv: scalar products of the paraboloid map */
         float r2=sh4der_len2_(px,pz), inv=sh4der_recip_pos_(1+r2), d[3]={2*px*inv,(1-r2)*inv,2*pz*inv}, rgb[3];
-        ocean_sky_rgb_sun(d,sun,rgb);
+        OCEAN_ENV_RGB(d,sun,rgb);
         ocean_environment[y*OCEAN_ENV+x]=(uint16_t)(((unsigned)sh4der_fma_(sh4der_sat_(rgb[0]),31,threshold)<<11)|
             ((unsigned)sh4der_fma_(sh4der_sat_(rgb[1]),63,threshold)<<5)|(unsigned)sh4der_fma_(sh4der_sat_(rgb[2]),31,threshold));
     }
@@ -257,7 +265,7 @@ static void ocean_scene_update(const ocean_settings_t *s) {
             /* Yaw: world (wx, wz) = Ry (side, f), one FMAC each */
             const float wx=sh4der_fma_(cy,side,syf), wz=sh4der_fma_(-sy,side,cyf);
             const float step=row_step>step0?row_step:step0;
-            const sh4der_water_surface_t surf=sh4der_water_sample(ocean_waves,7,wx,wz,s->time,step,(float)s->swell,(float)s->ripple);
+            const sh4der_water_surface_t surf=sh4der_water_sample(OCEAN_WAVE_SET,7,wx,wz,s->time,step,(float)s->swell,(float)s->ripple);
             const float dy=surf.height-ocean_eye;
             float n[3],view[3],r[3],rgb[3],trans[3];
             float ndv,fresnel,shadow,visibility,crest,light,texweight,base;
