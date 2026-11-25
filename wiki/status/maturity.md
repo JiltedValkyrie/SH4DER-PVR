@@ -31,7 +31,7 @@ Two caps: a part is never marked above its weakest claim, so one OPEN step caps 
 | ALPHA | 26 |
 | PROTOTYPE | 36 |
 
-After the re-rank from s8, mip-a and corr-a2 with Parity's second read (below). Three rows keep two versions inside ALPHA (D1 depth fade added after d1-c); no label is disputed. Six rows rest on the written client rule (a demo or a suite program counts), which the owner may change (below): the five of the s8 re-rank and user clip.
+After the re-rank from s8, mip-a and corr-a2 with Parity's second read (below). Three rows keep two versions inside ALPHA (D1 depth fade added after d1-c); no label is disputed. Eight rows rest on the written client rule (a demo or a suite program counts), which the owner may change (below): psm, psm_raster, psm_pvr, pl4nar and the baked AO (the s8 re-rank), user clip (after ao4-j), tile cut (after d1-c: its callers c4, ao4 and d1 are suite programs) and autorun (after vc-b1, vc-b2 and tech-hills). `shz_dce_pvr_project`'s BETA rests on it too.
 
 ## The library: effects and shared parts
 
@@ -133,7 +133,7 @@ Refused:
 | tile cut | ALPHA v0.5 | A fourth program ran the cut, and there the PVR side failed: the mirror's PVR time unchanged, the frame +3.05 ms (PVR-200). The cause in the code is a FACT: `tile_cut_begin` refuses only when no table is found (`demo/psm/ao/tile_cut.h:106` at e148dd3), and the demo calls `tile_cut_find` once and cuts whatever it found (`demo/pl4nar/src/gfx_pvr.c:255-256`), so with one of the two tables found the cut runs on that one and the other stays uncut; that the mirror rendered through the uncut one is an ESTIMATE. A second known defect beside d1-c's net loss (PVR-192): it holds the row at v0.5 and does not demote it, since a demotion needs a failed repeat with no known cause. A frame gain stays ADVISED. The fix (refuse unless every table is found, with a host test) is Senior's, in `tile_cut.h` |
 | psm, psm_raster, psm_pvr | ALPHA v0.5 | vc-b1 repeats TOWN-119's ground views (route A 58.59 against 57.1, route B 78.83 against 76.8; PVR-195) and times every part of the frame (PVR-196); the sky stages and the turns are new costs, not new proof. Their next step, the OPEN rows closed (OPB's cause, Q77, Q81), is not met: OPB again once a frame on route A and once every second frame on route B (PVR-194) |
 | pl4nar | ALPHA v0.5 | tech-hills repeats the lookup (0.96 to 0.97 ms) and the mirror pass (3.27 to 3.32 ms) in its untouched stages (PVR-199), but Q97 (the mirror's PVR the same at every target size) and Q93 (the "largest scene" line is missing again on page 3) stay open |
-| pl4nar street demo | ALPHA v0.4 | Repeated (c5, c7, c8, C9T, tech-hills), but it has no client outside itself: it is the client. The scale has no frame-rate gate; the frame (17.40 to 18.91 ms in the untouched 128 × 64 stages, PVR-199) is a cost, not a hold |
+| pl4nar street demo | ALPHA v0.4 | Repeated (c5, c7, c8, C9T, tech-hills), but it has no client of its own (it is pl4nar's client). The scale has no frame-rate gate; the frame (17.40 to 18.91 ms in the untouched 128 × 64 stages, PVR-199) is a cost, not a hold |
 | page kit | ALPHA v0.5 | Eleven text pages and four graphs more agree with their CRCs (vc-b1 5, vc-b2 2, tech-hills 4; PVR-194, PVR-199); still no target runs `psm_page_test` |
 
 ## Re-rank after d1-c
