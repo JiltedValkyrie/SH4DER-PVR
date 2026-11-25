@@ -6,6 +6,14 @@
    A test's helper, not yet the library's. NOTHING HERE HAS RUN ON A CONSOLE: every statement about what the PVR does
    with it is an ESTIMATE, and the numbers in the default table are invented starting values.
 
+   WHAT IS MEASURED ABOUT THE PVR'S OWN CHOICE (the mip test, one console, one run; wiki PVR-167 to PVR-169): the mip
+   level is chosen a pixel; it follows the LARGER of the two footprint axes (texels a pixel along the view, on a
+   floor), reading that level or one above it: two levels a doubling of distance down a floor, one on a wall facing
+   the eye. So a floor is blurred ACROSS the view by as many levels as its squeeze: the case a sharper bias and the
+   stretched copies are for. Trilinear drawn as pass A opaque and pass B added gives a smooth ramp between levels.
+   The squeeze grows with the SQUARE of the distance, so the ranges' edges are a square root of two apart, not a
+   doubling: faf_table_from puts them where the floor's texels a pixel along the view are 2, 4, 8.
+
    THE PROBLEM. A floor seen at a grazing angle squeezes its texels along the view and not across it. One mip level
    cannot suit both: the picture is blurred across or it shimmers along the view. Anisotropic filtering filters along
    the view only. The PVR has none.
@@ -66,6 +74,30 @@ static inline unsigned faf_table_default(faf_range_t t[FAF_RANGES_MAX]) {
 
     for (k = 0; k < FAF_RANGES_MAX; k++) t[k] = d[k];
     return FAF_RANGES_MAX;
+}
+
+/* The table for a floor from its own numbers: the eye `eye_h` metres above it looking level, focal length `focal`
+   pixels, `texels_m` texels of the base texture a metre along the view. Along the view a pixel then covers
+   texels_m z z / (focal eye_h) texels at distance z (the larger axis: the one the PVR's level follows, PVR-169).
+   Range k = 1 .. n - 1 (the copy halved k times) starts where that is 2^k: a copy is then never minified by more
+   than about two along the view inside its own range. A zone is `share` (0 .. 1) of the way to the next start.
+   Past the last range's doubling a copy undersamples: the caller may end the table with a range of the base texture
+   and a sharper bias (shift 0, a bias under FAF_BIAS_NONE). Returns n, or 0 when the numbers cannot be used. */
+static inline unsigned faf_table_from(faf_range_t *t, unsigned n, float focal, float eye_h, float texels_m, float share) {
+    const float root2 = 1.41421356f;
+    float z;
+    unsigned k;
+
+    if (!t || n < 1u || n > FAF_RANGES_MAX || !(focal > 0.0f) || !(eye_h > 0.0f) || !(texels_m > 0.0f)) return 0u;
+    if (!(share >= 0.05f)) share = 0.05f;
+    if (share > 1.0f) share = 1.0f;
+    t[0].from = 0.0f; t[0].ramp = 0.0f; t[0].bias = (uint8_t)FAF_BIAS_NONE; t[0].shift = 0u;
+    z = sh4der_sqrt_(2.0f * focal * eye_h * sh4der_recip_pos_(texels_m));       /* where a pixel covers 2 texels along the view */
+    for (k = 1; k < n; k++, z *= root2) {
+        t[k].from = z; t[k].ramp = z * (root2 - 1.0f) * share;
+        t[k].bias = (uint8_t)FAF_BIAS_NONE; t[k].shift = (uint8_t)(k > 3u ? 3u : k);
+    }
+    return n;
 }
 
 /* 1 when a table can be used: 1 .. FAF_RANGES_MAX ranges, range 0 from 0 with no zone, every later zone at least
@@ -144,8 +176,9 @@ static inline void faf_piece(const faf_range_t *t, unsigned n, float dist, int *
 /* BIAS: the mip bias code of a polygon from its slope to the eye. ndv is |normal . direction to the eye| (1 facing,
    0 edge on); strength 0 .. 1 is how much of the correction to take. A grazing polygon is squeezed along the view by
    1 / ndv; taking the level for the geometric mean of the two axes instead of the squeezed one is a bias of
-   sqrt(ndv). ESTIMATE: it assumes the PVR picks its level from the squeezed axis (the mip test's T3 says). Never above
-   1.00 and never under `least` (a code, 1 .. 4): too sharp shimmers. */
+   sqrt(ndv). The PVR does pick its level from the squeezed axis (MEASURED, PVR-169); that the bias field then moves
+   the level a polygon as documented is NOT measured, and the square root is a choice, not a law. Never above 1.00
+   and never under `least` (a code, 1 .. 4): too sharp shimmers along the view. */
 static inline uint8_t faf_bias_code(float ndv, float strength, unsigned least) {
     const float a = ndv <= 0.0f ? 0.0f : ndv >= 1.0f ? 1.0f : ndv;
     const float bias = 1.0f - (strength <= 0.0f ? 0.0f : strength >= 1.0f ? 1.0f : strength) * (1.0f - sh4der_sqrt_(a));

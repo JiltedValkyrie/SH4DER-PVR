@@ -1021,8 +1021,10 @@ static void report(void) {
     sums_mean(&auto_sum[STAGE_CUT], &mu); sums_mean(&auto_sum[STAGE_CUT + 1u], &mc);
     say("TILE CUT, target M's pass, hens still (the LAST two stages):");
     say(" tile tables found and as read: %u of 2", tcut.n);
-    say(" whole table (300 tiles): PVR %u us, texel sum %08x", us_of(mu.pvr_m), (unsigned)mu.m_sum);
-    if (mc.cut_on) {
+    if (!auto_sum[STAGE_CUT].n) say(" whole table: STAGE NOT REACHED (0 frames: the run ended before it)");
+    else say(" whole table (300 tiles): PVR %u us, texel sum %08x", us_of(mu.pvr_m), (unsigned)mu.m_sum);
+    if (!auto_sum[STAGE_CUT + 1u].n) say(" the cut: STAGE NOT REACHED (0 frames: the run ended before it)");
+    else if (mc.cut_on) {
         say(" cut to 4 x 5 tiles: PVR %u us, texel sum %08x", us_of(mc.pvr_m), (unsigned)mc.m_sum);
         say(" picture %s; passes cut %u, refused %u", !mu.have_sum || !mc.have_sum ? "NOT SUMMED" : mu.m_sum == mc.m_sum ? "THE SAME" : "DIFFERENT", mc.cut_on, mc.cut_refused);
         say(" rewrite + restore %u us a pass; words not restored %u", us_of(mc.cut_ns), mc.cut_bad);

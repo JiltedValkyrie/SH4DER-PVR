@@ -34,6 +34,27 @@ int main(void) {
     memcpy(bad, t, sizeof bad); bad[3].bias = 16u; CHECK(!faf_table_ok(bad, n));
     memcpy(bad, t, sizeof bad); bad[1].shift = 4u; CHECK(!faf_table_ok(bad, n));
 
+    /* the table from a floor's numbers: starts a square root of two apart, where a pixel covers 2, 4, 8 texels along the view */
+    {
+        faf_range_t f[FAF_RANGES_MAX];
+        const float focal = 400.0f, eye = 1.6f, tpm = 128.0f;
+
+        CHECK(faf_table_from(f, 4u, focal, eye, tpm, 0.5f) == 4u && faf_table_ok(f, 4u));
+        for (k = 1; k < 4u; k++) {
+            const float along = tpm * f[k].from * f[k].from / (focal * eye);
+
+            CHECK(fabsf(along - (float)(1u << k)) < 0.01f * (float)(1u << k));
+            CHECK(f[k].shift == k && f[k].bias == FAF_BIAS_NONE && f[k].ramp > 0.0f);
+        }
+        CHECK(fabsf(f[2].from / f[1].from - 1.41421356f) < 1e-4f && fabsf(f[1].from - 3.1623f) < 1e-3f);
+        CHECK(fabsf(f[1].from + f[1].ramp - (f[1].from + 0.5f * (f[2].from - f[1].from))) < 1e-4f);
+        CHECK(faf_table_from(f, 4u, focal, eye, tpm, 1.0f) == 4u && faf_table_ok(f, 4u));      /* zones that just meet are allowed */
+        CHECK(faf_table_from(f, 4u, focal, eye, tpm, 0.0f) == 4u && faf_table_ok(f, 4u));      /* a share of 0 is held to a narrow zone */
+        CHECK(faf_table_from(f, 1u, focal, eye, tpm, 0.5f) == 1u && faf_table_ok(f, 1u));
+        CHECK(!faf_table_from(f, 5u, focal, eye, tpm, 0.5f) && !faf_table_from(f, 4u, 0.0f, eye, tpm, 0.5f) && !faf_table_from(NULL, 4u, focal, eye, tpm, 0.5f));
+        printf("table from focal 400, eye 1.6 m, 128 texels a metre: starts %.2f %.2f %.2f m\n", (double)f[1].from, (double)f[2].from, (double)f[3].from);
+    }
+
     /* the shares add to 1 at every distance; a range is alone outside the zones; the ramp is linear */
     for (d = 0.0f; d < 60.0f; d += 0.37f) {
         float sum = 0.0f;
