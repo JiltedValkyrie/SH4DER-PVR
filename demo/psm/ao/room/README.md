@@ -8,7 +8,9 @@ A small clay living room for the ambient occlusion tests: a floor, two walls wit
 
 ## The look
 
-The pictures and `dc_room.blend` are not in the repository: `tools/build_room.py` makes them again (see "Making it again"). One reference picture, the ambient occlusion alone, is kept in `wiki/images/`.
+The pictures and `dc_room.blend` are not in the repository: `tools/build_room.py` makes them again (see "Making it again"). One reference picture, the ambient occlusion alone, is kept: [`wiki/images/room_ao_only.png`](../../../../wiki/images/room_ao_only.png), a copy of `work/09_ao_only.png`.
+
+![The living room's ambient occlusion alone: a Cycles AO render at 1 m distance, the target for the AO work.](../../../../wiki/images/room_ao_only.png)
 
 | File | What |
 |---|---|
