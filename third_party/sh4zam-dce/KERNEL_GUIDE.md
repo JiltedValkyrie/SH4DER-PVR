@@ -108,6 +108,8 @@ Per routine: one line of what it does; alignment; error bound; bit-identical yes
 
 ## 8. Routines written under this guide: the shadow compare (`shz_dce_shadow.h`)
 
+`shz_dce_shadow_compare_batch` is a stop-gap: when SH4ZAM has its own version, callers move to it and this header is removed.
+
 The first routine written to this guide after section 7: `shz_dce_shadow_compare_batch`. Its planar compare of one point is the one a shadow map needs; the library's per-point loop is what it replaces. The header's own comment has the algorithm; this section has the record.
 
 **What it does.** N points in, N lit bytes out (255 lit, 0 shadowed). Per point: one FTRV of (x, y, z, 1) through the map's matrix (in XMTRX, loaded by the caller); the sign-safe reciprocal of W; the texel size for the bias when `bias_b != 0`; the 2 x 2 solve for the depth per texel; one texel compare, or four blended (pcf). The two surface axes come in already transformed (FTRV of (t, 0), once per batch), so the per-point code makes one transform, not three.
@@ -151,6 +153,8 @@ Loads and stores a point, `-O3` pcf 1 bias 1.5: routine 64.5 and 10.9, planar 10
 **Credit.** The steps are those of the planar shadow-map compare in SH4DER-PVR (Copyright (c) 2026 Jilted Valkyrie); see README, Acknowledgments.
 
 ## Entry: tri_row (shz_dce_tri_row.h, one triangle row into a 16-bit depth row)
+
+`shz_dce_tri_row_step` is a stop-gap: when SH4ZAM has its own version, callers move to it and this header is removed.
 
 The routines: `shz_dce_tri_row_step_c` (the running-add row, unchanged, the reference), `shz_dce_tri_row_step_sh4` (the same edges by running adds; a covered texel's depth by one FIPR each, barycentric) and the dispatch `shz_dce_tri_row_step`. The BEFORE is the running-add row of the shadow raster it came from (kept as a copy in the bench, as the guide asks).
 

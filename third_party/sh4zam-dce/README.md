@@ -59,3 +59,5 @@ A second set says where a rework puts the value barrier `shz_dce_opaquef()` (an 
 ## Acknowledgments
 
 `shz_dce_shadow.h` (`shz_dce_shadow_compare_batch`) is the batch form of the planar shadow-map compare of SH4DER-PVR, Copyright (c) 2026 Jilted Valkyrie (see the LICENSE of that project). The steps are its steps; the code is written here against SH4ZAM's public API and says so in its comments. Credit to SH4DER-PVR and its author is given here, as that project's terms ask.
+
+`shz_dce_shadow.h` and `shz_dce_tri_row.h` are stop-gaps: when SH4ZAM has its own versions of `shz_dce_shadow_compare_batch` and `shz_dce_tri_row_step`, callers move to those and these two headers are removed.
