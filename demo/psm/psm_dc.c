@@ -16,10 +16,12 @@
    (test/psm_scene_test.c). This file is the KallistiOS part: PVR setup, the render target, the lists, the pad, the
    timers and the text textures.
 
-   Pad: A route, X uniform / PSM, Y the map inset, B (held) the split of the SH-4's time, D-pad the sun (left / right
-   azimuth, up / down elevation), L / R the warp's near plane, the stick turns the camera, START the readout.
-   START + A the map size, START + X one texel / four, START + Y the three suns, START + up / down bias a,
-   START + L / R bias b.
+   Pad, as the torch walk demo (demo/torchwalk_ab.c, single stick): the stick looks (INVERT Y on: up looks down), Y / A
+   held walk forward / back, X / B strafe left / right. D-pad down opens the menu (a row a line: route, map, map size, PCF,
+   bias a and b, warp near, sun azimuth and elevation, inset, readout and the SH-4's split, presets, invert Y); in it the
+   face buttons do not walk, D-pad up / down pick a row, left / right and A change it, B or START close it. Quick, menu
+   closed: D-pad up the route, a tap of START uniform / PSM, D-pad left / right the sun's azimuth, L / R triggers its
+   elevation, START + L / R the warp's near plane. The meaning is psm_input in psm_scene.h; this file reads the pad.
 
    The cost label reads "--" until the console has measured a second. Nothing in it comes from a host.
 
@@ -39,8 +41,8 @@
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define MAP_MAX 256u               /* the largest map side: route B's RAM, route A's target */
-#define TEXT_W 512u                /* the text texture: eight lines of the 8 x 16 font */
-#define TEXT_H 128u
+#define TEXT_W PSM_TEXT_W          /* the text texture: sixteen lines of the 8 x 16 font (ten used), 256 KB */
+#define TEXT_H PSM_TEXT_H
 #define INSET 128u                 /* the map inset, texels and pixels */
 #define HUD_EVERY 20u              /* frames between looks at the text and the inset */
 #define STICK_DEAD 12
@@ -51,6 +53,7 @@ static psm_scene_t scene;
 static psm_state_t state;
 static psm_frame_t frame;
 static psm_cost_t cost;
+static psm_walk_limits_t walk_lim;
 
 static uint16_t depth_map[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));    /* route B's map: 128 KB of RAM at 256 */
 static uint16_t text_px[TEXT_W * TEXT_H] __attribute__((aligned(32)));
@@ -188,6 +191,7 @@ static int load(void) {
     pvr_txr_load(text_px, text_mem, sizeof text_px);
     make_headers();
     psm_scene_init(&scene);
+    psm_scene_limits(&scene, &walk_lim);
     psm_state_default(&state);
     memset(&cost, 0, sizeof cost);
     return 1;
@@ -195,11 +199,13 @@ static int load(void) {
 
 /* ---- the pad ---------------------------------------------------------------- */
 
-static void pad(float dt) {
+/* Returns 1 when a button went down or up this frame (the text is looked at then, so the menu answers at once). */
+static int pad(float dt) {
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    psm_pad_t in = { 0u, 0.0f, 0.0f, 0.0f, 0.0f };
     unsigned held = 0;
-    float stick = 0.0f;
+    const unsigned before = state.last;
 
     if (st) {
         const uint32_t b = st->buttons;
@@ -215,9 +221,14 @@ static void pad(float dt) {
         if (b & CONT_DPAD_RIGHT) held |= PSM_BTN_RIGHT;
         if (st->ltrig > 160) held |= PSM_BTN_L;
         if (st->rtrig > 160) held |= PSM_BTN_R;
-        if (st->joyx > STICK_DEAD || st->joyx < -STICK_DEAD) stick = (float)st->joyx * (1.0f / 128.0f);
+        if (st->joyx > STICK_DEAD || st->joyx < -STICK_DEAD) in.sx = (float)st->joyx * (1.0f / 128.0f);
+        if (st->joyy > STICK_DEAD || st->joyy < -STICK_DEAD) in.sy = (float)st->joyy * (1.0f / 128.0f);
+        in.lt = (float)st->ltrig * (1.0f / 255.0f);
+        in.rt = (float)st->rtrig * (1.0f / 255.0f);
     }
-    psm_input(&state, held, stick, dt);
+    in.held = held;
+    psm_input(&state, &walk_lim, &in, dt);
+    return held != before;
 }
 
 /* ---- the frame's vertices ---------------------------------------------------- */
@@ -254,7 +265,7 @@ static unsigned ground(int layer) {
     return ta_v - before;
 }
 
-/* The models: the triangles psm_place passed (in front, with area). */
+/* The models: the triangles psm_place passed (in front, with area), and those across the near plane cut there. */
 static void models(void) {
     unsigned i;
 
@@ -262,6 +273,14 @@ static void models(void) {
     for (i = 0; i < scene.mtn; i++) {
         const unsigned a = scene.mt[i][0], b = scene.mt[i][1], c = scene.mt[i][2];
 
+        if (frame.mtri[i] == 2u) {
+            psm_cv_t cv[4];
+            const unsigned n = psm_clip_near(&frame, &scene, i, cv);
+            unsigned k;
+
+            for (k = 0; k < n; k++) vert(k + 1u == n ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, cv[k].x, cv[k].y, cv[k].iw, 0.0f, 0.0f, cv[k].argb);
+            continue;
+        }
         if (!frame.mtri[i]) continue;
         vert(PVR_CMD_VERTEX, frame.mscr[a][0], frame.mscr[a][1], frame.mscr[a][2], 0.0f, 0.0f, frame.mcol[a]);
         vert(PVR_CMD_VERTEX, frame.mscr[b][0], frame.mscr[b][1], frame.mscr[b][2], 0.0f, 0.0f, frame.mcol[b]);
@@ -290,6 +309,8 @@ static int map_pass(void) {
     quad(&hdr_flat, 0.0f, 0.0f, n, n, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, white);
     if (frame.built && header(&hdr_flat)) {
         for (i = 0; i < scene.mtn; i++) {
+            if (!psm_caster_on(&scene, i, state.movers_only)) continue;     /* CASTERS: movers only leaves the static ones out */
+            frame.tris++;
             t = psm_pvr_tris_h(frame.ma[scene.mt[i][0]], frame.ma[scene.mt[i][1]], frame.ma[scene.mt[i][2]], target_size, out);
             for (k = 0; k < t; k++) {
                 const float area = (out[k][1].x - out[k][0].x) * (out[k][2].y - out[k][0].y) - (out[k][2].x - out[k][0].x) * (out[k][1].y - out[k][0].y);
@@ -302,6 +323,7 @@ static int map_pass(void) {
             }
         }
     }
+    frame.drawn = map_tris;
     quad(&hdr_flat, 0.0f, 0.0f, n, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
     quad(&hdr_flat, 0.0f, n - 1.0f, n, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
     quad(&hdr_flat, 0.0f, 0.0f, 1.0f, n, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
@@ -320,15 +342,20 @@ static int text_pending(void) {
     return memcmp(ln_prev, ln_now, sizeof ln_prev) != 0;
 }
 
-/* The lines into the text texture. Call after the PVR's last render is done. */
+/* The lines that changed into the text texture, a line's 16 rows (16 KB) at a time. Call after the PVR's last render is done. */
 static void text_upload(void) {
-    unsigned i;
+    unsigned i, k;
 
+    for (i = 0; i < PSM_HUD_LINES; i++) {
+        uint16_t *row = text_px + i * 16u * TEXT_W;
+
+        if (!memcmp(ln_prev[i], ln_now[i], sizeof ln_now[i])) continue;
+        memset(row, 0, 16u * TEXT_W * sizeof *row);
+        minifont_draw_str(row, TEXT_W, ln_now[i]);
+        for (k = 0; k < 16u * TEXT_W; k++) if (row[k]) row[k] = 0xffffu;   /* ARGB1555: opaque white */
+        pvr_txr_load(row, (uint8_t *)text_mem + i * 16u * TEXT_W * sizeof *row, 16u * TEXT_W * sizeof *row);
+    }
     memcpy(ln_prev, ln_now, sizeof ln_prev);
-    memset(text_px, 0, sizeof text_px);
-    for (i = 0; i < PSM_HUD_LINES; i++) minifont_draw_str(text_px + i * 16u * TEXT_W, TEXT_W, ln_now[i]);
-    for (i = 0; i < TEXT_W * TEXT_H; i++) if (text_px[i]) text_px[i] = 0xffffu;     /* ARGB1555: opaque white */
-    pvr_txr_load(text_px, text_mem, sizeof text_px);
 }
 
 /* Route B's inset: the depth map as a grey ramp, 128 x 128. Call after the PVR's last render is done. */
@@ -362,6 +389,8 @@ static void hud(int a_drawn) {
     unsigned i;
 
     text_line(0u, 16.0f, 24.0f);
+    text_line(9u, 16.0f, 42.0f);                                                /* the controls: always on */
+    if (state.menu) text_line(8u, 16.0f, 64.0f);                               /* the menu's row */
     text_line(1u, 16.0f, base - (state.readout ? 5.0f * 18.0f : 18.0f));        /* texel over pixel: always on */
     if (state.readout)
         for (i = 2; i < 6u; i++) text_line(i, 16.0f, base - (float)(6u - i) * 18.0f);
@@ -396,9 +425,10 @@ int main(void) {
     uint64_t previous, win_t0, win_us[4] = { 0, 0, 0, 0 }, win_rnd_ns = 0;
     unsigned win_frames = 0, hud_tick = HUD_EVERY;
 
-    /* the largest screen scene: about 22,000 vertices (the ground strips 9,600, the models 2,800, the layer 9,600), 32 B
-       each: 0.7 MB. KallistiOS sizes two vertex buffers with this value (one a frame, pvr_buffers.c), 2 MB of video memory */
-    init.vertex_buf_size = 1024 * 1024;
+    /* PSM_VTX_BUDGET vertices of 32 B: the host test holds the worst frame (the ground strips and the layer at the widest
+       window, the models, the text) under it. KallistiOS sizes two vertex buffers with this value (one a frame,
+       pvr_buffers.c), 2 MB of video memory */
+    init.vertex_buf_size = PSM_VTX_BUDGET * 32;
     init.opb_overflow_count = 4;
     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
@@ -411,12 +441,12 @@ int main(void) {
         const uint64_t now = timer_us_gettime64();
         float dt = (float)(now - previous) * 1.0e-6f;
         uint64_t t0, t1, t2, t3, rnd_rtt = 0, rnd_scr = 0;
-        int a_drawn = 0, b_ok = 0, want_text = 0, want_inset = 0;
+        int a_drawn = 0, b_ok = 0, want_text = 0, want_inset = 0, pad_edge;
         const int sample = win_frames == 0u;     /* the window's first frame: its render times are read, after a wait */
 
         previous = now;
         if (dt > 0.1f) dt = 0.1f;
-        pad(dt);
+        pad_edge = pad(dt);
         ta_v = 0; layer_v = 0;
 
         /* the SH-4's work, in the label's parts. B: build, clear, casters, receivers. A: build, clip (the map pass), uv.
@@ -428,7 +458,7 @@ int main(void) {
         if (state.route == PSM_ROUTE_B) {
             b_ok = psm_frame_b_begin(&frame, &scene, depth_map);
             t2 = timer_us_gettime64();
-            if (b_ok) psm_frame_b_casters(&frame, &scene);
+            if (b_ok) psm_frame_b_casters(&frame, &scene, state.movers_only);
             t3 = timer_us_gettime64();
             if (b_ok) psm_frame_b_receivers(&frame, &scene, &state);
             else psm_frame_unshadowed(&frame, &scene);
@@ -447,7 +477,7 @@ int main(void) {
         psm_place(&frame, &scene);           /* the screen placement and the colours: this frame's, after the lit and the lookup */
 
         pvr_wait_ready();
-        if (++hud_tick >= HUD_EVERY) {       /* the text and the inset: uploaded when they changed, after the last render */
+        if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text and the inset: uploaded when they changed, after the last render */
             hud_tick = 0;
             want_text = text_pending();
             want_inset = state.inset && state.route == PSM_ROUTE_B && b_ok;
