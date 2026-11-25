@@ -22,6 +22,13 @@ There is no game header and no game data here. The example client is `example/bl
 - **If SH4ZAM has no call for it, write the hook.** Make a thin SH-4 asm (or inline asm) kernel in our own file, in SH4ZAM's style and naming (`shz_`-like, in a `sh4zam-dce` layer), called from C. Keep a C reference beside it and a host test that checks the two agree. Do not copy SH4ZAM's files into this folder, and keep Falco Girgis's MIT notice with SH4ZAM. Offer a hook that proves useful back to SH4ZAM.
 - **No slow code.** No float divide in a loop where a reciprocal (FSRRA / FIPR / FTRV) does it, no per-vertex libm call, no uncached read in a hot loop, no copy the store queue or DMA can do. Show a measured gain on a real console for any asm kernel (real hardware only; an emulator number is not evidence).
 
+## Wiki and the hardware ledger: standing rule for every agent
+
+- `wiki/` is the project's knowledge base for people and agents (`wiki/STRUCTURE.md` is the plan; `wiki/hardware/` is the ledger of hardware facts). A console result that is not in the ledger is not kept.
+- After every console run, the agent who owns the spike writes each finding in ledger form in its notes file: a claim, a status (MEASURED with the date and the number of consoles, FACT with the document section, REPORTED, ESTIMATE, DISPUTED or OPEN), the photo or log it came from, and the test that proves it. Measured and estimated numbers are never mixed.
+- Recommended limits for users go in `wiki/limits/`. A limit is called proven only when a measured number backs it; otherwise it is advised, with the test that would prove it.
+- No game or engine names in the wiki. Safe wording only: say "we know of no earlier use", never "first".
+
 ## Files
 
 - `include/sh4der_core.h`: the shared parts:
