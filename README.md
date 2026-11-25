@@ -382,6 +382,7 @@ void sh4der_bloom_argb(const sh4der_bloom_mesh_t *mesh, const float edge[3], con
 | SH4DER_BLOOM_MAX_DISC_RADIUS | 0.24 | A huge tip disc |
 | SH4DER_BLOOM_MAX_DISC_PEAK | 1.8 | Its centre level (clamped white) |
 | SH4DER_BLOOM_MAX_FLARE_FLOOR | 0.5 | Its side-on share |
+| SH4DER_BLOOM_RINGS_MAX | 8 | Rings sh4der_bloom_rings() takes at most |
 
 **Cost.** 24 vertices and 24 triangles a blade (the tip disc has 8 rim vertices: it reads round). For each, one tube evaluation per ribbon vertex and one normalise for the disc. No texture, no video memory.
 
@@ -748,6 +749,15 @@ if (sh4der_ca_begin(&ca, 0) == 0) {        /* in place of pvr_scene_begin() */
 
 `test/ca_test.c`: the two sizes and their video memory, the shortfall in KB, no shift in the centre, the default split in the corner, green half of red, blue unmoved, every sample inside the picture, texel-centre coordinates.
 
+### Chromatic aberration tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_CA_SPLIT_PX | 3.0 | Strength 1: red and blue this many screen pixels apart in the corner |
+| SH4DER_CA_MESH_X | 8 | Cells across a channel's mesh |
+| SH4DER_CA_MESH_Y | 6 | Cells down a channel's mesh |
+| SH4DER_CA_TEXTURES | 2 | Most frame textures held (two: a history for a temporal blend) |
+
 ## The shadow shafts
 
 `sh4der_shafts.h`, `src/sh4der_shafts.c`. The glow's god rays are the frame's bright parts stretched away from the sun. These are the other half: the frame's dark parts cast a darker copy of themselves, pushed away from the light.
@@ -777,6 +787,20 @@ if (light_on_screen && toward > 0.01f) {
 - **Needs the frame read.** Where the read sees black (an emulator without full framebuffer emulation), the whole frame counts as dark and casts: gate it as the eye and the glow are gated.
 
 `test/shafts_test.c`: the turn toward the light, the depth and its cap, what casts, near and far, a texel easing half way, the map from a read, the copy's scale.
+
+### Shafts tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_SHAFTS_DARK_FROM | 0.30 | Luma (0..1) under which a cell casts |
+| SH4DER_SHAFTS_DARK_FULL | 0.10 | Luma from which down a cell casts fully |
+| SH4DER_SHAFTS_DEPTH | 0.45 | Light a full cast takes at strength 1 |
+| SH4DER_SHAFTS_DEPTH_MAX | 0.9 | Most a cast ever takes |
+| SH4DER_SHAFTS_PUSH | 0.12 | How far the copy is pushed from the light at strength 1 (scale 1 - PUSH) |
+| SH4DER_SHAFTS_NEAR | 0.25 | A cell within this of the light on screen (screen heights) casts fully |
+| SH4DER_SHAFTS_FAR | 0.9 | A cell from this far (screen heights) casts nothing |
+| SH4DER_SHAFTS_FACE_FROM | 0.5 | Cosine between the view axis and the light where the shade starts (60 degrees off) |
+| SH4DER_SHAFTS_FACE_FULL | 0.95 | Cosine from which the shade is full (18 degrees off) |
 
 ## The sss effect (back-lit transmission)
 
@@ -1018,6 +1042,11 @@ int  sh4der_psm_map(const sh4der_psm_t *p, const float x[3], float *u, float *v,
 | SH4DER_PSM_RASTER_SLOPE_MAX | 8 | Most depth a surface's slope may add across a texel in the plane compare, metres |
 | SH4DER_PSM_RASTER_STEP | 0 | 0: the running-add row fill (every target). 1: each row through sh4zam-dce's `shz_dce_tri_row_step` (needs SH4ZAM; its SH-4 form is not bit-identical and is not faster on covered texels, see KERNEL_GUIDE.md) |
 | SH4DER_PSM_RASTER_IW_MIN | 1e-18 | Smallest 1 / w that counts as a depth (the reciprocal is FSRRA of its square, which flushes to zero below about 1.1e-19) |
+| SH4DER_PSM_HOLD_GROW | 1.10 | A held fit is taken this much larger than it needs when it is made again |
+| SH4DER_PSM_HOLD_BAND | 1.30 | A held fit is kept until it needs more, or this many times less |
+| SH4DER_PSM_HOLD_PAD | 2.0 | Texels of room each side of a held fit for the centre's snap |
+| SH4DER_PSM_PVR_MAX_TRIS | 10 | Most triangles one world triangle gives (two parts of up to 5 each) |
+| SH4DER_PSM_PVR_UV_GRID | 5 | The error probe: points a side of the barycentric grid |
 
 ## The bolt effect (branching strands that re-roll)
 
@@ -1044,6 +1073,35 @@ unsigned sh4der_bolt_draw(const sh4der_bolt_t *b, const sh4der_bolt_params_t *p,
 ```
 
 `test/bolt_test.c`: defaults and bad params, seed determinism, strand shape and forks, segment count and chaining, the re-roll clock and what a re-roll keeps (the kept share of the bolt, .4 - .8), the gain range, quad width in pixels at two distances, the halo, fork dimming, the near plane, and no NaN over 100 re-rolls.
+
+### Bolt tuning
+
+The default bolt values, from `sh4der_bolt_params_default`, and the sizes of the state.
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_BOLT_STRANDS_MAX | 8 | Strands a bolt holds |
+| SH4DER_BOLT_SEGS_MAX | 12 | Segments of a main polyline |
+| SH4DER_BOLT_FORKS_MAX | 3 | Forks a strand holds |
+| SH4DER_BOLT_FORK_SEGS_MAX | 6 | Segments of a fork |
+| SH4DER_BOLT_STRANDS | 4 | Default strands (a visible branch count of 4 - 8 with the forks) |
+| SH4DER_BOLT_SEGS | 6 | Default main segments |
+| SH4DER_BOLT_FORKS | 1 | Default forks a strand |
+| SH4DER_BOLT_FORK_SEGS | 3 | Default fork segments |
+| SH4DER_BOLT_KEEP_SEGS | 3 | Main segments a re-roll keeps (half of a strand) |
+| SH4DER_BOLT_WANDER | 0.45 | Sideways step as a share of the segment length, each of the two sideways axes |
+| SH4DER_BOLT_SEG_JITTER | 0.25 | Segment length varies by +- this share |
+| SH4DER_BOLT_FORK_LEN | 0.35 | Fork length as a share of the strand length |
+| SH4DER_BOLT_FORK_LO | 0.50 | Least fork angle from the strand, radians (about 29 degrees) |
+| SH4DER_BOLT_FORK_HI | 0.90 | Largest fork angle, radians (about 52 degrees) |
+| SH4DER_BOLT_WIDTH_PX | 2.0 | Strand width on the screen, pixels |
+| SH4DER_BOLT_HALO_SCALE | 3.0 | Halo width as a multiple of the strand width |
+| SH4DER_BOLT_HALO_GAIN | 0.35 | Halo brightness as a share of the strand's |
+| SH4DER_BOLT_FORK_GAIN | 0.70 | Fork brightness as a share of the main strand's |
+| SH4DER_BOLT_REROLL_S | 0.1333 | Seconds between re-rolls: 4 pictures at 30 a second |
+| SH4DER_BOLT_GAIN_JITTER | 0.25 | Brightness of a re-roll is 1 +- this |
+| SH4DER_BOLT_CORE_ARGB | 0xFFFFEBF0 | Peak colour of the core strand (255, 235, 240) |
+| SH4DER_BOLT_HALO_ARGB | 0xFFFF968C | Peak colour of the halo (255, 150, 140) |
 
 ## The motes effect (a steady field of drifting specks)
 
@@ -1074,6 +1132,14 @@ unsigned sh4der_motes_draw_flat(const sh4der_motes_draw_t *d, unsigned n, const 
 
 `test/motes_test.c`: defaults and bad params, the hash (range, spread, salts differ), the stateless rule (same slot and time, same speck; a new generation starts elsewhere), the curves (opens at clip x alpha_in, colour hold and fade, nothing drawn when dark), the live count (85 - 130 of 210), screen side limits, the vertex colour, the quad corners, the cap keeps the brightest, lod cut, behind the eye, bad arguments, the round mask, no NaN over 200 frames. Both maths back ends.
 
+### Motes tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_MOTES_SLOTS_MAX | 256 | Slots one emitter holds (rate x life_hi, rounded up, at most this) |
+| SH4DER_MOTES_DRAW_MAX | 128 | Quads one collect call can hold (params.max_draw is at most this) |
+| SH4DER_MOTES_MASK_SIDE | 16 | Side of the round mask texture, texels |
+
 ## The deform effect (ground that keeps a dent)
 
 `include/sh4der_deform.h` (all inline, host tested; no `.c`: it draws nothing). The ground is a mesh the caller already owns; this module holds one byte of height a cell under it and answers "how high is the ground here?" for every vertex.
@@ -1087,6 +1153,18 @@ unsigned sh4der_motes_draw_flat(const sh4der_motes_draw_t *d, unsigned n, const 
 - **Not measured:** the cost on a console. The header's figures are counts (bytes and loads), not times.
 
 `test/deform_test.c`: defaults and bad arguments, the bowl and its hard bottom, the rim and its limit, ease-in that arrives, no lift by a later stamp, the height blend, depth, slope, refill with carry, the window (dents kept, dropped, a jump past its size, negative coordinates), the print list (size, direction, fade, replacement, triangle area).
+
+### Deform tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_DEFORM_LEVEL | 128 | Cell value of the undisturbed surface (0 = the hard bottom, 255 = the highest rim) |
+| SH4DER_DEFORM_GRID_W | 160 | Default window width in cells (40 m at the default cell) |
+| SH4DER_DEFORM_GRID_H | 160 | Default window depth in cells |
+| SH4DER_DEFORM_CELL | 0.25 | Default cell size, world units (metres) |
+| SH4DER_DEFORM_RIM_REACH | 1.6 | The rim ends at this many stamp radii from the stamp's centre |
+| SH4DER_DEFORM_RIM | 0.25 | Default rim height as a share of the dent's depth (0 = no rim) |
+| SH4DER_DEFORM_PRINTS | 32 | Prints the decal list keeps; the oldest is replaced |
 
 ## The mist effect (a bank of slices)
 
@@ -1102,6 +1180,81 @@ unsigned sh4der_motes_draw_flat(const sh4der_motes_draw_t *d, unsigned n, const 
 - **Fill is the cost and is not measured.** Every sheet covers its whole area on screen. Keep the bank low and partial (a band, not a wall across the view) or use fewer sheets.
 
 `test/mist_test.c`: defaults, the per-slice alpha against the exact root, a slice's vertices (place, rows, alpha, triangle areas), even spacing, the eye inside the bank, drift with time and seed, a turned bank, feather limits, bad arguments, the noise (range, seed, tiling).
+
+### Mist tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_MIST_MAX_SLICES | 16 | Most slices a bank may have |
+| SH4DER_MIST_SLICES | 12 | Default slices |
+| SH4DER_MIST_OPACITY | 0.7 | Default share of the light the whole bank stops, looking through all of it |
+| SH4DER_MIST_FEATHER | 2.0 | Default height of the soft top, world units (metres) |
+| SH4DER_MIST_NEAR_FADE | 3.0 | Default distance at which a slice starts to fade as the eye nears it, world units |
+| SH4DER_MIST_DRIFT | 0.02 | Default sideways slide of the texture, texture widths a second |
+| SH4DER_MIST_SEETHE | 0.03 | Default up-and-down wobble of the texture, texture heights |
+| SH4DER_MIST_SEETHE_RATE | 0.4 | Default wobble speed, radians a second |
+| SH4DER_MIST_ALPHA_ROUNDS | 5 | Newton rounds sh4der_mist_slice_alpha takes (each at most 16 multiplies and a divide) |
+| SH4DER_MIST_TILE | 8.0 | Default world units one texture width covers across a slice |
+
+## The rise effect (lights that lift off and become stars)
+
+`include/sh4der_rise.h`, header only; the effect table above says what it does. `test/rise_test.c` is its test.
+
+### Rise tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_RISE_TWINKLE_IN | 1.0 | Seconds over which the twinkle depth fades in after arrival (so brightness has no jump) |
+
+## The film effect (the wear of old film)
+
+`include/sh4der_film.h`, header only; the effect table above says what it does. `test/film_test.c` is its test.
+
+### Film tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_FILM_SCRATCH_SLOTS | 3 | Scratches that can be alive at once (one a slot) |
+| SH4DER_FILM_SPECKS_MAX | 12 | Most specks one tick can have |
+
+## The cloudvolume effect (a cloud deck you fly through)
+
+`include/sh4der_cloudvolume.h`, header only, and `demo/cloudvolume.c`; the effect table above says what it does. `test/cloudvolume_test.c` is its test.
+
+### Cloudvolume tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_CLOUDVOLUME_MAP | 128 | Cover map side, texels (a power of two) |
+| SH4DER_CLOUDVOLUME_NOISE | 32 | Noise volume side, voxels (a power of two) |
+| SH4DER_CLOUDVOLUME_COARSE | 32 | Side of the coarse highest-top map, cells of 4 x 4 texels |
+| SH4DER_CLOUDVOLUME_MAX_STEPS | 64 | Most march steps a ray |
+| SH4DER_CLOUDVOLUME_MAX_LIGHT | 4 | Most light samples a march sample |
+| SH4DER_CLOUDVOLUME_BAKE_TAPS | 40 | Map reads toward the sun a texel in the bake |
+| SH4DER_CLOUDVOLUME_TILE | 8192.0 | World units (metres) one cover map covers: 64 m a texel |
+| SH4DER_CLOUDVOLUME_THICKNESS | 1100.0 | Slab height, metres |
+| SH4DER_CLOUDVOLUME_DENSITY | 0.010 | Extinction a metre in full cloud (63 % hidden after 100 m) |
+| SH4DER_CLOUDVOLUME_COVERAGE | 0.60 | Share of the cover map's range that is cloud |
+| SH4DER_CLOUDVOLUME_EROSION | 0.42 | How much the noise carves, 0 .. 1 |
+| SH4DER_CLOUDVOLUME_SHADOW | 3.0 | Light lost over a full slab height of cloud toward the sun, as an exponent |
+| SH4DER_CLOUDVOLUME_HAZE | 9000.0 | Distance at which a cloud's shade is 63 % of the way to the haze, metres |
+| SH4DER_CLOUDVOLUME_FAR | 26000.0 | March end, metres |
+| SH4DER_CLOUDVOLUME_NEAR | 12.0 | March start, metres |
+| SH4DER_CLOUDVOLUME_STEPS | 16 | Default march steps |
+| SH4DER_CLOUDVOLUME_GROWTH | 28.0 | Last step length over the first |
+| SH4DER_CLOUDVOLUME_HAZE_SHADE | 150 | The shade far cloud fades to (a pale blue-grey on the ramp) |
+| SH4DER_CLOUDVOLUME_STOP | 0.03 | The march stops when this share of the light still comes through |
+
+## The pvrx layer (over KallistiOS's PVR driver)
+
+`include/sh4der_pvrx.h` and `src/sh4der_pvrx.c`; the effect table above says what it does, `AGENTS.md` "Call order: pvrx" how to call it. `test/pvrx_test.c` tests the header's inline part.
+
+### Pvrx tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_PVRX_WAIT_US | 100000 | Microseconds after which a polled wait gives up (the town's a3e-poll value) |
+| SH4DER_PVRX_DMA_US | 200000 | Microseconds after which a download gives up (the benches' limit; 512 KB takes about 14 ms) |
 
 ## The frame read
 
@@ -1252,6 +1405,8 @@ out.weight = out.cut ? 0.0f : lerp(moving, still, f);                           
 | SH4DER_GLINT_OFFSET | 0.0075 | Glint quad moved this far toward the viewer |
 | SH4DER_RAMP_EDGE_SAT | 1.6 | EDGE saturation factor (the blade texture's blue texels: saturation 0.55) |
 | SH4DER_RAMP_CORE_SAT | 0.25 | CORE saturation factor (the same texture's white-hot texels: saturation 0.09) |
+| SH4DER_TUBE_MAX | 2 | Tubes an effect frame holds |
+| SH4DER_BLOCKER_MAX | 2 | Blockers an effect frame holds |
 
 ```c
 void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float core[3]);
@@ -1264,7 +1419,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 1. Write `include/sh4der_<name>.h` and `src/sh4der_<name>.c` (or, as the look effect, the header alone with inline calls). Include `sh4der_core.h`, prefix every name `sh4der_<name>_` / `SH4DER_<NAME>_`, and use the shared steps: the feather, the shapes, the SH4ZAM helpers. Do not copy SH4DOW-DC or SH4ZAM code in.
 2. Write `test/<name>_test.c`: the default numbers, the bad params, both paths.
 3. Add the source to `SRC` and `HDR` in the Makefile, and the test to `TESTS`.
-4. Add a row to the effect table above and a tuning table with the headers' macro values. `make test` runs `tools/check_tuning.py` (`make check-tuning` alone): it fails when a row's value is not the header's, when a row names no macro, or when its value is not a number. A numeric macro with no row is a warning (`--strict` makes it fail); a macro that is not a tuning value (a flag, a derived count, a constant, an input limit) goes in the script's `EXEMPT` list.
+4. Add a row to the effect table above and a tuning table with the headers' macro values. `make test` runs `tools/check_tuning.py` (`make check-tuning` alone): it fails when a row's value is not the header's, when a row names no macro, or when its value is not a number. A numeric macro with no row fails too (`make test` runs it with `--strict`); a macro that is not a tuning value (a flag, a derived count, a constant, an input limit) goes in the script's `EXEMPT` list.
 
 ## Build and test
 

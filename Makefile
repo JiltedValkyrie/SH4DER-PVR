@@ -38,10 +38,10 @@ check-sh4zam:
 	$(PYTHON) tools/check_sh4zam.py $(SH4ZAM)
 
 # Fails when a README tuning table row is not its header's SH4DER_* value, names nothing, or is not a number; a macro with no
-# row is a warning (--strict makes it fail). Also runs the script's own self-test. Standard library python only.
+# row fails too (--strict). Also runs the script's own self-test. Standard library python only.
 check-tuning:
 	$(PYTHON) tools/check_tuning.py --self-test
-	$(PYTHON) tools/check_tuning.py
+	$(PYTHON) tools/check_tuning.py --strict
 
 # The street driving demo (demo/pl4nar): planar reflection, light pools and halos. One script from a clean checkout to an image:
 # it fetches CC0 art, cuts it in Blender, bakes, compiles and runs mkdcdisc. PL4NAR_ARGS: e.g. --rtt --pin (see demo/pl4nar/README.md).
