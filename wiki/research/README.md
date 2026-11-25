@@ -39,6 +39,7 @@ Pages written here (research ideas, nothing built):
 | [Depth shading ideas](depth-shading-ideas.md) | 2026-11-25 | Material inputs mapped onto the PVR; where a PVR depth compare could fill a gap; most-useful and one-spike ideas. All ESTIMATE or OPEN. |
 | [The sound chip as a precompute unit](sound-chip-precompute.md) | 2026-11-25 | The AICA manual read against the offload plan: the ARM's timers, the DSP's rules, the voices; nine ideas with verdicts. The manual confirms the plan: only rare, small work pays across G2. ESTIMATE / OPEN. |
 | [Tricks from after and around the PVR](post-pvr-tricks.md) | 2026-11-25 | 21 GPU techniques of 2003-2010 and 18 fixed-function console tricks, each mapped to the PVR with ledger costs and a host test; the PVR pieces cost key; most useful and craziest. ESTIMATE / OPEN. |
+| [GPU Gems depth techniques](gems-depth-techniques.md) | 2026-11-25 | 33 chapters of the three GPU Gems books that use depth, by category, each mapped to the PVR pieces with ledger costs and a host test; what the PVR already does in hardware (sorted translucency, hidden-surface removal, table fog); six ideas J1-J6. ESTIMATE / OPEN. |
 | [Depth fog and glow ideas](depth-fog-ideas.md) | 2026-11-25 | Film and TV depth fog and light; what table fog already does; fog between c4's bands, and its cost against the mask. All ESTIMATE or OPEN. |
 
 Outside sources: [skmp's repositories](outside-sources.md).
