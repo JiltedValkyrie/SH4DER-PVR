@@ -52,6 +52,7 @@ typedef struct demo_counts {
     float    draw_back, draw_fwd;      /* the drawn range behind and ahead of the camera, m */
     int      ao;                       /* the baked occlusion was on */
     uint32_t tiles;                    /* car shadow tiles drawn (the new map, by day with the reflection on); 0 elsewhere */
+    uint32_t tiles_band;               /* the hills: of them, cars in the fade band (40 .. 50 m) */
 } demo_counts_t;
 int   demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit);   /* size 0 256x128, 1 128x64, 2 512x256; tod 1 DAY, 2 NIGHT; -1: no video memory */
 float demo_speed(void);
@@ -63,6 +64,9 @@ void  demo_auto_lod(float m);                      /* the new map: a building pa
 void  demo_auto_split(int on);                     /* the split at its middle (the reflection layer on the left half only), or off */
 #ifdef PL4NAR_HILLS
 void  demo_auto_sun(unsigned mode);                /* the hills build: the sun 0 FIXED, 1 SWEEP (from its start), 2 HOLD */
+void  demo_auto_tile_set(int small);               /* the shadow tiles: 0 four of 128 x 128, 1 eight small (the c8 set) */
+void  demo_auto_cut(int on);                       /* the mirror pass through its own tiles (tile_cut.h) */
+void  demo_auto_info(int on);                      /* the overlay (after demo_auto_set, which turns it off) */
 #endif
 
 /* Platform: microseconds since start. */

@@ -65,6 +65,19 @@ void gfx_reflect_end(void);
 void gfx_frame_begin(void);
 void gfx_list_translucent(void);
 void gfx_frame_end(void);
+/* The tile cut (a stage, demo/psm/ao/tile_cut.h): the next reflection passes go through the screen's top left cw x ch
+   tiles alone, not the whole 20 x 15; 0 x 0 off (the default). A cut that is refused runs the pass uncut and is counted;
+   a table that does not read back after a pass turns the cut off for good, restarts the PVR and is counted (failed). */
+typedef struct gfx_cut_stats {
+    uint32_t passes;               /* reflection passes that ran cut */
+    uint32_t refused;              /* passes asked for a cut and run uncut */
+    uint32_t failed;               /* tables that did not read back: the PVR was restarted, the cut is off */
+    uint32_t bad_words;            /* words that did not read back, all failures */
+    unsigned tables;               /* tile tables found (2 is both) */
+    unsigned cw, ch;               /* the cut asked for */
+} gfx_cut_stats_t;
+void gfx_tile_cut(unsigned cw, unsigned ch);
+void gfx_tile_cut_stats(gfx_cut_stats_t *o);
 
 void gfx_clear_colour(uint32_t argb);                     /* what shows where nothing is drawn (the next screen scene) */
 void gfx_viewport(float w, float h);                      /* triangles wholly outside 0 .. w, 0 .. h are dropped */
@@ -94,6 +107,8 @@ void gfx_be_reflect_end(void);
 void gfx_be_frame_begin(void);
 void gfx_be_list_translucent(void);
 void gfx_be_frame_end(void);
+void gfx_be_tile_cut(unsigned cw, unsigned ch);
+void gfx_be_tile_cut_stats(gfx_cut_stats_t *o);
 
 static inline uint32_t gfx_rgb(unsigned a, unsigned r, unsigned g, unsigned b) {
     return ((uint32_t)a << 24) | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;

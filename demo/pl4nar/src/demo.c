@@ -38,12 +38,29 @@
 #define TILE_M       10.0f         /* a tile's side on the ground, m */
 #define TILE_NEAR    50.0f         /* traffic nearer than this to the car may have a tile */
 #define TILE_Z       1.0e4f        /* the tiles' depth key in the mirror pass: in front of anything mirrored (z = 1 / w) */
+#ifdef PL4NAR_HILLS
+/* The hills build: the mirror at the top left, the tiles' region (256 x 256) to its right; one target, a power of two
+   each way: 512 x 256 for a mirror of 128 x 64 or 256 x 128 (256 KB), 1024 x 256 for 512 x 256 (512 KB). The pass's
+   tile cut keeps the top left (w + 256) x 256: 12 x 8 = 96 tiles at the default (tile_cut.h's most). */
+#define RT_TILES_W   256u
+#define RT_TILES_H   256u
+#define RT_W(w)      ((w) + RT_TILES_W <= 512u ? 512u : 1024u)
+#define RT_H(h)      ((h) > RT_TILES_H ? (h) : RT_TILES_H)
+#define TILE_FADE_NEAR 40.0f       /* a tile's shadow is whole within this of the camera (the client's tuning) */
+#define TILE_FADE_FAR  50.0f       /* and gone at this: a tile is given up only here, so none pops */
+#define TILE_FADE_IN   0.5f        /* s: a tile given to a car inside the band grows in over this */
+#define LAMP_FADE_W    10.0f       /* the lamps' pools and halos fade over the last this of their reach */
+#define BLOB_REACH     80.0f       /* the blob discs: within this of the car (as before), fading over the last 10 m */
+#else
 #define RT_W(w)      ((w) * 2u)    /* the target: the mirror on the left, the tiles on the right */
+#define RT_H(h)      (h)
+#endif
 #if MAP_MAX_NV > MDL_MAX_NV
 #define SCRATCH_MAP_NV MAP_MAX_NV  /* the map's largest model is larger than the bake's */
 #endif
 #else
 #define RT_W(w)      (w)
+#define RT_H(h)      (h)
 #endif
 
 /* ------------------------------------------------------------------------------------------------ world numbers */
@@ -158,7 +175,11 @@ static unsigned   s_refused;                      /* models refused for size: lo
 /* x, z, h: the car in the street's frame (z along it, x across, h from its direction). On the new map z is s along
    the loop and x the offset across it. wx, wz, wh: the car in the world; wcam: the camera's yaw before the orbit. */
 static struct { float x, z, h, v, cam_h, orbit, clock, wx, wz, wh, wcam; } s_car;
+#ifdef PL4NAR_HILLS
+static int      s_reflect = 1, s_info = 0, s_auto;  /* the overlay off at boot: its text costs (START shows it) */
+#else
 static int      s_reflect = 1, s_info = 1, s_auto;
+#endif
 static int      s_low = 1;                         /* the low look: 64 x 64, 16-colour, point sampled textures (A switches) */
 static unsigned s_size;                            /* index into s_sizes */
 #ifdef PL4NAR_MAP
@@ -215,6 +236,46 @@ static float s_lamp_s[MAP_LAMPS];                  /* each lamp head's s on the 
 static float s_blob_s;                             /* blob(): the car's s on the loop */
 static float s_tb_y, s_tb_p, s_tb_r;               /* tile_box(): the car's base height, pitch and roll */
 static float s_tile_s[TILE_N], s_tile_y[TILE_N];   /* each tile's car: s on the loop, its ground height */
+/* The tiles as a list of slots, each its own place and size in the tiles' region (32 px units from the region's top
+   left, the mirror's right edge) and a kind, so a 64 or 32 px tile for a small caster can join the list later. The
+   default: four of 128 x 128, the player and the three nearest cars. The small set (8 of 32 px at 128 x 64, the c8
+   layout: its units scale with the mirror's height / 64) is the cost stage's (demo_auto_tile_set, -DPL4NAR_TILES8). */
+typedef struct tile_slot { uint8_t x, y, w, h, kind; } tile_slot_t;
+#define TILE_KIND_CAR 0u
+static const tile_slot_t s_slots_big[4] = { { 0, 0, 4, 4, TILE_KIND_CAR }, { 4, 0, 4, 4, TILE_KIND_CAR }, { 0, 4, 4, 4, TILE_KIND_CAR }, { 4, 4, 4, 4, TILE_KIND_CAR } };
+static const tile_slot_t s_slots_small[8] = { { 0, 0, 1, 1, TILE_KIND_CAR }, { 1, 0, 1, 1, TILE_KIND_CAR }, { 2, 0, 1, 1, TILE_KIND_CAR }, { 3, 0, 1, 1, TILE_KIND_CAR },
+                                              { 0, 1, 1, 1, TILE_KIND_CAR }, { 1, 1, 1, 1, TILE_KIND_CAR }, { 2, 1, 1, 1, TILE_KIND_CAR }, { 3, 1, 1, 1, TILE_KIND_CAR } };
+#ifdef PL4NAR_TILES8
+static int s_tiles_small = 1;
+#else
+static int s_tiles_small;
+#endif
+static int   s_slot_car[TILE_N];                   /* a slot's car, kept from frame to frame: -1 the player (slot 0), -2 none */
+static float s_slot_in[TILE_N];                    /* a slot's grow-in, 0 .. 1 */
+static float s_tile_fade[TILE_N];                  /* this frame's strength a slot */
+static float s_slot_clock;                         /* the last frame's clock, for the grow-in */
+static unsigned s_tile_live;                       /* tiles with a car this frame */
+static unsigned s_tile_band;                       /* of them, cars in the fade band (TILE_FADE_NEAR .. _FAR) */
+static int   s_cut_on;                             /* the mirror pass through its own tiles (tile_cut.h): a stage */
+static unsigned tile_slots(void) { return s_tiles_small ? 8u : 4u; }
+/* Slot k in target pixels: its top left and side. */
+static void tile_rect(unsigned k, float *x0, float *y0, float *T) {
+    const tile_slot_t *t = s_tiles_small ? &s_slots_small[k] : &s_slots_big[k];
+    const float u = 32.0f * (s_tiles_small ? (float)s_sizes[s_size][1] * (1.0f / 64.0f) : 1.0f);
+    *x0 = (float)s_sizes[s_size][0] + u * (float)t->x; *y0 = u * (float)t->y; *T = u * (float)t->w;
+}
+void demo_auto_tile_set(int small) { unsigned k; s_tiles_small = small; for (k = 0; k < TILE_N; k++) s_slot_car[k] = -2; }
+void demo_auto_cut(int on) { s_cut_on = on; }
+void demo_auto_info(int on) { s_info = on; }
+/* The cut for this frame's mirror pass, in 32 px tiles from the target's top left: the mirror and, when tiles were
+   drawn last frame, the tiles' region to its right (4 x 128: 256 x 256; 8 small: 4 x 2 of their units). 0 x 0: off. */
+static void tile_cut_size(unsigned *cw, unsigned *ch) {
+    const unsigned tw = s_sizes[s_size][0], th = s_sizes[s_size][1];
+    const unsigned u = s_tiles_small ? th / 2u : 0u, rw = s_tile_live ? (s_tiles_small ? 4u * u : RT_TILES_W) : 0u;
+    const unsigned rh = s_tile_live ? (s_tiles_small ? 2u * u : RT_TILES_H) : 0u;
+    *cw = s_cut_on ? (tw + rw + 31u) / 32u : 0u;
+    *ch = s_cut_on ? ((th > rh ? th : rh) + 31u) / 32u : 0u;
+}
 #endif
 #endif
 
@@ -241,7 +302,7 @@ int demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit) {
     s_auto = orbit;
     s_info = 0;                                    /* the overlay's text is not part of what is measured */
     s_fx_hidden = 1;                               /* nor the labels (psm_effects.h: OFF in measured stages) */
-    if (size % 3u != s_size) { s_size = size % 3u; r = gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]); }
+    if (size % 3u != s_size) { s_size = size % 3u; r = gfx_reflect_resize(RT_W(s_sizes[s_size][0]), RT_H(s_sizes[s_size][1])); }
     return r;
 }
 float demo_speed(void) { return s_car.v; }
@@ -255,11 +316,15 @@ void demo_counts(demo_counts_t *c) {
     c->tw = s_sizes[s_size][0]; c->th = s_sizes[s_size][1]; c->target_bytes = gfx_reflect_bytes();
     c->night = s_night; c->refl_ok = s_pv_ok; c->draw_back = DRAW_BACK; c->draw_fwd = DRAW_FWD;
 #ifdef PL4NAR_MAP
-    c->tiles = s_tile_n;
+#ifdef PL4NAR_HILLS
+    c->tiles = s_tile_live; c->tiles_band = s_tile_band;
+#else
+    c->tiles = s_tile_n; c->tiles_band = 0u;
+#endif
     c->ao = s_ao;
 #else
     c->ao = 0;
-    c->tiles = 0u;
+    c->tiles = 0u; c->tiles_band = 0u;
 #endif
 }
 
@@ -375,7 +440,7 @@ void demo_init(void) {
 #endif
     HILLS_SNAP();
     demo_place(0.0f);
-    gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]);
+    gfx_reflect_resize(RT_W(s_sizes[s_size][0]), RT_H(s_sizes[s_size][1]));
 }
 
 /* ------------------------------------------------------------------------------------------------ update */
@@ -417,7 +482,7 @@ void demo_update(const demo_input_t *in, float dt) {
     s_div = split_step(&s_split_step, s_div, SPLIT_COLS, in->split_l, in->split_r);
     if (in->pressed & DEMO_BTN_SIZE) {
         s_size = (s_size + 1u) % 3u;
-        gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]);
+        gfx_reflect_resize(RT_W(s_sizes[s_size][0]), RT_H(s_sizes[s_size][1]));
     }
     /* arcade car: each step is a x b + c, one FMAC (shz_fmaf); the rates are constants x dt */
     if (in->gas > 0.05f)        s_car.v = shz_fmaf(in->gas, 13.0f * dt, s_car.v);
@@ -1077,7 +1142,12 @@ static void draw_player(void) {
             sh4der_pl4nar_shade(&s_pv, s_wp[i], s_wsn[i], mat, &smp);
             *o = s_body[i];                                   /* the opaque vertex's own x, y, z: the layer has its depth */
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS                               /* the mirror is the target's top left corner */
+            o->u = shz_fminf(smp.u, umax) * us * ((float)s_sizes[s_size][0] * shz_invf((float)RT_W(s_sizes[s_size][0])));
+            o->v = shz_fminf(smp.v, 1.0f - shz_invf((float)s_sizes[s_size][1])) * ((float)s_sizes[s_size][1] * shz_invf((float)RT_H(s_sizes[s_size][1])));
+#else
             o->u = shz_fminf(smp.u, umax) * us * 0.5f; o->v = smp.v;   /* the mirror is the target's left half */
+#endif
 #else
             o->u = smp.u * us; o->v = smp.v;                  /* hand: one scale (1 on a KallistiOS with a sized target) */
 #endif
@@ -1180,10 +1250,12 @@ static void drape(const float r[3][2], const uint32_t *col, int slide, unsigned 
     if (shz_fabsf(area) < 1e-6f) return;
     ia = shz_invf(area);
     if (!col) {
-        const float W = (float)RT_W(s_sizes[s_size][0]), H = (float)s_sizes[s_size][1], T = s_tile_px;
+        const float W = (float)RT_W(s_sizes[s_size][0]), H = (float)RT_H(s_sizes[s_size][1]);
+        float x0, y0, T;
+        tile_rect(tile, &x0, &y0, &T);
         iw = shz_invf(W) * gfx_reflect_u_scale(); ih = shz_invf(H); ks = T * (1.0f / TILE_M);
-        ox = T * (float)(4u + (tile & 3u)) + 0.5f * T - s_tile_c[tile][0] * ks;
-        oz = T * (float)(tile >> 2) + 0.5f * T - s_tile_c[tile][1] * ks;
+        ox = x0 + 0.5f * T - s_tile_c[tile][0] * ks;
+        oz = y0 + 0.5f * T - s_tile_c[tile][1] * ks;
     }
     for (t = 0; t < s_drape_n; t++) {
         dv_t a[8], b[8];
@@ -1289,20 +1361,25 @@ static void draw_lamps(int what) {
         const uint32_t col = strip ? 0x00d8e8ffu : COL_LAMP;
         const float dx = x - s_car.wx, dz = z - s_car.wz;
         if (dx * dx + dz * dz > range * range) continue;                     /* hand: scalar products */
+#ifdef PL4NAR_HILLS
+        const float lk = s_lamp * shz_saturatef((range - shz_sqrtf(dx * dx + dz * dz)) * (1.0f / LAMP_FADE_W));   /* no pop at the reach */
+#else
+        const float lk = s_lamp;
+#endif
         if (what == 0) {
             const float c[3] = { x, gy + 0.03f, z };
 #ifdef PL4NAR_HILLS
-            if (!strip) { fan_drape(p, sh4der_pool_disc(c, ux, uz, 10u, col, 0.60f * s_lamp, p), 1, s_lamp_s[i], x, z, 7.6f, 0.03f); continue; }
+            if (!strip) { fan_drape(p, sh4der_pool_disc(c, ux, uz, 10u, col, 0.60f * lk, p), 1, s_lamp_s[i], x, z, 7.6f, 0.03f); continue; }
 #endif
             fan(p, sh4der_pool_disc(c, ux, uz, 10u, col, (strip ? 0.15f : 0.60f) * s_lamp, p), 1);
-        } else if (what == 1) halo(x, y, z, strip ? 2.0f : 2.2f, col, s_lamp);          /* D1 (the depth fade) goes here */
+        } else if (what == 1) halo(x, y, z, strip ? 2.0f : 2.2f, col, lk);              /* D1 (the depth fade) goes here */
 #ifdef PL4NAR_HILLS
         else {                                        /* the head mirrored about the fitted plane; none under it */
             const float h[3] = { x, y, z };
             float m[3];
             if (sh4der_pl4nar_sphere_side(&s_road_plane, h, 0.0f) < 0) continue;
             sh4der_pl4nar_mirror_point(&s_road_plane, h, m);
-            halo(m[0], m[1], m[2], strip ? 1.6f : 1.5f, col, s_lamp);
+            halo(m[0], m[1], m[2], strip ? 1.6f : 1.5f, col, lk);
         }
 #else
         else halo(x, -y, z, strip ? 1.6f : 1.5f, col, s_lamp);
@@ -1389,7 +1466,13 @@ static unsigned hull2(float (*p)[2], unsigned n, float (*h)[2]) {
 /* One box of a car (model space lo .. hi), slid along the sun onto the ground, as a hull in tile k's pixels. */
 static void tile_box(unsigned k, float x, float z, float yaw, const float lo[3], const float hi[3], uint32_t argb) {
     const shz_sincos_t sc = shz_sincosf(yaw);
+#ifdef PL4NAR_HILLS
+    float x0, y0, T;
+    const float iy = shz_invf(s_sun[1]);
+    tile_rect(k, &x0, &y0, &T);
+#else
     const float iy = shz_invf(s_sun[1]), T = s_tile_px, x0 = s_tile_px * (float)(4u + (k & 3u)), y0 = s_tile_px * (float)(k >> 2);
+#endif
     const float ks = T * (1.0f / TILE_M), ox = x0 + 0.5f * T - s_tile_c[k][0] * ks, oz = y0 + 0.5f * T - s_tile_c[k][1] * ks;
     float p[8][2], h[9][2];
     gfx_vert_t v[9];
@@ -1416,7 +1499,12 @@ static void tile_car(unsigned k, float x, float z, float yaw, const mdl_t *m, ui
     const float blo[3] = { m->lo[0], m->lo[1], m->lo[2] }, bhi[3] = { m->hi[0], shz_fmaf(H, 0.55f, m->lo[1]), m->hi[2] };
     const float clo[3] = { shz_fmaf(W, 0.08f, m->lo[0]), m->lo[1], shz_fmaf(L, 0.22f, m->lo[2]) };
     const float chi[3] = { shz_fmaf(W, -0.08f, m->hi[0]), m->hi[1], shz_fmaf(L, -0.30f, m->hi[2]) };
+#ifdef PL4NAR_HILLS
+    float x0, y0, T;
+    tile_rect(k, &x0, &y0, &T);
+#else
     const float T = s_tile_px, x0 = T * (float)(4u + (k & 3u)), y0 = T * (float)(k >> 2);
+#endif
     gfx_quad2d(x0, y0, x0 + T, y0 + T, TILE_Z, 0.0f, 0.0f, 0.0f, 0.0f, 0xffffffffu);
     tile_box(k, x, z, yaw, blo, bhi, argb);
     tile_box(k, x, z, yaw, clo, chi, argb);
@@ -1449,6 +1537,85 @@ static void draw_tiles(float tw, float th) {
     float d2[MAP_CARS];
     unsigned i, k;
     s_tile_n = 0u;
+#ifdef PL4NAR_HILLS
+    s_tile_live = 0u; s_tile_band = 0u;
+    (void)d2; (void)i;
+    if (!s_tiles || s_night >= 0.5f || sy < 0.2f) { for (k = 0; k < TILE_N; k++) s_slot_car[k] = -2; return; }
+    gfx_viewport((float)RT_W((unsigned)tw), (float)RT_H((unsigned)th));
+    gfx_bind(GFX_MAT_FLAT);
+    gfx_cull(GFX_CULL_NONE);
+    {   /* the slots: the player in slot 0; a car keeps its slot until its shadow has faded to nothing (TILE_FADE_FAR from
+           the camera), and a free slot goes to the nearest car without one inside that reach. So no shadow pops: one
+           leaving fades out first, one arriving from beyond the reach comes in at 0, and one given a slot nearer grows in
+           over TILE_FADE_IN. Distances from the camera. */
+        const unsigned ns = tile_slots();
+        const float dt = shz_clampf(s_car.clock - s_slot_clock, 0.0f, 0.1f);
+        float cd2[MAP_CARS];
+        int held[MAP_CARS];
+        unsigned j;
+        s_slot_clock = s_car.clock;
+        for (j = 0; j < map_traffic_n(); j++) {
+            const map_pose_t q = map_traffic_pose(j);
+            const float dx = q.x - s_camx, dz = q.z - s_camz;
+            cd2[j] = dx * dx + dz * dz;                              /* hand: scalar products */
+            held[j] = 0;
+        }
+        s_slot_car[0] = -1;
+        for (k = 1; k < TILE_N; k++) {
+            if (k >= ns || s_slot_car[k] >= (int)map_traffic_n()) s_slot_car[k] = -2;
+            if (s_slot_car[k] >= 0) {
+                if (cd2[s_slot_car[k]] >= TILE_FADE_FAR * TILE_FADE_FAR) s_slot_car[k] = -2;   /* faded out: given up */
+                else held[s_slot_car[k]] = 1;
+            }
+        }
+        for (k = 1; k < ns; k++) {
+            if (s_slot_car[k] >= 0) continue;
+            {
+                float best = TILE_FADE_FAR * TILE_FADE_FAR;
+                int car = -2;
+                for (j = 0; j < map_traffic_n(); j++) if (!held[j] && cd2[j] < best) { best = cd2[j]; car = (int)j; }
+                if (car < 0) break;
+                s_slot_car[k] = car; held[car] = 1; s_slot_in[k] = 0.0f;
+            }
+        }
+        for (k = 0; k < ns; k++) {
+            float x, z, yaw;
+            const mdl_t *m;
+            const int car = s_slot_car[k];
+            s_tile_car[k] = car;
+            s_tile_n = k + 1u;
+            if (car < -1) { s_tile_fade[k] = 0.0f; continue; }
+            if (car < 0) { x = s_car.wx; z = s_car.wz; yaw = s_car.wh; m = &mdl_player_body; s_tile_fade[k] = 1.0f; }
+            else {
+                const map_pose_t q = map_traffic_pose((unsigned)car);
+                const float d = shz_sqrtf(cd2[car]);
+                x = q.x; z = q.z; yaw = q.yaw; m = map_models[map_car[car].body];
+                if (d > TILE_FADE_NEAR) s_tile_band++;
+                s_slot_in[k] = shz_fminf(s_slot_in[k] + dt * (1.0f / TILE_FADE_IN), 1.0f);
+                s_tile_fade[k] = shz_saturatef((TILE_FADE_FAR - d) * (1.0f / (TILE_FADE_FAR - TILE_FADE_NEAR))) * s_slot_in[k];
+            }
+            if (car < 0) { s_tb_y = s_cy; s_tb_p = s_cp; s_tb_r = s_cr; s_tile_s[k] = s_car.z; }
+            else {
+                const hills_tilt_t t = hills_car(map_traffic_s((unsigned)car), map_lane[map_car[car].lane][0], yaw);
+                s_tb_y = t.y; s_tb_p = t.pitch; s_tb_r = t.roll; s_tile_s[k] = map_traffic_s((unsigned)car);
+            }
+            s_tile_y[k] = s_tb_y;
+            {   /* the square in the slid space (y = 0): the car's base slid along the sun, then half the shadow's reach on */
+                const float r = shz_fminf(0.5f * m->hi[1] * shz_invf(sy), 2.0f) + s_tb_y * shz_invf(sy);
+                s_tile_c[k][0] = shz_fmaf(-s_sun[0], r, x); s_tile_c[k][1] = shz_fmaf(-s_sun[2], r, z);
+            }
+            {   /* under a deck the sun is gone (to white by 0.80 of the baked occlusion); the fade takes it to white too */
+                const float f = shz_saturatef((0.95f - road_ao_at(x, z)) * (1.0f / 0.15f));
+                const float gk = shz_lerpf(shz_lerpf((float)g, 255.0f, f), 255.0f, 1.0f - s_tile_fade[k]);
+                const unsigned gi = (unsigned)gk;
+                tile_car(k, x, z, yaw, m, gfx_rgb(255u, gi, gi, gi));
+            }
+            s_tile_live++;
+        }
+    }
+    gfx_viewport(tw, th);
+    return;
+#endif
     if (!s_tiles || s_night >= 0.5f || sy < 0.2f) return;
     s_tile_px = th * 0.5f;
     gfx_viewport(tw * 2.0f, th);
@@ -1507,7 +1674,7 @@ static int tiled(int car) {
 
 /* The screen's side: a ground quad a tile, its texels multiplied into the frame (GFX_MAT_SHADOW). XMTRX = s_vp. */
 static void draw_tile_quads(void) {
-    const float W = (float)RT_W(s_sizes[s_size][0]), H = (float)s_sizes[s_size][1], us = gfx_reflect_u_scale();
+    const float W = (float)RT_W(s_sizes[s_size][0]), H = (float)RT_H(s_sizes[s_size][1]), us = gfx_reflect_u_scale();
     const float iw = shz_invf(W) * us, ih = shz_invf(H), h = TILE_M * 0.5f;
     gfx_vert_t q[4];
     unsigned k, c;
@@ -1515,8 +1682,11 @@ static void draw_tile_quads(void) {
     gfx_bind(GFX_MAT_SHADOW);
 #ifdef PL4NAR_HILLS
     for (k = 0; k < s_tile_n; k++) {
-        const float hs = h - 0.5f * TILE_M * shz_invf(s_tile_px);     /* half a texel in: the tile's own white border */
+        float x0, y0, T, hs;
         const float cx = s_tile_c[k][0], cz = s_tile_c[k][1];
+        if (s_tile_car[k] < -1) continue;             /* an empty slot */
+        tile_rect(k, &x0, &y0, &T);
+        hs = h - 0.5f * TILE_M * shz_invf(T);         /* half a texel in: the tile's own white border */
         if (s_tiles == 1) {                           /* ON: the square laid on the ground's triangles, through the slid point */
             const float r0[3][2] = { { cx - hs, cz - hs }, { cx + hs, cz - hs }, { cx + hs, cz + hs } };
             const float r1[3][2] = { { cx - hs, cz - hs }, { cx + hs, cz + hs }, { cx - hs, cz + hs } };
@@ -1528,7 +1698,6 @@ static void draw_tile_quads(void) {
         }
         {   /* TYPICAL: one flat quad at the car's ground height (what a flat-ground shadow does on a slope) */
             const float y = s_tile_y[k] + 0.02f, ty = y * shz_invf(s_sun[1]);
-            const float T = s_tile_px, x0 = T * (float)(4u + (k & 3u)), y0 = T * (float)(k >> 2);
             for (c = 0; c < 4u; c++) {
                 const int ix = c == 1u || c == 2u, iz = c >= 2u;
                 gfx_xform(&q[c], shz_vec3_init(shz_fmaf(s_sun[0], ty, cx + (ix ? h : -h)), y, shz_fmaf(s_sun[2], ty, cz + (iz ? h : -h))));
@@ -1562,13 +1731,25 @@ static void draw_shadows(void) {
     s_blob_s = s_car.z;
 #endif
     if (!tiled(-1)) blob(s_car.wx, s_car.wz, s_car.wh, alpha);
+#if defined(PL4NAR_HILLS) && !defined(PL4NAR_BLOBS)
+    if (s_tile_n) { draw_tile_quads(); draw_road_ao(); return; }   /* tiles by day: the cars without one get no blob (the owner's
+                                                                     rule; -DPL4NAR_BLOBS keeps them) */
+#endif
     for (i = 0; i < map_traffic_n(); i++) {
         const map_pose_t q = map_traffic_pose(i);
         const float dx = q.x - s_car.wx, dz = q.z - s_car.wz;
 #ifdef PL4NAR_HILLS
         s_blob_s = map_traffic_s(i);
 #endif
+#ifdef PL4NAR_HILLS
+        {   /* faded over the last 10 m of the reach: no pop at the edge */
+            const float d2b = dx * dx + dz * dz;                     /* hand: scalar products */
+            if (d2b < BLOB_REACH * BLOB_REACH && !tiled((int)i))
+                blob(q.x, q.z, q.yaw, alpha * shz_saturatef((BLOB_REACH - shz_sqrtf(d2b)) * 0.1f));
+        }
+#else
         if (dx * dx + dz * dz < 80.0f * 80.0f && !tiled((int)i)) blob(q.x, q.z, q.yaw, alpha);    /* hand: scalar products */
+#endif
     }
     draw_tile_quads();
     draw_road_ao();
@@ -1637,6 +1818,13 @@ static void overlay(const demo_stats_t *st) {
         }
     }
 #endif
+#ifdef PL4NAR_HILLS
+    {
+        gfx_cut_stats_t cs;
+        gfx_tile_cut_stats(&cs);
+        if (cs.failed) hud_text(24.0f, 300.0f, 1.0f, 0xffff6060u, "TILE CUT FAILED: PVR restarted, cut off");
+    }
+#endif
     if (!s_info) return;
     {
         const unsigned tw = s_sizes[s_size][0], th = s_sizes[s_size][1];
@@ -1664,7 +1852,11 @@ static void overlay(const demo_stats_t *st) {
         hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "X reflect  Y time  B+RIGHT sun  A look  B+A size  UP / DOWN F0  START info");
         if (s_reflect) {                                  /* the target itself, top centre: what the mirrored camera sees */
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS
+            const float w = 256.0f, h = 256.0f * (float)RT_H(s_sizes[s_size][1]) * shz_invf((float)RT_W(s_sizes[s_size][0])), x = 192.0f, y0 = 14.0f;   /* the whole target */
+#else
             const float w = 256.0f, h = 64.0f, x = 192.0f, y0 = 14.0f;  /* the mirror and its shadow tiles */
+#endif
 #else
             const float w = 128.0f, h = 64.0f, x = 256.0f, y0 = 14.0f;
 #endif
@@ -1724,6 +1916,13 @@ void demo_draw(const demo_stats_t *st) {
         s_vw = tw; s_vh = th;
         s_focal = th * 0.5f * shz_divf(shz_cosf(fov * 0.5f), shz_sinf(fov * 0.5f));
         s_haze_max = (unsigned)(HAZE_MAX * 0.45f * 256.0f);
+#ifdef PL4NAR_HILLS
+        {
+            unsigned cw, ch;
+            tile_cut_size(&cw, &ch);
+            gfx_tile_cut(cw, ch);
+        }
+#endif
         if (gfx_reflect_begin() == 0) {
             gfx_viewport(tw, th);
             gfx_bind(GFX_MAT_FLAT);

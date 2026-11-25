@@ -12,6 +12,7 @@
 #include "assets.h"
 #include "sh4der_pl4nar.h"
 #include "sh4der_guard.h"
+#include "../../psm/ao/tile_cut.h"
 
 _Static_assert(sizeof(pvr_vertex_t) == 32, "pvr_vertex_t is one 32-byte packet");
 _Static_assert(sizeof(pvr_poly_hdr_t) == 32, "pvr_poly_hdr_t is one 32-byte packet");
@@ -33,6 +34,16 @@ static asic_evt_handler_entry_t s_rd_prev;
 static volatile uint32_t s_rd_seen;
 static int            s_rd_hooked;
 static uint32_t       s_timeouts;
+/* The tile cut round the reflection pass (a stage). Its condition: no render reads the table while it is rewritten.
+   So the pass waits for the screen's last render before the cut (that wait is the cut's price: the CPU no longer fills
+   the mirror while the PVR draws the last screen), and the cut is undone after the target's render, before the screen
+   scene is finished (its render reads the table; the TA, filling it, does not). The tables are taken after a render
+   with no cut on. */
+static tile_cut_t     s_cut;
+static gfx_cut_stats_t s_cut_st;
+static int            s_cut_dead;          /* a table did not read back: the cut is off for the run */
+static int            s_screen_rendering;  /* a screen scene was finished and its render not waited for */
+static unsigned       s_rt_w, s_rt_h;      /* the last target size, for a restart */
 static gfx_pvr_pass_t s_pass[2];            /* the last sampled screen [0] and mirror [1] scene */
 
 static void rd_evt(uint32_t code, void *data) { (void)data; if (s_rd_prev.hdl) s_rd_prev.hdl(code, s_rd_prev.data); s_rd_seen = 1u; }
@@ -190,6 +201,7 @@ void gfx_be_clear_colour(uint32_t argb) {                    /* hand: three byte
 }
 
 int gfx_be_reflect_resize(unsigned w, unsigned h) {
+    s_rt_w = w; s_rt_h = h;
     sh4der_pl4nar_target_free(&s_rt);            /* waits for the PVR to be done with the old target */
     if (!sh4der_pl4nar_target_init(&s_rt, w, h)) {
         printf("gfx: no video memory for a %u x %u reflection target\n", w, h);
@@ -225,10 +237,58 @@ static void ready(void) {                        /* the wait for the PVR is not 
     s_wait_us += timer_us_gettime64() - t0;
 }
 
+void gfx_be_tile_cut(unsigned cw, unsigned ch) { s_cut_st.cw = cw; s_cut_st.ch = ch; }
+void gfx_be_tile_cut_stats(gfx_cut_stats_t *o) { *o = s_cut_st; o->tables = s_cut.n; }
+
+/* Before the pass: the screen's last render done, then the tables (taken while no cut is on), then the cut. */
+static void cut_begin_(void) {
+    if (!s_cut_st.cw || !s_cut_st.ch) return;
+    if (s_cut_dead || !s_rd_hooked) { s_cut_st.refused++; return; }
+    if (s_screen_rendering) {
+        const uint64_t t0 = timer_us_gettime64();
+        const int ok = wait_done_();
+        s_wait_us += timer_us_gettime64() - t0;
+        if (!ok) { s_cut_st.refused++; return; }
+        s_screen_rendering = 0;
+    }
+    if (!s_cut.tw) tile_cut_init(&s_cut, 20u, 15u);
+    (void)tile_cut_find(&s_cut);
+    if (tile_cut_begin(&s_cut, s_cut_st.cw, s_cut_st.ch)) s_cut_st.passes++;
+    else s_cut_st.refused++;
+}
+
+/* After the target's render, before the screen scene is finished: the tables as they were. A table that does not read
+   back would show the next screen as a corner of itself: the PVR is shut down and started again (pvr_init builds the
+   tables anew; every texture and the target are loaded again), and the cut stays off. */
+static void cut_end_(void) {
+    unsigned bad;
+    if (!s_cut.on) return;
+    {
+        const uint64_t t0 = timer_us_gettime64();
+        (void)wait_done_();
+        s_wait_us += timer_us_gettime64() - t0;
+    }
+    bad = tile_cut_end(&s_cut);
+    if (!bad) return;
+    s_cut_st.failed++; s_cut_st.bad_words += bad; s_cut_dead = 1;
+    printf("gfx: TILE CUT FAILED (%u words): PVR restarted, cut off\n", bad);
+    if (s_list >= 0) { pvr_list_finish(); s_list = -1; }
+    gfx_be_shutdown();
+    memset(&s_rt, 0, sizeof s_rt);
+    tile_cut_init(&s_cut, 20u, 15u);
+    gfx_be_init();
+    (void)gfx_be_reflect_resize(s_rt_w, s_rt_h);
+    s_screen_rendering = 0;
+    pvr_scene_begin();                               /* a scene again, so the caller's translucent list and finish land */
+    pvr_list_begin(PVR_LIST_OP_POLY);
+    s_list = PVR_LIST_OP_POLY;
+}
+
 int gfx_be_reflect_begin(void) {
     if (!s_rt.tex) return -1;
     ready();
-    if (!sh4der_pl4nar_target_begin(&s_rt)) return -1;
+    cut_begin_();
+    if (!sh4der_pl4nar_target_begin(&s_rt)) { if (s_cut.on) (void)tile_cut_end(&s_cut); return -1; }
     pvr_list_begin(PVR_LIST_OP_POLY);
     s_list = PVR_LIST_OP_POLY;
     return 0;
@@ -260,10 +320,12 @@ void gfx_be_list_translucent(void) {
 }
 
 void gfx_be_frame_end(void) {
+    cut_end_();
     pvr_list_finish();
     s_list = -1;
     s_rd_seen = 0u;
     pvr_scene_finish();
+    s_screen_rendering = 1;
     if (s_sample == 1) sample_scene(0u);
     else if (s_sample == 2) {                    /* before a sampled frame: let this render end, so the next frame's
                                                     render-done is its own */

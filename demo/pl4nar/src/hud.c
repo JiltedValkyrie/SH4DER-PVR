@@ -21,7 +21,9 @@ static void glyphs(float x, float y, float scale, uint32_t argb, const char *s, 
 
 void hud_text(float x, float y, float scale, uint32_t argb, const char *s) {
     gfx_bind(GFX_MAT_FONT);
+#if !defined(PL4NAR_HILLS) || defined(HUD_TEXT_SHADOW)   /* the hills build: one pass (the shadow pass doubled the text's triangles) */
     glyphs(x + scale, y + scale, scale, 0xc0000000u, s, HUD_Z);
+#endif
     glyphs(x, y, scale, argb, s, HUD_Z + 0.5f);
 }
 

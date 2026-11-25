@@ -100,13 +100,21 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
-typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; float lod; unsigned sun; } stage_t;   /* blobs: no shadow tiles (the hills: 2 the flat quad); noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default; sun: 1 the sweep (the hills) */
+typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; float lod; unsigned sun, xs; } stage_t;   /* xs (the hills): XS_* */
+#define XS_SMALL 1u                                /* the eight small tiles (the c8 set), not four of 128 */
+#define XS_CUT   2u                                /* the mirror pass through its own tiles (tile_cut.h) */
+#define XS_INFO  4u                                /* the overlay on */
+#define XS_STOP  8u                                /* the car stands: traffic crosses the tiles' fade band */
+#define AUTO_V(k) ((stages[k].xs & XS_STOP) ? 0.0f : AUTO_SPEED)   /* blobs: no shadow tiles (the hills: 2 the flat quad); noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default; sun: 1 the sweep (the hills) */
 #if defined(PL4NAR_HILLS)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night; blobs 0 mesh, 1 off, 2 flat quad */
-    { "128x64 day mesh",  1, 1, 1, 0, 0, 0, 0, 0.0f, 0 }, { "128x64 day flat",  1, 1, 1, 0, 2, 0, 0, 0.0f, 0 }, { "128x64 noshad", 1, 1, 1, 0, 1, 0, 0, 0.0f, 0 },
-    { "128x64 swp mesh", 1, 1, 1, 0, 0, 0, 0, 0.0f, 1 }, { "128x64 swp flat", 1, 1, 1, 0, 2, 0, 0, 0.0f, 1 }, { "128x64 no AO", 1, 1, 1, 0, 0, 1, 0, 0.0f, 0 },
-    { "off day",          0, 1, 1, 0, 0, 0, 0, 0.0f, 0 }, { "256x128 day mesh", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0 }, { "512x256 day mesh", 1, 2, 1, 0, 0, 0, 0, 0.0f, 0 },
-    { "128x64 night",     1, 1, 2, 0, 0, 0, 0, 0.0f, 0 }, { "off night",        0, 1, 2, 0, 0, 0, 0, 0.0f, 0 }, { "128x64 orbit", 1, 1, 1, 1, 0, 0, 0, 0.0f, 0 }
+    { "128x64 day mesh",  1, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "128x64 day flat",  1, 1, 1, 0, 2, 0, 0, 0.0f, 0, 0 }, { "128x64 noshad", 1, 1, 1, 0, 1, 0, 0, 0.0f, 0, 0 },
+    { "128x64 swp mesh", 1, 1, 1, 0, 0, 0, 0, 0.0f, 1, 0 }, { "128x64 swp flat", 1, 1, 1, 0, 2, 0, 0, 0.0f, 1, 0 }, { "128x64 no AO", 1, 1, 1, 0, 0, 1, 0, 0.0f, 0, 0 },
+    { "off day",          0, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "256x128 day mesh", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "512x256 day mesh", 1, 2, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
+    { "128x64 night",     1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "off night",        0, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "128x64 orbit", 1, 1, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
+    { "t8 small uncut",   1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_SMALL }, { "t8 small cut", 1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_SMALL | XS_CUT },
+    { "t4 128 cut",       1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_CUT },   { "t4 overlay on", 1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_INFO },
+    { "t4 fade band",     1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_STOP }
 };
 #elif defined(PL4NAR_MAP)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
@@ -130,6 +138,7 @@ typedef struct acc {
     uint32_t n, dt_sum, dt_max, cpu_n, cpu_sum, lookup_sum, tri_main_sum, tri_refl_sum;   /* the unsampled frames */
     uint32_t s, ta_scr_sum, ta_scr_max, ta_mir_sum, ta_mir_max, rnd_scr_sum, rnd_mir_sum;   /* the sampled frames */
     uint32_t vram_kb, ram_kb, target_bytes, resize_fail, bad_binds, tiles_max, touched;
+    uint32_t band_frames, cut_passes, cut_refused;  /* the hills: frames with a car in the fade band; cut passes, refused */
 } acc_t;
 static acc_t acc[STAGES];
 static unsigned auto_done;
@@ -200,6 +209,19 @@ static void report(void) {
     pg_say("shadow: mesh = laid on the ground's triangles, flat = one quad");
     pg_say("at the car's ground height (B+Y), noshad = blobs; swp: sun sweep");
     pg_say("stage 12: the camera orbits, across the crest at s 45");
+    pg_say("13-17 tiles: t4 = 4 of 128 x 128 (1, the default), t8 = 8 small");
+    pg_say("cut: the mirror pass through its own tiles (t4 12 x 8, t8 8 x 2)");
+    pg_say("16: the overlay on (one text pass); 17: the car stands, traffic");
+    pg_say("crosses the fade band: whole to %u m, gone at %u m", 40u, 50u);
+    pg_say("17 us a tile is one point (PVR-156), not a rule");
+    {
+        gfx_cut_stats_t cs;
+        gfx_tile_cut_stats(&cs);
+        pg_say("tile cut: %u passes, %u refused, %u FAILED (%u words), tables %u", (unsigned)cs.passes, (unsigned)cs.refused, (unsigned)cs.failed, (unsigned)cs.bad_words, cs.tables);
+        if (cs.failed) pg_say("TILE CUT FAILED: the PVR was restarted, the cut was off after");
+        pg_say("#  stage            cut n / refused   fade band frames");
+        for (k = 12; k < STAGES; k++) pg_say("%-2u %-16s %5u / %-5u   %u", k + 1u, stages[k].name, (unsigned)acc[k].cut_passes, (unsigned)acc[k].cut_refused, (unsigned)acc[k].band_frames);
+    }
 #else
     pg_say("effect labels OFF in every stage (fill); stage 4: the split at the middle");
     pg_say("buildings boxed past %u m (traffic %u), stages 12-13 past 30 m", 50u, 40u);
@@ -237,6 +259,7 @@ int main(int argc, char **argv) {
 #ifdef PL4NAR_HILLS
     demo_auto_tiles(stages[0].blobs == 2 ? 2 : !stages[0].blobs);
     demo_auto_sun(stages[0].sun);
+    demo_auto_tile_set(!!(stages[0].xs & XS_SMALL)); demo_auto_cut(!!(stages[0].xs & XS_CUT)); demo_auto_info(!!(stages[0].xs & XS_INFO));
 #else
     demo_auto_tiles(!stages[0].blobs);
 #endif
@@ -244,7 +267,11 @@ int main(int argc, char **argv) {
     demo_auto_split(stages[0].split);
     demo_auto_lod(stages[0].lod);
 #endif
+#ifdef PL4NAR_HILLS
+    demo_auto_place(AUTO_Z, AUTO_X, AUTO_V(0));
+#else
     demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
+#endif
     psm_fault_stage(&crumbs, stages[0].name);
     t_stage = timer_us_gettime64();
 #endif
@@ -269,7 +296,12 @@ int main(int argc, char **argv) {
         read_pad(&in, &held);                        /* the live view's keys; the camera and the divider change no work */
         if (in.pressed) a->touched = 1u;             /* any other key does: the stage is marked TOUCHED */
         in.steer = 0.0f; in.brake = 0.0f;
+#ifdef PL4NAR_HILLS
+        in.gas = demo_speed() < AUTO_V(stage) ? 1.0f : 0.0f;
+        if (stages[stage].xs & XS_STOP) in.brake = 1.0f;
+#else
         in.gas = demo_speed() < AUTO_SPEED ? 1.0f : 0.0f;
+#endif
         gfx_pvr_sample(sampled ? 1 : drain ? 2 : 0);
         psm_fault_beat(&crumbs);
         crumbs.frame++;
@@ -297,6 +329,7 @@ int main(int argc, char **argv) {
             demo_counts_t c;
             demo_counts(&c);
             if (c.tiles > a->tiles_max) a->tiles_max = c.tiles;
+            a->band_frames += c.tiles_band != 0u;
             if (!sampled && !drain) { a->cpu_n++; a->cpu_sum += st.cpu_us; a->lookup_sum += c.lookup_us; a->tri_main_sum += c.tris_main; a->tri_refl_sum += c.tris_refl; }
             else if (sampled) {                       /* the sampled frame alone: the drain frame's passes are not its own */
                 const gfx_pvr_pass_t *ps0 = gfx_pvr_pass(0u), *ps1 = gfx_pvr_pass(1u);
@@ -315,6 +348,15 @@ int main(int argc, char **argv) {
             a->vram_kb = (uint32_t)(pvr_mem_available() / 1024u);
             a->ram_kb = ram_free_kb();
             a->bad_binds = gfx_pvr_bad_binds();
+#ifdef PL4NAR_HILLS
+            {
+                static gfx_cut_stats_t prev;
+                gfx_cut_stats_t cs;
+                gfx_tile_cut_stats(&cs);
+                a->cut_passes = cs.passes - prev.passes; a->cut_refused = cs.refused - prev.refused;
+                prev = cs;
+            }
+#endif
             auto_done = ++stage;
             if (stage >= STAGES) break;
             acc[stage].resize_fail = demo_auto_set(stages[stage].reflect, stages[stage].size, stages[stage].tod, stages[stage].orbit) != 0;
@@ -322,6 +364,7 @@ int main(int argc, char **argv) {
 #ifdef PL4NAR_HILLS
             demo_auto_tiles(stages[stage].blobs == 2 ? 2 : !stages[stage].blobs);
             demo_auto_sun(stages[stage].sun);
+            demo_auto_tile_set(!!(stages[stage].xs & XS_SMALL)); demo_auto_cut(!!(stages[stage].xs & XS_CUT)); demo_auto_info(!!(stages[stage].xs & XS_INFO));
 #else
             demo_auto_tiles(!stages[stage].blobs);
 #endif
@@ -329,7 +372,11 @@ int main(int argc, char **argv) {
             demo_auto_split(stages[stage].split);
             demo_auto_lod(stages[stage].lod);
 #endif
+#ifdef PL4NAR_HILLS
+            demo_auto_place(AUTO_Z, AUTO_X, AUTO_V(stage));
+#else
             demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
+#endif
             psm_fault_stage(&crumbs, stages[stage].name);
             t_stage = t_prev = timer_us_gettime64();
             sampled_prev = 1;                        /* the resize's wait is not a frame */

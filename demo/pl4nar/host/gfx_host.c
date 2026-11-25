@@ -138,6 +138,10 @@ void gfx_be_clear_colour(uint32_t argb) { s_clear = argb; }
 void gfx_be_frame_begin(void) { s_t = &s_scr; s_translucent = 0; target_clear(s_t, (s_clear >> 16) & 255u, (s_clear >> 8) & 255u, s_clear & 255u); }
 void gfx_be_list_translucent(void) { s_translucent = 1; }
 void gfx_be_frame_end(void) {}
+/* The host renders the target alone: a cut changes nothing here; it is asked for and counted as refused. */
+static gfx_cut_stats_t s_cut_st;
+void gfx_be_tile_cut(unsigned cw, unsigned ch) { s_cut_st.cw = cw; s_cut_st.ch = ch; }
+void gfx_be_tile_cut_stats(gfx_cut_stats_t *o) { *o = s_cut_st; }
 void gfx_be_bind(int mat) { s_mat = mat; }
 
 static void texel(const tex_t *t, float u, float v, int clamp, int bilinear, float out[4]) {

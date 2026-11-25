@@ -17,6 +17,8 @@ void gfx_reflect_end(void) { gfx_be_reflect_end(); }
 void gfx_frame_begin(void) { s_sent = 0u; gfx_be_frame_begin(); }
 void gfx_list_translucent(void) { gfx_be_list_translucent(); }
 void gfx_frame_end(void) { gfx_be_frame_end(); }
+void gfx_tile_cut(unsigned cw, unsigned ch) { gfx_be_tile_cut(cw, ch); }
+void gfx_tile_cut_stats(gfx_cut_stats_t *o) { gfx_be_tile_cut_stats(o); }
 void gfx_viewport(float w, float h) { s_vw = w; s_vh = h; }
 void gfx_bind(int mat) { gfx_be_bind(mat); }
 void gfx_clip(const unsigned *tiles) { gfx_be_clip(tiles); }
