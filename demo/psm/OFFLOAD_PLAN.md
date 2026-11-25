@@ -182,6 +182,47 @@ Changes, all under the SH4ZAM rule (`shz_*` calls only, SH4ZAM used as a library
 
 Risk: change 1 touches the shared send walk that the host tests count (`psm_send.h`, `test/psm_town_test.c` budget and sweep). Those tests must keep the same vertex and byte counts.
 
+## Later, a separate change: the model placement through `shz_dce_pvr_project` (proposal, nothing built)
+
+Why not now:
+
+- `shz_dce_pvr_project` assumes every vertex has W > 0 and returns screen x, y and 1/W only.
+- `psm_place_geo` needs clip X, Y and W for every vertex, for four things:
+  - the near-plane test (`mclip[..][2] > PSM_NEAR`);
+  - the area guard (`sh4der_tri_area_ok` on clip coordinates);
+  - the draw-distance cut (W against DRAW DISTANCE);
+  - route B's `mvis`.
+
+The route, per object:
+
+1. **A model object table** (new; the caster objects `co[]` have boxes, the receiver models `mv` / `mt` do not). Each entry holds:
+   - first vertex and count;
+   - first triangle and count;
+   - a world box, fixed for the static town and remade every frame for the movers (`psm_movers_apply` already builds the casters' boxes).
+2. **A bound test, once per object per frame.**
+   - Take the box's 8 corners through the camera rows (8 FTRV), or its centre and radius against the view axis.
+   - Wholly in front means: the smallest W is over `PSM_NEAR` plus a margin, and, with a DRAW DISTANCE set, the largest W is under it.
+3. **An object wholly in front** takes the fast path:
+   - Its vertices live as 32-byte records (world x, y, z; the colour word written by `psm_colour`).
+   - One call, `shz_dce_pvr_project(out, in, vn)`, gives TA-ready records.
+   - Its triangles take a screen-space area guard: the same signed-area threshold on screen x, y, in place of the clip form.
+   - Every vertex is marked in `mvis`. There is no cut.
+4. **Any other object** (across the near plane, past the draw distance, or partly cut) keeps today's path unchanged.
+5. **The ground stays on today's path.** Its cell cull needs clip X and Y.
+
+What to expect:
+
+- UNMEASURED GUESS: about 20 cycles a vertex for the fast path (Senior's 19.5-cycle ESTIMATE) against about 40 to 60 today.
+  - The town has about 8,700 model vertices.
+  - That is roughly 0.2 to 0.35 ms on a frame where the camera moves. A still camera already skips the placement, so it gains nothing.
+- RAM: 8,700 x 32 bytes x 2 (in and out) is about 560 KB. That is large for the gain.
+- **Measure first.** The placement's time on the console, from a timer around `psm_place_geo` on a moving frame, says whether this is worth doing.
+
+Host test, if built:
+
+- For every object and 216 views, compare the fast path with today's: screen x, y and 1/W within FTRV's error, the same triangle flags, the same `mvis`.
+- Count the objects that take the fast path, and those it should refuse (across the near plane, past the cut).
+
 ## The benches, cheapest first
 
 Each runs on a real Dreamcast and prints one line a number. Senior's h2 plans the AICA tests; Lead coordinates which of these go into it.

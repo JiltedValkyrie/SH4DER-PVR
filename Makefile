@@ -130,7 +130,7 @@ $(BUILD)/psm_test: test/psm_test.c
 $(BUILD)/psm_raster_test: test/psm_raster_test.c include/sh4der_psm_raster.h
 $(BUILD)/psm_pvr_test: test/psm_pvr_test.c include/sh4der_psm_pvr.h include/sh4der_psm_raster.h
 $(BUILD)/psm_scene_test: test/psm_scene_test.c demo/psm/psm_scene.h demo/psm/psm_town.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h
-$(BUILD)/psm_mapsrc_test: test/psm_mapsrc_test.c demo/psm/psm_mapsrc.h demo/psm/psm_scene.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h
+$(BUILD)/psm_mapsrc_test: test/psm_mapsrc_test.c demo/psm/psm_mapsrc.h demo/psm/psm_scene.h demo/psm/psm_town.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h
 $(BUILD)/psm_fault_test: test/psm_fault_test.c demo/psm/psm_fault.h
 # The town (demo/psm/psm_town.h) needs its mesh: demo/psm/tools/bake_town.py writes it into the build folder, from the
 # Modular Village zip (CC0, demo/psm/fetch_table.json) when demo/psm/tools/fetch.py has fetched it, from stand-in boxes when
@@ -204,6 +204,10 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/cloudvolume_test
 	$(BUILD)/shz/matchlight_scene_test
 
+# The demo headers a SH4ZAM-path test includes (the pattern rule below knows only the library's): a change to one rebuilds it.
+$(BUILD)/shz/psm_scene_test: demo/psm/psm_scene.h demo/psm/psm_town.h
+$(BUILD)/shz/psm_mapsrc_test: demo/psm/psm_mapsrc.h demo/psm/psm_scene.h demo/psm/psm_town.h
+$(BUILD)/shz/psm_fault_test: demo/psm/psm_fault.h
 $(BUILD)/shz/%: test/%.c $(SRC) $(HDR)
 	@$(PYTHON) tools/check_sh4zam.py $(SH4ZAM)
 	@mkdir -p $(BUILD)/shz
