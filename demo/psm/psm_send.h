@@ -282,6 +282,47 @@ static inline void psm_send_text_line(psm_sink_t *k, unsigned line, float x, flo
     psm_send_quad(k, PSM_HK_TEXT, x, y, (float)PSM_TEXT_W, 16.0f, 1000.0f, 0.0f, v0, 1.0f, v1, 0xffffffffu);
 }
 
+/* Part of a text line (columns c0 .. c1) at x, y in a colour, on no strip: the panel's text. */
+static inline void psm_send_text_cols(psm_sink_t *k, unsigned line, unsigned c0, unsigned c1, float x, float y, uint32_t argb) {
+    const float v0 = (float)(line * 16u) * (1.0f / (float)PSM_TEXT_H), v1 = (float)(line * 16u + 16u) * (1.0f / (float)PSM_TEXT_H);
+    const float u0 = (float)(c0 * 8u) * (1.0f / (float)PSM_TEXT_W), u1 = (float)(c1 * 8u) * (1.0f / (float)PSM_TEXT_W);
+
+    psm_send_quad(k, PSM_HK_TEXT, x + (float)(c0 * 8u), y, (float)((c1 - c0) * 8u), 16.0f, 1000.0f, u0, v0, u1, v1, argb);
+}
+
+/* The settings panel (psm_panel_lines wrote its text): the fill, the title, the tabs and the open one's underline, the
+   hairlines, the chosen row's bar, the rows, the scrollbar, the hints. About 20 quads. */
+static inline void psm_send_panel(psm_sink_t *k, const psm_state_t *st) {
+    psm_panel_t p;
+    unsigned i;
+
+    psm_panel_layout(st, &p);
+    psm_send_quad(k, PSM_HK_DIM, PSM_PANEL_X0, PSM_PANEL_Y0, PSM_PANEL_X1 - PSM_PANEL_X0, PSM_PANEL_Y1 - PSM_PANEL_Y0, 800.0f, 0.0f, 0.0f, 0.0f, 0.0f, PSM_PANEL_FILL);
+    psm_send_text_cols(k, PSM_PANEL_LN_TITLE, 0u, PSM_PANEL_COLS, PSM_PANEL_TX, PSM_PANEL_TITLE_Y, PSM_PANEL_WHITE);
+    for (i = 0; i < PSM_GRPS; i++)
+        psm_send_text_cols(k, PSM_PANEL_LN_TABS, p.tab_c0[i], p.tab_c1[i], PSM_PANEL_TX, PSM_PANEL_TABS_Y, (int)i == st->grp ? PSM_PANEL_WHITE : PSM_PANEL_MUTE);
+    if (st->grp >= 0 && st->grp < (int)PSM_GRPS)
+        psm_send_quad(k, PSM_HK_DIM, PSM_PANEL_TX + (float)(p.tab_c0[st->grp] * 8u), PSM_PANEL_TABS_Y + 18.0f, (float)((p.tab_c1[st->grp] - p.tab_c0[st->grp]) * 8u), 2.0f,
+                      850.0f, 0.0f, 0.0f, 0.0f, 0.0f, PSM_PANEL_ACCENT);
+    psm_send_quad(k, PSM_HK_DIM, PSM_PANEL_X0, PSM_PANEL_HAIR1_Y, PSM_PANEL_X1 - PSM_PANEL_X0, 1.0f, 850.0f, 0.0f, 0.0f, 0.0f, 0.0f, PSM_PANEL_HAIR);
+    psm_send_quad(k, PSM_HK_DIM, PSM_PANEL_X0, PSM_PANEL_HAIR2_Y, PSM_PANEL_X1 - PSM_PANEL_X0, 1.0f, 850.0f, 0.0f, 0.0f, 0.0f, 0.0f, PSM_PANEL_HAIR);
+    for (i = 0; i < p.shown; i++) {
+        const float y = PSM_PANEL_ROW_Y + (float)i * PSM_PANEL_PITCH;
+        const int sel = p.top + i == p.sel;
+
+        if (sel) psm_send_quad(k, PSM_HK_DIM, PSM_PANEL_X0 + 8.0f, y - 1.0f, PSM_PANEL_X1 - PSM_PANEL_X0 - 24.0f, 18.0f, 850.0f, 0.0f, 0.0f, 0.0f, 0.0f, PSM_PANEL_BAR);
+        psm_send_text_cols(k, 1u + i, 0u, PSM_PANEL_COLS, PSM_PANEL_TX, y, sel ? PSM_PANEL_WHITE : PSM_PANEL_TEXT);
+    }
+    if (p.n > PSM_PANEL_ROWS) {                                          /* the scrollbar: the track, the window on it */
+        const float x = PSM_PANEL_X1 - 10.0f, h = (float)PSM_PANEL_ROWS * PSM_PANEL_PITCH;
+
+        psm_send_quad(k, PSM_HK_DIM, x, PSM_PANEL_ROW_Y, 3.0f, h, 850.0f, 0.0f, 0.0f, 0.0f, 0.0f, PSM_PANEL_TRACK);
+        psm_send_quad(k, PSM_HK_DIM, x, PSM_PANEL_ROW_Y + h * (float)p.top / (float)p.n, 3.0f, h * (float)p.shown / (float)p.n, 860.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                      PSM_PANEL_MUTE);
+    }
+    psm_send_text_cols(k, PSM_PANEL_LN_FOOT, 0u, PSM_PANEL_COLS, PSM_PANEL_TX, PSM_PANEL_FOOT_Y, PSM_PANEL_MUTE);
+}
+
 /* The readout's lines where they go, the inset, and the heartbeat: a square in the top right corner that moves a step every
    frame the program sends (beat: the frame's number), so a photo of a stopped picture says whether frames still came. */
 static inline void psm_send_hud(psm_sink_t *k, const psm_state_t *st, int a_drawn, unsigned beat) {
@@ -289,16 +330,18 @@ static inline void psm_send_hud(psm_sink_t *k, const psm_state_t *st, int a_draw
     unsigned i;
 
     psm_send_text_line(k, 0u, 16.0f, 24.0f);
-    psm_send_text_line(k, 9u, 16.0f, 42.0f);                                   /* the controls: always on */
-    psm_send_text_line(k, 11u, 16.0f, 60.0f);                                  /* the frame, the vertex buffer, SHED */
-    if (st->menu) psm_send_text_line(k, 8u, 16.0f, 82.0f);                     /* the menu's row */
-    psm_send_text_line(k, 1u, 16.0f, base - (st->readout ? 5.0f * 18.0f : 18.0f));
-    if (st->readout) {
-        for (i = 2; i < 6u; i++) psm_send_text_line(k, i, 16.0f, base - (float)(6u - i) * 18.0f);
-        psm_send_text_line(k, 10u, 16.0f, base - 6.0f * 18.0f);
+    psm_send_text_line(k, 11u, 16.0f, 42.0f);                                  /* the frame, the vertex buffer, SHED */
+    if (st->menu) psm_send_panel(k, st);                                       /* open: the panel has lines 1 .. 9, 12, 13 */
+    else {
+        psm_send_text_line(k, 9u, 16.0f, 60.0f);                               /* the controls */
+        psm_send_text_line(k, 1u, 16.0f, base - (st->readout ? 5.0f * 18.0f : 18.0f));
+        if (st->readout) {
+            for (i = 2; i < 6u; i++) psm_send_text_line(k, i, 16.0f, base - (float)(6u - i) * 18.0f);
+            psm_send_text_line(k, 10u, 16.0f, base - 6.0f * 18.0f);
+        }
+        psm_send_text_line(k, 6u, 16.0f, base);
+        if (st->split) psm_send_text_line(k, 7u, 16.0f, base + 18.0f);
     }
-    psm_send_text_line(k, 6u, 16.0f, base);
-    if (st->split) psm_send_text_line(k, 7u, 16.0f, base + 18.0f);
     if (st->inset) {
         const float x = PSM_SCR_W - 16.0f - (float)PSM_INSET_PX, y = 290.0f - (float)PSM_INSET_PX;
 

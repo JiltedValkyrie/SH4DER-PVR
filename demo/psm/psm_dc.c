@@ -17,13 +17,12 @@
    timers and the text textures.
 
    Pad, as the torch walk demo (demo/torchwalk_ab.c, single stick): the stick looks (INVERT Y on: up looks down), Y / A
-   held walk forward / back, X / B strafe left / right. D-pad down opens the menu (a row a line: route, map, map hold (the fit held still so texels do not swim), map size (512 on
-   routes B and AB only, its RAM taken while chosen), A filter (the PVR's bilinear or point), B filter (2 x 2 or point),
-   bias a and b, warp near, sun azimuth and elevation, inset, readout and the SH-4's split, presets, invert Y); in it the
-   face buttons do not walk, D-pad up / down pick a row, left / right and A change it, B or START close it. Quick, menu
-   closed: D-pad up the route, a tap of START uniform / PSM, D-pad left / right the sun's azimuth, L / R triggers its
-   elevation, START + L / R the warp's near plane. A value held repeats. The meaning is psm_input in psm_scene.h; this file
-   reads the pad.
+   held walk forward / back, X / B strafe left / right. D-pad up steps the route (A, B, AB), down flips uniform / PSM,
+   left / right the clock (the town) or the sun's azimuth (the field), the L / R triggers the sun's elevation. START opens
+   the settings panel (three tabs: SHADOWS, SUN & TIME, VIEW; every row, the warp's near plane, the casters, the presets and
+   FREEZE among them): in it nothing walks, L / R pick the tab, D-pad up / down the row, left / right and A change it, B or
+   START close it. A value held repeats. The meaning is psm_input in psm_scene.h, the panel psm_panel_* there and
+   psm_send_panel in psm_send.h; this file reads the pad.
 
    DRAW DISTANCE (a menu row): the ground cells and model triangles wholly past it in view depth are not sent (psm_place), and
    the PVR's table fog (pvr_fog_table_linear, the sky's colour) fades the last quarter of it, on the ground and the models only
@@ -80,7 +79,6 @@ static uint16_t checker_px[16 * 16] __attribute__((aligned(32)));
 static uint16_t depth_map2[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));   /* route AB's second slot: the same again (32 KB at 128, 128 KB at 256) */
 static psm_mapsrc_t mapsrc;               /* route AB (stub): the map source hook, the SH-4's raster standing in for the PVR, one frame late */
 static psm_ab_stub_t ab_stub;
-static int route3;                        /* the route of three: psm_input knows two */
 static psm_mapbuf_t mapbuf;               /* MAP SIZE 512 on routes B and AB: its buffers while it is chosen */
 static int filter_a_hdr = -1;             /* the A FILTER the target headers were compiled with */
 static char ln_now[PSM_HUD_LINES][PSM_HUD_COLS + 1u];     /* the lines this frame, and the lines on the texture */
@@ -323,7 +321,6 @@ static int load(void) {
     ground_texture();
     ab_stub.f = &frame; ab_stub.s = &scene;
     psm_mapsrc_init(&mapsrc, psm_ab_stub_fill, &ab_stub, 1u, depth_map, depth_map2);
-    route3 = state.route;
     memset(&cost, 0, sizeof cost);
     return 1;
 }
@@ -348,6 +345,7 @@ static int pad(float dt) {
     psm_pad_t in = { 0u, 0.0f, 0.0f, 0.0f, 0.0f };
     unsigned held = 0;
     const unsigned before = state.last;
+    int moved = 0;
 
     if (st) {
         const uint32_t b = st->buttons;
@@ -372,15 +370,17 @@ static int pad(float dt) {
     psm_fault_frame(&fault_crumbs, frame_no, held, (unsigned)state.scene, (unsigned)state.route);
     psm_fault_stage(&fault_crumbs, "input");
     {
-        const int route_before = state.route;
+        const int route_before = state.route, grp_before = state.grp, row_before = state.row, menu_before = state.menu;
+        const int32_t value_before = psm_row_int(&state, state.row);
 
-        psm_input(&state, &walk_lim, &in, dt);
-        state.route = psm_ab_route_step(&route3, route_before, state.route);   /* A, B, AB (stub) */
+        psm_input(&state, &walk_lim, &in, dt);                                   /* the route goes A, B, AB itself */
         if (state.route != route_before) psm_mapsrc_reset(&mapsrc);          /* a route change: route AB starts with no map */
+        moved = state.menu != menu_before || state.grp != grp_before || state.row != row_before
+                      || psm_row_int(&state, state.row) != value_before;      /* a held repeat changes it with no new button */
     }
     psm_fault_menu(&fault_crumbs, state.menu, (unsigned)state.row, psm_row_int(&state, state.row));
     psm_fault_camera(&fault_crumbs, state.x, PSM_EYE_H, state.z, state.yaw * 57.29578f, -state.pitch * 57.29578f);
-    return held != before;
+    return held != before || moved;
 }
 
 /* ---- route A's map pass -------------------------------------------------------- */
@@ -411,11 +411,17 @@ static int map_pass(void) {
 
 /* ---- text and inset ------------------------------------------------------------ */
 
-/* The eight lines into ln_now (psm_hud). 1 when they differ from the lines on the texture: only then is a wait for the PVR
+/* The lines into ln_now (psm_hud, the panel when open). 1 when they differ from the lines on the texture: only then is a wait for the PVR
    and an upload worth it. */
 static int text_pending(void) {
     if (state.route == PSM_ROUTE_AB) psm_ab_hud(&state, &frame, &cost, &mapsrc, ln_now);
     else psm_hud(&state, &frame, &cost, ln_now);
+    if (state.menu) {                                       /* the settings panel's lines over the readout's */
+        psm_panel_t p;
+
+        psm_panel_layout(&state, &p);
+        psm_panel_lines(&state, &p, ln_now);
+    }
     {
         const psm_diag_t d = { frame_no, est_now, vbuf_used, vbuf_max, PSM_TA_VBUF, shed_now };
 

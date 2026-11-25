@@ -517,15 +517,72 @@ static inline unsigned psm_repeat_step(psm_repeat_t *r, int held, float dt) {
 
 /* ---- state and pad ----------------------------------------------------------- */
 
-/* The menu's rows, as torchwalk's: one line "ROW: value", D-pad up / down picks, left / right (and A) changes. */
+/* The settings panel's rows (START opens it): in three groups, a tab each; L / R pick the tab, D-pad up / down the row,
+   left / right (and A) change it. */
 enum {
     PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_HOLD, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_FILTER_A, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
-    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROWS
+    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROW_FREEZE, PSM_ROWS
 };
 static const char *const psm_row_name[PSM_ROWS] = {
-    "ROUTE", "MAP", "MAP HOLD", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "A FILTER", "B FILTER", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
-    "SCENE", "TIME", "TIME SPEED"
+    "ROUTE", "MAP", "MAP HOLD", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "A FILTER", "B FILTER", "BIAS CONST", "BIAS SLOPE", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
+    "SCENE", "TIME", "TIME SPEED", "FREEZE"
 };
+
+/* The rows as data, for a panel that draws the table: the group (a tab), the kind, and for a slider its range and step in
+   the value psm_row_num gives (the unit the row shows). A toggle has two states, a choice a few named ones; a held
+   left / right repeats on the rows that say so. psm_row_change does the change itself (some rows move other state). */
+enum { PSM_GRP_SHADOW, PSM_GRP_SUN, PSM_GRP_VIEW, PSM_GRPS };
+enum { PSM_RK_TOGGLE, PSM_RK_CHOICE, PSM_RK_SLIDER };
+typedef struct psm_row_def {
+    uint8_t group, kind, repeats, wraps;
+    float lo, hi, step;
+} psm_row_def_t;
+static const char *const psm_grp_name[PSM_GRPS] = { "SHADOWS", "SUN & TIME", "VIEW" };
+static const psm_row_def_t psm_row_def[PSM_ROWS] = {
+    { PSM_GRP_SHADOW, PSM_RK_CHOICE, 0, 1, 0.0f, 0.0f, 0.0f },        /* ROUTE */
+    { PSM_GRP_SHADOW, PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* MAP */
+    { PSM_GRP_SHADOW, PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* MAP HOLD */
+    { PSM_GRP_SHADOW, PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* CASTERS */
+    { PSM_GRP_VIEW,   PSM_RK_CHOICE, 1, 0, 0.0f, 0.0f, 0.0f },        /* DRAW DISTANCE */
+    { PSM_GRP_SHADOW, PSM_RK_CHOICE, 1, 1, 0.0f, 0.0f, 0.0f },        /* MAP SIZE */
+    { PSM_GRP_SHADOW, PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* A FILTER */
+    { PSM_GRP_SHADOW, PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* B FILTER */
+    { PSM_GRP_SHADOW, PSM_RK_SLIDER, 1, 0, 0.0f, 200.0f, 5.0f },      /* BIAS CONST, mm */
+    { PSM_GRP_SHADOW, PSM_RK_SLIDER, 1, 0, 0.0f, 4.0f, 0.5f },        /* BIAS SLOPE, texels */
+    { PSM_GRP_SHADOW, PSM_RK_SLIDER, 1, 0, 1.0f, 12.0f, 0.5f },       /* WARP NEAR, m */
+    { PSM_GRP_SUN,    PSM_RK_SLIDER, 1, 1, 0.0f, 355.0f, 5.0f },      /* SUN AZIMUTH, degrees */
+    { PSM_GRP_SUN,    PSM_RK_SLIDER, 1, 0, 5.0f, 85.0f, 5.0f },       /* SUN ELEVATION, degrees */
+    { PSM_GRP_VIEW,   PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* INSET */
+    { PSM_GRP_VIEW,   PSM_RK_CHOICE, 1, 1, 0.0f, 0.0f, 0.0f },        /* READOUT */
+    { PSM_GRP_SUN,    PSM_RK_CHOICE, 1, 1, 0.0f, 0.0f, 0.0f },        /* PRESETS */
+    { PSM_GRP_VIEW,   PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* INVERT Y */
+    { PSM_GRP_VIEW,   PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* SCENE */
+    { PSM_GRP_SUN,    PSM_RK_SLIDER, 1, 1, 0.0f, 1425.0f, 15.0f },    /* TIME, minutes of the day */
+    { PSM_GRP_SUN,    PSM_RK_CHOICE, 0, 1, 0.0f, 0.0f, 0.0f },        /* TIME SPEED */
+    { PSM_GRP_SUN,    PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* FREEZE */
+};
+#define PSM_ROUTES 3                  /* A, B, AB (demo/psm/psm_mapsrc.h: PSM_ROUTE_AB 2) */
+
+/* The rows of group g in table order into out; returns how many. */
+static inline unsigned psm_grp_rows(int g, int out[PSM_ROWS]) {
+    unsigned n = 0;
+    int r;
+
+    for (r = 0; r < (int)PSM_ROWS; r++)
+        if (psm_row_def[r].group == g) out[n++] = r;
+    return n;
+}
+
+/* The row's place in its group (0 for a row not in it). */
+static inline unsigned psm_grp_index(int g, int row) {
+    int rows[PSM_ROWS];
+    const unsigned n = psm_grp_rows(g, rows);
+    unsigned i;
+
+    for (i = 0; i < n; i++)
+        if (rows[i] == row) return i;
+    return 0;
+}
 static const float psm_preset_sun[3][2] = { { 120.0f, 35.0f }, { 0.0f, 20.0f }, { 180.0f, 20.0f } };   /* default, head-on, behind */
 static const char *const psm_preset_name[3] = { "default", "head-on", "behind" };
 
@@ -536,7 +593,9 @@ typedef struct psm_state {
     unsigned size_refused_kb;   /* the last bigger map the program could not allocate (KB; 0: none), on the readout */
     int movers_only;     /* CASTERS: 0 every caster into the map, 1 only the movers' (the static casters are not drawn into it) */
     unsigned dist_i;     /* DRAW DISTANCE: psm_dist_m[dist_i] metres, PSM_DIST_INF for no cut and no fog */
-    psm_repeat_t rep_l, rep_r, rep_wl, rep_wr;   /* the D-pad's left and right (and A in the menu), START + L and R */
+    psm_repeat_t rep_l, rep_r, rep_wl, rep_wr;   /* the D-pad's left and right (and A in the panel); rep_wl / rep_wr unused */
+    psm_repeat_t rep_u, rep_d;                    /* the D-pad's up and down in the panel */
+    int grp;             /* the panel's tab (PSM_GRP_*); `row` is a row of it */
     unsigned size_i, preset;
     float az, el, warp_near, bias_a, bias_b, yaw, pitch, x, z;
     unsigned last;       /* the pad a frame ago */
@@ -545,7 +604,7 @@ typedef struct psm_state {
     float clock;         /* the town's solar time, hours */
     unsigned tspeed;     /* TIME SPEED: psm_time_speed's index */
     int sun_free;        /* 1: the sun was set by hand (azimuth, elevation), off the clock */
-    int freeze;          /* START + B: the people and the hens stand still */
+    int freeze;          /* FREEZE: the people and the hens stand still */
     float cast_t;        /* the cast's clock, seconds */
     unsigned tpreset;    /* the town's last preset */
     int atmos;           /* 1: the sky band, the hills and the quadratic fog (demo/psm/psm_sky.h, TOWN_LOOK.md section 3); the town's
@@ -603,10 +662,7 @@ static inline unsigned psm_map_index(const psm_state_t *st) {
 }
 static inline unsigned psm_map_size(const psm_state_t *st) { return psm_map_sizes[psm_map_index(st)]; }
 
-static inline int psm_row_repeats(int row) {
-    return row == PSM_ROW_DIST || row == PSM_ROW_SIZE || row == PSM_ROW_BIAS_A || row == PSM_ROW_BIAS_B || row == PSM_ROW_WARP_NEAR
-        || row == PSM_ROW_AZIMUTH || row == PSM_ROW_ELEVATION || row == PSM_ROW_READOUT || row == PSM_ROW_PRESET || row == PSM_ROW_TIME;
-}
+static inline int psm_row_repeats(int row) { return row >= 0 && row < (int)PSM_ROWS && psm_row_def[row].repeats; }
 
 static inline float psm_step_(float x, float d, float lo, float hi) {
     return sh4der_clamp_(x + d, lo, hi);   /* the step, held in lo .. hi */
@@ -637,7 +693,7 @@ static inline void psm_clock_step_(psm_state_t *st, float d) {
 /* A row changed by d (-1 or +1): a toggle flips, a list steps round, a number steps and stops at its ends. */
 static inline void psm_row_change(psm_state_t *st, int row, int d) {
     switch (row) {
-        case PSM_ROW_ROUTE: st->route = !st->route; break;
+        case PSM_ROW_ROUTE: st->route = (st->route + (d > 0 ? 1 : PSM_ROUTES - 1)) % PSM_ROUTES; break;   /* A, B, AB */
         case PSM_ROW_MAP: st->warp = !st->warp; break;
         case PSM_ROW_HOLD: st->hold = !st->hold; break;
         case PSM_ROW_CASTERS: st->movers_only = !st->movers_only; break;
@@ -670,6 +726,7 @@ static inline void psm_row_change(psm_state_t *st, int row, int d) {
         case PSM_ROW_SCENE: st->scene = !st->scene; psm_scene_enter(st); break;
         case PSM_ROW_TIME: psm_clock_step_(st, PSM_CLOCK_STEP * (float)d); break;
         case PSM_ROW_TSPEED: st->tspeed = (st->tspeed + (d > 0 ? 1u : PSM_TIME_SPEEDS - 1u)) % PSM_TIME_SPEEDS; break;
+        case PSM_ROW_FREEZE: st->freeze = !st->freeze; break;
         default: break;
     }
     st->split = st->readout == 2;
@@ -712,6 +769,7 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
             if (!psm_time_speed[st->tspeed % PSM_TIME_SPEEDS]) return "paused";
             snprintf(buf, cap, "x%u", (unsigned)psm_time_speed[st->tspeed % PSM_TIME_SPEEDS]);
             return buf;
+        case PSM_ROW_FREEZE: return st->freeze ? "on: people and hens stand" : "off";
         default: return "?";
     }
 }
@@ -739,32 +797,43 @@ static inline int32_t psm_row_int(const psm_state_t *st, int row) {
         case PSM_ROW_SCENE: return st->scene;
         case PSM_ROW_TIME: return (int32_t)(st->clock * 60.0f);
         case PSM_ROW_TSPEED: return (int32_t)st->tspeed;
+        case PSM_ROW_FREEZE: return st->freeze;
         default: return 0;
     }
 }
 
-/* One frame of the pad, torchwalk's single-stick scheme. The stick looks (yaw, pitch). Menu closed: Y / A held walk forward /
-   back, X / B strafe left / right; D-pad down opens the menu, up flips the route, left / right turn the sun; a tap of START flips
-   uniform / PSM; the triggers raise (R) and lower (L) the sun; START held is a shift: START + L / R step the warp's near plane,
-   START + up flips the casters (all / movers only), and a START used so is not a tap. In the town the D-pad's left / right
-   step the clock a quarter of an hour (the sun on it), START + left / right turn the sun off the clock, START + B freezes the
-   people and the hens, START + Y the next preset; the triggers set the sun free too. Menu open: the face buttons do not walk;
-   D-pad up / down pick a row, left / right and A change it, B or START close it (that START is not a tap either). A value held
-   repeats (psm_repeat_step): the menu's stepping rows, the sun's azimuth, the warp's near plane; a toggle changes once a press.
-   `lim` holds the walk (NULL: no limits). */
+/* One frame of the pad, torchwalk's single-stick scheme. The stick looks (yaw, pitch). Panel closed: Y / A held walk forward /
+   back, X / B strafe left / right; START opens the settings panel; D-pad up steps the route (A, B, AB), down flips uniform /
+   PSM, left / right step the clock a quarter of an hour in the town (turn the sun in the field); the triggers raise (R) and
+   lower (L) the sun and set it free of the clock. Panel open: nothing walks; L / R pick the tab (round, its first row), D-pad
+   up / down the row (round, held repeats), left / right change it and A steps it on (psm_row_change: a slider stops at its
+   ends, a choice goes round), B or START close it. A value held repeats (psm_repeat_step) on the rows that say so
+   (psm_row_def); a toggle changes once a press. What START held used to shift (the warp's near plane, the casters, the sun
+   off the clock, the freeze, the presets) are rows. `lim` holds the walk (NULL: no limits). */
 static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, const psm_pad_t *pad, float dt) {
-    const unsigned held = pad->held, down = held & ~st->last, up = st->last & ~held;
+    const unsigned held = pad->held, down = held & ~st->last;
     const unsigned nl = psm_repeat_step(&st->rep_l, (held & PSM_BTN_LEFT) != 0u, dt);
     const unsigned nr = psm_repeat_step(&st->rep_r, (held & (st->menu ? (unsigned)(PSM_BTN_RIGHT | PSM_BTN_A) : (unsigned)PSM_BTN_RIGHT)) != 0u, dt);
-    const unsigned nwl = psm_repeat_step(&st->rep_wl, (held & PSM_BTN_START) && (held & PSM_BTN_L), dt);
-    const unsigned nwr = psm_repeat_step(&st->rep_wr, (held & PSM_BTN_START) && (held & PSM_BTN_R), dt);
+    const unsigned nu = psm_repeat_step(&st->rep_u, st->menu && (held & PSM_BTN_UP), dt);
+    const unsigned nd = psm_repeat_step(&st->rep_d, st->menu && (held & PSM_BTN_DOWN), dt);
     float fwd = 0.0f, side = 0.0f, lt = pad->lt > PSM_TRIG_DEAD ? pad->lt : 0.0f, rt = pad->rt > PSM_TRIG_DEAD ? pad->rt : 0.0f;
     unsigned k;
 
-    if (down & PSM_BTN_START) st->start_used = 0;
     if (st->menu) {
-        if (down & PSM_BTN_UP) st->row = (st->row + PSM_ROWS - 1) % PSM_ROWS;
-        if (down & PSM_BTN_DOWN) st->row = (st->row + 1) % PSM_ROWS;
+        int rows[PSM_ROWS];
+        unsigned n, at;
+
+        if (st->grp < 0 || st->grp >= (int)PSM_GRPS || psm_row_def[st->row].group != st->grp) st->grp = psm_row_def[st->row].group;
+        if (down & (PSM_BTN_L | PSM_BTN_R)) {
+            st->grp = (st->grp + ((down & PSM_BTN_R) ? 1 : (int)PSM_GRPS - 1)) % (int)PSM_GRPS;
+            psm_grp_rows(st->grp, rows);
+            st->row = rows[0];
+        }
+        n = psm_grp_rows(st->grp, rows);
+        at = psm_grp_index(st->grp, st->row);
+        for (k = 0; k < nu; k++) at = (at + n - 1u) % n;
+        for (k = 0; k < nd; k++) at = (at + 1u) % n;
+        st->row = rows[at];
         if (psm_row_repeats(st->row)) {
             for (k = 0; k < nl; k++) psm_row_change(st, st->row, -1);
             for (k = 0; k < nr; k++) psm_row_change(st, st->row, 1);
@@ -772,21 +841,12 @@ static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, cons
             if (down & PSM_BTN_LEFT) psm_row_change(st, st->row, -1);
             if (down & (PSM_BTN_RIGHT | PSM_BTN_A)) psm_row_change(st, st->row, 1);
         }
-        if (down & (PSM_BTN_B | PSM_BTN_START)) { st->menu = 0; if (held & PSM_BTN_START) st->start_used = 1; }
-    } else if (held & PSM_BTN_START) {
-        if (down & ~(unsigned)PSM_BTN_START) st->start_used = 1;
-        for (k = 0; k < nwr; k++) st->warp_near = psm_step_(st->warp_near, 0.5f, 1.0f, 12.0f);
-        for (k = 0; k < nwl; k++) st->warp_near = psm_step_(st->warp_near, -0.5f, 1.0f, 12.0f);
-        if (down & PSM_BTN_UP) st->movers_only = !st->movers_only;
-        for (k = 0; k < nr; k++) { st->az = psm_wrap_360_(st->az + 5.0f); st->sun_free = 1; }   /* the sun off the clock */
-        for (k = 0; k < nl; k++) { st->az = psm_wrap_360_(st->az - 5.0f); st->sun_free = 1; }
-        if (down & PSM_BTN_B) st->freeze = !st->freeze;
-        if (down & PSM_BTN_Y) psm_row_change(st, PSM_ROW_PRESET, 1);
-        lt = rt = 0.0f;                                         /* a trigger under START is the warp's, not the sun's */
+        if (down & (PSM_BTN_B | PSM_BTN_START)) st->menu = 0;
+        lt = rt = 0.0f;                                         /* the triggers pick the tab here, not the sun */
     } else {
-        if ((up & PSM_BTN_START) && !st->start_used) st->warp = !st->warp;
-        if (down & PSM_BTN_DOWN) st->menu = 1;
-        if (down & PSM_BTN_UP) st->route = !st->route;
+        if (down & PSM_BTN_START) { st->menu = 1; if (psm_row_def[st->row].group != st->grp) st->grp = psm_row_def[st->row].group; }
+        if (down & PSM_BTN_UP) psm_row_change(st, PSM_ROW_ROUTE, 1);
+        if (down & PSM_BTN_DOWN) st->warp = !st->warp;
         for (k = 0; k < nr; k++) { if (st->scene) psm_clock_step_(st, PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az + 5.0f); }
         for (k = 0; k < nl; k++) { if (st->scene) psm_clock_step_(st, -PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az - 5.0f); }
         if (held & PSM_BTN_Y) fwd += 1.0f;
@@ -1356,9 +1416,10 @@ static inline unsigned psm_clip_near(const psm_frame_t *f, const psm_scene_t *s,
 
 /* ---- the readout ------------------------------------------------------------- */
 
-#define PSM_HUD_LINES 12u           /* lines 0 .. 10 psm_hud, 11 the frame and the vertex buffer (psm_send.h, psm_dc.c) */
+#define PSM_HUD_LINES 16u           /* lines 0 .. 10 psm_hud, 11 the frame and the vertex buffer (psm_send.h, psm_dc.c), 12 .. 13
+                                       the panel's title and tabs (psm_panel_lines); the text texture's sixteen, no more VRAM */
 #define PSM_HUD_COLS  64u            /* characters a line (a 512 texel line of the 8 x 16 font) */
-#define PSM_TEXT_W    512u           /* the text texture: sixteen lines of the 8 x 16 font, ten used, ARGB1555 */
+#define PSM_TEXT_W    512u           /* the text texture: sixteen lines of the 8 x 16 font, fourteen used, ARGB1555 */
 #define PSM_TEXT_H    256u
 #define PSM_TEXT_KB   (PSM_TEXT_W * PSM_TEXT_H * 2u / 1024u)
 
@@ -1461,11 +1522,113 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
     else if (st->dist_i >= PSM_DIST_INF) PSM_LINE_(10, "DIST INF: no cut, no fog   map casters: all distances");
     else PSM_LINE_(10, "DIST %u m: cut, fog from %u m   map casters: all distances", (unsigned)psm_dist_m[st->dist_i],
                    (unsigned)(psm_dist_m[st->dist_i] * psm_fog_start(st) + 0.5f));
-    PSM_LINE_(9, "%s", st->menu ? "D-pad row/change  A change  B/START close  stick look"
-                                : st->scene ? "stick look YAXB walk  Up route  START map  Dn menu  L/R time"
-                                : "stick look YAXB walk  Up route  START map  Dn menu  L/R sun");
+    PSM_LINE_(9, "%s", st->menu ? "L/R TAB  UP/DN ROW  </> A ADJUST  B CLOSE"
+                                : st->scene ? "stick look YAXB walk  Up route  Dn map  START menu  L/R time"
+                                : "stick look YAXB walk  Up route  Dn map  START menu  L/R sun");
 }
 
 #undef PSM_LINE_
+
+/* ---- the settings panel ---------------------------------------------------------------------------------------------- */
+/* START opens it. The layout, the navigation and the colours are the owner's own menu (demo/psm/CREDITS.md), set for our
+   8 x 16 font: a dark panel down the left, the title, the tabs (one a group: the one open white and underlined, the others
+   grey), a hairline, the rows (the label at the left, "< VALUE >" at the right, the chosen one on a bar in white, a
+   chevron left out at a slider's end), a scrollbar when a group has more rows than show, a hairline and the button hints.
+   Its text is lines of the readout's texture: open, the panel's lines take 1 .. 8 (the readout's, not shown then), 9 is
+   the hints and 12, 13 the title and the tabs; lines 0 and 11 stay at the top. psm_send_panel (psm_send.h) draws it. */
+#define PSM_PANEL_ROWS   8u           /* rows shown at once */
+#define PSM_PANEL_COLS   50u          /* characters a line in the panel (400 pixels) */
+#define PSM_PANEL_LABEL  14u          /* the label's column width (the longest name is 13) */
+#define PSM_PANEL_X0     0.0f         /* the panel: x 0 .. 432, y 80 .. 344 */
+#define PSM_PANEL_X1     432.0f
+#define PSM_PANEL_Y0     80.0f
+#define PSM_PANEL_Y1     344.0f
+#define PSM_PANEL_TX     16.0f        /* the text's left edge */
+#define PSM_PANEL_TITLE_Y 90.0f
+#define PSM_PANEL_TABS_Y 112.0f
+#define PSM_PANEL_HAIR1_Y 136.0f
+#define PSM_PANEL_ROW_Y  144.0f       /* the first row's top; a row's pitch */
+#define PSM_PANEL_PITCH  20.0f
+#define PSM_PANEL_HAIR2_Y 312.0f
+#define PSM_PANEL_FOOT_Y 320.0f
+#define PSM_PANEL_LN_TITLE 12u
+#define PSM_PANEL_LN_TABS  13u
+#define PSM_PANEL_LN_FOOT  9u
+#define PSM_PANEL_FILL   0xB2000000u
+#define PSM_PANEL_TEXT   0xFFDEE4E8u
+#define PSM_PANEL_WHITE  0xFFF4F7F9u
+#define PSM_PANEL_MUTE   0xFF808E98u
+#define PSM_PANEL_FAINT  0xFF5E6A74u
+#define PSM_PANEL_HAIR   0x5A96A5B2u
+#define PSM_PANEL_BAR    0x4D8FB8D8u
+#define PSM_PANEL_ACCENT 0xFF8FB8D8u
+#define PSM_PANEL_TRACK  0x733C5A73u
+
+/* the panel's numbers this frame (no text): the open group's rows, the window on them, the tabs' columns */
+typedef struct psm_panel {
+    int rows[PSM_ROWS];
+    unsigned n, sel, top, shown;          /* rows in the group, the chosen one's place, the first shown, how many shown */
+    unsigned tab_c0[PSM_GRPS], tab_c1[PSM_GRPS];   /* each tab's first column and one past its last on line 13 */
+} psm_panel_t;
+
+static inline void psm_panel_layout(const psm_state_t *st, psm_panel_t *p) {
+    const int g = st->grp >= 0 && st->grp < (int)PSM_GRPS ? st->grp : 0;
+    unsigned i, c = 0;
+
+    p->n = psm_grp_rows(g, p->rows);
+    p->sel = psm_grp_index(g, st->row);
+    p->top = p->sel < PSM_PANEL_ROWS ? 0u : p->sel - PSM_PANEL_ROWS + 1u;
+    p->shown = p->n - p->top < PSM_PANEL_ROWS ? p->n - p->top : PSM_PANEL_ROWS;
+    for (i = 0; i < PSM_GRPS; i++) {
+        p->tab_c0[i] = c;
+        c += (unsigned)strlen(psm_grp_name[i]);
+        p->tab_c1[i] = c;
+        c += 3u;                                                  /* three spaces between tabs */
+    }
+}
+
+/* the value's chevrons: a slider at its end leaves that one out (a ghost chevron, here a space) */
+static inline int psm_panel_end_(const psm_state_t *st, int row, int hi) {
+    const psm_row_def_t *d = &psm_row_def[row];
+    float v;
+
+    if (d->kind != PSM_RK_SLIDER || d->wraps) return 0;
+    switch (row) {
+        case PSM_ROW_BIAS_A: v = st->bias_a * 1000.0f; break;
+        case PSM_ROW_BIAS_B: v = st->bias_b; break;
+        case PSM_ROW_WARP_NEAR: v = st->warp_near; break;
+        case PSM_ROW_ELEVATION: v = st->el; break;
+        default: return 0;
+    }
+    return hi ? v >= d->hi - d->step * 0.5f : v <= d->lo + d->step * 0.5f;
+}
+
+/* The panel's lines into ln (after psm_hud or psm_ab_hud): 1 .. 8 the rows shown, 12 the title, 13 the tabs, 9 the hints. */
+static inline void psm_panel_lines(const psm_state_t *st, const psm_panel_t *p, char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u]) {
+    char v[48], val[PSM_PANEL_COLS + 8u];
+    unsigned i, w;
+
+    for (i = 0; i < PSM_PANEL_ROWS; i++) memset(ln[1u + i], 0, PSM_HUD_COLS + 1u);
+    for (i = 0; i < p->shown; i++) {
+        const int row = p->rows[p->top + i];
+        const char *s = psm_row_value(st, row, v, sizeof v);
+        const unsigned room = PSM_PANEL_COLS - PSM_PANEL_LABEL - 4u;   /* the value between "< " and " >" */
+        char cut[PSM_PANEL_COLS + 1u];
+
+        if (strlen(s) > room) { memcpy(cut, s, room - 3u); memcpy(cut + room - 3u, "...", 4u); s = cut; }
+        snprintf(val, sizeof val, "%c %s %c", psm_panel_end_(st, row, 0) ? ' ' : '<', s, psm_panel_end_(st, row, 1) ? ' ' : '>');
+        w = PSM_PANEL_COLS - PSM_PANEL_LABEL;
+        snprintf(ln[1u + i], PSM_HUD_COLS + 1u, "%-*.*s%*.*s", (int)PSM_PANEL_LABEL, (int)PSM_PANEL_LABEL, psm_row_name[row], (int)w, (int)w, val);
+    }
+    memset(ln[PSM_PANEL_LN_TITLE], 0, PSM_HUD_COLS + 1u);
+    snprintf(ln[PSM_PANEL_LN_TITLE], PSM_HUD_COLS + 1u, "%-*s%*s", (int)(PSM_PANEL_COLS - 12u), "SETTINGS", 12, "");
+    snprintf(v, sizeof v, "%u / %u", p->sel + 1u, p->n);
+    memcpy(ln[PSM_PANEL_LN_TITLE] + PSM_PANEL_COLS - strlen(v), v, strlen(v));
+    memset(ln[PSM_PANEL_LN_TABS], 0, PSM_HUD_COLS + 1u);
+    for (i = 0; i < PSM_GRPS; i++) {
+        memset(ln[PSM_PANEL_LN_TABS] + (i ? p->tab_c1[i - 1u] : 0u), ' ', p->tab_c0[i] - (i ? p->tab_c1[i - 1u] : 0u));
+        memcpy(ln[PSM_PANEL_LN_TABS] + p->tab_c0[i], psm_grp_name[i], p->tab_c1[i] - p->tab_c0[i]);
+    }
+}
 
 #endif /* PSM_SCENE_H */

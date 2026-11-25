@@ -207,20 +207,29 @@ static void clock_pad(void) {
     st.clock = 15.99f;
     psm_town_update(&scene, &st, 2.0f);
     CHECK(st.clock == PSM_CLOCK_T0);                                         /* past 16:00: the sweep again */
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START + B: freeze; START + Y: the next preset */
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_B, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_Y, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* the panel: FREEZE on, PRESETS the next one */
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    CHECK(st.freeze && st.tpreset == 1u && st.clock == 9.0f && st.warp == 0);   /* and the release is no tap */
+    st.row = PSM_ROW_FREEZE;
+    in_(&st, NULL, PSM_BTN_RIGHT, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    st.row = PSM_ROW_PRESET;
+    in_(&st, NULL, PSM_BTN_A, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_B, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.freeze && st.tpreset == 1u && st.clock == 9.0f && st.warp == 0 && !st.menu);
     c0 = st.cast_t;
     psm_town_update(&scene, &st, 1.0f);
     CHECK(st.cast_t == c0 && st.clock > 9.0f);                                /* frozen: the cast stops, the sun's clock goes on */
     c0 = st.clock;
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START + left: the sun's azimuth, free */
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_LEFT, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* the panel's SUN AZIMUTH: the sun free */
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    CHECK(st.sun_free && st.clock == c0);
+    st.row = PSM_ROW_AZIMUTH;
+    in_(&st, NULL, PSM_BTN_LEFT, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.sun_free && st.clock == c0 && !st.menu);
     for (r = PSM_ROW_SCENE; r < PSM_ROWS; r++) {                              /* the town's rows read as lines of their own */
         st.row = r;
         psm_hud(&st, &frame, NULL, ln);

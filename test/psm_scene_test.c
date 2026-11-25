@@ -236,32 +236,32 @@ static void pad(void) {
     psm_state_default(&st);
     CHECK(st.route == PSM_ROUTE_A && st.warp == 0 && psm_map_sizes[st.size_i] == 256u && st.readout == 1);   /* the boot state */
     CHECK(st.invert_y && !st.menu && !st.movers_only && st.pitch == PSM_PITCH && st.x == 0.0f && st.z == 0.0f);
-    in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);                          /* D-pad up: the route */
+    in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);                          /* D-pad up: the route, A B AB round */
     CHECK(st.route == PSM_ROUTE_B);
     in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);                          /* held: no repeat */
     CHECK(st.route == PSM_ROUTE_B);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* a tap of START: uniform / PSM, on the release */
-    CHECK(st.warp == 0);
+    in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.route == PSM_ROUTES - 1);                                       /* AB */
+    in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.route == PSM_ROUTE_A);
+    in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.route == PSM_ROUTE_B);
+    in_(&st, NULL, PSM_BTN_DOWN, 0, 0, 0, 0, 0.016f);                        /* D-pad down: uniform / PSM, once a press */
+    CHECK(st.warp == 1 && !st.menu);
+    in_(&st, NULL, PSM_BTN_DOWN, 0, 0, 0, 0, 0.5f);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
     CHECK(st.warp == 1);
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START + R: the warp's near plane, and not a tap */
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_R, 0, 0, 0, 1.0f, 0.5f);
-    CHECK(st.warp_near == 4.5f && st.el == 35.0f);                           /* a trigger under START does not move the sun */
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_L, 0, 0, 1.0f, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_L, 0, 0, 1.0f, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START opens the panel; held, nothing more */
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 1.0f, 0.5f);
+    CHECK(st.menu && st.grp == PSM_GRP_SHADOW && st.el == 35.0f);            /* open, a trigger does not move the sun */
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    CHECK(st.warp_near == 4.0f && st.warp == 1);                             /* the shift was used: the release is no tap */
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START + up: the casters, and not a tap */
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_UP, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START closes it */
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    CHECK(st.movers_only == 1 && st.warp == 1 && st.route == PSM_ROUTE_B);
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START held, the shift let go first: still no tap */
-    in_(&st, NULL, PSM_BTN_START | PSM_BTN_UP, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    CHECK(st.movers_only == 0 && st.warp == 1);
+    CHECK(!st.menu && st.warp == 1 && st.route == PSM_ROUTE_B && st.warp_near == 4.0f && !st.movers_only);
     in_(&st, NULL, PSM_BTN_RIGHT, 0, 0, 0, 0, 0.016f);                       /* D-pad right: the sun's azimuth */
     CHECK(st.az == 125.0f);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
@@ -324,8 +324,8 @@ static void menu(void) {
     int r;
 
     psm_state_default(&st);
-    in_(&st, NULL, PSM_BTN_DOWN, 0, 0, 0, 0, 0.016f);                        /* D-pad down opens it */
-    CHECK(st.menu && st.row == PSM_ROW_ROUTE);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START opens it */
+    CHECK(st.menu && st.row == PSM_ROW_ROUTE && st.grp == PSM_GRP_SHADOW);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
     for (i = 0; i < 30u; i++) in_(&st, NULL, PSM_BTN_Y | PSM_BTN_X, 0, 0, 0, 0, 0.05f);   /* open: the face buttons do not walk */
     CHECK(st.x == 0.0f && st.z == 0.0f);
@@ -333,10 +333,10 @@ static void menu(void) {
     in_(&st, NULL, PSM_BTN_B | PSM_BTN_A, 0, 0, 0, 0, 0.5f);                 /* nor B or A: A changes the row (the route), B closes */
     CHECK(st.x == 0.0f && st.z == 0.0f && st.route == PSM_ROUTE_B && !st.menu);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_DOWN, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
     in_(&st, NULL, PSM_BTN_DOWN, 0, 0, 0, 0, 0.016f);                        /* open: D-pad down picks the next row */
-    CHECK(st.menu && st.row == PSM_ROW_MAP && st.route == PSM_ROUTE_B);
+    CHECK(st.menu && st.row == PSM_ROW_MAP && st.route == PSM_ROUTE_B && st.warp == 0);
     in_(&st, NULL, PSM_BTN_DOWN | PSM_BTN_RIGHT, 0, 0, 0, 0, 0.016f);        /* right changes it */
     CHECK(st.warp == 1);
     in_(&st, NULL, PSM_BTN_DOWN | PSM_BTN_RIGHT | PSM_BTN_LEFT, 0, 0, 0, 0, 0.016f);
@@ -344,10 +344,15 @@ static void menu(void) {
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
     in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);                          /* up past the first row: the last */
-    CHECK(st.row == PSM_ROWS - 1 && st.route == PSM_ROUTE_B);
+    in_(&st, NULL, PSM_BTN_UP, 0, 0, 0, 0, 0.016f);                          /* up past the group's first row: its last */
+    {
+        int rows[PSM_ROWS];
+        const unsigned n = psm_grp_rows(PSM_GRP_SHADOW, rows);
+
+        CHECK(st.row == rows[n - 1u] && st.route == PSM_ROUTE_B);
+    }
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START closes it, and its release is no tap */
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);                       /* START closes it */
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
     CHECK(!st.menu && st.warp == 0);
     in_(&st, NULL, PSM_BTN_Y, 0, 0, 0, 0, 0.5f);                             /* closed: walking again */
@@ -1030,14 +1035,121 @@ static void repeat(void) {
     for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_RIGHT, 0, 0, 0, 0, i ? 1.0f / 60.0f : 0.0f);
     CHECK(st.route == PSM_ROUTE_B);                                         /* once */
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    st.row = PSM_ROW_WARP_NEAR;                                             /* the warp's near plane (was START + R) */
+    for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_RIGHT, 0, 0, 0, 1.0f, i ? 1.0f / 60.0f : 0.0f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.warp_near == 8.0f && st.warp == 0 && st.el == 35.0f);         /* 4 + 8 x 0.5, the trigger open: the sun still */
     st.menu = 0;
     for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_LEFT, 0, 0, 0, 0, i ? 1.0f / 60.0f : 0.0f);
     CHECK(st.az == 160.0f && st.x == 0.0f && st.z == 0.0f);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+}
+
+/* the settings panel: the groups, the tabs, the rows' window, the lines */
+static void panel(void) {
+    char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u], v[48];
+    int rows[PSM_ROWS], seen[PSM_ROWS];
+    psm_panel_t p;
+    psm_state_t st;
+    unsigned g, i, n, total = 0, longest = 0;
+    int r;
+
+    memset(seen, 0, sizeof seen);
+    for (g = 0; g < PSM_GRPS; g++) {                                        /* every row in one group, in table order */
+        n = psm_grp_rows((int)g, rows);
+        CHECK(n > 0u);
+        for (i = 0; i < n; i++) { seen[rows[i]]++; CHECK(psm_grp_index((int)g, rows[i]) == i); CHECK(!i || rows[i] > rows[i - 1u]); }
+        total += n;
+        longest = n > longest ? n : longest;
+    }
+    CHECK(total == PSM_ROWS);
+    for (r = 0; r < PSM_ROWS; r++) CHECK(seen[r] == 1);
+    printf("  panel: %u rows in %u groups, the longest %u, %u shown at once\n", total, (unsigned)PSM_GRPS, longest, PSM_PANEL_ROWS);
+
+    psm_state_default(&st);                                                 /* the tabs: R on, L back, round, the first row */
     in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);
-    for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_START | PSM_BTN_R, 0, 0, 0, 1.0f, i ? 1.0f / 60.0f : 0.0f);
     in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
-    CHECK(st.warp_near == 8.0f && st.warp == 0 && st.el == 35.0f);         /* 4 + 8 x 0.5, the release no tap, the sun still */
+    in_(&st, NULL, PSM_BTN_DOWN, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_R, 0, 0, 0, 1.0f, 0.016f);
+    psm_grp_rows(PSM_GRP_SUN, rows);
+    CHECK(st.grp == PSM_GRP_SUN && st.row == rows[0] && st.el == 35.0f);
+    in_(&st, NULL, PSM_BTN_R, 0, 0, 0, 1.0f, 0.5f);                          /* held: once */
+    CHECK(st.grp == PSM_GRP_SUN);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_L, 0, 0, 1.0f, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_L, 0, 0, 1.0f, 0, 0.016f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    psm_grp_rows(PSM_GRP_VIEW, rows);
+    CHECK(st.grp == PSM_GRP_VIEW && st.row == rows[0] && st.el == 35.0f);   /* L past the first tab: the last */
+
+    psm_state_default(&st);                                                 /* up / down held repeat, round in the group */
+    st.menu = 1; st.grp = PSM_GRP_SHADOW; st.row = PSM_ROW_ROUTE;
+    n = psm_grp_rows(PSM_GRP_SHADOW, rows);
+    for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_DOWN, 0, 0, 0, 0, i ? 1.0f / 60.0f : 0.0f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.row == rows[8u % n]);                                          /* the press, 400 ms, then every 140 ms: 8 steps */
+    CHECK(st.route == PSM_ROUTE_A && st.warp == 0 && st.menu);              /* nothing changed by the moving */
+
+    for (g = 0; g < PSM_GRPS; g++) {                                        /* each row of each group: shown, chosen, in width */
+        n = psm_grp_rows((int)g, rows);
+        for (i = 0; i < n; i++) {
+            unsigned k, chosen = 0;
+
+            psm_state_default(&st);
+            st.menu = 1; st.grp = (int)g; st.row = rows[i];
+            psm_panel_layout(&st, &p);
+            CHECK(p.n == n && p.sel == i && p.sel >= p.top && p.sel < p.top + p.shown && p.shown <= PSM_PANEL_ROWS);
+            CHECK(p.shown == (n < PSM_PANEL_ROWS ? n : PSM_PANEL_ROWS));
+            psm_hud(&st, &frame, NULL, ln);
+            psm_panel_lines(&st, &p, ln);
+            for (k = 0; k < p.shown; k++) {
+                CHECK(strlen(ln[1u + k]) == PSM_PANEL_COLS);
+                CHECK(strstr(ln[1u + k], psm_row_name[p.rows[p.top + k]]) == ln[1u + k]);
+                CHECK(!strstr(ln[1u + k], "..."));                          /* the boot's values fit whole */
+                chosen += p.top + k == p.sel;
+            }
+            for (; k < PSM_PANEL_ROWS; k++) CHECK(ln[1u + k][0] == 0);
+            CHECK(chosen == 1u);
+            CHECK(strlen(ln[PSM_PANEL_LN_TITLE]) == PSM_PANEL_COLS && strstr(ln[PSM_PANEL_LN_TITLE], "SETTINGS") == ln[PSM_PANEL_LN_TITLE]);
+            CHECK(strlen(ln[PSM_PANEL_LN_FOOT]) <= PSM_PANEL_COLS && strstr(ln[PSM_PANEL_LN_FOOT], "B CLOSE"));
+            if (g == 0u && i == n - 1u)
+                for (k = 0; k < PSM_HUD_LINES; k++) if (k == PSM_PANEL_LN_TITLE || k == PSM_PANEL_LN_TABS || (k >= 1u && k <= 9u)) printf("  | %s\n", ln[k]);
+        }
+    }
+    for (g = 0; g < PSM_GRPS; g++) {                                        /* the tabs: in order, apart, on the line */
+        CHECK(p.tab_c1[g] > p.tab_c0[g] && (!g || p.tab_c0[g] > p.tab_c1[g - 1u]) && p.tab_c1[g] <= PSM_PANEL_COLS);
+        CHECK(!memcmp(ln[PSM_PANEL_LN_TABS] + p.tab_c0[g], psm_grp_name[g], p.tab_c1[g] - p.tab_c0[g]));
+    }
+
+    psm_state_default(&st);                                                 /* a slider at its end: that chevron left out */
+    st.menu = 1; st.row = PSM_ROW_ELEVATION; st.grp = psm_row_def[st.row].group;
+    st.el = 85.0f;
+    psm_panel_layout(&st, &p);
+    psm_panel_lines(&st, &p, ln);
+    CHECK(ln[1u + p.sel - p.top][PSM_PANEL_COLS - 1u] == ' ' && strstr(ln[1u + p.sel - p.top], "< 85 deg"));
+    st.el = 5.0f;
+    psm_panel_lines(&st, &p, ln);
+    CHECK(strstr(ln[1u + p.sel - p.top], "  5 deg >"));
+    st.el = 40.0f;
+    psm_panel_lines(&st, &p, ln);
+    CHECK(strstr(ln[1u + p.sel - p.top], "< 40 deg >"));
+    st.row = PSM_ROW_AZIMUTH; st.az = 0.0f;                                  /* a slider that goes round keeps both */
+    psm_panel_layout(&st, &p);
+    psm_panel_lines(&st, &p, ln);
+    CHECK(strstr(ln[1u + p.sel - p.top], "< 0 deg >"));
+    st.row = PSM_ROW_ROUTE; st.grp = PSM_GRP_SHADOW; st.route = PSM_ROUTES - 1;   /* AB reads as AB */
+    psm_panel_layout(&st, &p);
+    psm_panel_lines(&st, &p, ln);
+    CHECK(strstr(ln[1u + p.sel - p.top], "< AB"));
+    st.scene = 1; st.sun_free = 1; st.row = PSM_ROW_TIME; st.grp = psm_row_def[st.row].group;   /* the longest value: whole */
+    psm_panel_layout(&st, &p);
+    psm_panel_lines(&st, &p, ln);
+    CHECK(strlen(ln[1u + p.sel - p.top]) == PSM_PANEL_COLS && strstr(ln[1u + p.sel - p.top], psm_row_value(&st, PSM_ROW_TIME, v, sizeof v)));
+    psm_row_change(&st, PSM_ROW_FREEZE, 1);                                  /* FREEZE: a row of its own */
+    CHECK(st.freeze);
+    psm_row_change(&st, PSM_ROW_FREEZE, 1);
+    CHECK(!st.freeze);
 }
 
 static void distance(void) {
@@ -1135,6 +1247,7 @@ int main(void) {
     a_casters();
     pad();
     menu();
+    panel();
     walk_limits();
     grid_recentre();
     walk_window();
