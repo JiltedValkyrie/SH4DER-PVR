@@ -27,6 +27,10 @@ sources: [demo/psm/bench/bench_h1.c, demo/psm/bench/build.py, demo/psm/bench/NOT
 - Times come from `timer_ns_gettime64` and the SH-4's cycle counter. The first lines print the timer's resolution (560 ns step in h1 and h2) (NOTES.md:15).
 - Results are read from photos of the pages. Note the photo file names. Since nothing is repeated, there is no spread to give (NOTES.md:7-9).
 
+A bench built and not yet run, the ray bench, laid out test by test:
+
+![The ray bench (image psm-bench-ray1 built and host-tested, not run on a console; every cycle count ESTIMATE): a ray walks a 64 x 64, 4 KB height grid toward the sun at a predicted 12 to 16 cycles a step plus about 30 (P1, timed against n with the ns timer and performance counter 1); the same slice is run batched (grid loaded once, 18 to 26 us), interleaved with the vertex transform (27.7 to 40.3 cycles a missing step, SH4-047; the miss share ESTIMATE) and with the grid in OC-RAM, which h1 measured as no faster than a hit while halving the cache (P2, SH4-010 to 012); and proxies for 8 people and 4 hens are timed at 16:00 against one slice (P9). No ray, slice or proxy has been timed on a console yet.](../images/ray-bench-plan.svg)
+
 ## Traps that have given wrong numbers here
 
 1. **Two buffers a multiple of 16 KB apart.** The SH-4's data cache is 16 KB and direct-mapped. h1's source and destination were exactly 1 MB apart, so every line fought for the same cache entry. Its memcpy and transform lines measured the placing, not the routines. h2 moved the destination 8 KB off: memcpy of 4 KB in the cache went from 46.6 to 398.0 MB/s, and `mat_transform` from 38.67 to 13.16 cycles a vertex (MEASURED, one console, 2026-11-25; NOTES.md h1 correction and h2). Put copy and transform buffers half a cache apart, or at an offset that shares no entry.

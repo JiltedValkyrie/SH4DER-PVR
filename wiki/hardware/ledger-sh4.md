@@ -22,6 +22,10 @@ Neither run was repeated, so no number has a spread. A *line* is 32 bytes. *MB* 
 
 ![The placing trap: the SH-4 operand cache is 16 KB, direct-mapped, indexed by address bits 13..5, so two arrays a multiple of 16 KB apart put line i of each in the same entry and every access misses; measured on one console, mat_transform 13.16 against 38.67 cycles a vertex (1 MB apart), pvr_project 21.15 against 132.5 (256 KB apart in c4), memcpy 398.0 against 46.6 MB/s; the fix is one pool with the second array 8 KB off modulo 16 KB (SH4-002, 003, 020-023, 030-032, 046).](../images/cache-placing-trap.svg)
 
+The ray bench, which times the grid with and without the vertex transform evicting it:
+
+![The ray bench (image psm-bench-ray1 built and host-tested, not run on a console; every cycle count ESTIMATE): a ray walks a 64 x 64, 4 KB height grid toward the sun at a predicted 12 to 16 cycles a step plus about 30 (P1, timed against n with the ns timer and performance counter 1); the same slice is run batched (grid loaded once, 18 to 26 us), interleaved with the vertex transform (27.7 to 40.3 cycles a missing step, SH4-047; the miss share ESTIMATE) and with the grid in OC-RAM, which h1 measured as no faster than a hit while halving the cache (P2, SH4-010 to 012); and proxies for 8 people and 4 hens are timed at 16:00 against one slice (P9). No ray, slice or proxy has been timed on a console yet.](../images/ray-bench-plan.svg)
+
 
 ## Clock and cache
 

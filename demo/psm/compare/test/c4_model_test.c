@@ -27,6 +27,10 @@
        acne must be 0 with the bias rule as it stands, and rim must be 0 where the faces are grown. The faces are
        grown in the map pass by 0 and by 0.75 pixel.
      - the same two counts at every sun: azimuth 0 to 357 by 3 degrees at elevations 13, 26.5 and 45
+     - c4b, the measured window (fix 4): Q from the window's lower edge equals the old Q for the cosine's edge; the
+       edges found from a picture of known pairs are the table's own; on a "chip" whose window is 3 codes narrower at
+       each end (the size a third party's reading gives, REPORTED) the edges found are the narrowed ones, and the
+       chain with Q from them has no acne where Q from the cosine's edge has some (both at b0 1.5, c4's first value)
 */
 
 #include <math.h>
@@ -291,6 +295,61 @@ static void kinds(void) {
     CHECK(equal == 0);
 }
 
+/* c4b: the window measured from a picture of known pairs, and Q made from it. */
+static uint16_t e_sh[256], e_n[256];
+static uint8_t e_tab[256], chip[256];
+
+static void edges(void) {
+    static const unsigned ws[3] = { 16u, 32u, 64u };
+    static const float suns[2][2] = { { 150.0f, 26.5f }, { 100.0f, 13.0f } };
+    unsigned i, d, k, badq = 0;
+    int lo, hi, lo_n, hi_n, mixed;
+    c4_set_t st;
+
+    for (i = 0; i < 3u; i++) {
+        c4_set_init(&st, ws[i], 0u, C4_B0, 0.0f);
+        for (k = 0; k < 2048u; k++) {
+            const float r = (float)k * 0.125f, b = (float)(k % 41u) * 0.25f;
+
+            badq += c4_q_set(&st, r, b) != c4_q(r, st.w, b);
+        }
+    }
+    printf("  MODEL c4b: Q from the window's lower edge against the old Q, 6144 pairs: %u differ\n", badq);
+    CHECK(badq == 0);
+
+    c4_set_init(&st, 32u, 1u, 1.5f, 0.75f);
+    for (d = 0; d < 256u; d++) { e_n[d] = 160u; e_sh[d] = c4_level[d] >= st.thr ? 160u : 0u; }
+    mixed = c4_edges(e_sh, e_n, &lo, &hi, e_tab);
+    for (lo_n = 128; lo_n > 0 && c4_level[lo_n - 1] < st.thr; lo_n--) { }
+    for (hi_n = 128; hi_n < 255 && c4_level[hi_n + 1] < st.thr; hi_n++) { }
+    printf("  MODEL c4b: the cosine table at window 32 (threshold %u): edges found %d .. %d, the table's %d .. %d, mixed %d\n", st.thr, lo, hi, lo_n, hi_n, mixed);
+    CHECK(lo == lo_n && hi == hi_n && mixed == 0);
+    for (d = 0; d < 256u; d++) CHECK(e_tab[d] == (c4_level[d] >= st.thr));
+
+    for (d = 0; d < 256u; d++) chip[d] = (uint8_t)(c4_level[d] >= st.thr || (int)d < lo_n + 3 || (int)d > hi_n - 3);   /* 3 codes narrower at each end */
+    for (d = 0; d < 256u; d++) { e_n[d] = 160u; e_sh[d] = chip[d] ? 160u : 0u; }
+    e_sh[lo_n + 3] = 40u;                                          /* one difference read both ways */
+    mixed = c4_edges(e_sh, e_n, &lo, &hi, e_tab);
+    printf("  MODEL c4b: a chip 3 codes narrower at each end, one difference mixed: edges found %d .. %d, mixed %d\n", lo, hi, mixed);
+    CHECK(lo == lo_n + 4 && hi == hi_n - 3 && mixed == 1);
+
+    for (k = 0; k < 2u; k++) {
+        c4_light_t L;
+        tally_t ta, tb;
+        c4_set_t sa, sb;
+
+        c4_light_fit(&L, suns[k][0], suns[k][1]);
+        c4_set_init(&sa, 32u, 1u, 1.5f, 0.75f); c4_set_edges(&sa, 128 - 32, 128 + 32, chip);   /* Q from the cosine's edge */
+        c4_set_init(&sb, 32u, 1u, 1.5f, 0.75f); c4_set_edges(&sb, lo, hi, chip);               /* Q from the measured edge */
+        tally(&L, &sa, &ta);
+        tally(&L, &sb, &tb);
+        printf("  MODEL c4b sun %.0f / %.1f, b0 1.5, on that chip: acne %u with Q from the cosine's edge, %u with Q from the measured edge (edge %u / %u, real shadow shown lit %u / %u)\n",
+               (double)suns[k][0], (double)suns[k][1], ta.acne, tb.acne, ta.edge, tb.edge, ta.inbias + ta.other, tb.inbias + tb.other);
+        CHECK(tb.acne == 0);
+        CHECK(ta.acne > tb.acne);
+    }
+}
+
 int main(void) {
     c4_light_t L;
 
@@ -308,6 +367,7 @@ int main(void) {
     chain(100.0f, 13.0f, 32u, 0.75f);
     chain(100.0f, 13.0f, 64u, 0.75f);
     kinds();
+    edges();
     printf(fails ? "c4_model_test: %d FAILED\n" : "c4_model_test: ok\n", fails);
     return fails != 0;
 }

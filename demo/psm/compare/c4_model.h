@@ -32,6 +32,11 @@
    false shadows ran from the faces nearly edge-on to it. The second is this model's own (the growing); the first
    needs about two codes of error this model does not have. Hence the whole texel, C4_B0 and STEEP.
 
+   After the second run (all result pages): the console's compare differs from the cosine table in 443 of 40,960
+   pairs at window 32 (2.8 codes a Q value); the window's edges are not where the cosine puts them. So (c4b) the
+   window's lower edge can be MEASURED at boot from test 1's strips and Q made from it (c4_edges, c4_q_set), and the
+   model can take the console's own table of which differences read shadow (c4_set_t.dtab).
+
    Maths: every root, reciprocal, sine, dot and cross goes through sh4der_core.h's helpers: SH4ZAM on the Dreamcast,
    plain C with SH4DER_CORE_NO_SH4ZAM (the host test). No libm call and no divide instruction is written here.
 */
@@ -202,19 +207,60 @@ typedef struct c4_set {
     float grow;                            /* map pixels each face is made larger by in the map pass */
     unsigned thr;                          /* the write threshold for w */
     int steep_shadow;                      /* a face too steep to the light to compare: 0 drawn lit, 1 drawn as shadow */
+    int lo, hi;                            /* the window: the differences (M - Q) & 255 from lo to hi read lit. c4_set_init
+                                              puts the cosine's (128 - w, 128 + w); c4_set_edges puts measured ones */
+    float span;                            /* half the window's width, codes: w, or (hi - lo) / 2 when measured */
+    const uint8_t *dtab;                   /* NULL: shadow is c4_level >= thr. Else 256 bytes, 1 = that difference reads
+                                              shadow (the console's own, from c4_edges) */
 } c4_set_t;
 
 static inline void c4_set_init(c4_set_t *st, unsigned w, unsigned gs, float b0, float grow) {
     st->w = w > 128u ? 128u : w; st->gs = gs; st->b0 = b0; st->grow = grow;
     st->thr = c4_threshold[st->w];
     st->steep_shadow = 0;
+    st->lo = 128 - (int)st->w; st->hi = 128 + (int)st->w;
+    st->span = (float)st->w;
+    st->dtab = NULL;
+}
+
+/* The window measured on a console (c4_edges): Q is made from its lower edge, STEEP from its width, the model's
+   compare from dtab (may be NULL: the cosine table). */
+static inline void c4_set_edges(c4_set_t *st, int lo, int hi, const uint8_t *dtab) {
+    st->lo = lo; st->hi = hi;
+    st->span = 0.5f * (float)(hi - lo);
+    st->dtab = dtab;
 }
 
 /* The Q byte of a receiver whose depth code is r, for a window of half-width w that starts b codes under r. */
 static inline unsigned c4_q(float r, unsigned w, float b) { return (unsigned)c4_ifloor(r + (float)w - b + 128.5f) & 255u; }
 
-/* 1 = shadow: the bump level for map code m and Q byte q, against the threshold. */
-static inline int c4_shadow(const c4_set_t *st, unsigned m, unsigned q) { return c4_level[(m - q) & 255u] >= st->thr; }
+/* The same from the window's lower edge lo: the receiver's own code r minus b falls on the first lit difference.
+   With lo = 128 - w it is c4_q (the two differ by 256 before the mask). */
+static inline unsigned c4_q_set(const c4_set_t *st, float r, float b) { return (unsigned)c4_ifloor(r - b - (float)st->lo + 0.5f) & 255u; }
+
+/* 1 = shadow: the bump level for map code m and Q byte q, against the threshold (or the measured table). */
+static inline int c4_shadow(const c4_set_t *st, unsigned m, unsigned q) {
+    const unsigned d = (m - q) & 255u;
+
+    return st->dtab ? st->dtab[d] != 0u : c4_level[d] >= st->thr;
+}
+
+/* The window's edges from a picture of known pairs: sh[d] of n[d] pixels with difference d = (M - Q) & 255 read
+   shadow. dtab[d] = 1 where most read shadow (and where none was seen). *lo, *hi: the run of differences round 128
+   (the cosine's lowest level) in which NO pixel read shadow, the edges the compare can be trusted to. Returns the
+   differences that were mixed (some pixels shadow, some lit), or -1 when difference 128 itself read shadow. */
+static inline int c4_edges(const uint16_t sh[256], const uint16_t n[256], int *lo, int *hi, uint8_t dtab[256]) {
+    int d, mixed = 0;
+
+    for (d = 0; d < 256; d++) {
+        dtab[d] = (uint8_t)(!n[d] || 2u * sh[d] > n[d]);
+        mixed += sh[d] && sh[d] < n[d];
+    }
+    if (!n[128] || sh[128]) return -1;
+    for (*lo = 128; *lo > 0 && n[*lo - 1] && !sh[*lo - 1]; (*lo)--) { }
+    for (*hi = 128; *hi < 255 && n[*hi + 1] && !sh[*hi + 1]; (*hi)++) { }
+    return mixed;
+}
 
 /* The band a depth code falls in, bands 1 << gs codes wide, and that band's own code (its middle). */
 static inline int c4_band(float code, unsigned gs) {
@@ -245,7 +291,7 @@ enum { C4_FACE_COMPARE = 0, C4_FACE_AWAY = 1, C4_FACE_STEEP = 2 };
 
 static inline int c4_face_kind(const c4_light_t *L, const float n[3], const c4_set_t *st) {
     if (c4_dot(n, L->s) <= C4_FACING) return C4_FACE_AWAY;
-    return c4_bias(L, n, st->b0, st->gs) > (float)st->w - C4_FIT ? C4_FACE_STEEP : C4_FACE_COMPARE;
+    return c4_bias(L, n, st->b0, st->gs) > st->span - C4_FIT ? C4_FACE_STEEP : C4_FACE_COMPARE;
 }
 
 /* One corner of a polygon being cut: where it is, and where that is in the map (pixel x, y and the depth code). */
@@ -510,7 +556,7 @@ static inline int c4_model_pixel(const c4_light_t *L, const c4_cam_t *cam, const
     mc = map[(unsigned)my * C4_MAP + (unsigned)mx];
     out->mx = (unsigned)mx; out->my = (unsigned)my;
     out->sep = m[2] - (float)mc;
-    return c4_shadow(st, mc, c4_q(c4_band_code(c4_band(m[2], st->gs), st->gs), st->w, c4_bias(L, n, st->b0, st->gs))) ? C4_SHADOW : C4_LIT;
+    return c4_shadow(st, mc, c4_q_set(st, c4_band_code(c4_band(m[2], st->gs), st->gs), c4_bias(L, n, st->b0, st->gs))) ? C4_SHADOW : C4_LIT;
 }
 
 #endif /* C4_MODEL_H */

@@ -379,3 +379,33 @@ sky left out).
   are 33.4, so the lower value is not a whole number of pictures. A wait that wakes on a 10 ms clock would give
   these numbers (4 and 5 periods; the mask pass crosses 10 ms between 1,288 and 2,192 vertices: 6.1 and 10.2 ms).
   That is a guess from three numbers. OPEN, with its test in the table.
+
+## c4b: built, not run
+
+Built 2026-11-25, 04:2x local, by Senior; **not run on a console**. No number from it exists yet.
+
+- Image: `demo/psm/out/cdi/psm-c4-c4b.cdi` (1,795,017 bytes, sha256 1b82d8df59cdeea9519f564bf0a6322c1a2987565732aab1ae9765902d125d02). The ELF `build/psm_cmp/psm-c4-c4b.elf` was built first and on its own, with 0 warnings at `-Wall -Wextra`. The build also runs the host model test twice, plain C and on SH4ZAM's software back end; both passed.
+- **Placing (SH4-046).** `bsrc`, `bscr` and `bref` now share one pool, `vpool`. `bscr` starts at 256 KB + 8 KB, `bref` at 512 KB + 20 KB, so no two of them are a multiple of 16 KB apart; a `_Static_assert` checks this. The run prints the three addresses and their distances mod 16 KB on its first page, as FACT. Per `sh-elf-nm`, `vpool` is at 8c19ca40.
+- **Fix 4: the window's edges measured at boot.** Test 1's picture at window 32 counts, for each difference (M − Q) & 255, how many pixels read shadow. `c4_edges` (in `c4_model.h`) takes the run of differences around 128 where no pixel read shadow as the window. From then on Q is made from the measured lower edge (`c4_q_set`). The model's compare also uses the console's own table (`c4_set_t.dtab`), so page 4's "mask vs model" checks the console against itself. The page also prints the cosine's edges, the mixed count, and how many differences answer differently from the cosine.
+- **Tests 3 and 4 run twice:** once with the cosine's edge (c4's rule), then with the measured edge. So one photo of each page compares the fix.
+- **Test 8, FRAME.** 60 frames of the live chain at sun 150/26.5, bands 2 wide, layer on, run twice: once with KallistiOS's sleeping ready-waits, once with the ready-waits polled (`pvr_check_ready` on the timer, 200 ms limit). Each run prints:
+  - frame min, mean and max;
+  - a histogram of vblanks per frame, counted by this program's own vblank handler;
+  - for each pass, the three waits (open ready, close ready, render done) as mean and max, apart;
+  - the PVR render times;
+  - the first 8 frame times;
+  - mean frame minus mean waits (DERIVED).
+  The render-done wait sleeps in both runs; KallistiOS has no call that polls it.
+- **Test 9, ROUTE: the punch-through mask behind a switch.** `mask_route` is 0 for the 1555 threshold and 1 for punch-through; `C4B_MASK_PT` sets it for the live view (default 0). Route 1 works like this:
+  - It draws the depth pass in green from a copy of the vertices in `bref`, made outside the timing.
+  - It then draws the same polygons through the bump unit in the punch-through list, with `PVR_PT_ALPHA_REF` = the threshold.
+  - Shadow is a drawn pixel that is not green.
+  At two suns, the page prints shadow pixels for each route, the pixels that differ, the pixels route 2 left undrawn, the PVR time of each mask pass, and the four most common colours the punch-through left. The tested alpha is texture x vertex alpha (PVR-064); the vertices here carry 255.
+- **Host model test** (`test/c4_model_test.c`, new `edges()`), ESTIMATE, a model:
+  - Q from the lower edge equals the old Q on 6,144 pairs.
+  - On the cosine table the edges found are the table's own: 97 to 159 at threshold 38.
+  - On a "chip" 3 codes narrower at each end, with one difference mixed, the edges found are 101 to 156.
+  - On that chip at b0 1.5, Q from the cosine's edge gives acne 3,213 at sun 150/26.5 and 647 at 100/13. Q from the measured edge gives 0 and 0.
+  - The price is real shadow shown lit: 1 → 17 and 6 → 39 pixels.
+  - The chip's narrowing is the size the third party's reading gives (REPORTED). The console's own narrowing is what test 1 will measure.
+- Not changed: the bias rule, the face kinds, test 0, test 2 (there is none), tests 5–7, the tile stage. The live view now makes Q from the measured edge when the measurement succeeded, and its LIVE line says which edge and which route it used.

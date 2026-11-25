@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">Where the 16.7 ms goes: the town frame</title>
+<desc id="dsc">Bars on a 0 to 60 ms scale for the town frame on route A: SH-4 13.6 ms split into transform, send and an unexplained rest; the TA fed beside the send with its vertex buffer 68 percent full; the PVR 15.9 ms split into the scene, the map pass, the shadow layer and an open remainder; no G2 work; the frame at about 55.6 ms, most of it waiting. Below: why the frame is longer than its work, the per-engine plan with the static bake split, and the console tests that would settle it.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="1100" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">Where the 16.7 ms goes: the town frame, engine by engine</text>
+<text x="30" y="58" class="s">Route A (the PVR draws the map), map 256, all casters, 8 people and 4 hens; the HUD of 8 photos, one console, 2026-11-25 (wiki/limits/scenes.md).</text>
+<text x="30" y="78" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<text x="30" y="112" class="h">1  The frame we measured</text>
+<path d="M547 142 L547 176" stroke="#d9534f" stroke-width="1.6" stroke-dasharray="6 4"/>
+<path d="M547 300 L547 336" stroke="#d9534f" stroke-width="1.6" stroke-dasharray="6 4"/>
+<path d="M547 454 L547 490" stroke="#d9534f" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="551" y="138" class="k" fill="#d9534f" style="fill:#d9534f">16.7 ms (60 fps)</text>
+<path d="M763 142 L763 176" stroke="#a86a00" stroke-width="1.6" stroke-dasharray="6 4"/>
+<path d="M763 300 L763 336" stroke="#a86a00" stroke-width="1.6" stroke-dasharray="6 4"/>
+<path d="M763 454 L763 490" stroke="#a86a00" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="767" y="138" class="k" fill="#a86a00" style="fill:#a86a00">33.3 ms (30 fps)</text>
+<text x="330" y="526" class="s" text-anchor="middle">0</text>
+<text x="460" y="526" class="s" text-anchor="middle">10</text>
+<text x="590" y="526" class="s" text-anchor="middle">20</text>
+<text x="720" y="526" class="s" text-anchor="middle">30</text>
+<text x="850" y="526" class="s" text-anchor="middle">40</text>
+<text x="980" y="526" class="s" text-anchor="middle">50</text>
+<text x="1110" y="526" class="s" text-anchor="middle">60</text>
+<path d="M330 510 L1110 510" class="ar"/>
+<text x="1090.0" y="542" class="s">ms</text>
+<text x="30" y="158" class="h2">SH-4</text>
+<text x="30" y="174" class="s">13.3 .. 13.6 ms <tspan class="k m">[MEASURED, HUD]</tspan></text>
+<rect x="330.0" y="146" width="23.4" height="26" fill="#1f5fa8" stroke="#fbfaf7" stroke-width="1"/><text x="341.7" y="163" class="k" text-anchor="middle" style="fill:#fff">T</text>
+<rect x="353.4" y="146" width="49.4" height="26" fill="#4a79b8" stroke="#fbfaf7" stroke-width="1"/><text x="378.1" y="163" class="k" text-anchor="middle" style="fill:#fff">send</text>
+<rect x="402.8" y="146" width="104.0" height="26" fill="#c9d2df" stroke="#fbfaf7" stroke-width="1"/><text x="454.8" y="163" class="k" text-anchor="middle" style="fill:#1d2330">the rest</text>
+<text x="330" y="190" class="s">T: transform 27,031 vertices, 1.8 ms at 13.16 cycles (2.9 at 21.15)</text>
+<text x="330" y="206" class="s"><tspan class="k e">[ESTIMATE on SH4-020, 023]</tspan>; send: 3.8 ms by store queue, 142 ns</text>
+<text x="330" y="222" class="s">a vertex <tspan class="k e">[ESTIMATE on BUS-003]</tspan>; the rest, 6.9 .. 8.0 ms: scene, casters, HUD <tspan class="k o">[OPEN]</tspan></text>
+<text x="30" y="258" class="h2">TA (tile lists)</text>
+<text x="30" y="274" class="s">fed as the SH-4 sends</text>
+<rect x="353.4" y="246" width="49.4" height="26" fill="#eef1f7" stroke="#1f5fa8" stroke-dasharray="4 3"/>
+<text x="414.0" y="256" class="s">Its own time is not measured apart; it runs beside the send <tspan class="k o">[OPEN BUS-006]</tspan>.</text>
+<text x="414.0" y="272" class="s">Vertex buffer: 693 KB of 1,024 KB this frame (68 %); KOS&#39;s largest frame</text>
+<text x="414.0" y="288" class="s">since boot had filled it (100 %) <tspan class="k m">[MEASURED VID-011]</tspan>. An overflow corrupts the lists.</text>
+<text x="30" y="318" class="h2">PVR</text>
+<text x="30" y="334" class="s">15.9 ms <tspan class="k m">[MEASURED, HUD]</tspan></text>
+<rect x="330.0" y="306" width="92.3" height="26" fill="#1d7a3a" stroke="#fbfaf7" stroke-width="1"/><text x="376.1" y="323" class="k" text-anchor="middle" style="fill:#fff">scene 7.1</text>
+<rect x="422.3" y="306" width="41.6" height="26" fill="#a86a00" stroke="#fbfaf7" stroke-width="1"/><text x="443.1" y="323" class="k" text-anchor="middle" style="fill:#fff">map</text>
+<rect x="463.9" y="306" width="40.3" height="26" fill="#c98a1c" stroke="#fbfaf7" stroke-width="1"/><text x="484.1" y="323" class="k" text-anchor="middle" style="fill:#fff">layer</text>
+<rect x="504.2" y="306" width="32.5" height="26" fill="#c9d2df" stroke="#fbfaf7" stroke-width="1"/><text x="520.5" y="323" class="k" text-anchor="middle" style="fill:#1d2330">?</text>
+<text x="330" y="350" class="s">scene: route B&#39;s PVR, 7.1 ms, the same view with no shadow passes</text>
+<text x="330" y="366" class="s"><tspan class="k m">[MEASURED]</tspan>; map: a target pass, about 3.2 ms <tspan class="k e">[ESTIMATE, PVR-004 floor]</tspan>;</text>
+<text x="330" y="382" class="s">layer: one full-screen translucent layer, about 3.1 ms <tspan class="k e">[ESTIMATE, PVR-002]</tspan>;</text>
+<text x="330" y="398" class="s">?: the last 2.5 ms of the 8.8 ms route A adds <tspan class="k o">[OPEN]</tspan></text>
+<text x="30" y="430" class="h2">G2 / sound chip</text>
+<text x="30" y="446" class="s">0 in this frame</text>
+<text x="336" y="436" class="s">No G2 work in the frame. One 32 KB trip back would be 6.5 ms <tspan class="k e">[ESTIMATE AICA-025]</tspan>: background only (see aica-offload).</text>
+<text x="30" y="472" class="h2">The frame</text>
+<text x="30" y="488" class="s">18 fps, about 55.6 ms <tspan class="k m">[MEASURED, HUD]</tspan></text>
+<rect x="330.0" y="460" width="206.7" height="26" fill="#5b6577" stroke="#fbfaf7" stroke-width="1"/><text x="433.4" y="477" class="k" text-anchor="middle" style="fill:#fff">work: max(SH-4, PVR)</text>
+<rect x="536.7" y="460" width="516.1" height="26" fill="#e9e4d8" stroke="#fbfaf7" stroke-width="1" stroke-dasharray="3 2"/><text x="794.8" y="477" class="k" text-anchor="middle" style="fill:#1d2330">waiting? 39.7 ms not explained</text>
+<rect x="30" y="560" width="560" height="236" rx="6" class="box"/>
+<text x="44" y="586" class="h">2  Why is the frame longer than its work?</text>
+<text x="44" y="610" class="b">The model: the SH-4 builds frame N+1 while the PVR draws N, so a</text>
+<text x="44" y="631" class="b">frame is the larger side, 15.9 ms here: 60 fps on paper <tspan class="k e">[ASSUMPTION]</tspan>.</text>
+<text x="44" y="652" class="b">The HUD says 18 fps. Two other frames disagree the same way:</text>
+<text x="44" y="673" class="s">· a3, another view: SH-4 22.6, PVR 16.0 ms, 25 fps <tspan class="k m">[MEASURED, relayed]</tspan></text>
+<text x="44" y="694" class="s">· c4: frames 39.9 / 49.9 ms for 19 .. 27 ms of work, in steps 10.0 ms</text>
+<text x="44" y="715" class="s">  apart <tspan class="k m">[MEASURED PVR-094]</tspan></text>
+<text x="44" y="736" class="b">A wait that wakes on the 100 Hz scheduler tick fits c4&#39;s steps</text>
+<text x="44" y="757" class="b"><tspan class="k e">[INFERENCE, three frames]</tspan>. Cause <tspan class="k o">[OPEN Q53, P10]</tspan>.</text>
+<text x="44" y="778" class="s">Until it is found, every "room left" figure is an upper bound.</text>
+<rect x="610" y="560" width="560" height="236" rx="6" class="tm"/>
+<text x="624" y="586" class="h">3  With the bake split (gen 6.5 plan)</text>
+<text x="624" y="604" class="s">every line <tspan class="k e">ESTIMATE</tspan>; see static-bake-split</text>
+<text x="624" y="626" class="h2">PVR</text>
+<text x="624" y="645" class="s">scene 7.1 + movers&#39; map 0.4 (tile cut, PVR-092 c4&#39;s map) + mask</text>
+<text x="624" y="664" class="s">1.1 .. 4.1 (TOWN-054) = 8.6 .. 11.6 ms, + the patch layer <tspan class="k o">[OPEN]</tspan></text>
+<text x="624" y="687" class="h2">SH-4</text>
+<text x="624" y="706" class="s">transform 1.8 .. 2.9 + send 3.8 + static sun 0 + movers receiving</text>
+<text x="624" y="725" class="s">0.15 (TOWN-066) + ground re-read about 1 ms on re-centre frames</text>
+<text x="624" y="744" class="s">+ the bands&#39; cut and the game&#39;s own work <tspan class="k o">[OPEN]</tspan></text>
+<text x="624" y="767" class="h2">G2 and the ARM</text>
+<text x="624" y="786" class="s">0 a frame; the ground rebake when the sun moves runs behind (S2 clock).</text>
+<rect x="30" y="816" width="1140" height="264" rx="6" class="box"/>
+<text x="44" y="842" class="h">Reading it, and what to measure next</text>
+<text x="44" y="866" class="b">Neither side is over 16.7 ms on its own: SH-4 13.6, PVR 15.9. The frame is long because something waits, not because the work is too big.</text>
+<text x="44" y="888" class="b">The PVR is the tighter side: 0.8 ms under 60 fps with the full-screen shadow layer in. Route B&#39;s 7.1 ms says the scene itself is cheap.</text>
+<text x="44" y="910" class="b">The SH-4&#39;s known parts (transform and send) are about 5.6 .. 6.7 ms of its 13.6; the other half is not broken down.</text>
+<text x="44" y="932" class="b">1 ms is about 200,000 SH-4 cycles <tspan class="k f">[FACT SH4-001]</tspan>. Every ESTIMATE here is a measured unit cost times a count, not a frame timed in parts.</text>
+<text x="44" y="960" class="h2">Console tests that would turn this page MEASURED</text>
+<text x="44" y="982" class="s">· time each wait apart in one frame: render done, vblank, the KOS tick, the list flips (P10, Q53; c4b counts vblanks per frame)</text>
+<text x="44" y="1004" class="s">· split the SH-4 line: scene update, cull, casters, transform, send, HUD, each with the s2 clock pair</text>
+<text x="44" y="1026" class="s">· route A&#39;s PVR with the map pass alone and the layer alone, to place the open 2.5 ms</text>
+<text x="44" y="1048" class="s">· the TA&#39;s own time, if the HUD can read it (BUS-006)</text>
+</svg>

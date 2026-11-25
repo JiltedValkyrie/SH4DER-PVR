@@ -20,6 +20,8 @@ A frame can be longer than its work. In the c4 live view most of the frame was w
 
 ![The c4 frame waits: the live view's frame is 39.9 or 49.9 ms while the measured SH-4 and PVR work in it adds to only 21.7, 27.1 and 19.3 ms (MEASURED PVR-090, 091, 101, PVR-094, one console, 2026-11-25); the rest is waiting, and why the frame takes one of two values 10 ms apart is OPEN (Q53).](../images/frame-wait.svg)
 
+![Where the 16.7 ms goes in the town (route A, one view, one console): the SH-4 takes 13.3 to 13.6 ms and the PVR 15.9 ms (MEASURED, HUD), both under 16.7 ms, yet the frame runs at 18 fps, about 55.6 ms; the PVR splits into the scene 7.1 ms (route B, MEASURED), a map pass about 3.2 ms and a shadow layer about 3.1 ms (ESTIMATE) and 2.5 ms OPEN; the SH-4's transform and send are about 5.6 to 6.7 ms (ESTIMATE from unit costs) and the rest is not broken down; no G2 work is in the frame; the wait that makes the frame long is OPEN (Q53, P10).](../images/frame-budget-town.svg)
+
 ## Unit costs (all MEASURED, one console)
 
 | Cost | Value | Ledger |

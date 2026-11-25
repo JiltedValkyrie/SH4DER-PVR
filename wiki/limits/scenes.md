@@ -40,6 +40,8 @@ What the table shows:
 - **The AB stub is not route AB.** It fills the map on the SH-4 in place of the PVR, so its 87 ms says nothing about the real route.
 - **Route A runs at 18 fps although neither side is near 55 ms.** Where the frame goes is OPEN.
 
+![Where the 16.7 ms goes in the town (route A, one view, one console): the SH-4 takes 13.3 to 13.6 ms and the PVR 15.9 ms (MEASURED, HUD), both under 16.7 ms, yet the frame runs at 18 fps, about 55.6 ms; the PVR splits into the scene 7.1 ms (route B, MEASURED), a map pass about 3.2 ms and a shadow layer about 3.1 ms (ESTIMATE) and 2.5 ms OPEN; the SH-4's transform and send are about 5.6 to 6.7 ms (ESTIMATE from unit costs) and the rest is not broken down; no G2 work is in the frame; the wait that makes the frame long is OPEN (Q53, P10).](../images/frame-budget-town.svg)
+
 Shadow texels a pixel at 4 / 10 / 25 / 60 m, from the same photos:
 
 - route A uniform: 24.8 / 7.0 / 1.8 / 0.5; route A PSM: 13.6 / 5.2 / 2.4 / 1.5;

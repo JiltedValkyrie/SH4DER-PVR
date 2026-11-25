@@ -42,8 +42,13 @@ Do not draw the sun's shadow again every frame. Most of a scene does not move, a
 | P9 | Proxies for 8 people and 4 hens cost less than one slice | bench | none |
 | P10 | The frame model explains the town HUD's frame rate | console | none |
 
+The bench that tests P1, P2 and P9:
+
+![The ray bench (image psm-bench-ray1 built and host-tested, not run on a console; every cycle count ESTIMATE): a ray walks a 64 x 64, 4 KB height grid toward the sun at a predicted 12 to 16 cycles a step plus about 30 (P1, timed against n with the ns timer and performance counter 1); the same slice is run batched (grid loaded once, 18 to 26 us), interleaved with the vertex transform (27.7 to 40.3 cycles a missing step, SH4-047; the miss share ESTIMATE) and with the grid in OC-RAM, which h1 measured as no faster than a hit while halving the cache (P2, SH4-010 to 012); and proxies for 8 people and 4 hens are timed at 16:00 against one slice (P9). No ray, slice or proxy has been timed on a console yet.](../images/ray-bench-plan.svg)
+
 ## What has changed since it was written
 
+- The 27.7-cycle cost of a missing step (section 5.9) comes from 20,000 reads over a 32 KB map, twice the operand cache, so it mixes hits and misses; on a 512 KB map the same read costs 40.3 cycles ([SH4-047](../hardware/ledger-sh4.md)). P2's bench should read the interleaved cost against both.
 - Line 498 says chip bench h1 "has not run". It has, and h2 too ([SH-4 ledger](../hardware/ledger-sh4.md)). Their cache numbers bear on P1, P2 and P9.
 - F20 and F21 say c3 and c2 are "built, not run". c3b has run ([bump compare chain](bump-compare-chain.md)); c2 has not.
 - P7 named the run that would overturn it, and c4 test 6 did (PVR-064). The thesis text still says "supported".

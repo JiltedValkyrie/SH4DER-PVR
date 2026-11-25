@@ -37,6 +37,20 @@
                whether the bump level works as the tested alpha.
      7 DMA     PVR-DMA from video memory to RAM, 128 KB and 512 KB, the end polled once a millisecond, four times a
                millisecond, and taken by interrupt (h1 found the status polling itself slows the transfer).
+     8 FRAME   (c4b) 60 frames of the live chain, twice: with KallistiOS's waits, and with the "ready" waits polled.
+               Each frame's pictures (vertical blanks counted by a handler of this program) and each wait timed apart:
+               why c4's frames took 39.9 and 49.9 ms for 19 to 27 ms of work (OPEN after c4).
+     9 ROUTE   (c4b) the mask made the second way: the bump level tested by punch-through (reference = the threshold)
+               instead of the 1555 write threshold, at two suns; pixels that differ from the 1555 route, and the
+               PVR's time for each.
+
+   c4b, after c4's two runs (compare/NOTES.md):
+     - the band vertices (bsrc, bscr, bref) sit in one pool at offsets that are not a multiple of the 16 KB operand
+       cache apart; c4 had them exactly 256 KB apart (SH4-046). The run prints their addresses.
+     - fix 4: test 1's picture at window 32 gives, for every difference (M - Q) & 255, how many pixels read shadow;
+       the window's two edges are taken from it at boot (c4_edges), and from then on Q is made from the measured
+       lower edge (c4_q_set). Tests 3 and 4 run with the cosine's edge AND the measured one, so the page shows both.
+     - test 8 and test 9 above; the punch-through route is also a switch for the live view (C4B_MASK_PT, default 0).
 
    START on the result pages: the live view (d-pad the sun, A band width, X / Y bias down / up, B the shadow layer
    on / off, START back; the last settings and their costs are added to the pages).
@@ -46,8 +60,8 @@
 
    Only PVR and system-bus DMA registers and video memory are written. The fault catcher (../psm_fault.h) is in;
    every wait is bounded. Every number comes from the run that prints it; only a real console's run is evidence.
-   Build: python demo/psm/compare/build.py --spike c4 --sh4zam <checkout>. Not run on a console when this file was
-   written.
+   Build: python demo/psm/compare/build.py --spike c4 --tag <new tag> --sh4zam <checkout>. c4b: not run on a console
+   when this file was written.
 */
 
 #include <kos.h>
@@ -65,7 +79,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define COLS 50u
 #define ROWS 17u
-#define LINES_MAX 220u
+#define LINES_MAX 420u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
 static psm_fault_crumbs_t crumbs;
@@ -140,9 +154,19 @@ static uint16_t mask_ram[MASK_TW * C4_MASK_H] __attribute__((aligned(32)));
 static uint8_t map_px[C4_MAP * C4_MAP], model_map[C4_MAP * C4_MAP], model_ids[C4_MAP * C4_MAP];
 static uint8_t m_face[C4_MASK_W * C4_MASK_H], m_info[C4_MASK_W * C4_MASK_H];
 
-static pvr_vertex_t bsrc[BV_MAX] __attribute__((aligned(32)));    /* the band vertices, positions in the world */
-static pvr_vertex_t bscr[BV_MAX] __attribute__((aligned(32)));    /* the same on the mask's screen */
-static pvr_vertex_t bref[BV_MAX] __attribute__((aligned(32)));    /* the C form's, for the compare */
+/* The band vertices: one pool, so their distances are known (c4b). The operand cache is 16 KB, one way: two arrays a
+   multiple of 16 KB apart share every cache entry, and c4's three static arrays of 256 KB did (SH4-046: the projection
+   took 132 cycles a vertex there, 21 in bench h2). Here bscr starts half a cache past the end of bsrc and bref a
+   quarter past the end of bscr, so no two of them are a multiple of 16 KB apart. */
+#define OC 16384u
+#define BV_BYTES (BV_MAX * 32u)
+#define BSCR_OFF (BV_BYTES + OC / 2u)
+#define BREF_OFF (2u * BV_BYTES + OC + OC / 4u)
+static uint8_t vpool[2u * BV_BYTES + OC + OC / 4u + BV_BYTES] __attribute__((aligned(32)));
+#define bsrc ((pvr_vertex_t *)(void *)vpool)                       /* the band vertices, positions in the world */
+#define bscr ((pvr_vertex_t *)(void *)(vpool + BSCR_OFF))          /* the same on the mask's screen */
+#define bref ((pvr_vertex_t *)(void *)(vpool + BREF_OFF))          /* the C form's, for the compare; the route test's copy */
+_Static_assert(BSCR_OFF % OC != 0u && BREF_OFF % OC != 0u && (BREF_OFF - BSCR_OFF) % OC != 0u, "two band arrays a multiple of the cache apart");
 static pvr_vertex_t rectv[RECT_MAX] __attribute__((aligned(32))); /* screen-space quads of the tests */
 static pvr_vertex_t mapv[(C4_FACES + 2u) * 4u] __attribute__((aligned(32)));
 static pvr_vertex_t facesrc[C4_FACES * 4u] __attribute__((aligned(32))), facev[C4_FACES * 4u] __attribute__((aligned(32)));
@@ -150,6 +174,17 @@ static pvr_vertex_t overv[16] __attribute__((aligned(32)));
 static shz_mat4x4_t cam_mat[2] __attribute__((aligned(32)));      /* [0] the mask's 320 x 240, [1] the screen's 640 x 480 */
 static c4_cam_t cam[2];
 static unsigned nbv, nbands, band_over, nmapv, ramp;
+
+/* c4b, fix 4: the window measured at boot (test 1, window 32). e_ok: measured; edges_on: Q made from it. */
+static uint16_t e_sh[256], e_n[256];
+static uint8_t e_tab[256];
+static int e_lo, e_hi, e_ok, edges_on;
+
+/* The settings for a pass: c4_set_init, then the measured window when it is on and the window is the one measured. */
+static void set_init(c4_set_t *st, unsigned w, unsigned gs, float b0, float grow) {
+    c4_set_init(st, w, gs, b0, grow);
+    if (edges_on && e_ok && st->w == 32u) c4_set_edges(st, e_lo, e_hi, e_tab);
+}
 
 /* The code the ramp holds where 16384 x the texture coordinate u is d: 512 - 256 / u, rounded down, 0 .. 255. u is
    1 / (2 z) and z = 1 - (code + 0.5) / 512, so that is the pixel's own code rounded to the nearest. */
@@ -184,7 +219,7 @@ static int load(void) {
 
 /* ---- headers ----------------------------------------------------------------------- */
 
-static pvr_poly_hdr_t h_map[2], h_flat, h_clear, h_bump, h_over, h_show[2];
+static pvr_poly_hdr_t h_map[2], h_flat, h_clear, h_bump, h_bump_pt, h_over, h_show[2];
 
 static void headers(void) {
     pvr_poly_cxt_t c;
@@ -209,6 +244,10 @@ static void headers(void) {
     c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ZERO;
     c.depth.comparison = PVR_DEPTHCMP_GEQUAL; c.depth.write = PVR_DEPTHWRITE_DISABLE;   /* only the surface the depth pass kept */
     pvr_poly_compile(&h_bump, &c);
+    pvr_poly_cxt_txr(&c, PVR_LIST_PT_POLY, PVR_TXRFMT_BUMP | PVR_TXRFMT_NONTWIDDLED, (int)C4_MAP, (int)C4_MAP, map_mem, PVR_FILTER_NEAREST);
+    c.gen.culling = PVR_CULLING_NONE; c.gen.specular = 1;        /* c4b route 2: test 6's header, which drew by the level */
+    c.txr.env = PVR_TXRENV_REPLACE; c.txr.uv_clamp = PVR_UVCLAMP_UV;
+    pvr_poly_compile(&h_bump_pt, &c);
     pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_ARGB1555 | PVR_TXRFMT_NONTWIDDLED, (int)MASK_TW, (int)MASK_TH, mask_mem, PVR_FILTER_BILINEAR);
     c.gen.culling = PVR_CULLING_NONE;                            /* the shadow layer: black, alpha = the mask's bit x the vertex's */
     c.txr.env = PVR_TXRENV_MODULATEALPHA; c.txr.alpha = PVR_TXRALPHA_ENABLE;
@@ -248,12 +287,29 @@ enum { TO_SCREEN = 0, TO_MAP = 1, TO_MASK = 2 };
 
 static uint64_t last_render_ns;
 static uint32_t render_addr;
+static int poll_ready;                     /* c4b test 8: 1 = the "ready" waits poll pvr_check_ready instead of sleeping */
+static uint64_t w_open_ns, w_close_ns, w_done_ns;   /* the last pass's three waits, apart */
 
-static int scene_open(int to) {
+/* Wait until the PVR takes a new scene: KallistiOS's sleeping wait (100 ms a try, 20 tries), or a poll on the timer. */
+static int wait_ready(void) {
     unsigned t;
 
+    if (poll_ready) {
+        const uint64_t t0 = ns();
+
+        while (pvr_check_ready() < 0) if (ns() - t0 > LIMIT_NS) return 0;
+        return 1;
+    }
     for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
-    if (t == 20u) return 0;
+    return t < 20u;
+}
+
+static int scene_open(int to) {
+    uint64_t t0 = ns();
+    int ok = wait_ready();
+
+    w_open_ns = ns() - t0;
+    if (!ok) return 0;
     if (to == TO_MAP) return pvr_scene_begin_rtt(map_mem, C4_MAP, C4_MAP + 2u, C4_MAP) >= 0;
     if (to == TO_MASK) return pvr_scene_begin_rtt(mask_mem, C4_MASK_W, C4_MASK_H + 2u, MASK_TW) >= 0;
     pvr_scene_begin();
@@ -264,10 +320,16 @@ static int scene_close(void) {
     pvr_stats_t st;
     unsigned t;
 
+    uint64_t t0;
+
     pvr_scene_finish();
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
-    if (t == 20u) return 0;
+    t0 = ns();
+    t = (unsigned)wait_ready();
+    w_close_ns = ns() - t0;
+    if (!t) return 0;
+    t0 = ns();
     for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    w_done_ns = ns() - t0;
     if (t == 20u || pvr_get_stats(&st) < 0) return 0;
     last_render_ns = st.rnd_last_time;
     render_addr = PVR_GET(PVR_RENDER_ADDR);
@@ -462,7 +524,7 @@ static void bands_build(const c4_light_t *L, const c4_set_t *st, unsigned first,
         for (b = c4_band(lo, st->gs), b1 = c4_band(hi, st->gs); b <= b1; b++) {
             const unsigned n = c4_band_poly(face, inv, b, st->gs, out);
 
-            if (n) band_strip(out, n, KQ(c4_q(c4_band_code(b, st->gs), st->w, bias)));
+            if (n) band_strip(out, n, KQ(c4_q_set(st, c4_band_code(b, st->gs), bias)));
         }
     }
 }
@@ -480,14 +542,24 @@ static void bands_project(void) {
 
 static uint64_t mask_send_ns;
 
+#ifndef C4B_MASK_PT
+#define C4B_MASK_PT 0                      /* 1: the live view makes its mask by punch-through (test 9's route) */
+#endif
+static int mask_route = C4B_MASK_PT;       /* 0: the 1555 write threshold; 1: punch-through with reference thr */
+#define GREEN565 0x07e0u                   /* route 1: what the depth pass paints, so a punch-through pixel shows */
+
 /* The mask from n ready vertices (screen positions, map coordinates, Q in the offset colour): an opaque pass for
    depth, a clear, the same polygons through the bump unit; the target written as ARGB1555 with threshold thr. The
    write control register is set after the lists are sent and put back after the render (KallistiOS sets it only when
    the video mode is set). mask_ram gets the picture. 0 when the pass did not come back. */
+static int mask_pass_pt(const pvr_vertex_t *v, unsigned n, unsigned thr);
+
 static int mask_pass(const pvr_vertex_t *v, unsigned n, unsigned thr) {
     const uint32_t saved = PVR_GET(PVR_FB_CFG_2);
     uint64_t t0;
     int ok;
+
+    if (mask_route) return mask_pass_pt(v, n, thr);
 
     rect(overv + 8, 0.0f, 0.0f, (float)C4_MASK_W, (float)C4_MASK_H + 2.0f, 0.001f, 0.0f, 0.0f, 0.0f, 0.0f, 0x000000ffu, 0u);   /* blue, alpha 0 */
     if (!scene_open(TO_MASK)) return 0;
@@ -507,9 +579,33 @@ static int mask_pass(const pvr_vertex_t *v, unsigned n, unsigned thr) {
     return ok;
 }
 
+/* Route 1 (c4b): the depth pass in green (a copy of the vertices in bref, colour changed), then the same polygons
+   through the bump unit in the punch-through list, reference thr: a pixel whose level passes is drawn, and its colour
+   is not green. The target is written as the display's 565, no threshold. The copy is made outside the timing. */
+static int mask_pass_pt(const pvr_vertex_t *v, unsigned n, unsigned thr) {
+    uint64_t t0;
+    unsigned i;
+
+    if (v != bref) { memcpy(bref, v, n * sizeof *v); for (i = 0; i < n; i++) bref[i].argb = 0xff00ff00u; }
+    if (!scene_open(TO_MASK)) return 0;
+    t0 = ns();
+    pvr_list_begin(PVR_LIST_OP_POLY);
+    ta_send(&h_flat, bref, n);
+    pvr_list_finish();
+    PVR_SET(PVR_PT_ALPHA_REF, thr);
+    pvr_list_begin(PVR_LIST_PT_POLY);
+    ta_send(&h_bump_pt, v, n);
+    pvr_list_finish();
+    mask_send_ns = ns() - t0;
+    PVR_SET(PVR_PT_ALPHA_REF, thr);
+    if (!scene_close()) return 0;
+    if (!fetch_off) fetch(mask_mem, mask_ram, sizeof mask_ram);
+    return 1;
+}
+
 #define MASK_AT(x, y) mask_ram[(y) * MASK_TW + (x)]
-#define MASK_DRAWN(p) (((p) & 0x7fffu) != BG565)
-#define MASK_SHADOW(p) (((p) >> 15) != 0u)
+#define MASK_DRAWN(p) (mask_route ? (p) != BG565 : ((p) & 0x7fffu) != BG565)
+#define MASK_SHADOW(p) (mask_route ? (p) != GREEN565 : ((p) >> 15) != 0u)
 
 /* ---- the screen pass ----------------------------------------------------------------------- */
 
@@ -624,6 +720,23 @@ static unsigned window_quads(void) {
     return (unsigned)(v - rectv);
 }
 
+/* c4b fix 4: the window's edges from test 1's picture at window 32, and from here on Q made from them. */
+static void t_edges(void) {
+    unsigned d, below = 0, above = 0, seen = 0;
+    int mixed, lo_n, hi_n;
+
+    for (lo_n = 128; lo_n > 0 && c4_level[lo_n - 1] < c4_threshold[32]; lo_n--) { }
+    for (hi_n = 128; hi_n < 255 && c4_level[hi_n + 1] < c4_threshold[32]; hi_n++) { }
+    for (d = 0; d < 256u; d++) seen += e_n[d] != 0u;
+    mixed = c4_edges(e_sh, e_n, &e_lo, &e_hi, e_tab);
+    for (d = 0; d < 256u; d++) { if (e_tab[d] != (c4_level[d] >= c4_threshold[32])) { if (d < 128u) below++; else above++; } }
+    if (mixed < 0) { say("1 EDGES w 32: difference 128 read shadow; NOT measured, Q stays the cosine's"); return; }
+    e_ok = 1; edges_on = 1;
+    say("1 EDGES w 32 thr %u: lit from %d to %d (cosine %d to %d); %d mixed; %u of 256 seen", c4_threshold[32], e_lo, e_hi, lo_n, hi_n, mixed, seen);
+    say("1 EDGES differences whose answer is not the cosine's: %u under 128, %u over", below, above);
+    say("1 EDGES from here on Q is made from the edge %d (c4b fix 4), unless a line says cosine", e_lo);
+}
+
 static void t_window(void) {
     static const unsigned ws[3] = { 16u, 32u, 64u };
     const unsigned n = window_quads();
@@ -640,26 +753,38 @@ static void t_window(void) {
         if (!mask_pass(rectv, n, thr)) { say("1 w %u: NO RENDER END", ws[k]); continue; }
         for (y = 0; y < C4_MAP; y++) {
             for (x = 0; x < 2u * STRIPS; x++) {
-                const unsigned p = MASK_AT(x, y), m = map_px[y * C4_MAP + (x >= STRIPS ? 96u : 32u)], level = c4_level[(m - STRIP_Q(x % STRIPS)) & 255u];
+                const unsigned p = MASK_AT(x, y), m = map_px[y * C4_MAP + (x >= STRIPS ? 96u : 32u)], d = (m - STRIP_Q(x % STRIPS)) & 255u, level = c4_level[d];
                 const int gap = (int)level - (int)thr;
 
                 if (!MASK_DRAWN(p)) { holes++; continue; }
+                if (ws[k] == 32u) { e_n[d]++; e_sh[d] += MASK_SHADOW(p) != 0u; }
                 if (MASK_SHADOW(p) != (level >= thr)) { differ++; close += gap >= -2 && gap <= 2; }
             }
         }
         say("1 w %u thr %u: differ %u, of them within 2 levels of thr %u, holes %u", ws[k], thr, differ, close, holes);
     }
+    t_edges();
 }
 
 /* ---- 3. the bias -------------------------------------------------------------------------------- */
 
+static void t_bias_one(void);
+
 static void t_bias(void) {
+    const int had = edges_on;
+    unsigned k;
+
+    for (k = 0; k < (e_ok ? 2u : 1u); k++) { edges_on = (int)k; t_bias_one(); }
+    edges_on = had;
+}
+
+static void t_bias_one(void) {
     static const float b0s[6] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f };
     unsigned sh[6] = { 0, 0, 0, 0, 0, 0 }, drawn = 0, k, x, y, gs;
     c4_light_t L;
     c4_set_t st;
 
-    say("3 BIAS ground alone: every shadow px is acne");
+    say("3 BIAS ground alone: every shadow px is acne; Q from the %s edge", edges_on ? "MEASURED" : "cosine's");
     c4_light_fit(&L, 150.0f, 26.5f);
     step("3 map");
     c4_set_init(&st, 32u, 0u, C4_B0, 0.75f);
@@ -667,7 +792,7 @@ static void t_bias(void) {
     for (gs = 0; gs < 3u; gs += 2u) {
         for (k = 0; k < 6u; k++) {
             step("3 bias");
-            c4_set_init(&st, 32u, gs, b0s[k], 0.75f);
+            set_init(&st, 32u, gs, b0s[k], 0.75f);
             bands_build(&L, &st, 0u, 1u);
             bands_project();
             if (!mask_pass(bscr, nbv, st.thr)) { say("3 b0 x10 %u: NO RENDER END", (unsigned)(b0s[k] * 10.0f)); return; }
@@ -690,9 +815,9 @@ static void t_scene_at(float az, float el, unsigned w, unsigned gs) {
     float ground_bias;
 
     c4_light_fit(&L, az, el);
-    c4_set_init(&st, w, gs, C4_B0, 0.75f);
+    set_init(&st, w, gs, C4_B0, 0.75f);
     ground_bias = c4_bias(&L, up, st.b0, st.gs);
-    say("4 SCENE sun %u/%u w %u bands %u wide grow .75", (unsigned)az, (unsigned)el, w, 1u << gs);
+    say("4 SCENE sun %u/%u w %u bands %u wide grow .75 b0 x10 %u, Q from the %s edge", (unsigned)az, (unsigned)el, w, 1u << gs, (unsigned)(st.b0 * 10.0f), st.dtab ? "MEASURED" : "cosine's");
     step("4 map");
     if (!map_scene(&L, &st, 0u, C4_FACES)) { say("4 map: NO RENDER END"); return; }
     c4_model_map(&L, &st, model_map, model_ids);
@@ -749,9 +874,18 @@ static void t_scene_at(float az, float el, unsigned w, unsigned gs) {
     say("4 mask vs ray: lit %u shadow %u; acne %u edge %u rim %u; lit in error: in bias %u other %u", lit, shadow, acne, edge, rim, inbias, other);
 }
 
+/* Each sun twice: Q from the cosine's edge (c4), then from the measured one (c4b), when it was measured. The model's
+   compare follows: the cosine table, then the console's own table from test 1. */
 static void t_scene(void) {
-    t_scene_at(150.0f, 26.5f, 32u, 1u);
-    t_scene_at(100.0f, 13.0f, 32u, 1u);
+    const int had = edges_on;
+    unsigned k;
+
+    for (k = 0; k < (e_ok ? 2u : 1u); k++) {
+        edges_on = (int)k;
+        t_scene_at(150.0f, 26.5f, 32u, 1u);
+        t_scene_at(100.0f, 13.0f, 32u, 1u);
+    }
+    edges_on = had;
 }
 
 /* ---- 5. the cost ------------------------------------------------------------------------------------- */
@@ -772,7 +906,7 @@ static void t_cost(void) {
         int same;
 
         step("5 cost");
-        c4_set_init(&st, 32u, gs, C4_B0, 0.75f);
+        set_init(&st, 32u, gs, C4_B0, 0.75f);
         for (r = 0; r < REPEAT; r++) {
             t0 = ns(); c4_light_fit(&L, 150.0f, 26.5f); fit += ns() - t0;
             t0 = ns(); bands_build(&L, &st, 0u, C4_FACES); cut += ns() - t0;
@@ -908,6 +1042,130 @@ static void t_dma(void) {
     pvr_mem_free(blk);
 }
 
+/* ---- 8. the frame: pictures and waits (c4b) ------------------------------------------------------------------ */
+
+static volatile uint32_t vbl_count;        /* vertical blanks, counted by this program's own handler */
+
+static void vbl_tick(uint32_t code, void *data) {
+    (void)code; (void)data;
+    vbl_count++;
+}
+
+#define FR_N 60u
+#define FR_WAITS 9u                        /* map, mask, screen x (open ready, close ready, render done) */
+
+typedef struct fr_stat { uint64_t sum, max; } fr_stat_t;
+
+static void fr_add(fr_stat_t *s, uint64_t v) { s->sum += v; if (v > s->max) s->max = v; }
+
+static void t_frame(void) {
+    static const char *const pass[3] = { "map", "mask", "screen" };
+    static uint32_t ft[FR_N];
+    unsigned mode, f, k, i;
+    c4_light_t L;
+    c4_set_t st;
+
+    say("8 FRAME %u frames of the live chain at sun 150/26.5, bands 2 wide, layer on; us", FR_N);
+    fetch_off = 1;
+    for (mode = 0; mode < 2u; mode++) {
+        fr_stat_t w[FR_WAITS], rnd[3], fr;
+        unsigned hist[8];
+        uint64_t fmin = ~0ull;
+
+        memset(w, 0, sizeof w); memset(rnd, 0, sizeof rnd); memset(&fr, 0, sizeof fr); memset(hist, 0, sizeof hist);
+        poll_ready = (int)mode;
+        for (f = 0; f < FR_N; f++) {
+            const uint32_t v0 = vbl_count;
+            const uint64_t t0 = ns();
+            uint64_t t;
+            unsigned vb;
+
+            step("8 frame");
+            c4_light_fit(&L, 150.0f, 26.5f);
+            set_init(&st, 32u, 1u, C4_B0, 0.75f);
+            bands_build(&L, &st, 0u, C4_FACES);
+            faces_build(&L);
+            if (!map_scene(&L, &st, 0u, C4_FACES)) { say("8 map: NO RENDER END"); goto out; }
+            fr_add(&w[0], w_open_ns); fr_add(&w[1], w_close_ns); fr_add(&w[2], w_done_ns); fr_add(&rnd[0], last_render_ns);
+            bands_project();
+            if (!mask_pass(bscr, nbv, st.thr)) { say("8 mask: NO RENDER END"); goto out; }
+            fr_add(&w[3], w_open_ns); fr_add(&w[4], w_close_ns); fr_add(&w[5], w_done_ns); fr_add(&rnd[1], last_render_ns);
+            if (!screen_pass(140u, 1)) { say("8 screen: NO RENDER END"); goto out; }
+            fr_add(&w[6], w_open_ns); fr_add(&w[7], w_close_ns); fr_add(&w[8], w_done_ns); fr_add(&rnd[2], last_render_ns);
+            t = ns() - t0; vb = vbl_count - v0;
+            fr_add(&fr, t); if (t < fmin) fmin = t;
+            ft[f] = (uint32_t)t;
+            hist[vb < 7u ? vb : 7u]++;
+        }
+        say("8 %s: frame min %u mean %u max %u", mode ? "ready POLLED" : "KallistiOS waits", us_of(fmin), us_of(fr.sum / FR_N), us_of(fr.max));
+        say("8  vblanks a frame 0..6, 7+: %u %u %u %u %u %u %u %u", hist[0], hist[1], hist[2], hist[3], hist[4], hist[5], hist[6], hist[7]);
+        for (k = 0; k < 3u; k++)
+            say("8  %s waits mean/max: open %u/%u close %u/%u done %u/%u; render %u", pass[k], us_of(w[3u * k].sum / FR_N), us_of(w[3u * k].max),
+                us_of(w[3u * k + 1u].sum / FR_N), us_of(w[3u * k + 1u].max), us_of(w[3u * k + 2u].sum / FR_N), us_of(w[3u * k + 2u].max), us_of(rnd[k].sum / FR_N));
+        say("8  frames 1-8: %u %u %u %u %u %u %u %u", us_of(ft[0]), us_of(ft[1]), us_of(ft[2]), us_of(ft[3]), us_of(ft[4]), us_of(ft[5]), us_of(ft[6]), us_of(ft[7]));
+        {
+            uint64_t waits = 0;
+
+            for (i = 0; i < FR_WAITS; i++) waits += w[i].sum;
+            say("8  DERIVED mean frame minus mean waits: %u", us_of((fr.sum - (waits < fr.sum ? waits : fr.sum)) / FR_N));
+        }
+    }
+out:
+    poll_ready = 0;
+    fetch_off = 0;
+    say("   (a vblank is one picture: 16.7 ms at 60 Hz)");
+}
+
+/* ---- 9. the mask by punch-through (c4b) ------------------------------------------------------------------------ */
+
+static uint8_t route_a[C4_MASK_W * C4_MASK_H];
+
+static void t_route_at(float az, float el) {
+    unsigned x, y, sa = 0, sb = 0, differ = 0, holes = 0, us_a, us_b, ncol = 0, k;
+    uint16_t col[4] = { 0, 0, 0, 0 };
+    unsigned coln[4] = { 0, 0, 0, 0 };
+    c4_light_t L;
+    c4_set_t st;
+
+    c4_light_fit(&L, az, el);
+    set_init(&st, 32u, 1u, C4_B0, 0.75f);
+    step("9 route");
+    if (!map_scene(&L, &st, 0u, C4_FACES)) { say("9 map: NO RENDER END"); return; }
+    bands_build(&L, &st, 0u, C4_FACES);
+    bands_project();
+    mask_route = 0;
+    if (!mask_pass(bscr, nbv, st.thr)) { say("9 1555: NO RENDER END"); return; }
+    us_a = us_of(last_render_ns);
+    for (y = 0; y < C4_MASK_H; y++) for (x = 0; x < C4_MASK_W; x++) { const unsigned p = MASK_AT(x, y); route_a[y * C4_MASK_W + x] = (uint8_t)(MASK_DRAWN(p) ? 1u + (MASK_SHADOW(p) != 0u) : 0u); }
+    mask_route = 1;
+    if (!mask_pass(bscr, nbv, st.thr)) { mask_route = C4B_MASK_PT; say("9 punch-through: NO RENDER END"); return; }
+    us_b = us_of(last_render_ns);
+    for (y = 0; y < C4_MASK_H; y++) {
+        for (x = 0; x < C4_MASK_W; x++) {
+            const unsigned p = MASK_AT(x, y), a = route_a[y * C4_MASK_W + x];
+            const unsigned b = MASK_DRAWN(p) ? 1u + (MASK_SHADOW(p) != 0u) : 0u;
+
+            if (!b && a) holes++;
+            sa += a == 2u; sb += b == 2u; differ += a != b;
+            if (b == 2u) {                   /* the colours punch-through left, the four most common */
+                for (k = 0; k < ncol && col[k] != p; k++) { }
+                if (k < ncol) coln[k]++; else if (ncol < 4u) { col[ncol] = (uint16_t)p; coln[ncol++] = 1u; }
+            }
+        }
+    }
+    mask_route = C4B_MASK_PT;
+    say("9 sun %u/%u: shadow px 1555 %u, punch-through %u; differ %u; not drawn by route 2 %u", (unsigned)az, (unsigned)el, sa, sb, differ, holes);
+    say("9  PVR mask pass: 1555 %u us, punch-through %u us", us_a, us_b);
+    say("9  punch-through colours: %04x x%u %04x x%u %04x x%u %04x x%u", col[0], coln[0], col[1], coln[1], col[2], coln[2], col[3], coln[3]);
+}
+
+static void t_route(void) {
+    say("9 ROUTE the mask by punch-through, reference = threshold %u, Q from the %s edge", c4_threshold[32], edges_on && e_ok ? "measured" : "cosine's");
+    t_route_at(150.0f, 26.5f);
+    t_route_at(100.0f, 13.0f);
+    say("   (the tested alpha is texture x vertex alpha: PVR-064; here vertex alpha 255)");
+}
+
 /* ---- the run ---------------------------------------------------------------------------------------------- */
 
 /* Start the PVR and load the textures. 0 when it could not. */
@@ -936,10 +1194,13 @@ static void stop(const char *stage) {
 }
 
 static void run(void) {
-    say("numbers below: measured by this run");
+    say("c4b. numbers below: measured by this run");
+    if (vblank_handler_add(vbl_tick, NULL) < 0) say("vblank counter: refused (test 8 counts 0)");
     if (!start()) return;
     if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     perf_cntr_start(PRFC1, PMCR_ELAPSED_TIME_MODE, PMCR_COUNT_CPU_CYCLES);
+    say("PLACING bsrc %08x bscr %08x bref %08x; apart mod 16 KB: %u %u %u", (unsigned)(uintptr_t)bsrc, (unsigned)(uintptr_t)bscr, (unsigned)(uintptr_t)bref,
+        (unsigned)(((uintptr_t)bscr - (uintptr_t)bsrc) % OC), (unsigned)(((uintptr_t)bref - (uintptr_t)bsrc) % OC), (unsigned)(((uintptr_t)bref - (uintptr_t)bscr) % OC));
     t_ramp();
     t_window();
     t_bias();
@@ -947,6 +1208,8 @@ static void run(void) {
     t_cost();
     t_punch();
     t_dma();
+    t_frame();
+    t_route();
     if (fetch_slow) say("fetch: %u blocks were read word by word", fetch_slow);
     stop("done");
     say("START: live view. Y: the tile list stage, LAST (photograph first).");
@@ -987,7 +1250,7 @@ static void live(void) {
         tf = ns();
         t0 = ns();                         /* everything is made again every frame: the cost when the sun moves */
         c4_light_fit(&L, az, el);
-        c4_set_init(&st, 32u, gs, b0, 0.75f);
+        set_init(&st, 32u, gs, b0, 0.75f);
         bands_build(&L, &st, 0u, C4_FACES);
         faces_build(&L);
         cut = ns() - t0;
@@ -1007,8 +1270,9 @@ static void live(void) {
     }
     fetch_off = 0;
     stop("live end");
-    say("LIVE left at sun %u/%u, b0 x100 %u, bands %u wide, layer %s: %u vertices; SH-4 fit+cut+faces %u us, project %u us; PVR map %u mask %u screen %u us; frame %u us (it waits for the picture's turn)",
-        (unsigned)az, (unsigned)el, (unsigned)(b0 * 100.0f), 1u << gs, over ? "on" : "off", nbv, us_of(cut), us_of(proj), us_of(pm), us_of(pk), us_of(ps), us_of(frame));
+    say("LIVE left at sun %u/%u, b0 x100 %u, bands %u wide, layer %s, Q from the %s edge, mask by %s: %u vertices; SH-4 fit+cut+faces %u us, project %u us; PVR map %u mask %u screen %u us; frame %u us (it waits for the picture's turn)",
+        (unsigned)az, (unsigned)el, (unsigned)(b0 * 100.0f), 1u << gs, over ? "on" : "off", edges_on && e_ok ? "measured" : "cosine's", mask_route ? "punch-through" : "1555",
+        nbv, us_of(cut), us_of(proj), us_of(pm), us_of(pk), us_of(ps), us_of(frame));
 }
 
 /* ---- the last stage: a tile list that ends early ------------------------------------------------------------- */
@@ -1094,7 +1358,7 @@ static void tiles(void) {
     say("TILES a tile list that ends after the target's tiles");
     if (!start()) return;
     c4_light_fit(&L, 150.0f, 26.5f);
-    c4_set_init(&st, 32u, 1u, C4_B0, 0.75f);
+    set_init(&st, 32u, 1u, C4_B0, 0.75f);
     bands_build(&L, &st, 0u, C4_FACES);
     bands_project();
     for (tm_n = 0, r = 0; r < 4u; r++) {   /* find the tables: KallistiOS alternates two */
