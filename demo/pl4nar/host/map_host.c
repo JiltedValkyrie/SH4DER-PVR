@@ -83,6 +83,7 @@ int main(int argc, char **argv) {
         { "a under the overpass, day, the demo's chase camera", { MAP_SHOT_OVERPASS_SL }, 0.0f, 0.15f, 0 },
         { "b in the covered passage, day, the demo's chase camera", { MAP_SHOT_PASSAGE_SL }, 0.0f, 0.15f, 0 },
         { "a before the overpass, day, the chase camera 20 m back", { 97.0f, 2.0f }, 0.0f, 0.15f, 0 },
+        { "c in the open, day, low camera in front, the split at the middle (layer on the left)", { MAP_SHOT_OPEN_SL }, 0.0f, 0.15f, 3 },
     };
     demo_stats_t st = { 0, 0, 0, 0, 0, 0 };
     char p[512];
@@ -97,6 +98,7 @@ int main(int argc, char **argv) {
     for (k = 0; k < sizeof shots / sizeof shots[0]; k++) {
         const shot_t *s = &shots[k];
         set(s, 1);
+        demo_auto_split(strstr(s->name, "split") != NULL);
         demo_draw(&st);
         snprintf(p, sizeof p, "%s/%02u_on.ppm", dir, k); gfx_host_save(p, 0);
         snprintf(p, sizeof p, "%s/%02u_target.ppm", dir, k); gfx_host_save(p, 1);
@@ -108,6 +110,7 @@ int main(int argc, char **argv) {
         demo_draw(&st);
         demo_auto_ao(1);
         snprintf(p, sizeof p, "%s/%02u_noao.ppm", dir, k); gfx_host_save(p, 0);
+        demo_auto_split(0);
         if (f) fprintf(f, "%02u %s\n", k, s->name);
     }
     if (f) fclose(f);

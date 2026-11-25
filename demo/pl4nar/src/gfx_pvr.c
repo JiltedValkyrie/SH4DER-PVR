@@ -17,6 +17,8 @@ _Static_assert(sizeof(pvr_vertex_t) == 32, "pvr_vertex_t is one 32-byte packet")
 _Static_assert(sizeof(pvr_poly_hdr_t) == 32, "pvr_poly_hdr_t is one 32-byte packet");
 
 static pvr_poly_hdr_t s_hdr[GFX_MAT_COUNT];
+static pvr_poly_hdr_t s_hdr_clip[2];        /* GFX_MAT_REFLECT, _ADD with PVR_USERCLIP_INSIDE (header bits 17..16) */
+static int            s_clip_on;
 static sh4der_pl4nar_target_t s_rt;
 static int            s_list = -1;          /* the open list (PVR_LIST_*), -1 none */
 static uint32_t       s_bad_bind, s_frame;
@@ -198,6 +200,9 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
     }
     sh4der_pl4nar_layer_header(&s_rt, &s_hdr[GFX_MAT_REFLECT], 0u);
     sh4der_pl4nar_layer_header(&s_rt, &s_hdr[GFX_MAT_REFLECT_ADD], 1u);
+    s_hdr_clip[0] = s_hdr[GFX_MAT_REFLECT]; s_hdr_clip[1] = s_hdr[GFX_MAT_REFLECT_ADD];
+    s_hdr_clip[0].cmd = (s_hdr_clip[0].cmd & ~(3u << 16)) | ((uint32_t)PVR_USERCLIP_INSIDE << 16);
+    s_hdr_clip[1].cmd = (s_hdr_clip[1].cmd & ~(3u << 16)) | ((uint32_t)PVR_USERCLIP_INSIDE << 16);
     {   /* the shadow tiles in the same target: texel x vertex colour, multiplied into the frame (DESTCOLOR x ZERO) */
         pvr_poly_cxt_t c;
         pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)s_rt.pitch, (int)s_rt.h, (pvr_ptr_t)s_rt.tex, PVR_FILTER_BILINEAR);
@@ -272,11 +277,34 @@ void gfx_be_frame_end(void) {
 static int s_bound_ok;
 
 void gfx_be_bind(int mat) {
-    const pvr_poly_hdr_t *h = &s_hdr[mat];
+    const pvr_poly_hdr_t *h = s_clip_on && (mat == GFX_MAT_REFLECT || mat == GFX_MAT_REFLECT_ADD) ? &s_hdr_clip[mat == GFX_MAT_REFLECT_ADD] : &s_hdr[mat];
     /* a header of another list stalls the TA; a header never compiled (all zero) ends the list: neither is sent */
     s_bound_ok = sh4der_poly_hdr_ok((const uint32_t *)h) && (int)((h->cmd >> 24) & 7u) == s_list;
     if (s_bound_ok) packet(h);
     else s_bad_bind++;
+}
+
+/* The dummy (a triangle with area off the screen's left edge, through the untextured translucent header), then the clip
+   command. Translucent list only; a clip outside the screen's tiles is refused and nothing is sent. */
+void gfx_be_clip(const unsigned *tiles) {
+    static const float dv[3][2] = { { -64.0f, 8.0f }, { -64.0f, 40.0f }, { -32.0f, 8.0f } };
+    uint32_t cmd[8] __attribute__((aligned(32)));
+    unsigned i;
+    s_clip_on = 0;
+    if (!tiles) return;
+    if (s_list != PVR_LIST_TR_POLY || tiles[0] > tiles[2] || tiles[1] > tiles[3] || tiles[2] > 19u || tiles[3] > 14u) { s_bad_bind++; return; }
+    packet(&s_hdr[GFX_MAT_HUD]);
+    for (i = 0; i < 3u; i++) {
+        pvr_vertex_t *o = (pvr_vertex_t *)pvr_dr_target(NULL);
+        o->flags = i == 2u ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+        o->x = dv[i][0]; o->y = dv[i][1]; o->z = 0.001f; o->u = o->v = 0.0f; o->argb = 0xff000000u; o->oargb = 0u;
+        pvr_dr_commit(o);
+    }
+    cmd[0] = PVR_CMD_USERCLIP; cmd[1] = cmd[2] = cmd[3] = 0u;
+    cmd[4] = tiles[0]; cmd[5] = tiles[1]; cmd[6] = tiles[2]; cmd[7] = tiles[3];
+    packet(cmd);
+    s_bound_ok = 0;                                  /* the next triangle wants its own header */
+    s_clip_on = 1;
 }
 
 void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {

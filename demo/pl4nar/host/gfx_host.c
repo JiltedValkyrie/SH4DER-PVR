@@ -17,7 +17,12 @@ typedef struct { const uint8_t *rgba; int w, h, nearest; } tex_t;
 static target_t s_scr, s_rt, *s_t;
 static tex_t    s_tex[GFX_MAT_COUNT];
 static int      s_mat, s_translucent;
-static uint8_t *s_rt_rgba;                         /* the reflection target as a texture (snapshot at scene end) */
+static uint8_t *s_rt_rgba;
+static int      s_clip_on, s_clip[4];              /* gfx_clip: pixels x0, y0, x1, y1 (end excluded) for the reflection materials */
+void gfx_be_clip(const unsigned *tiles) {
+    s_clip_on = tiles != NULL;
+    if (tiles) { s_clip[0] = (int)tiles[0] * 32; s_clip[1] = (int)tiles[1] * 32; s_clip[2] = ((int)tiles[2] + 1) * 32; s_clip[3] = ((int)tiles[3] + 1) * 32; }
+}                         /* the reflection target as a texture (snapshot at scene end) */
 
 static unsigned untwid(unsigned x, unsigned y, unsigned bits) {
     unsigned o = 0, i;
@@ -164,6 +169,13 @@ void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
     float mnx = fminf(a->x, fminf(b->x, c->x)), mxx = fmaxf(a->x, fmaxf(b->x, c->x));
     float mny = fminf(a->y, fminf(b->y, c->y)), mxy = fmaxf(a->y, fmaxf(b->y, c->y));
     if (area == 0.0f) return;
+    if (s_clip_on && (s_mat == GFX_MAT_REFLECT || s_mat == GFX_MAT_REFLECT_ADD)) {     /* the user clip, inside */
+        if (mnx < (float)s_clip[0]) mnx = (float)s_clip[0];
+        if (mxx > (float)(s_clip[2] - 1)) mxx = (float)(s_clip[2] - 1);
+        if (mny < (float)s_clip[1]) mny = (float)s_clip[1];
+        if (mxy > (float)(s_clip[3] - 1)) mxy = (float)(s_clip[3] - 1);
+        if (mnx > mxx || mny > mxy) return;
+    }
     x0 = mnx < 0 ? 0 : (int)mnx; x1 = mxx > (float)(s_t->w - 1) ? s_t->w - 1 : (int)mxx;
     y0 = mny < 0 ? 0 : (int)mny; y1 = mxy > (float)(s_t->h - 1) ? s_t->h - 1 : (int)mxy;
     for (y = y0; y <= y1; y++)

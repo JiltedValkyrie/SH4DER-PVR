@@ -71,6 +71,11 @@ void gfx_viewport(float w, float h);                      /* triangles wholly ou
 void gfx_cull(int mode);                                  /* GFX_CULL_*: MIRROR for a mirrored world (winding reversed) */
 void gfx_bind(int mat);
 void gfx_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c);
+/* The user clip (translucent list only): tiles = { tx0, ty0, tx1, ty1 } in 32 pixel tiles, both ends counted, sends the
+   clip into the open list and makes the reflection materials (GFX_MAT_REFLECT, _ADD) bound after it keep only that
+   rectangle; NULL: they draw everywhere again. A change of clip is preceded by a dummy polygon off the screen (the core
+   takes a new clip one polygon early: Sega's bug list, CORE 18; the sequence of demo/psm/ao/ao4_spike.c). */
+void gfx_clip(const unsigned *tiles);
 void gfx_quad2d(float x0, float y0, float x1, float y1, float z, float u0, float v0, float u1, float v1, uint32_t argb);
 unsigned gfx_tris_sent(void);                             /* since the last scene begin */
 
@@ -80,6 +85,7 @@ void gfx_be_shutdown(void);
 void gfx_be_bind(int mat);
 void gfx_be_clear_colour(uint32_t argb);
 void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c);
+void gfx_be_clip(const unsigned *tiles);
 int  gfx_be_reflect_resize(unsigned w, unsigned h);
 unsigned gfx_be_reflect_bytes(void);
 float gfx_be_reflect_u_scale(void);

@@ -19,7 +19,14 @@
 #include "psm_suite.h"
 #define PG_PREFIX "pl4m"
 #define PG_LINES_MAX 160u
+#ifdef PL4NAR_MAP
+#define PG_TOP 2u                                    /* the effect labels' three lines under the title (pl4nar_fx.h) */
+#endif
 #include "psm_page.h"
+#ifdef PL4NAR_MAP
+#include "psm_effects.h"
+#include "pl4nar_fx.h"
+#endif
 #endif
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
@@ -45,13 +52,16 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
     if (st->buttons & CONT_DPAD_RIGHT) in->steer = 1.0f;
     in->gas = (float)st->rtrig * (1.0f / 255.0f);            /* right trigger: engine */
     in->brake = (float)st->ltrig * (1.0f / 255.0f);          /* left trigger: brake, then reverse */
-    if (st->buttons & CONT_B) { in->orbit = in->steer; in->steer = 0.0f; }   /* B held: the stick turns the camera round the car */
-    if (st->buttons & CONT_X)         now |= DEMO_BTN_REFLECT;
+    if (st->buttons & CONT_B) {                              /* B held: the stick turns the camera round the car, the triggers move the divider */
+        in->orbit = in->steer; in->steer = 0.0f;
+        in->split_l = st->ltrig > 128; in->split_r = st->rtrig > 128; in->gas = in->brake = 0.0f;
+    }
+    if (st->buttons & CONT_X)         now |= (st->buttons & CONT_B) ? DEMO_BTN_SPLIT : DEMO_BTN_REFLECT;
     if (st->buttons & CONT_Y)         now |= DEMO_BTN_TOD;
     if (st->buttons & CONT_A)         now |= (st->buttons & CONT_B) ? DEMO_BTN_SIZE : DEMO_BTN_LOOK;
     if (st->buttons & CONT_DPAD_UP)   now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_UP : DEMO_BTN_MORE;
     if (st->buttons & CONT_DPAD_DOWN) now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_DN : DEMO_BTN_LESS;
-    if (st->buttons & CONT_START)     now |= DEMO_BTN_INFO;
+    if (st->buttons & CONT_START)     now |= (st->buttons & CONT_B) ? DEMO_BTN_FX : DEMO_BTN_INFO;
     in->pressed = now & ~*held;
     *held = now;
 }
@@ -83,20 +93,20 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
-typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao; } stage_t;   /* blobs: no shadow tiles; noao: no baked occlusion */
+typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; } stage_t;   /* blobs: no shadow tiles; noao: no baked occlusion; split: the layer on the left half */
 #ifdef PL4NAR_MAP
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0 }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1 },
-    { "off day",          0, 0, 1, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0 }, { "off night",        0, 0, 2, 0, 0, 0 },
-    { "on 128x64 night",  1, 1, 2, 0, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0 },
-    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0 }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0, 0 }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0 },
+    { "on 256 day split", 1, 0, 1, 0, 0, 0, 1 }, { "off day",          0, 0, 1, 0, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0 },
+    { "off night",        0, 0, 2, 0, 0, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0 },
+    { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0 }, { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0 }
 };
 #else
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0 }, { "on 128x64 day",    1, 1, 1, 0, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0 },
-    { "off day",          0, 0, 1, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0 },
-    { "on 512x256 night", 1, 2, 2, 0, 0, 0 }, { "off night",        0, 0, 2, 0, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0 },
-    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0 }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0 }, { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0 },
+    { "off day",          0, 0, 1, 0, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0 },
+    { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0 }, { "off night",        0, 0, 2, 0, 0, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0 },
+    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0 }
 };
 #endif
 #define STAGES (sizeof stages / sizeof stages[0])
@@ -164,6 +174,9 @@ static void report(void) {
     }
 #endif
     pg_say("TA bytes include headers; PVR = rnd_last_time of the scene");
+#ifdef PL4NAR_MAP
+    pg_say("effect labels OFF in every stage (fill); stage 4: the split at the middle");
+#endif
     g = pg_plot("pl4m: frame and PVR a stage, ms", "stage", "ms", 1);
     for (k = 0; k < STAGES; k++) { char c[4]; snprintf(c, sizeof c, "%u", k + 1u); pg_cat(g, c); }
     pg_series(g, "frame"); for (k = 0; k < STAGES; k++) pg_point(g, (float)k, acc[k].n ? (float)acc[k].dt_sum / (float)acc[k].n * 1e-3f : 0.0f);
@@ -195,6 +208,7 @@ int main(int argc, char **argv) {
 #ifdef PL4NAR_MAP
     demo_auto_tiles(!stages[0].blobs);
     demo_auto_ao(!stages[0].noao);
+    demo_auto_split(stages[0].split);
 #endif
     demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
     psm_fault_stage(&crumbs, stages[0].name);
@@ -271,6 +285,7 @@ int main(int argc, char **argv) {
 #ifdef PL4NAR_MAP
             demo_auto_tiles(!stages[stage].blobs);
             demo_auto_ao(!stages[stage].noao);
+            demo_auto_split(stages[stage].split);
 #endif
             demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
             psm_fault_stage(&crumbs, stages[stage].name);
@@ -296,7 +311,13 @@ int main(int argc, char **argv) {
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
         else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
         else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
-        if (redraw) { pg_draw(page % pages, "PL4M " STR(PL4M_TAG), suite_keys_text("A/B pages")); redraw = 0; }
+        if (redraw) {
+            pg_draw(page % pages, "PL4M " STR(PL4M_TAG), suite_keys_text("A/B pages"));
+#ifdef PL4NAR_MAP
+            (void)fx_page(pl4nar_fx_page, PL4NAR_FX_PAGE_N);
+#endif
+            redraw = 0;
+        }
         thd_sleep(20);
     }
 #endif

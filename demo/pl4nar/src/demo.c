@@ -13,6 +13,11 @@
 #include "sh4der_pl4nar.h"
 #include "sh4der_spark.h"
 #include "sh4der_pool.h"
+#include "../../psm/psm_split.h"                   /* the divider's tile columns and stepping */
+#ifdef PL4NAR_MAP
+#include "../../psm/psm_effects.h"                 /* the effect labels' text */
+#include "pl4nar_fx.h"
+#endif
 #ifdef PL4NAR_MAP                                  /* the new map (tools/map.py, src/map.c): a closed loop in place of the street */
 #include "map.h"
 #include "map_gen.h"
@@ -167,6 +172,14 @@ void demo_auto_tiles(int on) { s_tiles = on; }
 
 int demo_reflect_on(void) { return s_reflect; }
 
+/* The split: the reflection layer drawn inside the left half's user clip only, the right half the flat paint. */
+static int          s_split;
+static unsigned     s_div = SPLIT_COLS / 2u;
+static split_step_t s_split_step;
+void demo_auto_split(int on) { s_split = on; s_div = split_middle(SPLIT_COLS); }
+static int          s_fx_hidden;                  /* the labels: B + START; off while the autorun measures */
+static unsigned     s_blob_n;                     /* blob discs drawn this frame (the labels) */
+
 static void demo_place(void);
 
 /* The autorun's hold on the demo: what a stage sets, what it reads. */
@@ -176,6 +189,7 @@ int demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit) {
     s_tod_mode = tod_mode % 4u;
     s_auto = orbit;
     s_info = 0;                                    /* the overlay's text is not part of what is measured */
+    s_fx_hidden = 1;                               /* nor the labels (psm_effects.h: OFF in measured stages) */
     if (size % 3u != s_size) { s_size = size % 3u; r = gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]); }
     return r;
 }
@@ -291,6 +305,9 @@ void demo_update(const demo_input_t *in, float dt) {
     }
     if (s_tod >= 1.0f) s_tod -= 1.0f;
     if (s_tod < 0.0f) s_tod += 1.0f;
+    if (in->pressed & DEMO_BTN_SPLIT) s_split = !s_split;
+    if (in->pressed & DEMO_BTN_FX) s_fx_hidden = !s_fx_hidden;
+    s_div = split_step(&s_split_step, s_div, SPLIT_COLS, in->split_l, in->split_r);
     if (in->pressed & DEMO_BTN_SIZE) {
         s_size = (s_size + 1u) % 3u;
         gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]);
@@ -782,6 +799,15 @@ static void draw_player(void) {
 static void draw_player_reflection(void) {
     const mdl_t *m = &mdl_player_body;
     unsigned i, pass;
+    if (s_split) {                                    /* the layer in the left half only; none when that half is hidden */
+        split_half_t l, r;
+        split_halves(s_div, SPLIT_COLS, SPLIT_ROWS, &l, &r);
+        if (l.hidden) return;
+        {
+            const unsigned t[4] = { l.tx0, l.ty0, l.tx1, l.ty1 };
+            gfx_clip(t);
+        }
+    }
     gfx_cull(GFX_CULL_BACK);
     for (pass = 0; pass < 2u; pass++) {
         const uint32_t want = pass ? CLS_GLASS : CLS_PAINT;     /* the bake gives every triangle one class (tools/bake.py checks) */
@@ -790,6 +816,7 @@ static void draw_player_reflection(void) {
             if (m->v[m->idx[i]].cls == want && m->v[m->idx[i + 1u]].cls == want && m->v[m->idx[i + 2u]].cls == want)   /* all three were written */
                 gfx_tri(&s_refl[m->idx[i]], &s_refl[m->idx[i + 1u]], &s_refl[m->idx[i + 2u]]);
     }
+    gfx_clip(NULL);
 }
 
 /* ------------------------------------------------------------------------------------------------ lights + shadows */
@@ -901,6 +928,7 @@ static void draw_car_lights(int halos) {
 
 /* Blob shadows: a dark ellipse under each car (GFX_MAT_HUD: vertex colour, blended). */
 static void blob(float x, float z, float yaw, float alpha) {
+    s_blob_n++;
     const shz_sincos_t hc = shz_sincosf(yaw);
     const float c[3] = { x, 0.02f, z }, u[3] = { hc.sin * 2.9f, 0.0f, hc.cos * 2.9f }, v[3] = { hc.cos * 1.35f, 0.0f, -hc.sin * 1.35f };
     sh4der_pool_vtx_t p[SH4DER_POOL_MAX_N + 2];
@@ -962,11 +990,30 @@ static void tile_car(unsigned k, float x, float z, float yaw, const mdl_t *m, ui
     tile_box(k, x, z, yaw, clo, chi, argb);
 }
 
+/* The road's baked occlusion near (x, z): the nearest point of a kept row within 2.5 m, else 1 (open). A row is found
+   by its first column (105 rows), then its nearest column. A car under a deck has no sun on it: its tile fades by this. */
+static float road_ao_at(float x, float z) {
+    float best = 3.0f * 3.0f * 9.0f * 9.0f, v = 1.0f;
+    unsigned r, c, br = MAP_AOG_ROWS;
+    for (r = 0; r < MAP_AOG_ROWS; r++) {               /* the row whose middle is nearest (column 0 is 9 m from the middle) */
+        const float *m = map_aog[r][MAP_AOG_COLS / 2u];
+        const float dx = m[0] - x, dz = m[1] - z, d = dx * dx + dz * dz;    /* hand: scalar products */
+        if (d < best) { best = d; br = r; }
+    }
+    if (br == MAP_AOG_ROWS) return 1.0f;
+    best = 2.5f * 2.5f;
+    for (c = 0; c < MAP_AOG_COLS; c++) {
+        const float *m = map_aog[br][c];
+        const float dx = m[0] - x, dz = m[1] - z, d = dx * dx + dz * dz;
+        if (d < best) { best = d; v = m[2]; }
+    }
+    return v;
+}
+
 /* The mirror pass's last opaque work: the player and the nearest traffic, a tile each. Day only (the sun up). */
 static void draw_tiles(float tw, float th) {
     const float sy = s_sun[1];
     const unsigned g = (unsigned)(shz_lerpf(0.50f, 1.0f, shz_saturatef(s_night * 2.0f)) * 255.0f);
-    const uint32_t argb = gfx_rgb(255u, g, g, g);
     float d2[MAP_CARS];
     unsigned i, k;
     s_tile_n = 0u;
@@ -997,7 +1044,11 @@ static void draw_tiles(float tw, float th) {
             s_tile_c[k][0] = shz_fmaf(-s_sun[0], r, x); s_tile_c[k][1] = shz_fmaf(-s_sun[2], r, z);
         }
         s_tile_car[k] = car;
-        tile_car(k, x, z, yaw, m, argb);
+        {   /* under a deck (baked road occlusion under 0.95) the sun is gone: the casters fade to white by 0.80 */
+            const float f = shz_saturatef((0.95f - road_ao_at(x, z)) * (1.0f / 0.15f));
+            const unsigned gk = (unsigned)shz_lerpf((float)g, 255.0f, f);
+            tile_car(k, x, z, yaw, m, gfx_rgb(255u, gk, gk, gk));
+        }
         s_tile_n = k + 1u;
     }
     gfx_viewport(tw, th);
@@ -1033,6 +1084,7 @@ static void draw_tile_quads(void) {
 static void draw_shadows(void) {
     const float alpha = shz_lerpf(0.50f, 0.25f, s_night);
     unsigned i;
+    s_blob_n = 0u;
 #ifdef PL4NAR_MAP
     if (!tiled(-1)) blob(s_car.wx, s_car.wz, s_car.wh, alpha);
     for (i = 0; i < map_traffic_n(); i++) {
@@ -1068,6 +1120,44 @@ static void overlay(const demo_stats_t *st) {
     hud_text(500.0f, 430.0f, 2.0f, 0xffffffffu, t);
 #ifndef PL4NAR_MAP
     hud_map(530.0f, 20.0f, 88.0f, s_car.x * (1.0f / BLD_X), s_car.z * (1.0f / PERIOD), s_car.h);
+#endif
+    if (s_split && s_reflect && !split_at_end(s_div, SPLIT_COLS)) {   /* the divider, 2 px, and each half's name */
+        gfx_bind(GFX_MAT_HUD);
+        gfx_quad2d(split_x(s_div) - 1.0f, 0.0f, split_x(s_div) + 1.0f, GFX_SCREEN_H, 9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0xff101010u);
+    }
+    if (s_split && s_reflect) {
+        static const char *const name[2] = { "PL4NAR ON", "PL4NAR OFF" };
+        split_half_t h[2];
+        unsigned k;
+        split_halves(s_div, SPLIT_COLS, SPLIT_ROWS, &h[0], &h[1]);
+        for (k = 0; k < 2u; k++) {
+            const int x = split_label_x(&h[k], (unsigned)strlen(name[k]) * 8u + 4u);
+            if (x >= 0) hud_text((float)x + 2.0f, 120.0f, 1.0f, k ? 0xffff9080u : 0xff80ff90u, name[k]);
+        }
+    }
+#ifdef PL4NAR_MAP
+    if (!s_fx_hidden) {                               /* the effect labels: two lines over the speed, Realtime in yellow */
+        fx_entry_t e[PL4NAR_FX_MAX];
+        fx_text_t ft;
+        const unsigned n = pl4nar_fx_live(s_pv_ok, s_tile_n > 0u, s_blob_n > 0u, s_ao, s_lamp > 0.5f, e);
+        unsigned l, c, c0;
+        if (n) {
+            (void)fx_format_merged(&ft, e, n);
+            for (l = 0; l < ft.lines && l < FX_LINES; l++) {
+                const float y = 404.0f - 18.0f * (float)(ft.lines - 1u - l);
+                for (c0 = 0, c = 1; ; c++) {              /* runs of one colour */
+                    if (ft.line[l][c] && fx_marked(&ft, l, c) == fx_marked(&ft, l, c0)) continue;
+                    {
+                        char run[FX_COLS + 1u];
+                        memcpy(run, &ft.line[l][c0], c - c0); run[c - c0] = '\0';
+                        hud_text(64.0f + 8.0f * (float)c0, y, 1.0f, fx_marked(&ft, l, c0) ? 0xffffdc00u : 0xffc8c8c8u, run);
+                    }
+                    if (!ft.line[l][c]) break;
+                    c0 = c;
+                }
+            }
+        }
+    }
 #endif
     if (!s_info) return;
     {

@@ -19,6 +19,7 @@ void gfx_list_translucent(void) { gfx_be_list_translucent(); }
 void gfx_frame_end(void) { gfx_be_frame_end(); }
 void gfx_viewport(float w, float h) { s_vw = w; s_vh = h; }
 void gfx_bind(int mat) { gfx_be_bind(mat); }
+void gfx_clip(const unsigned *tiles) { gfx_be_clip(tiles); }
 void gfx_clear_colour(uint32_t argb) { gfx_be_clear_colour(argb); }
 unsigned gfx_tris_sent(void) { return s_sent; }
 

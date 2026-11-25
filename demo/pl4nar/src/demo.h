@@ -13,13 +13,16 @@ enum {
     DEMO_BTN_TOD     = 1u << 6,    /* time of day: AUTO -> DAY -> NIGHT -> PAUSE */
     DEMO_BTN_LAMP_UP = 1u << 7,    /* night gain of the reflection up */
     DEMO_BTN_LAMP_DN = 1u << 8,    /* and down */
-    DEMO_BTN_LOOK    = 1u << 9     /* textures: 64 x 64, 16 colours, point sampled <-> full size, filtered */
+    DEMO_BTN_LOOK    = 1u << 9,    /* textures: 64 x 64, 16 colours, point sampled <-> full size, filtered */
+    DEMO_BTN_SPLIT   = 1u << 10,   /* the split: the reflection layer on the left of a divider only (B + X) */
+    DEMO_BTN_FX      = 1u << 11    /* the effect labels shown / hidden (B + START) */
 };
 
 typedef struct demo_input {
     float    steer;                /* -1 left .. 1 right */
     float    gas, brake;           /* 0 .. 1 */
     float    orbit;                /* -1 .. 1: camera yaw rate round the car */
+    int      split_l, split_r;     /* held: the divider steps left / right (B + LT / RT) */
     uint32_t pressed;              /* DEMO_BTN_*: went down this frame */
 } demo_input_t;
 
@@ -52,7 +55,8 @@ float demo_speed(void);
 void  demo_auto_place(float z, float x, float v);   /* the car at z along the street (s on the loop), x across, speed v */
 void  demo_counts(demo_counts_t *c);
 void  demo_auto_tiles(int on);
-void  demo_auto_ao(int on);                        /* the new map: baked occlusion on (default) or off */                     /* the new map: car shadow tiles on (default) or blobs only */
+void  demo_auto_ao(int on);
+void  demo_auto_split(int on);                     /* the split at its middle (the reflection layer on the left half only), or off */                        /* the new map: baked occlusion on (default) or off */                     /* the new map: car shadow tiles on (default) or blobs only */
 
 /* Platform: microseconds since start. */
 uint64_t plat_us(void);
