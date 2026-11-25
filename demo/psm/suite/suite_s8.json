@@ -31,10 +31,10 @@
     {
       "name": "pl4nar",
       "file": "PL4NAR.BIN",
-      "elf": "demo/pl4nar/build/pl4m_pl4m-c5/sh4der-pl4m-pl4m-c5.elf",
+      "elf": "demo/pl4nar/build/pl4m_pl4m-c7/sh4der-pl4m-pl4m-c7.elf",
       "order": 4,
-      "what": "new map, reflection, shadows, AO, split. ~121 s",
-      "read": "photo every page; 11 stages: frame, SH4, PVR, TA a scene",
+      "what": "new map, reflection, shadows, AO, split, LOD. ~150 s",
+      "read": "photo every page; 13 stages: frame, SH4, PVR, TA a scene",
       "group": "demos",
       "credits": "pl4nar"
     },
