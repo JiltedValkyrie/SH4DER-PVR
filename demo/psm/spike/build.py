@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """SH4DER-PVR: route AB spike, build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
-    python demo/psm/spike/build.py [--tag s2] [--out <dir>] [--mkdcdisc <exe>] [--host-cc <cc>] [--host-only] [--elf-only]
+    python demo/psm/spike/build.py [--tag s3] [--out <dir>] [--cdi-dir <dir>] [--mkdcdisc <exe>] [--host-cc <cc>] [--host-only] [--elf-only]
 
 Run it in a shell where the KallistiOS environment is sourced (kos-cc on the PATH, KOS_BASE set). It fetches nothing
-and touches no file outside --out (default build/psm_ab_spike). Steps, each refusing to go on when it fails:
+and touches no file outside --out (default build/psm_ab_spike) and --cdi-dir (default demo/psm/out/cdi, the one
+place the images are kept; git ignores it). Steps, each refusing to go on when it fails:
 
   1 host test  test/ab_model_test.c with the host compiler: the model the console's check uses
   2 rtt        the KallistiOS under KOS_BASE must declare pvr_scene_begin_rtt; if not, it says so and stops
   3 elf        kos-cc ab_spike.c -> <out>/psm-ab-spike-<tag>.elf
-  4 image      mkdcdisc -> <out>/psm-ab-spike-<tag>.cdi. An image that is there is never overwritten: pick a new --tag
+  4 image      mkdcdisc -> <cdi-dir>/psm-ab-spike-<tag>.cdi. An image that is there is never overwritten: pick a new --tag
 
 --host-only stops after step 1 (no KallistiOS needed). --elf-only stops after step 3 (no mkdcdisc needed).
 """
@@ -50,8 +51,9 @@ def has_rtt(kos_base):
 
 def main():
     ap = argparse.ArgumentParser(description="Build the route AB spike image.")
-    ap.add_argument("--tag", default="s2")
+    ap.add_argument("--tag", default="s3")
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "psm_ab_spike"))
+    ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "demo", "psm", "out", "cdi"))
     ap.add_argument("--mkdcdisc", default=os.environ.get("MKDCDISC", "mkdcdisc"))
     ap.add_argument("--host-cc", default=os.environ.get("HOST_CC", "gcc"))
     ap.add_argument("--host-only", action="store_true")
@@ -60,7 +62,7 @@ def main():
 
     out = os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
-    image = os.path.join(out, "psm-ab-spike-%s.cdi" % a.tag)
+    image = os.path.join(os.path.abspath(a.cdi_dir), "psm-ab-spike-%s.cdi" % a.tag)
     elf = os.path.join(out, "psm-ab-spike-%s.elf" % a.tag)
     if not a.host_only and not a.elf_only and os.path.exists(image):
         raise SystemExit("refuse existing image: %s (pick a new --tag)" % image)
@@ -87,6 +89,7 @@ def main():
 
     if os.path.exists(image):
         raise SystemExit("refuse existing image: %s" % image)
+    os.makedirs(os.path.dirname(image), exist_ok=True)
     run("4 image", [a.mkdcdisc, "-e", elf, "-o", image, "-N", "-n", "PSM-AB-SPIKE"])
     print("IMAGE: %s" % image)
     return 0

@@ -110,6 +110,40 @@ static void agree(void) {
     }
 }
 
+/* PREC (s3): six bands, the code one more a pixel, at six sizes of the code; the stand-in agrees band by band */
+static void precision(void) {
+    ab_test_t t;
+    ab_stats_t st;
+    unsigned i, y0, y1;
+
+    CHECK(!ab_test_make(&t, AB_TEST_PREC, 10));                  /* the wrapped v is the 16-bit ramp's */
+    CHECK(ab_test_make(&t, AB_TEST_PREC, 16) && t.nrect == AB_PREC_BANDS);
+    stand_in(&t, 16, 0.5, 0.5);
+    ab_check(&t, 16, img, AB_SIZE, 0.0f, 0.0f, &st);
+    CHECK(st.bad == 0u);
+    for (i = 0; i < AB_PREC_BANDS; i++) {
+        float margin;
+
+        ab_prec_rows(i, &y0, &y1);
+        CHECK(y1 <= 120u && (i == 0u || y0 >= 8u + 18u * (i - 1u) + 16u));       /* inside the target, not on the band above */
+        CHECK(ab_predict(&t, 16, 8u, y0, 0.0f, 0.0f, &margin) == ab_prec_base(i) && margin == 0.5f);
+        CHECK(ab_predict(&t, 16, 119u, y1 - 1u, 0.0f, 0.0f, &margin) == ab_prec_base(i) + 111u && margin == 0.5f);
+        CHECK(ab_predict(&t, 16, 60u, y1, 0.0f, 0.0f, NULL) == 0u);              /* a gap of background under each band */
+        ab_check_rows(&t, 16, img, AB_SIZE, 0.0f, 0.0f, y0, y1, &st);
+        CHECK(st.pixels == 16u * AB_SIZE && st.bad == 0u);
+    }
+    CHECK(ab_prec_base(AB_PREC_BANDS - 1u) + 111u < 65536u);
+    ab_prec_rows(2u, &y0, &y1);                                  /* a fault in one band is counted in that band alone, by its sign */
+    img[y0 * AB_SIZE + 40u] -= 1u;
+    img[y0 * AB_SIZE + 41u] += 1u;
+    img[y0 * AB_SIZE + 42u] += 5u;
+    ab_check_rows(&t, 16, img, AB_SIZE, 0.0f, 0.0f, y0, y1, &st);
+    CHECK(st.bad == 3u && st.neg1 == 1u && st.pos1 == 1u && st.more == 1u && st.max_err == 5u && st.cover == 0u);
+    ab_prec_rows(3u, &y0, &y1);
+    ab_check_rows(&t, 16, img, AB_SIZE, 0.0f, 0.0f, y0, y1, &st);
+    CHECK(st.bad == 0u);
+}
+
 static void shapes(void) {
     ab_test_t t;
     unsigned x, y, prev;
@@ -169,6 +203,8 @@ static void faults(void) {
     img[2u * AB_SIZE + 2u] = 77u;                                 /* a pixel of the background drawn */
     ab_check(&t, 16, img, AB_SIZE, 0.0f, 0.0f, &st);
     CHECK(st.bad == 4u && st.hard == 4u && st.cover == 2u && st.max_err == 64u && st.hi_bad == 3u && st.lo_bad == 3u);
+    CHECK(st.pos1 == 1u && st.neg1 == 0u && st.more == 1u);      /* by sign; the two coverage errors are in neither */
+    CHECK(st.cx0 == 2u && st.cx1 == 30u && st.cy0 == 2u && st.cy1 == 22u);   /* and the box round them */
     CHECK(st.first_x == 2u && st.first_y == 2u && st.first_got == 77u && st.first_want == 0u);
 
     stand_in(&t, 16, 1.0, 0.5);                                   /* the sample taken half a pixel to the right */
@@ -201,6 +237,7 @@ int main(void) {
     ramps();
     agree();
     shapes();
+    precision();
     faults();
     if (fails) { fprintf(stderr, "ab_model_test: %d failure(s)\n", fails); return 1; }
     printf("ab_model_test: ok\n");

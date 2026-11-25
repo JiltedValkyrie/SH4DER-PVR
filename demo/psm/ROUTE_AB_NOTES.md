@@ -191,6 +191,121 @@ Vertex colour gives at most 5 to 6 usable bits. That is too coarse, as the lead 
 
   All three are on real hardware; an emulator does not model the PVR's precision or the bus contention.
 
+## Hardware result s2
+
+The spike `demo/psm/spike` (image `psm-ab-spike-s2`) was run by the owner on a real Dreamcast on 2026-11-24. The numbers below are **from photos** of its four result pages (`PXL_20261125_0237*.jpg`), read by two readers. Nothing was captured over serial. One console, one run; the KallistiOS on the disc was revision 568c3404.
+
+Everything marked **measured** is what that run printed. Everything marked **inferred** is reasoning about it and has not been tested. Spike s3 exists to test the inferences; its results are not in yet.
+
+### What was measured
+
+**Clocks.** The KallistiOS ns timer steps by 640 ns and runs on performance counter 0. 1 ms of it is 200,006 CPU cycles on performance counter 1. The two clocks agree, so the times below are real.
+
+**The render target is written and read.**
+
+- A plain magenta quad on a green background, drawn into a 128 x 128 RGB565 target that the SH-4 had filled with 0x1234: the quad's 9,216 pixels are all right, and 7,152 of the 7,168 background pixels are right.
+- 16 background pixels still hold 0x1234. Three vblanks later nothing had changed.
+- `pvr_scene_begin_rtt` returned 0, both waits ended first time, and the render address read back as the one wanted (0x0119A920).
+
+**The ramp codes, dither off** (`FB_CFG_2` = 0x00000001). "Differ" counts pixels of 16,384 that are not the model's value; the model is `spike/ab_model.h`.
+
+| Test | Pixels that differ | Largest error (codes) | Notes |
+|---|---|---|---|
+| 10 bits FLAT | 16 | 0 | all 16 are coverage errors on row 127 (first at x 96), holding 0x07E0 |
+| 10 bits TILT | 336 | 1 | none hard: all at a rounding step |
+| 10 bits OVER | 0 | 0 | the nearer quad won in both send orders |
+| 16 bits FLAT | 8,124 | 1 | low 6 bits differ in all 8,124; high 10 bits in 254 |
+| 16 bits TILT | 3,472 | 1 | 2,016 of them not at a rounding step; first pixel one code over |
+| 16 bits OVER | 6,044 | 1 | low 6 bits only; first pixel one code under; no coverage errors |
+
+- The best-fitting sample offset was 0, 0 in every test: the model's pixel centre (x + 0.5, y + 0.5) fits better than a half-pixel shift either way.
+- No test had an error over one code with dither off.
+
+**The ramp codes, dither on** (`FB_CFG_2` = 0x00000009).
+
+| Test | Pixels that differ | Largest error (codes) |
+|---|---|---|
+| 10 bits FLAT | 5,691 | 33 |
+| 16 bits FLAT | 10,161 | 2,081 |
+
+**The copy back by PVR-DMA** (`SB_PDDIR` = 1, the 0x005F7C00 register block, our own register writes).
+
+- `DMAOR` was 0x8201 as the BIOS left it. `CHCR0` read 0x000853C3.
+- Both PVR address forms worked: 0x04000000 + offset (64-bit area) and 0x05000000 + offset (32-bit area). Each finished, set the end-of-PVR-DMA status bit, wrote all 16,384 pixels, and matched the SH-4's own read of the same window exactly.
+- A 512 KB download of an uploaded pattern came back with 0 of 524,288 bytes different.
+
+**Times.**
+
+| What | Time | Rate or ratio |
+|---|---|---|
+| PVR-DMA download, 32 KB (smallest of 8) | 913 us (182,743 cycles) | 35.9 MB/s |
+| PVR-DMA download, 512 KB (smallest of 4) | 14,803 us (2,960,633 cycles) | 35.4 MB/s |
+| SH-4 copy of the same 32 KB, 16 bits a read, from video memory | 8,635 us | 9.5 x the DMA |
+| 20,000 scattered two-byte reads from video memory | 12,903 us | 14 x the DMA |
+| The same 20,000 reads from the copy in RAM | 2,765 us | |
+
+The page also shows "DMA 512 KB: no run finished" under the 512 KB time. That line was a bug in the program (an `else` bound to the wrong `if`), not a result. It is fixed in s3.
+
+### What this settles, and what it does not
+
+**Settled by the run:**
+
+- A texel reaches a 16-bit render target through REPLACE and point sampling with dither off: the 10-bit FLAT test is exact on every pixel the render wrote.
+- The depth test picks the nearer of two overlapping quads in one pass, whichever is sent first.
+- The download direction of PVR-DMA works on the console with the BIOS's `DMAOR` and no SH-4 channel set-up of ours.
+- Dither must be off for the target pass. KallistiOS has the switch (`vid_set_dithering`).
+- Copy first, then compare from RAM. Reading the map straight from video memory per vertex costs more than copying all of it.
+
+**Corrections to the sections above** (they were written before any run):
+
+- Section 1 expected 0.64 ms for 32 KB from Sega's 51.4 MB/s. The console gave 0.91 ms, about 36 MB/s.
+- Section 1 said the DMA runs while the SH-4 works on other things. `CHCR0` = 0x000853C3 has the burst bit set (bit 7), with 32-byte units, external request, device to memory. **Inferred:** in burst mode the DMA holds the bus until it ends, so the SH-4 does little else for that 0.91 ms. Count it as CPU time until measured otherwise.
+- Section 2 expected 8.2 ms for 20,000 two-byte reads; the console gave 12.9 ms including the loop (the same loop on RAM took 2.8 ms).
+
+**Not settled; inferred from the numbers:**
+
+- **The 16 pixels.** After the first render they held the SH-4's prefill. After the second (the 10-bit FLAT test, which prefilled again and drew a black background) they held 0x07E0, the green background of the render before. So the render before did write them, late. **Inferred:** the PVR holds the last 32 bytes of a render and writes them when the next render begins. If so, a read or a download taken at render-done always has those 16 pixels one render old. Their exact place, whether a taller target moves them out of the map, and whether a screen pass brings them out are s3's E test.
+- **Sixteen bits to within one code, not exactly.** The 16-bit FLAT test puts every value in the middle of a step, so a pixel one code off is not rounding at a step: the wrapped coordinate (v = 1024 u, up to several hundred) came out up to one code low. **Inferred:** the PVR keeps about 15 significant bits of a texture coordinate. One fit, not a measurement: the OVER quad's v of 706.68 returning row 42 where 43.5 was asked is what a coordinate kept to 1/32 at that size would give. s3's P test measures it at six sizes.
+- **The TILT test is the real case** (a code of a / k through the PVR's perspective division) and it stayed within one code at about 345 codes a pixel.
+
+### What one code is worth
+
+For a map whose depth range is 60 m, one code of 65,536 is about 0.9 mm. Route B's compare bias is about 2 cm, some 20 codes. An error of one or two codes is far inside it. **Inferred:** a 16-bit ramp is more than the compare needs, and a ramp with fewer wrapped bits (1,024 x 16, 14 bits, 3.7 mm a code over 60 m) would do with less strain on the coordinate.
+
+### Integration plan for a real AB source
+
+Nothing here is built. Each step names what it rests on.
+
+1. **The map pass** (rests on: FLAT, TILT, OVER measured).
+   - A uniform map first. The casters are drawn into the map target as route A draws them, with the ramp header: point sampled, REPLACE, non-twiddled, no culling, opaque list.
+   - Vertex depth z = k, a value that grows toward the light, kept in a narrow range (for example 1 to 1.25) so the code is close to linear in depth.
+   - Texture coordinate u = B - A / k, v = 1024 u. Then u k = B k - A is linear over the triangle, which is what the PVR interpolates; the pixel gets B - A / k of its own k. A and B are chosen so the code runs from 1 at the far end to 65,535 at the near end.
+   - Background black: code 0 is "empty", and a bigger code is nearer the light. This is route B's convention, so the compare's sense does not change.
+   - The code is not linear in depth. The SH-4 computes the same B - A / k for a receiver, and the bias is converted to codes at that depth.
+2. **Dither** (rests on: dither on destroys the code, measured; the per-pass switch is s3's D test). Dither off before the map pass's list is closed, back on after the map's render-done and before the screen pass's list is closed.
+3. **The held pixels** (rests on: the inference above; s3's E test). Until measured: keep the casters out of the map's last tile row, so the pixels that are one render old are background in both renders.
+4. **The copy back** (rests on: the download, measured).
+   - After the map's render-done: PVR-DMA from the target into the hook's write slot, 0.91 ms for 128 x 128. The slot's buffer must be 32-byte aligned; its cache lines are purged before and invalidated after.
+   - Then `psm_mapsrc_ready` (`demo/psm/psm_mapsrc.h`). The fill callback answers `PSM_MAPSRC_PENDING` when it has sent the map pass.
+   - KallistiOS has no download, so the register writes are the client's (the spike's `pd_download`). KallistiOS's own PVR DMA (channel 2, uploads) must not run at the same time; a client that sends vertices by the store queues, as this demo does, does not use it.
+5. **The frame's order** (rests on: KallistiOS's source, `pvr_irq.c`: a render to a texture starts as soon as its lists are in and the PVR is free; **inferred**, not timed).
+   1. Compare the receivers against the read slot (the map of the frame before).
+   2. Dither off. Send the map pass for this frame. Close it.
+   3. Open the screen pass and send the world with the colours from step 1.
+   4. Wait for the map's render-done. Dither on. Download into the write slot. Mark it ready.
+   5. Close the screen pass.
+
+   The hook swaps the slots at the start of the next frame: a one-frame lag, as its delay 1 has it.
+6. **The compare** (rests on: route B's compare; the new part is not written). Route B's per-vertex compare with the receiver's key as B - A / k: one reciprocal a vertex more than route B. The map is read as it is: no decode pass, as long as the raw 16 bits are used as the code.
+7. **The costs to fill in from s3's C lines** before any claim: the PVR's render time for a caster-like pass at 128, 256 and 512; the download at each size (128: measured, 0.91 ms; 512 x 512 = 512 KB: measured as a download, 14.8 ms, which is most of a frame); the SH-4's send time. Route B's raster time is what the route has to beat, and it has not been timed on a console either.
+
+### Open
+
+- Everything in "Not settled".
+- Whether the download can be slower or faster with the PVR rendering at the same time. The plan above downloads between two renders.
+- A warped (perspective) map: its depth is not the uniform map's, and the code's form for it is not worked out.
+- One console. Nothing is known about another unit or a different video cable or mode.
+
 ## Could not read
 
 - KOS `dc/video.c` (`vid_set_mode`, where `FB_W_CTRL` is set).

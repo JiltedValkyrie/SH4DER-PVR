@@ -34,7 +34,7 @@
 #define AB_RAMP_W 1024u
 #define AB_RAMP10_H 8u
 #define AB_RAMP16_H 64u
-#define AB_RECTS_MAX 4u
+#define AB_RECTS_MAX 6u
 #define AB_HARD_MARGIN 0.125f      /* a wrong pixel whose exact value sits further than this (in codes) from a step is "hard" */
 
 /* A rectangle on the target. k(X) = k0 + kx (X - x0); n(X, Y) = n0 + nx (X - x0) + ny (Y - y0); u = n / k. */
@@ -51,6 +51,8 @@ typedef struct ab_test {
 } ab_test_t;
 
 enum { AB_TEST_FLAT = 0, AB_TEST_TILT = 1, AB_TEST_OVER = 2, AB_TESTS = 3 };
+#define AB_TEST_PREC 3u            /* 16 bits only, beside the three: the wrapped v at six sizes of the code */
+#define AB_PREC_BANDS 6u
 
 static inline float ab_codes(int bits) { return bits == 16 ? 65536.0f : 1024.0f; }
 
@@ -73,7 +75,17 @@ static inline void ab_rect_tilt(ab_rect_t *r, float x0, float y0, float x1, floa
     r->n0 = a; r->nx = 0.0f; r->ny = 0.0f;
 }
 
-/* The three tests, for a ramp of `bits` (10 or 16). 0 for a bad input. */
+/* Band i of the precision test: the code at its left pixel, and its rows y0 .. y1 - 1. The code rises by one a pixel
+   across the band, mid-step, so each band asks whether the low bits survive at that size of u and v (v = 1024 u is
+   1 at the first band and 896 at the last). */
+static inline unsigned ab_prec_base(unsigned i) {
+    static const unsigned base[AB_PREC_BANDS] = { 64u, 1024u, 4096u, 16384u, 32768u, 57344u };
+
+    return base[i < AB_PREC_BANDS ? i : 0u];
+}
+static inline void ab_prec_rows(unsigned i, unsigned *y0, unsigned *y1) { *y0 = 8u + 18u * i; *y1 = *y0 + 16u; }
+
+/* The tests, for a ramp of `bits` (10 or 16; AB_TEST_PREC: 16 alone). 0 for a bad input. */
 static inline int ab_test_make(ab_test_t *t, unsigned which, int bits) {
     if (!t || (bits != 10 && bits != 16)) return 0;
     memset(t, 0, sizeof *t);
@@ -102,6 +114,17 @@ static inline int ab_test_make(ab_test_t *t, unsigned which, int bits) {
             ab_rect_flat(&t->rect[1], bits, 48.0f, 8.0f, 120.0f, 64.0f, 0.4f, 19285.0f, 0.0f, 0.0f);
             ab_rect_flat(&t->rect[2], bits, 48.0f, 64.0f, 120.0f, 120.0f, 0.4f, 19285.0f, 0.0f, 0.0f);
             ab_rect_flat(&t->rect[3], bits, 8.0f, 64.0f, 80.0f, 120.0f, 0.8f, 45227.0f, 0.0f, 0.0f);
+        }
+        return 1;
+    case AB_TEST_PREC:
+        if (bits != 16) return 0;
+        t->name = "PREC";
+        t->nrect = AB_PREC_BANDS;
+        for (which = 0; which < AB_PREC_BANDS; which++) {
+            unsigned y0, y1;
+
+            ab_prec_rows(which, &y0, &y1);
+            ab_rect_flat(&t->rect[which], bits, 8.0f, (float)y0, 120.0f, (float)y1, 1.0f, (float)ab_prec_base(which), 1.0f, 0.0f);
         }
         return 1;
     default:
@@ -170,17 +193,20 @@ typedef struct ab_stats {
     unsigned hard;                 /* of those: not explained by rounding at a step (margin over AB_HARD_MARGIN, or off by more than 1) */
     unsigned cover;                /* of those: a quad's pixel that came back as background, or the other way round */
     unsigned max_err;              /* the largest difference, coverage errors left out */
+    unsigned neg1, pos1, more;     /* by sign: came back one under the model, one over, further off (coverage errors left out) */
+    unsigned cx0, cx1, cy0, cy1;   /* the box round the coverage errors (cover > 0) */
     unsigned lo_bad, hi_bad;       /* 16 bits: pixels whose low 6 bits (the wrapped v) differ, whose high 10 (the clamped u) differ */
     unsigned first_x, first_y, first_got, first_want;   /* the first hard pixel (or the first bad one when none is hard) */
     int first_set, first_hard;
 } ab_stats_t;
 
-/* Compare a target (AB_SIZE x AB_SIZE, row y at got + y * stride) with the model. */
-static inline void ab_check(const ab_test_t *t, int bits, const uint16_t *got, unsigned stride, float ox, float oy, ab_stats_t *st) {
+/* Compare rows y0 .. y1 - 1 of a target (AB_SIZE wide, row y at got + y * stride) with the model. */
+static inline void ab_check_rows(const ab_test_t *t, int bits, const uint16_t *got, unsigned stride, float ox, float oy,
+                                 unsigned y0, unsigned y1, ab_stats_t *st) {
     unsigned x, y;
 
     memset(st, 0, sizeof *st);
-    for (y = 0; y < AB_SIZE; y++) {
+    for (y = y0; y < y1 && y < AB_SIZE; y++) {
         for (x = 0; x < AB_SIZE; x++) {
             float margin;
             const unsigned want = ab_predict(t, bits, x, y, ox, oy, &margin), have = got[y * stride + x];
@@ -191,8 +217,19 @@ static inline void ab_check(const ab_test_t *t, int bits, const uint16_t *got, u
             if (!err) continue;
             st->bad++;
             hard = err > 1u || margin > AB_HARD_MARGIN;
-            if (!want || !have) { st->cover++; hard = 1; }
-            else if (err > st->max_err) st->max_err = err;
+            if (!want || !have) {
+                if (!st->cover) { st->cx0 = st->cx1 = x; st->cy0 = st->cy1 = y; }
+                if (x < st->cx0) st->cx0 = x;
+                if (x > st->cx1) st->cx1 = x;
+                if (y < st->cy0) st->cy0 = y;
+                if (y > st->cy1) st->cy1 = y;
+                st->cover++; hard = 1;
+            } else {
+                if (err > st->max_err) st->max_err = err;
+                if (err > 1u) st->more++;
+                else if (have < want) st->neg1++;
+                else st->pos1++;
+            }
             st->hard += (unsigned)hard;
             if (bits == 16) {
                 st->lo_bad += (want & 63u) != (have & 63u);
@@ -204,6 +241,11 @@ static inline void ab_check(const ab_test_t *t, int bits, const uint16_t *got, u
             }
         }
     }
+}
+
+/* Compare a whole target (AB_SIZE x AB_SIZE) with the model. */
+static inline void ab_check(const ab_test_t *t, int bits, const uint16_t *got, unsigned stride, float ox, float oy, ab_stats_t *st) {
+    ab_check_rows(t, bits, got, stride, ox, oy, 0u, AB_SIZE, st);
 }
 
 /* The sample point that fits best: the model is tried with the sample moved by -0.5, 0 and +0.5 pixels each way, and
