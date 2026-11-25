@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""SH4DER-PVR: the PVR-side compare spike and the modifier volume spike, build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+"""SH4DER-PVR: the PVR-side compare spikes (cmp, vol, sub), build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
-    python demo/psm/compare/build.py [--spike cmp|vol] [--tag <tag>] [--out <dir>] [--cdi-dir <dir>] [--mkdcdisc <exe>] [--host-cc <cc>] [--host-only] [--elf-only]
+    python demo/psm/compare/build.py [--spike cmp|vol|sub] [--tag <tag>] [--out <dir>] [--cdi-dir <dir>] [--mkdcdisc <exe>] [--host-cc <cc>] [--host-only] [--elf-only]
 
 Run it in a shell where the KallistiOS environment is sourced (kos-cc on the PATH, KOS_BASE set). It fetches nothing
 and touches no file outside --out (default build/psm_cmp) and --cdi-dir (default demo/psm/out/cdi, the one place
@@ -11,7 +11,8 @@ the images are kept; git ignores it). Steps, each refusing to go on when it fail
   2 elf        kos-cc <spike>_spike.c -> <out>/psm-<spike>-<tag>.elf
   3 image      mkdcdisc -> <cdi-dir>/psm-<spike>-<tag>.cdi. An image that is there is never overwritten: pick a new --tag
 
---spike cmp (default tag c1) is the compare by blending; --spike vol (default tag c2) is modifier volumes at scale.
+--spike cmp (default tag c1) is the compare by blending; --spike vol (default tag c2) is modifier volumes at scale;
+--spike sub (default tag c3) is the bump unit as a subtract, the frame buffer write threshold, punch-through and fog.
 
 --host-only stops after step 1 (no KallistiOS needed). --elf-only stops after step 2 (no mkdcdisc needed).
 """
@@ -43,7 +44,7 @@ def find_kos_cc():
 
 def main():
     ap = argparse.ArgumentParser(description="Build the PVR-side compare spike.")
-    ap.add_argument("--spike", choices=("cmp", "vol"), default="cmp")
+    ap.add_argument("--spike", choices=("cmp", "vol", "sub"), default="cmp")
     ap.add_argument("--tag", default=None)
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "psm_cmp"))
     ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "demo", "psm", "out", "cdi"))
@@ -52,7 +53,7 @@ def main():
     ap.add_argument("--host-only", action="store_true")
     ap.add_argument("--elf-only", action="store_true")
     a = ap.parse_args()
-    tag = a.tag or {"cmp": "c1", "vol": "c2"}[a.spike]
+    tag = a.tag or {"cmp": "c1", "vol": "c2", "sub": "c3"}[a.spike]
 
     out = os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
