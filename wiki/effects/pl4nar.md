@@ -40,7 +40,7 @@ Times (README:869-873). **Measured on a console so far: the street demo's lookup
 | Item | What is known | Status |
 |---|---|---|
 | Lookups, street demo | 0.92 to 0.97 ms a frame for the player car's body, 320 vertices; about 2.9 to 3.0 us a vertex (DERIVED) (PVR-160) | MEASURED, 1 console, 1 run |
-| Targets | 32 KB at 128 × 64, 128 KB at 256 × 128, 512 KB at 512 × 256 (1,024 wide), no NOVRAM in any stage (PVR-161) | MEASURED, 1 console, 1 run |
+| Targets, street demo | 32 KB at 128 × 64, 128 KB at 256 × 128, 512 KB at 512 × 256, no NOVRAM in any stage (PVR-161, PVR-175). The demo's target is twice the mirror's width (the mirror and the shadow tiles side by side), so these are 2 × w × h × 2 B; the library's own target for a mirror alone is half that | MEASURED, 1 console, 2 runs |
 | Mirror pass, SH-4, street demo | about 41 ms a frame: reflection on against off, frame times MEASURED (PVR-160); the target size changes nothing | DERIVED |
 | Mirror pass and screen PVR, street demo | 3.55 to 9.43 ms in the page's columns, from a bug in our sampling (PVR-162) | ESTIMATE |
 | Lookup, body | 0.43 ms for 1,623 vertices, one run of an older version | REPORTED (emulator, not evidence). This version is estimated 15-20 % less. |
