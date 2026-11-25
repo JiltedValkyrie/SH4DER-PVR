@@ -12,7 +12,8 @@
    - the special cases: +0 at a zero of either sign, the ends, arguments past +-1, a NaN, the sign, the odd symmetry of the arcsine,
      acos(-x) = pi - acos(x)
    - a constant argument takes the compile-time path and lands within a float of the true angle
-   - SH4ZAM's routines on the same arguments: their worst error is printed beside it
+   - the file landed: SH4ZAM took it as commit cff97e8 (#92), so SH4ZAM master ff39547's shz_asinf / shz_acosf must give the file's
+     bits for every argument here ("SH4ZAM ff39547 claim"; a later SH4ZAM change fails by name)
 */
 
 #include "../../doc/upstream/shz_asin_acos.h"
@@ -55,6 +56,7 @@ int main(void) {
             T_CHECK(t_bits(asm_) == (t_bits(as) ^ 0x80000000u) || (as == 0.0f && asm_ == 0.0f), "asinf is not odd at %.9g: %.9g and %.9g", (double)x, (double)as, (double)asm_);
             T_CHECK(fabs(((double)ac + acm) - PI_D) <= 5e-7, "acosf(x) + acosf(-x) = %.9g at %.9g", (double)ac + acm, (double)x);
         }
+        T_CHECK(t_bits(shz_asinf(x)) == t_bits(as) && t_bits(shz_acosf(x)) == t_bits(ac), "SH4ZAM ff39547 claim: shz_asinf / shz_acosf(%a) are the file's bits", (double)x);
         if (fabsf(x) < 1.0f) {
             const double eos = fabs(shz_asinf(x) - asin((double)x)), eoc = fabs(shz_acosf(x) - acos((double)x));
             if (eos > worst_os) worst_os = eos;
@@ -80,6 +82,6 @@ int main(void) {
     T_CHECK(fabs(shz_asinf_quartic(0.5f) - asin(0.5)) <= 1.2e-7 && fabs(shz_acosf_quartic(0.5f) - acos(0.5)) <= 1.2e-7, "constant 0.5");
     T_CHECK(fabs(shz_asinf_quartic(2.0f) - PI_D / 2) <= 1.2e-7 && shz_acosf_quartic(2.0f) == 0.0f && fabs(shz_acosf_quartic(-3.0f) - PI_D) <= 2.4e-7, "constants past the ends");
     printf("worst error against the true angle, rad: asinf %.3g (SH4ZAM %.3g), acosf %.3g (SH4ZAM %.3g); bound %.3g\n", worst_as, worst_os, worst_ac, worst_oc, BOUND);
-    T_CHECK(worst_os > 100.0 * worst_as && worst_oc > 100.0 * worst_ac, "the file says the proposal is far closer than SH4ZAM's routines");
+    T_CHECK(worst_os == worst_as && worst_oc == worst_ac, "SH4ZAM ff39547 claim: its routines are the file's (the same worst errors)");
     return t_done("upstream_test");
 }

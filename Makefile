@@ -19,7 +19,7 @@ HDR      = include/sh4der_core.h include/sh4der_blade.h include/sh4der_holo.h in
 # Not named KOS_CC / KOS_AR: the KallistiOS environment already sets those to the bare compiler and archiver.
 DC_CC   ?= kos-cc
 DC_AR   ?= kos-ar
-# SH4ZAM v0.10.0 (MIT, Falco Girgis) is not shipped: git ignores third_party/sh4zam, `make check-sh4zam` says how to fetch it.
+# SH4ZAM (MIT, Falco Girgis; a git clone of its master, 0.10 or later, kept current with git pull) is not shipped: git ignores third_party/sh4zam, `make check-sh4zam` says how to fetch it.
 # Override SH4ZAM to use another checkout.
 SH4ZAM  ?= third_party/sh4zam
 # SH4ZAM-DCE (header-only, on top of SH4ZAM) is included in third_party/sh4zam-dce; the ocean demo needs it. Override SH4ZAM_DCE to use another checkout.

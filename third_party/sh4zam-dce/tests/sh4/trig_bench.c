@@ -22,16 +22,10 @@ F1(bench_asinf, shz_dce_asinf(x))
 F1(bench_acosf_shz, shz_acosf(x))
 F1(bench_acosf, shz_dce_acosf(x))
 
-/* the barrier off (_plain) and on (_opaque), whatever the switch says; then every argument past 1 (x + 2: the range test's other
-   side; the add is the same in every row) */
-F1(bench_asinf_plain, shz_dce_asinf_o_(x, 0))
-F1(bench_asinf_opaque, shz_dce_asinf_o_(x, 1))
-F1(bench_acosf_plain, shz_dce_acosf_o_(x, 0))
-F1(bench_acosf_opaque, shz_dce_acosf_o_(x, 1))
-F1(bench_asinf_past1_plain, shz_dce_asinf_o_(x + 2.0f, 0))
-F1(bench_asinf_past1_opaque, shz_dce_asinf_o_(x + 2.0f, 1))
-F1(bench_acosf_past1_plain, shz_dce_acosf_o_(x + 2.0f, 0))
-F1(bench_acosf_past1_opaque, shz_dce_acosf_o_(x + 2.0f, 1))
+/* every argument past 1 (x + 2: the range test's other side; the add is the same in every row). The wrappers are SH4ZAM's routines
+   (master ff39547), so the _shz rows and the plain rows must cost the same */
+F1(bench_asinf_past1, shz_dce_asinf(x + 2.0f))
+F1(bench_acosf_past1, shz_dce_acosf(x + 2.0f))
 
 /* ---- not reworked: the figures behind the header's list ---- */
 

@@ -25,6 +25,7 @@
 #define N 4096u
 
 static double worst_as, worst_ac, worst_os, worst_oc;
+static unsigned differ, fast_build;   /* arguments where SH4ZAM's routines and the file's differ in some bit; how the kernels were built */
 
 static void run(int kind) {
     const uint32_t aj = ram(sizeof(job_upstream_t), 4, 0), ai = ram(N * 4, 8, 4);
@@ -60,6 +61,8 @@ static void run(int kind) {
             if (!j->fast) T_CHECK(as[k] != as[k] && ac[k] != ac[k], "a NaN gave %08x %08x", (unsigned)t_bits(as[k]), (unsigned)t_bits(ac[k]));
             continue;
         }
+        fast_build = j->fast;
+        if (t_bits(as[k]) != t_bits(os[k]) || t_bits(ac[k]) != t_bits(oc[k])) differ++;
         T_CHECK(es <= BOUND, "asinf(%.9g) = %.9g, true %.9g, off by %.3g", x, (double)as[k], asin(c), es);
         T_CHECK(ec <= BOUND, "acosf(%.9g) = %.9g, true %.9g, off by %.3g", x, (double)ac[k], acos(c), ec);
         T_CHECK(as[k] == 0.0f || (as[k] < 0.0f) == (in[k] < 0.0f), "asinf(%.9g) = %.9g has the wrong sign", x, (double)as[k]);
@@ -92,6 +95,8 @@ int main(int argc, char **argv) {
     for (kind = 0; kind < 5; kind++)
         for (rep = 0; rep < (kind == 0 ? 1 : 6); rep++) run(kind);
     printf("worst error against the true angle, rad: asinf %.3g (SH4ZAM %.3g), acosf %.3g (SH4ZAM %.3g); bound %.3g\n", worst_as, worst_os, worst_ac, worst_oc, BOUND);
-    T_CHECK(worst_os > 100.0 * worst_as && worst_oc > 100.0 * worst_ac, "the file says the proposal is far closer than SH4ZAM's routines");
+    printf("SH4ZAM ff39547's shz_asinf / shz_acosf against the file's routines on the SH-4: %u arguments differ in some bit (%s build)\n", differ, fast_build ? "-ffast-math" : "strict");
+    T_CHECK(fast_build || differ == 0u, "SH4ZAM ff39547 claim: shz_asinf / shz_acosf are the file's (cff97e8, #92), bit for bit in a strict build");
+    T_CHECK(worst_os == worst_as && worst_oc == worst_ac, "SH4ZAM ff39547 claim: shz_asinf / shz_acosf are the file's (cff97e8, #92): the same worst errors on the SH-4");
     return t_done("upstream_check");
 }

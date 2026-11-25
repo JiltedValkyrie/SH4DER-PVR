@@ -14,13 +14,8 @@
 #include <stdint.h>
 
 #define TRIG_BUILT_FAST   0x01u   /* the kernels were built with -ffast-math */
-#define TRIG_BUILT_OPAQUE 0x02u   /* SHZ_DCE_OPAQUE_ASIN_ACOS */
 
-/* in: count floats; the outputs: count floats each. dce: the public routines (their barrier as the switch says); plain, opaque:
-   the reworks with the barrier off and on; shz: SH4ZAM's routines. built: set by the job, how the kernels were built */
-typedef struct {
-    uint32_t in, count, asin_dce, acos_dce, asin_shz, acos_shz;
-    uint32_t asin_plain, acos_plain, asin_opaque, acos_opaque, built;
-} job_trig_t;
+/* in: count floats; the outputs: count floats each. dce: the wrappers; shz: SH4ZAM's routines. built: set by the job */
+typedef struct { uint32_t in, count, asin_dce, acos_dce, asin_shz, acos_shz, built; } job_trig_t;
 
 #endif /* TRIG_JOBS_H */

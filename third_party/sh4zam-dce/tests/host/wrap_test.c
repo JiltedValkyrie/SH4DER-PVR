@@ -5,16 +5,19 @@
    Copyright (c) 2025, 2026 Falco Girgis and SH4ZAM Contributors.
    MIT License: see ../../LICENSE.
 
-   SH4ZAM has a routine for each of these seventeen jobs, so as built by default (SHZ_DCE_REWORK_ROOTS 0, SHZ_DCE_REWORK_FIPR 0)
-   the shz_dce_ name calls SH4ZAM's routine underneath and nothing is replaced. What is checked:
-   - the two build flags are off by default
-   - each of the seventeen gives, bit for bit, what SH4ZAM's routine of the same name gives: over random inputs and over zeros
-     of both signs, denormals, squares that underflow, negatives, infinities and NaN
-   The bodies behind the two flags are tested where they always were: sqrt_test.c and vector_test.c (which set the flags).
+   SH4ZAM has a routine for each of these twenty-one jobs (master ff39547, 2026-11-22), so the shz_dce_ name calls SH4ZAM's routine
+   underneath and nothing is replaced: the roots and lengths, the FIPR names, shz_dce_asinf / _acosf (SH4ZAM took them as cff97e8,
+   #92), shz_dce_atan2f (the same commit) and shz_dce_opaquef (SH4ZAM's shz_opaquef, 3cdff11). What is checked:
+   - each of the twenty-one gives, bit for bit, what SH4ZAM's routine gives: over random inputs and over zeros of both signs,
+     denormals, squares that underflow, negatives, infinities and NaN; each from its own function that is never inlined
+   Pinned to ff39547: a later SH4ZAM that changes a routine still passes here (the wrapper follows it); the routines' own claims are
+   pinned in sqrt_test.c, trig_test.c and atan2_test.c.
 */
 
 #include <sh4zam_dce/shz_dce_sqrt.h>
 #include <sh4zam_dce/shz_dce_vector.h>
+#include <sh4zam_dce/shz_dce_trig.h>
+#include <sh4zam_dce/shz_dce_atan2.h>
 
 #include "shz_dce_test.h"
 
@@ -34,7 +37,9 @@
     static NOINLINE shz_vec##n##_t d_vec##n##_##name(shz_vec##n##_t v) { return shz_dce_vec##n##_##name(v); } \
     static NOINLINE shz_vec##n##_t s_vec##n##_##name(shz_vec##n##_t v) { return shz_vec##n##_##name(v); }
 
-F1(sqrtf) F1(inv_sqrtf)
+F1(sqrtf) F1(inv_sqrtf) F1(asinf) F1(acosf) F1(opaquef)
+static NOINLINE float d_atan2f(float y, float x) { return shz_dce_atan2f(y, x); }
+static NOINLINE float s_atan2f(float y, float x) { return shz_atan2f(y, x); }
 static NOINLINE float d_hypotf(float x, float y) { return shz_dce_hypotf(x, y); }
 static NOINLINE float s_hypotf(float x, float y) { return shz_hypotf(x, y); }
 VF(2, magnitude, magnitude) VF(3, magnitude, magnitude) VF(4, magnitude, magnitude)
@@ -61,7 +66,6 @@ static float pick(int trial, int lane) {
 int main(void) {
     int trial;
 
-    T_CHECK(SHZ_DCE_REWORK_ROOTS == 0 && SHZ_DCE_REWORK_FIPR == 0, "the two rework flags must be off by default");
     for (trial = 0; trial < 60000; trial++) {
         float f[8];
         int i;
@@ -76,6 +80,12 @@ int main(void) {
             SAME(d_sqrtf(f[0]), s_sqrtf(f[0]), "sqrtf");
             SAME(d_inv_sqrtf(f[0]), s_inv_sqrtf(f[0]), "inv_sqrtf");
             SAME(d_hypotf(f[0], f[1]), s_hypotf(f[0], f[1]), "hypotf");
+            SAME(d_asinf(f[0]), s_asinf(f[0]), "asinf");
+            SAME(d_acosf(f[0]), s_acosf(f[0]), "acosf");
+            SAME(d_asinf(f[0] * 1e-2f), s_asinf(f[0] * 1e-2f), "asinf in range");
+            SAME(d_acosf(f[1] * 1e-2f), s_acosf(f[1] * 1e-2f), "acosf in range");
+            SAME(d_atan2f(f[0], f[1]), s_atan2f(f[0], f[1]), "atan2f");
+            SAME(d_opaquef(f[2]), s_opaquef(f[2]), "opaquef");
             SAME(d_vec2_magnitude(u.xy), s_vec2_magnitude(u.xy), "vec2_magnitude");
             SAME(d_vec3_magnitude(u.xyz), s_vec3_magnitude(u.xyz), "vec3_magnitude");
             SAME(d_vec4_magnitude(u), s_vec4_magnitude(u), "vec4_magnitude");
@@ -92,6 +102,6 @@ int main(void) {
             SAME(d_vec3_magnitude_fipr(u.xyz), s_vec3_magnitude(u.xyz), "vec3_magnitude_fipr");
         }
     }
-    printf("wrap: 17 shz_dce_ names == SH4ZAM's routine of the same job, bit for bit, 60000 inputs each\n");
+    printf("wrap: 21 shz_dce_ names == SH4ZAM's routine of the same job, bit for bit, 60000 inputs each\n");
     return t_done("wrap_test");
 }

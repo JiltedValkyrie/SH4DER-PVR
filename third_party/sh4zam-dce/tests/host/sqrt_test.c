@@ -5,29 +5,27 @@
    Copyright (c) 2025, 2026 Falco Girgis and SH4ZAM Contributors.
    MIT License: see ../../LICENSE.
 
-   What is checked:
-   - every rework against SH4ZAM's routine of the same name on the same input: the same bits. One allowance, counted and printed:
-     a zero result may differ in its sign in a build with -ffast-math (there the compiler may hand back the operand that compared
-     equal to zero; the SH-4 build pins the zero, tests/sh4/sqrt_check.c proves +0 there)
-   - zeros of both signs give zero; ordinary inputs give the exact root / length / unit vector within a loose bound
-   The SH-4 timing claim of the header (the test in FSRRA's shadow) is tests/sh4/sqrt_bench.c's.
+   Pinned to SH4ZAM master ff39547 (2026-11-22). What is checked:
+   - every wrapper against SH4ZAM's routine of the same name on the same input: the same bits (each from its own function that is
+     never inlined), over zeros of both signs, denormals, squares that underflow and overflow, negatives and ordinary numbers
+   - SH4ZAM's roots and lengths against the exact value within a loose bound; zeros give zero
+   - SH4ZAM ff39547 claim: shz_hypotf does not overflow for inputs near the largest float (it scales above 2^62)
+   The same on the SH-4 is tests/sh4/sqrt_check.c; tests/host/wrap_test.c checks every wrapper of the layer once more.
 */
 
-/* this file is about the reordered bodies: by default the header's routines are SH4ZAM's own, called underneath */
-#define SHZ_DCE_REWORK_ROOTS 1
 #include <sh4zam_dce/shz_dce_sqrt.h>
 
 #include "shz_dce_test.h"
 
 #define REL 9.5367431640625e-07   /* 2^-20 */
+#define NOINLINE __attribute__((noinline))
 
-static int zero_signs;
-
-static int same(float a, float b) {
-    if (t_bits(a) == t_bits(b)) return 1;
-    if ((t_bits(a) << 1) == 0u && (t_bits(b) << 1) == 0u) { zero_signs++; return 1; }
-    return 0;
-}
+static NOINLINE float d_sqrtf(float x) { return shz_dce_sqrtf(x); }
+static NOINLINE float s_sqrtf(float x) { return shz_sqrtf(x); }
+static NOINLINE float d_inv_sqrtf(float x) { return shz_dce_inv_sqrtf(x); }
+static NOINLINE float s_inv_sqrtf(float x) { return shz_inv_sqrtf(x); }
+static NOINLINE float d_hypotf(float x, float y) { return shz_dce_hypotf(x, y); }
+static NOINLINE float s_hypotf(float x, float y) { return shz_hypotf(x, y); }
 
 static const uint32_t special[] = {
     0x00000000u, 0x80000000u, 0x00800000u, 0x0da24260u, 0x1e3ce508u, 0x3f800000u, 0x40800000u, 0x3e800000u, 0x40000000u, 0x3f000000u,
@@ -45,6 +43,8 @@ static float pick(void) {
     }
 }
 
+#define SAME(a, b, what) T_CHECK(t_bits(a) == t_bits(b), "wrapper: %s: %08x, SH4ZAM's %08x", what, (unsigned)t_bits(a), (unsigned)t_bits(b))
+
 /* volatile: the routines see run-time values (a constant operand takes SH4ZAM's own compile-time path) */
 static volatile float vx, vy;
 
@@ -59,45 +59,46 @@ int main(void) {
             const shz_vec4_t u = shz_vec4_init(a[0], a[1], a[2], a[3]), v = shz_vec4_init(b[0], b[1], b[2], b[3]);
             float x, y;
             vx = a[0]; vy = b[0]; x = vx; y = vy;
-            if (x >= 0.0f) {
-                const float r = shz_dce_sqrtf(x), i = shz_dce_inv_sqrtf(x);
-                T_CHECK(same(r, shz_sqrtf(x)), "sqrtf(%a): %a, SH4ZAM %a", (double)x, (double)r, (double)shz_sqrtf(x));
-                T_CHECK(same(i, shz_inv_sqrtf(x)), "inv_sqrtf(%a): %a, SH4ZAM %a", (double)x, (double)i, (double)shz_inv_sqrtf(x));
-                if (x == 0.0f) T_CHECK(r == 0.0f && i == 0.0f, "a zero must give zero: %a %a", (double)r, (double)i);
-                else {
-                    T_CHECK(fabs(r - sqrt((double)x)) <= sqrt((double)x) * REL, "sqrtf(%g) = %g", (double)x, (double)r);
-                    T_CHECK(fabs(i - 1.0 / sqrt((double)x)) <= REL / sqrt((double)x), "inv_sqrtf(%g) = %g", (double)x, (double)i);
-                }
+            SAME(d_sqrtf(x), s_sqrtf(x), "sqrtf");
+            SAME(d_inv_sqrtf(x), s_inv_sqrtf(x), "inv_sqrtf");
+            SAME(d_hypotf(x, y), s_hypotf(x, y), "hypotf");
+            if (x == 0.0f) T_CHECK(s_sqrtf(x) == 0.0f && s_inv_sqrtf(x) == 0.0f, "a zero must give zero");
+            else if (x > 0.0f) {
+                T_CHECK(fabs(s_sqrtf(x) - sqrt((double)x)) <= sqrt((double)x) * REL, "sqrtf(%g) = %g", (double)x, (double)s_sqrtf(x));
+                T_CHECK(fabs(s_inv_sqrtf(x) - 1.0 / sqrt((double)x)) <= REL / sqrt((double)x), "inv_sqrtf(%g) = %g", (double)x, (double)s_inv_sqrtf(x));
             }
-            T_CHECK(same(shz_dce_hypotf(x, y), shz_hypotf(x, y)), "hypotf(%a, %a)", (double)x, (double)y);
-            T_CHECK(same(shz_dce_vec2_magnitude(u.xy), shz_vec2_magnitude(u.xy)), "vec2 magnitude");
-            T_CHECK(same(shz_dce_vec3_magnitude(u.xyz), shz_vec3_magnitude(u.xyz)), "vec3 magnitude");
-            T_CHECK(same(shz_dce_vec4_magnitude(u), shz_vec4_magnitude(u)), "vec4 magnitude");
-            T_CHECK(same(shz_dce_vec2_magnitude_inv(u.xy), shz_vec2_magnitude_inv(u.xy)), "vec2 magnitude_inv");
-            T_CHECK(same(shz_dce_vec3_magnitude_inv(u.xyz), shz_vec3_magnitude_inv(u.xyz)), "vec3 magnitude_inv");
-            T_CHECK(same(shz_dce_vec4_magnitude_inv(u), shz_vec4_magnitude_inv(u)), "vec4 magnitude_inv");
-            T_CHECK(same(shz_dce_vec2_distance(u.xy, v.xy), shz_vec2_distance(u.xy, v.xy)), "vec2 distance");
-            T_CHECK(same(shz_dce_vec3_distance(u.xyz, v.xyz), shz_vec3_distance(u.xyz, v.xyz)), "vec3 distance");
-            T_CHECK(same(shz_dce_vec4_distance(u, v), shz_vec4_distance(u, v)), "vec4 distance");
+            {
+                const double h = sqrt((double)x * x + (double)y * y);
+                if (h > 1e-15 && h < 3.4e38) T_CHECK(fabs(s_hypotf(x, y) - h) <= h * 2.0 * REL, "SH4ZAM ff39547 claim: hypotf(%a, %a) = %g, exact %g", (double)x, (double)y, (double)s_hypotf(x, y), h);
+            }
+            SAME(shz_dce_vec2_magnitude(u.xy), shz_vec2_magnitude(u.xy), "vec2 magnitude");
+            SAME(shz_dce_vec3_magnitude(u.xyz), shz_vec3_magnitude(u.xyz), "vec3 magnitude");
+            SAME(shz_dce_vec4_magnitude(u), shz_vec4_magnitude(u), "vec4 magnitude");
+            SAME(shz_dce_vec2_magnitude_inv(u.xy), shz_vec2_magnitude_inv(u.xy), "vec2 magnitude_inv");
+            SAME(shz_dce_vec3_magnitude_inv(u.xyz), shz_vec3_magnitude_inv(u.xyz), "vec3 magnitude_inv");
+            SAME(shz_dce_vec4_magnitude_inv(u), shz_vec4_magnitude_inv(u), "vec4 magnitude_inv");
+            SAME(shz_dce_vec2_distance(u.xy, v.xy), shz_vec2_distance(u.xy, v.xy), "vec2 distance");
+            SAME(shz_dce_vec3_distance(u.xyz, v.xyz), shz_vec3_distance(u.xyz, v.xyz), "vec3 distance");
+            SAME(shz_dce_vec4_distance(u, v), shz_vec4_distance(u, v), "vec4 distance");
             {
                 const shz_vec2_t n2 = shz_dce_vec2_normalize_safe(u.xy), o2 = shz_vec2_normalize_safe(u.xy);
                 const shz_vec3_t n3 = shz_dce_vec3_normalize_safe(u.xyz), o3 = shz_vec3_normalize_safe(u.xyz);
                 const shz_vec4_t n4 = shz_dce_vec4_normalize_safe(u), o4 = shz_vec4_normalize_safe(u);
                 const double m3 = (double)a[0] * a[0] + (double)a[1] * a[1] + (double)a[2] * a[2];
-                T_CHECK(same(n2.x, o2.x) && same(n2.y, o2.y), "vec2 normalize_safe");
-                T_CHECK(same(n3.x, o3.x) && same(n3.y, o3.y) && same(n3.z, o3.z), "vec3 normalize_safe");
-                T_CHECK(same(n4.x, o4.x) && same(n4.y, o4.y) && same(n4.z, o4.z) && same(n4.w, o4.w), "vec4 normalize_safe");
+                T_CHECK(!memcmp(&n2, &o2, sizeof n2), "wrapper: vec2 normalize_safe");
+                T_CHECK(!memcmp(&n3, &o3, sizeof n3), "wrapper: vec3 normalize_safe");
+                T_CHECK(!memcmp(&n4, &o4, sizeof n4), "wrapper: vec4 normalize_safe");
                 if (m3 > 1e-30 && m3 < 1e30) {
-                    const double l2 = (double)n3.x * n3.x + (double)n3.y * n3.y + (double)n3.z * n3.z;
+                    const double l2 = (double)o3.x * o3.x + (double)o3.y * o3.y + (double)o3.z * o3.z;
                     T_CHECK(fabs(l2 - 1.0) <= 8.0 * REL, "vec3 normalize_safe: squared length %.9g", l2);
-                    T_CHECK(fabs(shz_dce_vec3_magnitude(u.xyz) - sqrt(m3)) <= sqrt(m3) * 4.0 * REL, "vec3 magnitude against the exact length");
+                    T_CHECK(fabs(shz_vec3_magnitude(u.xyz) - sqrt(m3)) <= sqrt(m3) * 4.0 * REL, "vec3 magnitude against the exact length");
                 } else if (m3 == 0.0) {
-                    T_CHECK(n3.x == 0.0f && n3.y == 0.0f && n3.z == 0.0f && shz_dce_vec3_magnitude(u.xyz) == 0.0f && shz_dce_vec3_magnitude_inv(u.xyz) == 0.0f,
+                    T_CHECK(o3.x == 0.0f && o3.y == 0.0f && o3.z == 0.0f && shz_vec3_magnitude(u.xyz) == 0.0f && shz_vec3_magnitude_inv(u.xyz) == 0.0f,
                             "the zero vector must give zeros");
                 }
             }
         }
     }
-    printf("sqrt: every rework == SH4ZAM's routine; %d zero results differed in sign only (0 in a strict build)\n", zero_signs);
+    printf("sqrt: every wrapper == SH4ZAM's routine bit for bit, 400000 inputs (SH4ZAM ff39547)\n");
     return t_done("sqrt_test");
 }

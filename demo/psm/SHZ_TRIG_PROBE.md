@@ -4,6 +4,18 @@ Written 2026-11-25.
 
 **Scope.** This is SH4ZAM's software back end (`source/sw`) on the host only. Nothing here was checked on a console. The SH-4 back end may give other numbers.
 
+## Fixed upstream (2026-11-25)
+
+SH4ZAM PR #92, "More accurate shz_asinf(), shz_acosf() and shz_atan2f()" (merged 2026-11-19), fixed both calls. The same probe against SH4ZAM master `ff39547` (2026-11-22), host software back end:
+
+| Call | v0.10.0 | master `ff39547` |
+|---|---|---|
+| `shz_asinf(x)` | 0.2837 degrees | 0.0003 degrees |
+| `shz_atan2f(y, x)` | 0.5815 degrees | 0.0007 degrees |
+| `shz_dce_atan2f(y, x)` | 0.0007 degrees | 0.0007 degrees |
+
+Plain SH4ZAM now matches `shz_dce_atan2f`. `psm_scene.h` still goes through `shz_dce_atan2f` for the town's sun; it could return to `shz_atan2f` and `shz_asinf`. The console back end is still unchecked (see "Reading" below).
+
 ## Why it came up
 
 `psm_sun_at` (`demo/psm/psm_town.h`) gives the town's sun from the clock. `test/psm_town_test.c` checks it against the story's table: azimuth within 0.6 degrees, elevation within 0.1 degrees.

@@ -33,7 +33,10 @@
     same stride (in place: a record is loaded before any record at or after it is stored);
     any other overlap is not allowed.
 
-    Order: load XMTRX first; it is read, not changed.
+    Order: load XMTRX first; it is read, not changed. Not every SH4ZAM routine leaves it alone:
+    shz_sq_memcpy32_xmtrx(), shz_sq_memcpy32_1_xmtrx() and shz_memswap32_1_xmtrx() use the back
+    bank as scratch, so a copy made with one of them between the load and a call here gives a
+    wrong matrix. Load XMTRX again after such a copy (SH4ZAM ff39547).
 
     Alignment: every pointer and every stride on a multiple of 4. The SH-4 loops make 4-byte
     accesses only.

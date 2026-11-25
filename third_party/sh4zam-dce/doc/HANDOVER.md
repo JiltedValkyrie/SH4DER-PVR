@@ -13,11 +13,11 @@ Based on SH4ZAM by Falco Girgis (https://github.com/gyrovorbis/sh4zam). One page
 | `shz_dce_gather.h` | scattered reads of a bit-packed table (widths 1..16 each, 32 bits in all at most), float-table copy, prefetch helpers | YES |
 | `shz_dce_quat.h` | nlerp, product, normalise over arrays | NO |
 | `shz_dce_vector.h` | vec3 dot and normalise over arrays, dot4, cross (reference), FIPR length, FIPR vec4 normalise | NO but dot4, cross |
-| `shz_dce_sqrt.h` | reworks of SH4ZAM 0.10's guarded roots and lengths (zero test in FSRRA's shadow); a barrier switch a group | YES (zero path of a fast-math build: the operand, or +0 behind the barrier) |
-| `shz_dce_trig.h` | reworks of asinf, acosf (8e-6 rad) | NO |
-| `shz_dce_atan2.h` | rework of atan2f for accuracy: 1.4e-5 rad with the default 5 terms (SH4ZAM's: 1.02e-2), about 8 cycles more in the model; `SHZ_DCE_ATAN2_TERMS` 2, 5, 6, 7 (5 is the console's choice); switch `SHZ_DCE_USE_ATAN2`, on | NO |
-| `shz_dce_override.h` | macros: SH4ZAM's names on the reworks, one switch a group (`SHZ_DCE_USE_...`); a plain include renames asinf, acosf and atan2f only | |
-| `doc/upstream/shz_asin_acos.h` | the arcsine and arccosine as one file on SH4ZAM alone, for upstream; tested as it is | NO |
+| `shz_dce_sqrt.h` | SH4ZAM's roots and lengths under shz_dce_ names (wrappers; the reordered bodies were removed when SH4ZAM master ff39547 took the jobs) | YES (they are SH4ZAM's) |
+| `shz_dce_trig.h` | SH4ZAM's asinf, acosf under shz_dce_ names (wrappers: SH4ZAM took the rework as cff97e8, #92) | YES (they are SH4ZAM's) |
+| `shz_dce_atan2.h` | SH4ZAM's atan2f under a shz_dce_ name (wrapper: SH4ZAM took the rework as cff97e8, #92; the number of terms is SH4ZAM's `SHZ_ATAN2F_TERMS`) | YES (it is SH4ZAM's) |
+| `shz_dce_override.h` | macros: SH4ZAM's names on the shz_dce_ wrappers, one switch a group (`SHZ_DCE_USE_...`); every group now gives SH4ZAM's own routine | YES |
+| `doc/upstream/shz_asin_acos.h` | the arcsine and arccosine as one file on SH4ZAM alone, for upstream; LANDED as SH4ZAM cff97e8 (#92); its tests now check SH4ZAM master gives its bits | NO |
 
 A console (single calls, reported by Falco Girgis; THESIS.md, section 7): asinf / acosf win; the reordered roots, lengths and normalisations lose a cycle or two, so they are off by default. The batch routines have not been on a console.
 

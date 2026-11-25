@@ -38,6 +38,15 @@
     loop allocates a record's cache line before it has read the source record's last words. The
     SH-4 loop makes 4-byte accesses only.
 
+    Placing: keep in and out from being a multiple of 16 KB apart. The SH-4's operand cache is
+    16 KB and direct mapped, so two addresses a multiple of 16 KB apart share one cache entry;
+    record i of the source and record i of the output then put each other out of the cache at
+    every step, and so do the source lines asked for ahead. Two static arrays of 256 KB one
+    after the other are exactly that. One console measured this loop at 132 cycles a vertex on
+    such a placing, against 21 with both arrays in the cache and 58 with neither in it on a
+    placing that shares no entry (half a cache apart at equal offsets). The same holds for any
+    loop that reads one array and writes another.
+
     Bit-identical to the plain loop (the C form of this header): YES on the SH-4 (the same FTRV,
     the same FSRRA of the same product, one multiply each for sx and sy).
     Error bound: FTRV's ((largest product + abs result) x 2^-21 for X, Y, W) and FSRRA's; none

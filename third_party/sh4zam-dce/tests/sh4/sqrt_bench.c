@@ -11,8 +11,7 @@
    (an ESTIMATE, cache hits assumed), not a console's.
 */
 
-/* this file is about the reordered bodies: by default the header's routines are SH4ZAM's own, called underneath */
-#define SHZ_DCE_REWORK_ROOTS 1
+/* the wrappers are SH4ZAM's routines (master ff39547): each pair of rows must cost the same */
 #include <sh4zam_dce/shz_dce_sqrt.h>
 
 #define R SHZ_RESTRICT
@@ -44,16 +43,6 @@ V4F(bench_vec4_magnitude, shz_dce_vec4_magnitude(u))
 F2(bench_sqrtf_nonzero_shz, shz_sqrtf(x * x + 0.25f) + y)
 F2(bench_sqrtf_nonzero, shz_dce_sqrtf(x * x + 0.25f) + y)
 
-/* the barrier off (_plain) and on (_opaque), whatever the switches say: the rows above are the public routines, each as its
-   group's switch builds it */
-F1(bench_sqrtf_plain, shz_dce_sqrtf_o_(x, 0))
-F1(bench_sqrtf_opaque, shz_dce_sqrtf_o_(x, 1))
-F1(bench_inv_sqrtf_plain, shz_dce_inv_sqrtf_o_(x, 0))
-F1(bench_inv_sqrtf_opaque, shz_dce_inv_sqrtf_o_(x, 1))
-V3V(bench_vec3_normalize_safe_plain, shz_dce_vec3_normalize_safe_o_(u, 0))
-V3V(bench_vec3_normalize_safe_opaque, shz_dce_vec3_normalize_safe_o_(u, 1))
-
 /* four independent roots an element (the shape of one console measurement) */
 F2(bench_sqrtf4_shz, shz_sqrtf(x) + shz_sqrtf(y) + shz_sqrtf(x + 2.0f) + shz_sqrtf(y + 2.0f))
-F2(bench_sqrtf4_plain, shz_dce_sqrtf_o_(x, 0) + shz_dce_sqrtf_o_(y, 0) + shz_dce_sqrtf_o_(x + 2.0f, 0) + shz_dce_sqrtf_o_(y + 2.0f, 0))
-F2(bench_sqrtf4_opaque, shz_dce_sqrtf_o_(x, 1) + shz_dce_sqrtf_o_(y, 1) + shz_dce_sqrtf_o_(x + 2.0f, 1) + shz_dce_sqrtf_o_(y + 2.0f, 1))
+F2(bench_sqrtf4, shz_dce_sqrtf(x) + shz_dce_sqrtf(y) + shz_dce_sqrtf(x + 2.0f) + shz_dce_sqrtf(y + 2.0f))

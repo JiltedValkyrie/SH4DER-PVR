@@ -7,8 +7,8 @@
 */
 
 /** \file    shz_dce_override.h
-    \brief   One include that makes existing calls of SH4ZAM routines compile to their reworks,
-             one compile-time switch a group of routines.
+    \brief   One include that renames calls of SH4ZAM routines to their shz_dce_ names, one
+             compile-time switch a group of routines. Every such name is now SH4ZAM's routine.
 
     Every rework in SH4ZAM-DCE keeps the signature of the SH4ZAM routine it replaces. This header
     defines the SH4ZAM name as a macro for the rework, so a source file that includes it needs no
@@ -21,39 +21,23 @@
 
     The switches, each 1 or 0, set before the include (on a compiler's command line, say):
 
-        SHZ_DCE_USE_ASIN_ACOS   default 1   shz_asinf, shz_acosf (shz_dce_trig.h). Results DIFFER from
-                                            SH4ZAM's: within 8e-6 rad of the true angle instead of
-                                            4.95e-3, and +-pi/2, 0 or pi past +-1 instead of NaN.
-        SHZ_DCE_USE_ATAN2       default 1   shz_atan2f (shz_dce_atan2.h). Results DIFFER from
-                                            SH4ZAM's: within 1.4e-5 rad of the true angle instead
-                                            of 1.02e-2, and it COSTS cycles: about 8 a call in the
-                                            model (the trade is SHZ_DCE_ATAN2_TERMS, default 5).
-        SHZ_DCE_USE_SQRT        default 0   shz_sqrtf, shz_hypotf (shz_dce_sqrt.h; SH4ZAM's bits)
+        SHZ_DCE_USE_ASIN_ACOS   default 1   shz_asinf, shz_acosf (shz_dce_trig.h)
+        SHZ_DCE_USE_ATAN2       default 1   shz_atan2f (shz_dce_atan2.h)
+        SHZ_DCE_USE_SQRT        default 0   shz_sqrtf, shz_hypotf (shz_dce_sqrt.h)
         SHZ_DCE_USE_INV_SQRT    default 0   shz_inv_sqrtf
         SHZ_DCE_USE_MAGNITUDE   default 0   shz_vec2/3/4_magnitude, shz_vec2/3/4_magnitude_inv
         SHZ_DCE_USE_DISTANCE    default 0   shz_vec2/3/4_distance
         SHZ_DCE_USE_NORMALIZE   default 0   shz_vec2/3/4_normalize_safe
-        SHZ_DCE_USE_FIPR        default 0   shz_vec4_normalize, and shz_vec3_magnitude becomes the
-                                            FIPR length (shz_dce_vector.h). Results differ from
-                                            SH4ZAM's: within 3 and 2 ulp.
+        SHZ_DCE_USE_FIPR        default 0   shz_vec4_normalize, shz_vec3_magnitude (shz_dce_vector.h)
         SHZ_DCE_OVERRIDE_ALL    default 0   1: every switch above that is not set by name is on.
 
-    The root, length, distance, safe-normalisation and FIPR groups rename to shz_dce_ routines
-    that, as built by default, call SH4ZAM's own routine underneath (SH4ZAM has those jobs:
-    shz_dce_sqrt.h, shz_dce_vector.h). Their switches change what a call compiles to only
-    together with SHZ_DCE_REWORK_ROOTS 1 or SHZ_DCE_REWORK_FIPR 1, the flags that build the
-    reworked bodies for a console test.
-
-    Why these defaults: a console (single calls, reported by Falco Girgis; doc/THESIS.md, section
-    7). The arcsine and arccosine won there, in accuracy by a factor of 850 and in cycles by
-    nothing or a little. The arctangent won in use: with 5 terms an interpolated rotation that
-    jittered with SH4ZAM's routine is steady, for "a few extra cycles" (doc/THESIS.md, 2.5); it
-    is the one default here that is slower than what it replaces, so a caller that only sorts
-    by angle sets SHZ_DCE_USE_ATAN2 0. The reordered roots, lengths and normalisations lost a
-    cycle or two on single calls against a pipeline model that had promised a gain; they are
-    here to be switched on a group at a time and measured in a real program. A second set of
-    switches, SHZ_DCE_OPAQUE_... (shz_dce_cdefs.h), says where those routines put a barrier on
-    their zero.
+    Every shz_dce_ name these switches rename to is now a wrapper over SH4ZAM's own routine of the
+    same job (SH4ZAM master ff39547, 2026-11-22: it took this layer's arcsine, arccosine and
+    arctangent as cff97e8, #92, and has the roots; shz_dce_sqrt.h, shz_dce_trig.h,
+    shz_dce_atan2.h, shz_dce_vector.h say how each got there). So every switch gives SH4ZAM's
+    own results: this header changes nothing a program computes. It is kept so that code that
+    includes it, or sets its switches, keeps compiling. The reworked bodies these switches used
+    to reach were removed (the last tree with them is 691aa21).
 
     Before these switches existed this header renamed the root family always and the arcsine and
     arccosine only with SHZ_DCE_OVERRIDE_APPROX 1. That name is still read: 1 turns

@@ -7,7 +7,7 @@
 
    Built by sh-elf-gcc with the fast-math flags and run by tests/sh4run/sh4bench: every bench_ function is
    `void f(void *out, const void *in0, const void *in1, size_t count)` on buffers of random floats in [-1, 1).
-   SH4ZAM's routine (the _shz row, before), the public rework (SHZ_DCE_ATAN2_TERMS), and the rework with 2, 5, 6 and 7 terms.
+   SH4ZAM's routine (the _shz row) and the wrapper: the two rows must cost the same (the wrapper is that routine).
    An ESTIMATE from the interpreter's pipeline model, not a console's.
 */
 
@@ -18,7 +18,3 @@
 
 F2(bench_atan2f_shz, shz_atan2f(y, x))
 F2(bench_atan2f, shz_dce_atan2f(y, x))
-F2(bench_atan2f_2, shz_dce_atan2f_n_(y, x, 2))
-F2(bench_atan2f_5, shz_dce_atan2f_n_(y, x, 5))
-F2(bench_atan2f_6, shz_dce_atan2f_n_(y, x, 6))
-F2(bench_atan2f_7, shz_dce_atan2f_n_(y, x, 7))

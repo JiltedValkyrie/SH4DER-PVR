@@ -9,7 +9,7 @@
    - a plain include renames shz_asinf, shz_acosf and shz_atan2f and nothing else (the defaults); one switch set by name
      (here SHZ_DCE_USE_INV_SQRT) renames its own group and no other
    - the renamed calls, written with SH4ZAM's names and argument types, compile and give the rework's value
-   - the barrier switches of shz_dce_cdefs.h have their documented defaults
+   - every renamed name is a wrapper over SH4ZAM's routine (master ff39547), so a renamed call gives SH4ZAM's own bits
    Every switch on at once, and one taken back by name, is overrideall_test.c; the old switch SHZ_DCE_OVERRIDE_APPROX is
    tests/sh4/override_kernels.c.
 */
@@ -57,8 +57,6 @@ int main(void) {
 
     T_CHECK(SHZ_DCE_USE_ASIN_ACOS == 1 && SHZ_DCE_USE_INV_SQRT == 1 && SHZ_DCE_USE_SQRT == 0 && SHZ_DCE_USE_MAGNITUDE == 0 && SHZ_DCE_USE_DISTANCE == 0 &&
             SHZ_DCE_USE_NORMALIZE == 0 && SHZ_DCE_USE_FIPR == 0 && SHZ_DCE_USE_ATAN2 == 1 && SHZ_DCE_OVERRIDE_ALL == 0, "the override switches' defaults");
-    T_CHECK(SHZ_DCE_OPAQUE_SQRT == 0 && SHZ_DCE_OPAQUE_INV_SQRT == 1 && SHZ_DCE_OPAQUE_MAGNITUDE == 0 && SHZ_DCE_OPAQUE_DISTANCE == 0 && SHZ_DCE_OPAQUE_NORMALIZE2 == 1 &&
-            SHZ_DCE_OPAQUE_NORMALIZE3 == 0 && SHZ_DCE_OPAQUE_NORMALIZE4 == 0 && SHZ_DCE_OPAQUE_ASIN_ACOS == 0, "the barrier switches' defaults");
 
     for (k = 0; k < 20000; k++) {   /* calls as a caller writes them */
         vf[0] = t_frand(0.0f, 9.0f); vf[1] = t_frand(-1.0f, 1.0f);

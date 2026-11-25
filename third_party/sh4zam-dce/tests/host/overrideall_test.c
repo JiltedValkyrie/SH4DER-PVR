@@ -7,7 +7,7 @@
 
    What is checked:
    - SHZ_DCE_OVERRIDE_ALL 1 renames every routine that has a rework; a switch set to 0 by name (here SHZ_DCE_USE_DISTANCE)
-     stays off; SHZ_DCE_OPAQUE 1 sets every barrier switch
+     stays off; SHZ_DCE_OPAQUE (a switch that was removed) is ignored
    - calls written with SH4ZAM's names and SH4ZAM's argument types compile and give the rework's value: the signatures drop in
 */
 
@@ -50,8 +50,6 @@ int main(void) {
     /* routines with no rework keep their names */
     IS(shz_vec3_normalize, "shz_vec3_normalize");
 
-    T_CHECK(SHZ_DCE_OPAQUE_SQRT == 1 && SHZ_DCE_OPAQUE_INV_SQRT == 1 && SHZ_DCE_OPAQUE_MAGNITUDE == 1 && SHZ_DCE_OPAQUE_DISTANCE == 1 && SHZ_DCE_OPAQUE_NORMALIZE2 == 1 &&
-            SHZ_DCE_OPAQUE_NORMALIZE3 == 1 && SHZ_DCE_OPAQUE_NORMALIZE4 == 1 && SHZ_DCE_OPAQUE_ASIN_ACOS == 1, "SHZ_DCE_OPAQUE 1 sets every barrier switch");
 
     for (k = 0; k < 20000; k++) {   /* calls as a caller writes them */
         int i;
