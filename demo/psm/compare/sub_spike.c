@@ -20,6 +20,9 @@
                b  Q in 32 strips, one value each (right even if Q is per polygon)
                c  the same from a texture that is not twiddled
                d  the same from a render target the PVR drew the codes into
+               c and d are NOT in the first run. Sega's own errata list says the CORE hangs on a bump texture that
+               is not twiddled. They run only when START is pressed on the result pages, after every other line has
+               been shown and sent to the serial line; photograph the pages first.
      2 WRITE   the frame buffer write's own threshold: c1's difference R - M left in destination alpha, the target
                written as ARGB1555 with the alpha threshold at 1, 2 and 128, and once as ARGB4444. The write control
                register is set after the lists are sent and put back after the render.
@@ -79,7 +82,7 @@ static void page_draw(unsigned page, unsigned pages) {
     unsigned i;
 
     vid_clear(0, 0, 0);
-    snprintf(head, sizeof head, "PVR SUBTRACT c3 p%u/%u   A next  B back", page + 1u, pages);
+    snprintf(head, sizeof head, "PVR SUBTRACT c3b p%u/%u   A next  B back", page + 1u, pages);
     bfont_draw_str(vram_s + 16u * 640u + 20u, 640, true, head);
     for (i = 0; i < ROWS && page * ROWS + i < nlines; i++)
         bfont_draw_str(vram_s + (16u + 24u * (i + 2u)) * 640u + 20u, 640, true, lines[page * ROWS + i]);
@@ -342,13 +345,13 @@ static int target_codes(void) {
     return wrong;
 }
 
-static void bump(void) {
+static void bump(unsigned from, unsigned to) {
     static const struct { const char *tag; int raster, target; unsigned strips; } v[4] = {
         { "1a Q by vertex:", 0, 0, 0u }, { "1b Q 32 strips:", 0, 0, 32u }, { "1c raster txr:", 1, 0, 32u }, { "1d PVR target:", 1, 1, 32u } };
     unsigned i;
 
-    say("1 BUMP level 128+127sin(M-R); A = via alpha");
-    for (i = 0; i < 4u; i++) {
+    if (!from) say("1 BUMP level 128+127sin(M-R); A = via alpha");
+    for (i = from; i < to; i++) {
         const uint32_t fmt = PVR_TXRFMT_BUMP | (v[i].raster ? PVR_TXRFMT_NONTWIDDLED : 0u);
         const pvr_ptr_t mem = v[i].target ? tgt_mem : v[i].raster ? bump_raw_mem : bump_tw_mem;
 
@@ -560,7 +563,8 @@ static void fog(void) {
 
 /* ---- the run -------------------------------------------------------------------------- */
 
-static void run(void) {
+/* Start the PVR and load the textures. 0 when it could not. */
+static int start(void) {
     pvr_init_params_t init = pvr_default_params;
 
     init.opb_sizes[PVR_LIST_OP_POLY] = PVR_BINSIZE_16;
@@ -570,25 +574,43 @@ static void run(void) {
     init.opb_sizes[PVR_LIST_PT_POLY] = PVR_BINSIZE_16;
     init.vertex_buf_size = 256 * 1024;
     init.autosort_disabled = 1;                                  /* translucent layers in the order they are sent */
-    say("numbers below: measured by this run");
-    if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return; }
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return 0; }
     pvr_set_bg_color(0.0f, 0.0f, 1.0f);
-    if (!load()) { say("video memory allocation FAIL"); pvr_shutdown(); return; }
+    if (!load()) { say("video memory allocation FAIL"); pvr_shutdown(); return 0; }
     vid_set_dithering(false);
+    return 1;
+}
 
-    bump();
-    fb_write();
-    punch();
-    fog();
-
-    step("done");
+static void stop(const char *stage) {
+    step(stage);
     vid_set_dithering(true);
     pvr_shutdown();
 }
 
+static void run(void) {
+    say("numbers below: measured by this run");
+    if (!start()) return;
+    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    bump(0u, 2u);
+    fb_write();
+    punch();
+    fog();
+    stop("done");
+    say("START: bump textures not twiddled (1c 1d). Sega's errata: may hang. Photograph first.");
+}
+
+/* The two tests the errata warn about, on START. */
+static void run_risky(void) {
+    say("1c 1d: started");
+    if (!start()) return;
+    bump(2u, 4u);
+    stop("done 2");
+    say("1c 1d: ended");
+}
+
 int main(void) {
     unsigned page = 0, pages, held = ~0u;
+    int risky = 0;
 
     run();
     vid_set_mode(DM_640x480, PM_RGB565);
@@ -603,6 +625,14 @@ int main(void) {
         if (held == ~0u) page_draw(page, pages);
         else if (hit & CONT_A) { page = (page + 1u) % pages; page_draw(page, pages); }
         else if (hit & CONT_B) { page = (page + pages - 1u) % pages; page_draw(page, pages); }
+        else if ((hit & CONT_START) && !risky) {
+            risky = 1;
+            run_risky();
+            vid_set_mode(DM_640x480, PM_RGB565);
+            pages = (nlines + ROWS - 1u) / ROWS;
+            page = pages - 1u;
+            page_draw(page, pages);
+        }
         held = now;
         thd_sleep(20);
     }
