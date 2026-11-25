@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""SH4DER-PVR: every approved demo on ONE disc, with the suite's menu.  Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
+"""SH4DER-PVR: the examples disc, SH4DER-PVR-Examples.cdi: every approved demo on ONE disc, with the suite's menu.
+Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
+
+A new demo or test is first a small disc of its own (one ELF, its own name in demo/psm/out/cdi). When the owner
+approves it, it is added to the list and to this disc. The developers' test discs (psm-suite-<tag>) are another thing
+and are not made here.
 
     python demo/demos_disc.py [--list demo/demos_approved.json] [--tag <tag>] [--cdi-dir <dir>] [--mkdcdisc <exe>]
                               [--check] [--no-build] [--no-image] [--self-test]
@@ -22,14 +27,15 @@ What it does, each step refusing to go on when it fails:
   3 the builds   each entry's "build" command
   4 the disc     demo/psm/suite/build.py does the rest with this list: the menu, each ELF's checks (an SH-4 ELF at
                  0x8c010000, its end below the stack's room, one mail mark: it comes back to the menu), the manifest
-                 with every file's sha256, and the image sh4der-demos-<tag>.cdi in demo/psm/out/cdi, never overwritten.
+                 with every file's sha256, and the image in demo/psm/out/cdi, never overwritten.
 
-Without --tag the tag is d<date>-<n>, the first n with no image yet: a second run makes a second image.
+The image is SH4DER-PVR-Examples.cdi when that name is free. When it exists it is NOT overwritten: the image is
+SH4DER-PVR-Examples-b<N>.cdi with the first N from 2 that is free, and the script says so. The tag (the menu's title
+line and the build folder) is b<N> to match, b1 for the first; --tag gives another.
 --check stops after step 1 (no tool is needed). --no-build skips step 3. --no-image stops before the image.
 --self-test checks the list's rules on made-up lists and prints what it refused.
 """
 import argparse
-import datetime
 import json
 import os
 import re
@@ -141,12 +147,18 @@ def missing_tools(mkdcdisc):
     return miss
 
 
-def free_tag(cdi_dir, prefix="sh4der-demos"):
-    day = datetime.date.today().strftime("%Y%m%d")
-    n = 1
-    while os.path.exists(os.path.join(cdi_dir, "%s-d%s-%d.cdi" % (prefix, day, n))):
+PREFIX = "SH4DER-PVR-Examples"
+TITLE = "SH4DER-PVR EXAMPLES"
+
+
+def free_image(cdi_dir, prefix=PREFIX):
+    """(the image's file name, its build number): <prefix>.cdi when free, else <prefix>-b<N>.cdi, the first free N from 2."""
+    if not os.path.exists(os.path.join(cdi_dir, prefix + ".cdi")):
+        return prefix + ".cdi", 1
+    n = 2
+    while os.path.exists(os.path.join(cdi_dir, "%s-b%d.cdi" % (prefix, n))):
         n += 1
-    return "d%s-%d" % (day, n)
+    return "%s-b%d.cdi" % (prefix, n), n
 
 
 def self_test():
@@ -200,10 +212,16 @@ def self_test():
         ok = {"demos": [dict(good, files=["FONT.BIN"], credits="c.md", build=["python", "x.py"], note="n"), dict(good, name="b", file="B.BIN", order=0)]}
         why = refused(ok, d, True, True)
         print("  %-34s %s" % ("a good list of two:", "taken" if why is None else "REFUSED: " + why)); fails += why is not None
-        for n in range(1, 3):
-            open(os.path.join(d, "sh4der-demos-d%s-%d.cdi" % (datetime.date.today().strftime("%Y%m%d"), n)), "wb").close()
-        tag = free_tag(d)
-        print("  %-34s %s" % ("the first free tag after two:", tag)); fails += not tag.endswith("-3")
+        got = free_image(d)
+        print("  %-34s %s" % ("the image, none there yet:", got[0])); fails += got != ("SH4DER-PVR-Examples.cdi", 1)
+        open(os.path.join(d, "SH4DER-PVR-Examples.cdi"), "wb").close()
+        got = free_image(d)
+        print("  %-34s %s" % ("the image, the name taken:", got[0])); fails += got != ("SH4DER-PVR-Examples-b2.cdi", 2)
+        open(os.path.join(d, "SH4DER-PVR-Examples-b2.cdi"), "wb").close()
+        got = free_image(d)
+        print("  %-34s %s" % ("the image, b2 taken too:", got[0])); fails += got != ("SH4DER-PVR-Examples-b3.cdi", 3)
+        with open(os.path.join(d, "SH4DER-PVR-Examples.cdi"), "rb") as f:
+            fails += f.read() != b""            # the taken names were not written to
     with open(os.path.join(HERE, "demos_approved.json"), encoding="utf-8") as f:
         why = refused(json.load(f), need_files=True)
     print("  %-34s %s" % ("demo/demos_approved.json:", "taken" if why is None else "REFUSED: " + why)); fails += why is not None
@@ -241,7 +259,10 @@ def main():
         raise SystemExit("demos disc: cannot build here:\n  " + "\n  ".join(miss))
     with open(SUITE_BUILD, encoding="utf-8") as f:
         if "--prefix" not in f.read():
-            raise SystemExit("demos disc: demo/psm/suite/build.py has no --prefix and --title yet (they come with the next suite disc): nothing built")
+            raise SystemExit("demos disc: demo/psm/suite/build.py has no --prefix and --title: nothing built")
+        f.seek(0)
+        if "--image" not in f.read():
+            raise SystemExit("demos disc: demo/psm/suite/build.py has no --image: nothing built")
 
     if not a.no_build:
         for e in entries:
@@ -256,7 +277,10 @@ def main():
         raise SystemExit("demos disc: %s" % err)
 
     cdi_dir = os.path.abspath(a.cdi_dir)
-    tag = a.tag or free_tag(cdi_dir)
+    image, number = free_image(cdi_dir)
+    tag = a.tag or "b%d" % number
+    if number > 1:
+        print("%s.cdi exists and is not overwritten: this image is %s" % (PREFIX, image))
     out = os.path.join(ROOT, "build", "demos_disc", tag)
     os.makedirs(out, exist_ok=True)
     table = os.path.join(out, "demos_list.json")
@@ -266,7 +290,7 @@ def main():
         tests = [dict({k: e[k] for k in ("name", "file", "elf", "order", "what", "read")}, group="demos", **({"credits": e["screen_credits"]} if "screen_credits" in e else {}))
                  for e in entries]
         json.dump({"note": "written by demo/demos_disc.py from %s" % os.path.relpath(a.list, ROOT), "tests": tests}, f, indent=1)
-    argv = [sys.executable, SUITE_BUILD, "--tag", tag, "--list", table, "--prefix", "sh4der-demos", "--title", "SH4DER-PVR DEMOS", "--out", out,
+    argv = [sys.executable, SUITE_BUILD, "--tag", tag, "--list", table, "--prefix", PREFIX, "--title", TITLE, "--image", image, "--out", out,
             "--cdi-dir", cdi_dir, "--mkdcdisc", a.mkdcdisc] + (["--no-image"] if a.no_image else [])
     print("== disc: %s" % " ".join(argv), flush=True)
     return subprocess.run(argv, cwd=ROOT).returncode

@@ -1,5 +1,5 @@
 {
- "note": "The demos the owner has approved for the one demos disc (python demo/demos_disc.py; make demos-disc). Only an approved demo is added here. Fields: demo/demos_disc.py's head. The test suite's lists are apart: demo/psm/suite/suite_*.json.",
+ "note": "The demos the owner has approved for the examples disc, SH4DER-PVR-Examples.cdi (python demo/demos_disc.py; make demos-disc). A new demo is first a small disc of its own; it is added here when the owner approves it. Only an approved demo is added here. Fields: demo/demos_disc.py's head. The test suite's lists are apart: demo/psm/suite/suite_*.json.",
  "demos": [
   {
    "name": "ao4",

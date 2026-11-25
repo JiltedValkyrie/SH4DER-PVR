@@ -18,7 +18,8 @@ The table is JSON: {"tests": [{"name", "file", "elf", "order", "what", "read", "
   credits  optional: a key of CREDITS below when the program carries third-party work that the menu's CREDITS screen
          must name ("pl4nar": the street demo's CC0 art)
 --title is the menu's title line (default "PSM TEST SUITE"); --prefix the image's name before the tag (default
-psm-suite). demo/demos_disc.py gives both.
+psm-suite). --image is the image's whole file name in --cdi-dir, in place of <prefix>-<tag>.cdi (still never
+overwritten). demo/demos_disc.py gives all three: the examples disc is SH4DER-PVR-Examples.cdi.
   what   one line, up to 49 characters: what the test does and about how long
   read   one line, up to 59 characters: what to photograph
 
@@ -147,18 +148,21 @@ def main():
     ap.add_argument("--no-image", action="store_true")
     ap.add_argument("--title", default="PSM TEST SUITE")
     ap.add_argument("--prefix", default="psm-suite")
+    ap.add_argument("--image", help="the image's file name in --cdi-dir, in place of <prefix>-<tag>.cdi")
     a = ap.parse_args()
     if not re.match(r"^[A-Za-z0-9 .+-]{1,24}$", a.title) or len(a.title) + 1 + len(a.tag) > 40:
         raise SystemExit("--title: up to 24 letters, digits, spaces, . + -, and 40 characters with the tag (the console's revision is beside it)")
-    if not re.match(r"^[a-z0-9-]{1,24}$", a.prefix):
-        raise SystemExit("--prefix: up to 24 of a-z, 0-9, -")
+    if not re.match(r"^[A-Za-z0-9-]{1,24}$", a.prefix):
+        raise SystemExit("--prefix: up to 24 letters, digits, -")
+    if a.image and not re.match(r"^[A-Za-z0-9-]{1,40}\.cdi$", a.image):
+        raise SystemExit("--image: a file name of letters, digits and -, ending .cdi (no folder: it goes in --cdi-dir)")
 
     out = os.path.abspath(a.out or os.path.join(ROOT, "build", "psm_suite", a.tag))
     disc = os.path.join(out, "disc")
     os.makedirs(disc, exist_ok=True)
-    image = os.path.join(os.path.abspath(a.cdi_dir), "%s-%s.cdi" % (a.prefix, a.tag))
+    image = os.path.join(os.path.abspath(a.cdi_dir), a.image or "%s-%s.cdi" % (a.prefix, a.tag))
     if not a.host_only and not a.no_image and os.path.exists(image):
-        raise SystemExit("refuse existing image: %s (pick a new --tag)" % image)
+        raise SystemExit("refuse existing image: %s (pick a new %s)" % (image, "--image" if a.image else "--tag"))
 
     exe = ".exe" if os.name == "nt" else ""
     test = os.path.join(out, "suite_test" + exe)
