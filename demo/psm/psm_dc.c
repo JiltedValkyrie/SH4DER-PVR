@@ -17,7 +17,8 @@
    timers and the text textures.
 
    Pad, as the torch walk demo (demo/torchwalk_ab.c, single stick): the stick looks (INVERT Y on: up looks down), Y / A
-   held walk forward / back, X / B strafe left / right. D-pad down opens the menu (a row a line: route, map, map size, PCF,
+   held walk forward / back, X / B strafe left / right. D-pad down opens the menu (a row a line: route, map, map size (512 on
+   routes B and AB only, its RAM taken while chosen), A filter (the PVR's bilinear or point), B filter (2 x 2 or point),
    bias a and b, warp near, sun azimuth and elevation, inset, readout and the SH-4's split, presets, invert Y); in it the
    face buttons do not walk, D-pad up / down pick a row, left / right and A change it, B or START close it. Quick, menu
    closed: D-pad up the route, a tap of START uniform / PSM, D-pad left / right the sun's azimuth, L / R triggers its
@@ -48,6 +49,7 @@
 #ifdef _arch_dreamcast
 
 #include <kos.h>
+#include <malloc.h>
 #include <dc/minifont.h>
 #include "sh4der_guard.h"
 #include "psm_scene.h"
@@ -56,7 +58,7 @@
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
-#define MAP_MAX 256u               /* the largest map side: route B's RAM, route A's target */
+#define MAP_MAX PSM_MAP_STATIC     /* the static maps' side: route B's RAM, route A's target (PSM_MAP_MAX_A); 512 is allocated */
 #define TEXT_W PSM_TEXT_W          /* the text texture: sixteen lines of the 8 x 16 font (ten used), 256 KB */
 #define TEXT_H PSM_TEXT_H
 #define INSET 128u                 /* the map inset, texels and pixels */
@@ -77,6 +79,8 @@ static uint16_t depth_map2[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));   /*
 static psm_mapsrc_t mapsrc;               /* route AB (stub): the map source hook, the SH-4's raster standing in for the PVR, one frame late */
 static psm_ab_stub_t ab_stub;
 static int route3;                        /* the route of three: psm_input knows two */
+static psm_mapbuf_t mapbuf;               /* MAP SIZE 512 on routes B and AB: its buffers while it is chosen */
+static int filter_a_hdr = -1;             /* the A FILTER the target headers were compiled with */
 static char ln_now[PSM_HUD_LINES][PSM_HUD_COLS + 1u];     /* the lines this frame, and the lines on the texture */
 static char ln_prev[PSM_HUD_LINES][PSM_HUD_COLS + 1u];
 
@@ -190,7 +194,9 @@ static void make_target_headers(void) {
     memset(&hdr_layer, 0, sizeof hdr_layer);
     memset(&hdr_inset_a, 0, sizeof hdr_inset_a);
     if (!target_mem) return;
-    pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)target_size, (int)target_size, target_mem, PVR_FILTER_BILINEAR);
+    filter_a_hdr = state.filter_a;                          /* A FILTER: the PVR's bilinear or point on the lookup and the inset */
+    pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)target_size, (int)target_size, target_mem,
+                     state.filter_a ? PVR_FILTER_BILINEAR : PVR_FILTER_NEAREST);
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.shading = PVR_SHADE_GOURAUD;
     c.txr.env = PVR_TXRENV_MODULATE;
@@ -323,6 +329,17 @@ static int load(void) {
     route3 = state.route;
     memset(&cost, 0, sizeof cost);
     return 1;
+}
+
+/* 32-byte aligned RAM for a 512 map (psm_mapbuf_fit) */
+static void *map_alloc(size_t bytes) { return memalign(32, bytes); }
+
+/* MAP SIZE 512 on route B or AB: its buffers taken or given back after the pad; route AB's slots pointed at them (its maps
+   start again). A refused allocation steps the size back and the readout says so (psm_mapbuf_fit). */
+static void map_buffers(void) {
+    if (!psm_mapbuf_fit(&mapbuf, &state, map_alloc, free)) return;
+    if (mapbuf.n == 0u && state.size_refused_kb) printf("psm: no RAM for a %u x %u map (%u KB), size stepped back\n", PSM_MAP_MAX_B, PSM_MAP_MAX_B, state.size_refused_kb);
+    psm_mapsrc_init(&mapsrc, psm_ab_stub_fill, &ab_stub, 1u, psm_mapbuf_depth(&mapbuf, 0u, depth_map), psm_mapbuf_depth(&mapbuf, 1u, depth_map2));
 }
 
 /* ---- the pad ---------------------------------------------------------------- */
@@ -591,7 +608,10 @@ int main(void) {
            (unsigned)(PSM_VTX_BUDGET * 32u / 1024u),
            (unsigned)((sizeof text_px + sizeof inset_px + sizeof checker_px + (sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u : 0u) + 1023u) / 1024u),
            (unsigned)(sizeof text_px / 1024u), (unsigned)(sizeof inset_px / 1024u), (unsigned)((sizeof checker_px + 1023u) / 1024u),
-           sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u / 1024u : 0u, PSM_SKY_HAVE ? "" : " stand-in", MAP_MAX * MAP_MAX * 2u / 1024u, MAP_MAX);
+           sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u / 1024u : 0u, PSM_SKY_HAVE ? "" : " stand-in", PSM_MAP_MAX_A * PSM_MAP_MAX_A * 2u / 1024u, PSM_MAP_MAX_A);
+    printf("psm: RAM maps %u KB static (route B %u, route AB's second slot %u); MAP SIZE %u takes %u KB a slot from the heap while chosen\n",
+           (unsigned)((sizeof depth_map + sizeof depth_map2) / 1024u), (unsigned)(sizeof depth_map / 1024u), (unsigned)(sizeof depth_map2 / 1024u),
+           PSM_MAP_MAX_B, PSM_MAP_MAX_B * PSM_MAP_MAX_B * 2u / 1024u);
     previous = win_t0 = timer_us_gettime64();
     for (;;) {
         const uint64_t now = timer_us_gettime64();
@@ -604,6 +624,7 @@ int main(void) {
         if (dt > 0.1f) dt = 0.1f;
         pad_edge = pad(dt);
         if (state.scene != scene.town) scene_switch();     /* the SCENE row */
+        map_buffers();                                     /* MAP SIZE 512 on B / AB: its RAM while chosen */
         psm_town_update(&scene, &state, dt);               /* the town's clock, sun, people and hens (nothing in the field) */
         ta_v = 0; layer_v = 0;
 
@@ -616,7 +637,7 @@ int main(void) {
         t1 = timer_us_gettime64();
         win_us[0] += t1 - t0;
         if (state.route == PSM_ROUTE_B) {
-            b_ok = psm_frame_b_begin(&frame, &scene, depth_map);
+            b_ok = psm_frame_b_begin(&frame, &scene, psm_mapbuf_depth(&mapbuf, 0u, depth_map));
             t2 = timer_us_gettime64();
             if (b_ok) psm_frame_b_casters(&frame, &scene, state.movers_only);
             t3 = timer_us_gettime64();
@@ -637,6 +658,7 @@ int main(void) {
             win_us[2] += t3 - t1; win_us[3] += timer_us_gettime64() - t3;
         } else {
             target_fit(frame.size);          /* waits for the PVR, on a size change only */
+            if (state.filter_a != filter_a_hdr) make_target_headers();   /* A FILTER changed: the two headers again */
             pvr_wait_ready();
             t2 = timer_us_gettime64();
             a_drawn = map_pass();

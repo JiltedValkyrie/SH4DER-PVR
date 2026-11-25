@@ -83,7 +83,10 @@
 #define PSM_AMBIENT      0.42f        /* the share of the light that is not the sun's */
 #define PSM_NORMAL_PUSH  0.06f        /* a model vertex is compared this far out along its normal, metres */
 #define PSM_TURN         1.2f         /* radians a second at full stick */
-#define PSM_MAP_SIZES    3u
+#define PSM_MAP_SIZES    4u
+#define PSM_MAP_STATIC   256u         /* the largest map whose buffers are static (psm_dc.c); a bigger one is allocated while chosen */
+#define PSM_MAP_MAX_A    256u         /* route A's largest target (video memory): one line to raise */
+#define PSM_MAP_MAX_B    512u         /* routes B and AB's largest map (RAM, 512 KB at 512): one line to raise */
 #define PSM_SCR_W        640.0f       /* the screen: the ground and the models are placed on it */
 #define PSM_SCR_H        480.0f
 #define PSM_VTX_BUDGET   32768u       /* vertices the program's vertex buffer holds a frame (psm_dc.c: 1 MB at 32 B); the host test holds the worst frame under it */
@@ -114,7 +117,7 @@
 #define PSM_REPEAT_RAMP  1.6f         /* seconds from the slow rate to the fast one */
 #define PSM_REPEAT_CAP   4u           /* steps a frame at most: a long frame does not run a value away (the rest is dropped) */
 
-static const unsigned psm_map_sizes[PSM_MAP_SIZES] = { 64u, 128u, 256u };
+static const unsigned psm_map_sizes[PSM_MAP_SIZES] = { 64u, 128u, 256u, 512u };
 static const unsigned short psm_dist_m[PSM_DIST_STEPS] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500 };
 static const float psm_albedo[3][3] = { { 0.78f, 0.74f, 0.66f }, { 0.86f, 0.62f, 0.46f }, { 0.56f, 0.62f, 0.82f } };   /* pole, cow, cow */
 
@@ -513,18 +516,20 @@ static inline unsigned psm_repeat_step(psm_repeat_t *r, int held, float dt) {
 
 /* The menu's rows, as torchwalk's: one line "ROW: value", D-pad up / down picks, left / right (and A) changes. */
 enum {
-    PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
+    PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_FILTER_A, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
     PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROWS
 };
 static const char *const psm_row_name[PSM_ROWS] = {
-    "ROUTE", "MAP", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "PCF", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
+    "ROUTE", "MAP", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "A FILTER", "B FILTER", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
     "SCENE", "TIME", "TIME SPEED"
 };
 static const float psm_preset_sun[3][2] = { { 120.0f, 35.0f }, { 0.0f, 20.0f }, { 180.0f, 20.0f } };   /* default, head-on, behind */
 static const char *const psm_preset_name[3] = { "default", "head-on", "behind" };
 
 typedef struct psm_state {
-    int route, warp, inset, readout, pcf, split, invert_y, menu, row;
+    int route, warp, inset, readout, pcf, split, invert_y, menu, row;   /* pcf: B FILTER, 1 the 2 x 2 compare-then-blend */
+    int filter_a;        /* A FILTER: 1 the PVR's bilinear on the target lookup, 0 point */
+    unsigned size_refused_kb;   /* the last bigger map the program could not allocate (KB; 0: none), on the readout */
     int movers_only;     /* CASTERS: 0 every caster into the map, 1 only the movers' (the static casters are not drawn into it) */
     unsigned dist_i;     /* DRAW DISTANCE: psm_dist_m[dist_i] metres, PSM_DIST_INF for no cut and no fog */
     psm_repeat_t rep_l, rep_r, rep_wl, rep_wr;   /* the D-pad's left and right (and A in the menu), START + L and R */
@@ -556,8 +561,9 @@ static inline void psm_state_default(psm_state_t *st) {
     st->warp = 0;
     st->readout = 1;
     st->pcf = 1;
+    st->filter_a = 1;
     st->invert_y = 1;
-    st->size_i = PSM_MAP_SIZES - 1u;
+    st->size_i = 2u;                                   /* 256 (512 is a choice for route B and AB) */
     st->az = psm_preset_sun[0][0]; st->el = psm_preset_sun[0][1];
     st->warp_near = 4.0f;
     st->bias_a = 0.02f; st->bias_b = 0.0f;
@@ -575,6 +581,23 @@ static inline float psm_fog_start(const psm_state_t *st) { return st->atmos ? PS
 static inline float psm_dist(const psm_state_t *st) { return st->dist_i < PSM_DIST_STEPS ? (float)psm_dist_m[st->dist_i] : 0.0f; }
 
 /* 1 for a row whose change is a value that steps (it repeats when held), 0 for a toggle (one change a press). */
+/* the largest map side of a route, and the sizes it takes (the first n of psm_map_sizes) */
+static inline unsigned psm_map_cap(int route) { return route == PSM_ROUTE_A ? PSM_MAP_MAX_A : PSM_MAP_MAX_B; }
+static inline unsigned psm_map_sizes_n(int route) {
+    unsigned n = 0;
+
+    while (n < PSM_MAP_SIZES && psm_map_sizes[n] <= psm_map_cap(route)) n++;
+    return n;
+}
+
+/* the index of the map side the route draws: the chosen one, or the route's largest under it */
+static inline unsigned psm_map_index(const psm_state_t *st) {
+    const unsigned n = psm_map_sizes_n(st->route), i = st->size_i % PSM_MAP_SIZES;
+
+    return i < n ? i : n - 1u;
+}
+static inline unsigned psm_map_size(const psm_state_t *st) { return psm_map_sizes[psm_map_index(st)]; }
+
 static inline int psm_row_repeats(int row) {
     return row == PSM_ROW_DIST || row == PSM_ROW_SIZE || row == PSM_ROW_BIAS_A || row == PSM_ROW_BIAS_B || row == PSM_ROW_WARP_NEAR
         || row == PSM_ROW_AZIMUTH || row == PSM_ROW_ELEVATION || row == PSM_ROW_READOUT || row == PSM_ROW_PRESET || row == PSM_ROW_TIME;
@@ -616,7 +639,14 @@ static inline void psm_row_change(psm_state_t *st, int row, int d) {
             if (d > 0 && st->dist_i < PSM_DIST_INF) st->dist_i++;
             if (d < 0 && st->dist_i > 0u) st->dist_i--;
             break;
-        case PSM_ROW_SIZE: st->size_i = (st->size_i + (d > 0 ? 1u : PSM_MAP_SIZES - 1u)) % PSM_MAP_SIZES; break;
+        case PSM_ROW_SIZE: {                                /* round the route's own sizes */
+            const unsigned n = psm_map_sizes_n(st->route);
+
+            st->size_i = (psm_map_index(st) + (d > 0 ? 1u : n - 1u)) % n;
+            st->size_refused_kb = 0u;
+            break;
+        }
+        case PSM_ROW_FILTER_A: st->filter_a = !st->filter_a; break;
         case PSM_ROW_PCF: st->pcf = !st->pcf; break;
         case PSM_ROW_BIAS_A: st->bias_a = psm_step_(st->bias_a, 0.005f * (float)d, 0.0f, 0.2f); break;
         case PSM_ROW_BIAS_B: st->bias_b = psm_step_(st->bias_b, 0.5f * (float)d, 0.0f, 4.0f); break;
@@ -652,8 +682,11 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
             if (st->dist_i >= PSM_DIST_INF) return "INF: no cut, no fog";
             snprintf(buf, cap, "%u m, fog from %u", (unsigned)psm_dist_m[st->dist_i], (unsigned)(psm_dist_m[st->dist_i] * psm_fog_start(st) + 0.5f));
             return buf;
-        case PSM_ROW_SIZE: snprintf(buf, cap, "%u x %u", psm_map_sizes[st->size_i % PSM_MAP_SIZES], psm_map_sizes[st->size_i % PSM_MAP_SIZES]); return buf;
-        case PSM_ROW_PCF: return st->pcf ? "2 x 2 (route B)" : "1 texel (route B)";
+        case PSM_ROW_SIZE:
+            snprintf(buf, cap, "%u x %u%s", psm_map_size(st), psm_map_size(st), psm_map_size(st) > PSM_MAP_STATIC ? " (not speed)" : "");
+            return buf;
+        case PSM_ROW_FILTER_A: return st->filter_a ? "BILINEAR (the PVR)" : "POINT (the PVR)";
+        case PSM_ROW_PCF: return st->pcf ? "BILINEAR 2x2 (B, AB)" : "POINT (B, AB)";
         case PSM_ROW_BIAS_A: snprintf(buf, cap, "%u mm (route B)", (unsigned)(st->bias_a * 1000.0f + 0.5f)); return buf;
         case PSM_ROW_BIAS_B: t = (unsigned)(st->bias_b * 10.0f + 0.5f); snprintf(buf, cap, "%u.%u (route B)", t / 10u, t % 10u); return buf;
         case PSM_ROW_WARP_NEAR: t = (unsigned)(st->warp_near * 10.0f + 0.5f); snprintf(buf, cap, "%u.%u m (PSM)", t / 10u, t % 10u); return buf;
@@ -906,7 +939,7 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
         f->gpos_ok = 1; f->gpos_k0 = k0; f->gpos_rows = f->grows; f->gpos_cols = f->gcols; f->gpos_ix = ix; f->gpos_iz = iz; f->gpos_gen++;
     }
 
-    f->size = psm_map_sizes[st->size_i % PSM_MAP_SIZES];
+    f->size = psm_map_size(st);
     f->built = 0; f->head_on = 0;
     n = 0;
     f->slab = s->slab[st->route != PSM_ROUTE_A ? 1 : 0];          /* route B's slab for AB too: it compares the models */
@@ -1331,8 +1364,13 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
     }
     psm_f1_(v, sizeof v, f->slab);
     PSM_LINE_(1, "TEXEL/PX  4m %s  10m %s  25m %s  60m %s  SLAB 0-%s", a[0], a[1], a[2], a[3], v);
-    PSM_LINE_(2, "MAP %ux%u  %u KB %s  text %u KB VRAM", f->size, f->size, kb, st->route == PSM_ROUTE_A ? "VRAM (render target)" : "RAM (16-bit depth)",
-             PSM_TEXT_KB);
+    if (st->size_refused_kb)                                    /* a bigger map was chosen and could not be had */
+        PSM_LINE_(2, "MAP %ux%u  %u KB  bigger REFUSED: no RAM for %u KB", f->size, f->size, kb, st->size_refused_kb);
+    else if (f->size > PSM_MAP_STATIC)                          /* 512: a look, not speed (it misses the SH-4's 16 KB data cache) */
+        PSM_LINE_(2, "MAP %ux%u  %u KB RAM  NOT FOR SPEED: 16 KB cache, fill/texel", f->size, f->size, kb);
+    else
+        PSM_LINE_(2, "MAP %ux%u  %u KB %s  text %u KB VRAM", f->size, f->size, kb, st->route == PSM_ROUTE_A ? "VRAM (render target)" : "RAM (16-bit depth)",
+                 PSM_TEXT_KB);
     psm_f1_(a[0], sizeof a[0], st->warp_near);
     PSM_LINE_(3, "WARP %s m  %s  self-shadow %s  CASTERS %s", st->warp ? a[0] : "--", f->built ? psm_kind_name(f->map.kind) : "--",
              st->route == PSM_ROUTE_A ? "no" : "yes", st->movers_only ? "MOVERS" : "ALL");
@@ -1352,10 +1390,12 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
                  (unsigned)(st->yaw * 57.29578f + 0.5f) % 360u, (int)(-st->pitch * 57.29578f + (st->pitch > 0.0f ? -0.5f : 0.5f)));
     psm_f1_(a[1], sizeof a[1], st->bias_b);
     if (st->route == PSM_ROUTE_B)
-        PSM_LINE_(5, "BIAS a %u mm  b %s  %s  MAP TRIS %u of %u  cull %u", (unsigned)(st->bias_a * 1000.0f + 0.5f), a[1], st->pcf ? "PCF 2x2" : "1 TEXEL",
+        PSM_LINE_(5, "BIAS a %u mm b %s  FILTER A %s B %s  TRIS %u/%u cull %u", (unsigned)(st->bias_a * 1000.0f + 0.5f), a[1],
+                 st->filter_a ? "BILIN" : "POINT", st->pcf ? "2x2" : "POINT",
                  f->drawn, f->tris, f->cull_objs);
     else
-        PSM_LINE_(5, "LOOKUP per pixel, no bias  MAP TRIS %u of %u  cull %u", f->drawn, f->tris, f->cull_objs);
+        PSM_LINE_(5, "LOOKUP per pixel  FILTER A %s B %s  TRIS %u/%u cull %u", st->filter_a ? "BILIN" : "POINT", st->pcf ? "2x2" : "POINT",
+                 f->drawn, f->tris, f->cull_objs);
     if (c && c->have) {
         psm_f1_(a[0], sizeof a[0], c->sh4_ms);
         psm_f1_(a[1], sizeof a[1], c->pvr_ms);

@@ -27,7 +27,11 @@
    on the console now. It is not the PVR route and the readout says so.
 
    Cost: the second slot's buffer, size x size x 2 bytes of RAM (32 KB at 128 x 128, 128 KB at 256 x 256), and two
-   sh4der_psm_raster_t. No allocation: the caller owns both buffers.
+   sh4der_psm_raster_t. No allocation in the hook: the caller owns both buffers.
+
+   The third part (psm_mapbuf_t) holds the buffers of a map bigger than the static ones (MAP SIZE 512 on routes B and AB):
+   allocated through the caller's function while that size is chosen, freed when it is left, refused on the readout when
+   the memory is not there.
 */
 
 #ifndef PSM_MAPSRC_H
@@ -146,8 +150,58 @@ static inline int psm_ab_stub_fill(sh4der_psm_raster_t *dst, void *user) {
 static inline const sh4der_psm_raster_t *psm_frame_ab_fill(psm_frame_t *f, const psm_scene_t *s, psm_mapsrc_t *src) {
     float lo, hi;
 
-    if (!f->built || !sh4der_psm_raster_key_range(f->map.light, &s->mv[0][0], 3u * sizeof(float), s->mvn, &lo, &hi)) return NULL;
+    if (!f->built || !sh4der_psm_raster_key_range(f->map.light, &s->cv[0][0], 3u * sizeof(float), s->cvn, &lo, &hi)) return NULL;   /* the casters' range, as route B's */
     return psm_mapsrc_frame(src, &f->map, f->size, lo - 0.25f, hi + 0.25f);
+}
+
+/* ---- maps bigger than the static buffers (MAP SIZE 512, routes B and AB) ------------------------------------------ */
+
+typedef void *(*psm_alloc_fn)(size_t bytes);   /* 32-byte aligned memory, or NULL (the program: memalign) */
+typedef void (*psm_free_fn)(void *p);
+
+/* The buffers a map bigger than PSM_MAP_STATIC takes while it is chosen: one for route B, two for route AB (its two slots),
+   each PSM_MAP_MAX_B x PSM_MAP_MAX_B x 2 bytes (512 KB at 512). None otherwise: the static ones serve. */
+typedef struct psm_mapbuf {
+    uint16_t *big[2];
+    unsigned n;                     /* held */
+    unsigned allocs, frees;         /* counts, for the host test */
+} psm_mapbuf_t;
+
+static inline unsigned psm_mapbuf_need(const psm_state_t *st) {
+    if (psm_map_size(st) <= PSM_MAP_STATIC) return 0u;
+    return st->route == PSM_ROUTE_AB ? 2u : st->route == PSM_ROUTE_B ? 1u : 0u;
+}
+
+/* Hold what the state's map needs, once a frame after the pad. Returns 1 when the buffers changed: point route B and the
+   source at them again (psm_mapbuf_depth). Leaving the size (or the route) frees them. An allocation that fails holds
+   nothing, steps the size down to the largest static one and says on the readout how much was asked (size_refused_kb). */
+static inline int psm_mapbuf_fit(psm_mapbuf_t *mb, psm_state_t *st, psm_alloc_fn al, psm_free_fn fr) {
+    const size_t bytes = (size_t)PSM_MAP_MAX_B * PSM_MAP_MAX_B * sizeof(uint16_t);
+    const unsigned need = psm_mapbuf_need(st);
+    unsigned i;
+
+    if (need == mb->n) return 0;
+    for (i = 0; i < mb->n; i++) { fr(mb->big[i]); mb->big[i] = NULL; mb->frees++; }
+    mb->n = 0;
+    for (i = 0; i < need; i++) {
+        mb->big[i] = (uint16_t *)al(bytes);
+        if (!mb->big[i]) break;
+        mb->allocs++;
+    }
+    if (i < need) {                                            /* refused: give back what was had, and the size */
+        while (i--) { fr(mb->big[i]); mb->big[i] = NULL; mb->frees++; }
+        st->size_refused_kb = (unsigned)(need * bytes / 1024u);
+        st->size_i = psm_map_index(st);
+        while (st->size_i && psm_map_sizes[st->size_i] > PSM_MAP_STATIC) st->size_i--;
+        return 1;
+    }
+    mb->n = need;
+    return 1;
+}
+
+/* the buffer for slot k (route B: slot 0): a held big one, or the static one */
+static inline uint16_t *psm_mapbuf_depth(const psm_mapbuf_t *mb, unsigned k, uint16_t *static_buf) {
+    return k < mb->n ? mb->big[k] : static_buf;
 }
 
 /* Route AB, step 2: route B's compare against `map` (from psm_frame_ab_fill). The frame's raster becomes that map, so the
@@ -181,10 +235,15 @@ static inline void psm_ab_hud(const psm_state_t *st, const psm_frame_t *f, const
     memcpy(ln[0], big, PSM_HUD_COLS);
     ln[0][PSM_HUD_COLS] = 0;
     memset(big, 0, sizeof big);                                /* two maps in RAM: the one filled and the one read */
-    snprintf(big, sizeof big, "MAP %ux%u  2 x %u KB RAM (16-bit depth)  text %u KB VRAM", f->size, f->size, (f->size * f->size * 2u + 1023u) / 1024u,
-             PSM_TEXT_KB);
-    memcpy(ln[2], big, PSM_HUD_COLS);
-    ln[2][PSM_HUD_COLS] = 0;
+    if (f->size > PSM_MAP_STATIC)
+        snprintf(big, sizeof big, "MAP %ux%u  2 x %u KB RAM  NOT FOR SPEED: 16 KB cache", f->size, f->size, (f->size * f->size * 2u + 1023u) / 1024u);
+    else
+        snprintf(big, sizeof big, "MAP %ux%u  2 x %u KB RAM (16-bit depth)  text %u KB VRAM", f->size, f->size, (f->size * f->size * 2u + 1023u) / 1024u,
+                 PSM_TEXT_KB);
+    if (!st->size_refused_kb) {                                /* a refusal keeps route B's line, which says so */
+        memcpy(ln[2], big, PSM_HUD_COLS);
+        ln[2][PSM_HUD_COLS] = 0;
+    }
     if (st->row % PSM_ROWS == PSM_ROW_ROUTE) {                 /* the menu's ROUTE row reads AB, not the B it was drawn as */
         char v[48];
 
