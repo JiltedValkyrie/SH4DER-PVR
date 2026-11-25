@@ -1,0 +1,49 @@
+# SH4DER-PVR wiki
+
+> Plain-language guide to SH4DER-PVR, a licensed visual-effects library for the Sega Dreamcast (SH-4 + PowerVR2, built on SH4ZAM and KallistiOS), with recommended limits and a ledger of hardware facts measured on a real console. Every number is tagged MEASURED, FACT, REPORTED, ESTIMATE, DISPUTED or OPEN; emulator results are never evidence. Using the code requires credit (see LICENSE).
+
+## Start
+
+- [README](README.md): what the wiki holds, the status legend, the tree
+- [What it is](start-here/what-it-is.md): the library's parts and dependencies
+- [Setup](start-here/setup.md): host tests, the SH4ZAM checkout, the Dreamcast build, demo discs
+- [Call orders](start-here/call-orders.md): where each effect's call order is written
+- [Licence and credit](start-here/license-and-credit.md): the rules for using or adding the library; stop and ask if credit is unwanted
+- [Glossary](glossary.md): Dreamcast and PVR terms
+
+## Effects
+
+- [Effect index](effects/README.md): all 34 effects, version, whether a console cost exists
+- One page per effect in effects/: what it does, call order, cost, limits, pitfalls, open items
+
+## Limits
+
+- [Recommended limits](limits/recommended-limits.md): PROVEN (measured) and ADVISED limits, with the test for each ADVISED one
+- [Budgets](limits/budgets.md): measured unit costs to build a frame budget
+- [Scenes](limits/scenes.md): the demo scenes and every console number read from them
+
+## Hardware ledger
+
+- [Ledger guide](hardware/README.md): ID scheme, row format, how to add a row after a console run
+- [PVR](hardware/ledger-pvr.md): fill, render to texture, per-pixel compare tricks, punch-through, textures
+- [SH-4](hardware/ledger-sh4.md): cache, FIPR/FTRV, transforms, copies, the 16 KB placing trap
+- [Buses and DMA](hardware/ledger-bus-dma.md): TA send, uploads, PVR-DMA, DMAC, G2
+- [AICA](hardware/ledger-aica.md): ARM7DI (ARMv3), sound RAM, G2 DMA rates
+- [Video](hardware/ledger-video.md): frame and target sizes, frame read, hardware-only faults
+- [Errata](errata/README.md): documents against the console; our corrected notes
+
+## Methods
+
+- [Benchmarking](methods/benchmarking.md): how console numbers are taken and reported
+- [Host test first](methods/host-test-first.md): make test, make test-shz, make dc
+- [The SH4ZAM rule](methods/sh4zam-rule.md): all maths through SH4ZAM; hooks in sh4zam-dce
+- [Fault catcher](methods/fault-catcher.md): reading a crash or hang screen on a console
+
+## Shadows and research
+
+- [Shadows](shadows/README.md), [PSM routes](shadows/psm-routes.md), [bump compare chain](shadows/bump-compare-chain.md), [thesis](shadows/thesis.md)
+- [Research notes](research/README.md), [outside sources](research/outside-sources.md): cite only, never copy
+
+## Open questions
+
+- [Open questions](open-questions.md): every OPEN item, in work order, with the test that would close it
