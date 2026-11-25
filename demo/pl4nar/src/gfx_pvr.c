@@ -22,9 +22,60 @@ static int            s_list = -1;          /* the open list (PVR_LIST_*), -1 no
 static uint32_t       s_bad_bind, s_frame;
 static uint64_t       s_wait_us;
 static uint32_t       s_rtt_us;
+static int            s_sample;             /* this frame: 1 both scenes are waited for and read, 2 its last render is
+                                               waited for only, so the next frame starts with the PVR idle (gfx_pvr_sample) */
+/* Bounded waits (hero1's pattern, ../psm/hero/hero_spike.c): ready polled on pvr_check_ready, render done noted by this
+   program's handler in front of KallistiOS's (the handler chains to it), both given up after GFX_WAIT_US and counted. */
+#define GFX_WAIT_US 200000u
+static asic_evt_handler_entry_t s_rd_prev;
+static volatile uint32_t s_rd_seen;
+static int            s_rd_hooked;
+static uint32_t       s_timeouts;
+static gfx_pvr_pass_t s_pass[2];            /* the last sampled screen [0] and mirror [1] scene */
+
+static void rd_evt(uint32_t code, void *data) { (void)data; if (s_rd_prev.hdl) s_rd_prev.hdl(code, s_rd_prev.data); s_rd_seen = 1u; }
+
+static int wait_ready_(void) {
+    const uint64_t t0 = timer_us_gettime64();
+    while (pvr_check_ready() < 0) if (timer_us_gettime64() - t0 > GFX_WAIT_US) { s_timeouts++; return 0; }
+    return 1;
+}
+
+/* After pvr_scene_finish (s_rd_seen cleared before it): the render of that scene is done. Without the hook, KallistiOS's
+   own wait (unbounded). */
+static int wait_done_(void) {
+    const uint64_t t0 = timer_us_gettime64();
+    if (!s_rd_hooked) { pvr_wait_render_done(); return 1; }
+    while (!s_rd_seen) if (timer_us_gettime64() - t0 > GFX_WAIT_US) { s_timeouts++; return 0; }
+    return 1;
+}
+uint32_t gfx_pvr_timeouts(void) { return s_timeouts; }
 
 uint64_t gfx_pvr_wait_us(void) { const uint64_t w = s_wait_us; s_wait_us = 0; return w; }
 uint32_t gfx_pvr_rtt_us(void) { return s_rtt_us; }
+void gfx_pvr_sample(int on) { s_sample = on; }
+const gfx_pvr_pass_t *gfx_pvr_pass(unsigned which) { return &s_pass[which & 1u]; }
+
+/* A sampled scene, after pvr_scene_finish: wait for its render to start and to end, then read what KallistiOS kept of
+   it. Its registration is done before its render starts (pvr_misc.c: vtx_buf_used is set at the REGDONE event), so
+   vtx_buffer_used is this scene's alone; rnd_last_time is its render (RNDSTART .. RNDDONE). The waits are counted as
+   waiting, not CPU. */
+static void sample_scene(unsigned which) {
+    gfx_pvr_pass_t *o = &s_pass[which];
+    uint64_t t0 = timer_us_gettime64(), t1;
+    pvr_stats_t ps;
+    (void)wait_ready_();
+    t1 = timer_us_gettime64();
+    (void)wait_done_();
+    o->wait_us = (uint32_t)(timer_us_gettime64() - t1);
+    s_wait_us += timer_us_gettime64() - t0;
+    if (pvr_get_stats(&ps) == 0) {
+        o->ta_bytes = (uint32_t)ps.vtx_buffer_used;
+        o->ta_max = (uint32_t)ps.vtx_buffer_used_max;
+        o->rnd_us = (uint32_t)(ps.rnd_last_time / 1000u);
+    }
+    o->n++;
+}
 uint32_t gfx_pvr_bad_binds(void) { return s_bad_bind; }
 
 static inline void packet(const void *pkt) {
@@ -81,6 +132,9 @@ void gfx_be_init(void) {
     pvr_ptr_t font;
     int i;
     pvr_init(&pp);
+    s_rd_prev = asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_evt, NULL);
+    s_rd_hooked = s_rd_prev.hdl != NULL;
+    if (!s_rd_hooked) asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, NULL, NULL);
     pvr_set_bg_color(0.77f, 0.81f, 0.84f);      /* the haze colour: what shows past the last building */
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);
     c.gen.culling = PVR_CULLING_NONE;
@@ -119,7 +173,10 @@ void gfx_be_init(void) {
     /* GFX_MAT_REFLECT / _ADD are compiled by gfx_be_reflect_resize (they name the target) */
 }
 
-void gfx_be_shutdown(void) { pvr_shutdown(); }
+void gfx_be_shutdown(void) {
+    if (s_rd_hooked) { asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, s_rd_prev.hdl, s_rd_prev.data); s_rd_hooked = 0; }
+    pvr_shutdown();
+}
 
 void gfx_be_clear_colour(uint32_t argb) {                    /* hand: three byte scales */
     pvr_set_bg_color((float)((argb >> 16) & 255u) * (1.0f / 255.0f), (float)((argb >> 8) & 255u) * (1.0f / 255.0f), (float)(argb & 255u) * (1.0f / 255.0f));
@@ -142,7 +199,7 @@ float gfx_be_reflect_u_scale(void) { return s_rt.tex ? s_rt.u_scale : 1.0f; }
 
 static void ready(void) {                        /* the wait for the PVR is not the frame's CPU time */
     const uint64_t t0 = timer_us_gettime64();
-    pvr_wait_ready();
+    (void)wait_ready_();
     s_wait_us += timer_us_gettime64() - t0;
 }
 
@@ -158,14 +215,11 @@ int gfx_be_reflect_begin(void) {
 void gfx_be_reflect_end(void) {
     pvr_list_finish();
     s_list = -1;
+    s_rd_seen = 0u;
     sh4der_pl4nar_target_end();
-    if ((s_frame & 31u) == 0u) {                 /* one frame in 32: how long the PVR takes over the reflection pass */
-        uint64_t t0 = timer_us_gettime64(), t1;
-        pvr_wait_ready();                        /* its render has started */
-        t1 = timer_us_gettime64();
-        pvr_wait_render_done();
-        s_rtt_us = (uint32_t)(timer_us_gettime64() - t1);
-        s_wait_us += timer_us_gettime64() - t0;
+    if (s_sample == 1) {                              /* a sampled frame: how long the PVR takes over the reflection pass */
+        sample_scene(1u);
+        s_rtt_us = s_pass[1].wait_us;
     }
 }
 
@@ -186,7 +240,16 @@ void gfx_be_list_translucent(void) {
 void gfx_be_frame_end(void) {
     pvr_list_finish();
     s_list = -1;
+    s_rd_seen = 0u;
     pvr_scene_finish();
+    if (s_sample == 1) sample_scene(0u);
+    else if (s_sample == 2) {                    /* before a sampled frame: let this render end, so the next frame's
+                                                    render-done is its own */
+        const uint64_t t0 = timer_us_gettime64();
+        (void)wait_ready_();
+        (void)wait_done_();
+        s_wait_us += timer_us_gettime64() - t0;
+    }
 }
 
 static int s_bound_ok;

@@ -33,6 +33,19 @@ endif
 ifeq ($(MAP),1)
 CFLAGS_ALL += -DPL4NAR_MAP
 endif
+# AUTORUN=1 TAG=<name>: the measuring autorun (main.c PL4NAR_AUTORUN): stages, then result pages (../psm/psm_page.h),
+# back to the suite menu (../psm/psm_suite.h) when started from one.
+ifeq ($(AUTORUN),1)
+CFLAGS_ALL += -DPL4NAR_AUTORUN -DPL4M_TAG=$(TAG) -I$(LIB)/demo/psm
+endif
+# EXTRA: more flags, e.g. EXTRA="-DDRAW_BACK=160.0f -DDRAW_FWD=224.0f"
+CFLAGS_ALL += $(EXTRA)
+# SHZ_LIB=0: link no libsh4zam.a (every SH4ZAM call the demo makes is an inline header function): nothing is built in
+# the SH4ZAM tree, which stays read-only.
+SHZ_LIB ?= 1
+ifeq ($(SHZ_LIB),0)
+SH4ZAM_LIB =
+endif
 TARGET = $(BUILD)/pl4nar-demo.elf
 OBJS   = $(BUILD)/main.o $(BUILD)/demo.o $(BUILD)/gfx.o $(BUILD)/gfx_pvr.o $(BUILD)/hud.o $(BUILD)/sh4der_pl4nar.o $(BUILD)/assets_gen.o
 ifeq ($(MAP),1)
@@ -59,5 +72,7 @@ $(BUILD)/build_number.txt: FORCE
 FORCE:
 $(TARGET): $(OBJS) $(SH4ZAM_LIB)
 	kos-cc -o $@ $(OBJS) $(SH4ZAM_LIB) -lm
+ifneq ($(SHZ_LIB),0)
 -include tools/sh4zam_lib.mk
+endif
 -include $(OBJS:.o=.d)

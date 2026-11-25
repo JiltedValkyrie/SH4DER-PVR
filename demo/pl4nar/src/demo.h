@@ -36,6 +36,20 @@ void demo_update(const demo_input_t *in, float dt);
 void demo_draw(const demo_stats_t *st);
 int  demo_reflect_on(void);
 
+/* The autorun (main.c, PL4NAR_AUTORUN): set a stage, read what the last frame drew. */
+typedef struct demo_counts {
+    uint32_t tris_main, tris_refl;     /* triangles sent: screen scene, mirror scene */
+    uint32_t lookup_us;                /* the reflection lookup over the body (0 with no layer) */
+    uint32_t tw, th, target_bytes;     /* the reflection target */
+    float    night;                    /* 0 day .. 1 night */
+    int      refl_ok;                  /* the layer was drawn */
+    float    draw_back, draw_fwd;      /* the drawn range behind and ahead of the camera, m */
+} demo_counts_t;
+int   demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit);   /* size 0 256x128, 1 128x64, 2 512x256; tod 1 DAY, 2 NIGHT; -1: no video memory */
+float demo_speed(void);
+void  demo_auto_place(float z, float x, float v);   /* the car at z along the street (s on the loop), x across, speed v */
+void  demo_counts(demo_counts_t *c);
+
 /* Platform: microseconds since start. */
 uint64_t plat_us(void);
 #endif

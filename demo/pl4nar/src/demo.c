@@ -33,8 +33,16 @@
 #define CROSS        12.0f         /* cross street width */
 #define ROAD_TILE    24.0f         /* the road texture is 24 m x 24 m */
 #define FACADE_TILE  12.8f         /* a facade texture is 4 bays x 4 floors of 3.2 m */
+/* The drawn range round the camera along z; the two add to PERIOD. 48 / 336 is the chase camera's split. An orbiting
+   camera looks back as far as ahead: -DDRAW_BACK=160.0f -DDRAW_FWD=224.0f moves 112 m behind. What that costs sideways
+   (buildings seen across a cross street) is not measured: the autorun prints the triangle counts of both. */
+#ifndef DRAW_BACK
 #define DRAW_BACK    48.0f
+#endif
+#ifndef DRAW_FWD
 #define DRAW_FWD     336.0f
+#endif
+_Static_assert(DRAW_BACK + DRAW_FWD == PERIOD, "DRAW_BACK + DRAW_FWD must be PERIOD: every z has one image in the drawn range");
 #define LANE_MAX     5.2f          /* the car's |x| limit: the kerb lane stays free for parked cars */
 #define MAX_BLD      112
 #define MAX_PROP     64
@@ -138,6 +146,29 @@ static int s_pv_ok;                               /* this frame's reflection vie
 static const sh4der_pl4nar_plane_t s_road_plane = { { 0.0f, 1.0f, 0.0f }, 0.0f };
 
 int demo_reflect_on(void) { return s_reflect; }
+
+static void demo_place(void);
+
+/* The autorun's hold on the demo: what a stage sets, what it reads. */
+int demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit) {
+    int r = 0;
+    s_reflect = reflect;
+    s_tod_mode = tod_mode % 4u;
+    s_auto = orbit;
+    s_info = 0;                                    /* the overlay's text is not part of what is measured */
+    if (size % 3u != s_size) { s_size = size % 3u; r = gfx_reflect_resize(s_sizes[s_size][0], s_sizes[s_size][1]); }
+    return r;
+}
+float demo_speed(void) { return s_car.v; }
+void demo_auto_place(float z, float x, float v) {
+    s_car.z = z; s_car.x = x; s_car.h = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.v = v;
+    demo_place();
+}
+void demo_counts(demo_counts_t *c) {
+    c->tris_main = s_tris_main; c->tris_refl = s_tris_refl; c->lookup_us = s_pv_ok ? s_refl_cpu_us : 0u;
+    c->tw = s_sizes[s_size][0]; c->th = s_sizes[s_size][1]; c->target_bytes = gfx_reflect_bytes();
+    c->night = s_night; c->refl_ok = s_pv_ok; c->draw_back = DRAW_BACK; c->draw_fwd = DRAW_FWD;
+}
 
 /* ------------------------------------------------------------------------------------------------ init */
 #ifndef PL4NAR_MAP                                 /* the street's own layout */
