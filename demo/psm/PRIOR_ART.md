@@ -127,3 +127,7 @@ These found nothing beyond the findings above. Searches were in English only; Ja
 - Florian Sauer, GameCube shading (read): https://www.gamedeveloper.com/programming/shader-integration-merging-shading-technologies-on-the-nintendo-gamecube
 - Game Watch, Shadow of the Colossus (read): https://game.watch.impress.co.jp/docs/20051207/3dwa.htm
 - Matt Godbolt, SWAT PS2 (read): https://old-dog.xania.org/201003/swat-ps2-renderer
+
+## Owner observation (screenshot)
+
+The owner supplied a screenshot of Tony Hawk's Pro Skater 2 on Dreamcast. The skater's shadow is a soft dark shape with a torso blob and rough limb shapes, not the mesh's own silhouette. This is one frame read by eye: how it was built (ellipses, a low-poly stand-in, a render-to-texture of a proxy) is not known. Wording to use: "a simplified shape, not the full mesh". Not a survey, no claim of a first.
