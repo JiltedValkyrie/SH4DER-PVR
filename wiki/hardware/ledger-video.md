@@ -13,7 +13,7 @@ Each row is one fact; the status legend is in [STRUCTURE.md](../STRUCTURE.md). T
 
 | ID | Claim | Status | Evidence | Source | Test | Used by |
 |---|---|---|---|---|---|---|
-| VID-001 | A 16-bit frame texture takes 640 KB at 640 × 480 (640 × 512 rows) and 160 KB at 320 × 240. | FACT (arithmetic in the code) | — | `include/sh4der_ca.h:11-12` | — | [ca](../effects/ca.md), [warp](../effects/warp.md) |
+| VID-001 | A 16-bit frame texture takes 640 KB at 640 × 480 (640 × 512 rows) and 160 KB at 320 × 240 (320 × 256 rows: whole tile rows). | FACT (arithmetic in the code) | — | `include/sh4der_ca.h:11-12` | — | [ca](../effects/ca.md), [warp](../effects/warp.md) |
 | VID-002 | A render target's size is pitch × height × 2 bytes. Without `pvr_scene_begin_rtt` the pitch is 1,024, so a 256 × 128 target takes 4 times the memory. | FACT | — | README.md "The pl4nar effect"; AGENTS.md "Call order: pl4nar" | — | [pl4nar](../effects/pl4nar.md) |
 | VID-003 | All stride textures share one stride register; trail and ca cannot use it at once. | FACT (code) | — | `include/sh4der_trail.h` top comment | — | trail, ca |
 | VID-004 | Free texture memory after `pvr_init` at 640 × 480 was 1,831 KB (AA off) and 1,817 KB (AA 2X), with 2 MB of TA vertex banks, in one port's boot logs. | REPORTED (another project's console logs, not this repository's) | — | `third_party/dc-forerunner/docs/GRAPHICS.md:42-44` | print `pvr_mem_available()` after load | [budgets](../limits/budgets.md) |

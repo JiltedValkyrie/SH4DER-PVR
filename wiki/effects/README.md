@@ -41,7 +41,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [spark](spark.md) | A pool of 24 additive camera-facing quads | v0.10 | no |
 | [bolt](bolt.md) | Branching lightning strands that re-roll | v0.10 | no |
 | [motes](motes.md) | Stateless drifting specks | v0.10 | no |
-| [pl4nar](pl4nar.md) | Planar reflection through a small render target | v0.10 | no (one emulator figure only) |
+| [pl4nar](pl4nar.md) | Planar reflection through a small render target | v0.10 | **yes**: the lookups, pl4m c5 (PVR-160), one console, one run, 2026-11-25; its PVR columns are ESTIMATE (PVR-162) |
 | [pool](pool.md) | Light pools and blob shadows as fading fans | v0.10 | no |
 | [psm](psm.md) | Shadow map placement; the SH-4 and PVR map routes | v0.10 | **yes**: the town demo HUD, one console, 2026-11-25 |
 | [ao](ao.md) | Crease darkening (bake) and a screen cavity cue | v0.10 | no |

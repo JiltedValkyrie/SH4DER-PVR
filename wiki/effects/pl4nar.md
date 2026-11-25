@@ -35,10 +35,14 @@ Video memory is exact arithmetic: the target's pitch × height × 2 B (README:86
 
 RAM: view 104 B (112 aligned), material 24 B, header 32 B. Code: 692 B with `HAVE_RTT`, 720 B without (SH-4, -O3, measured as a size).
 
-Times (README:869-873). **None is measured on a console:**
+Times (README:869-873). **Measured on a console so far: the street demo's lookups and targets only** (pl4m c5, suite s7, one console, one run):
 
 | Item | What is known | Status |
 |---|---|---|
+| Lookups, street demo | 0.92 to 0.97 ms a frame (PVR-160) | MEASURED, 1 console, 1 run |
+| Targets | 32 KB at 128 × 64, 128 KB at 256 × 128, 512 KB at 512 × 256 (1,024 wide), no NOVRAM in any stage (PVR-161) | MEASURED, 1 console, 1 run |
+| Mirror pass, SH-4, street demo | about 41 ms a frame: reflection on against off, frame times MEASURED (PVR-160); the target size changes nothing | DERIVED |
+| Mirror pass and screen PVR, street demo | 3.55 to 9.43 ms in the page's columns, from a bug in our sampling (PVR-162) | ESTIMATE |
 | Lookup, body | 0.43 ms for 1,623 vertices, one run of an older version | REPORTED (emulator, not evidence). This version is estimated 15-20 % less. |
 | Lookup, flat | under the body's | ESTIMATE |
 | Mirror pass, CPU | the world pass × the mirrored share | ESTIMATE |

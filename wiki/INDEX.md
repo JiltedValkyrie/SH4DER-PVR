@@ -108,6 +108,10 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [start-here/setup.md](start-here/setup.md) | Setup | start, build, test | 2026-11-25 | how to get SH4ZAM, run the host tests and build for the Dreamcast.
 - [start-here/what-it-is.md](start-here/what-it-is.md) | What SH4DER-PVR is | start, overview | 2026-11-25 | what the library does, what it needs, and where each part lives.
 
+## status
+
+- [status/maturity.md](status/maturity.md) | Maturity: how far along each part is | status, maturity, index, start | 2026-11-25 | for every part of SH4DER-PVR (each effect, the SH4ZAM-DCE kernels, the demos and the suite's test tools), how mature it is, what that rests on, and what would move it up.
+
 ## images
 
 Diagrams, with the caption beside each file and the pages that show it.

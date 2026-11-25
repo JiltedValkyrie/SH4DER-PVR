@@ -31,7 +31,7 @@ Header only; you project and submit. Version v0.10 (`include/sh4der_mist.h:65`).
 
 | Item | Cost | Status |
 |---|---|---|
-| RAM | 64 B | as-stated (README effect table) |
+| RAM | 68 B | `sizeof` on the host, 2026-11-25, Parity (no pointers, so the SH-4 size matches); the README effect table's 64 B is out of date |
 | VRAM | 8 KB for a 64 × 64 noise texture (yours) | as-stated |
 | Triangles | 4 a sheet, 48 at the default | as-stated |
 | PVR fill | every sheet covers its whole area on screen; not measured | OPEN |

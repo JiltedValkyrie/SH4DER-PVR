@@ -55,7 +55,7 @@ See `README.md` "Bloom tuning" (README:345-368) and the MAX preset (README:370-3
 
 ## Open
 
-- **Is `src/sh4der_bloom.c` PVR drawing or maths only?** `AGENTS.md` says "The .c is KOS PVR drawing, Dreamcast only". The file's own comments say "Maths only: no PVR calls" and "the caller picks the list and blend" (bloom.c:35, 125, 212, 370). Check the file before relying on either statement.
+- **Is `src/sh4der_bloom.c` PVR drawing or maths only?** `AGENTS.md` says "The .c is KOS PVR drawing, Dreamcast only". The file's own comments say "Maths only: no PVR calls" and "the caller picks the list and blend" (bloom.c:35, 125, 212, 370). Answered 2026-11-25 (Scholar, Parity): maths only. The file includes only `sh4der_bloom.h` (bloom.c:16), no KallistiOS or PVR header; the `AGENTS.md` line is out of date (reported to lead).
 
 ## Related
 

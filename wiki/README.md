@@ -18,6 +18,7 @@ The library's own `README.md` and `AGENTS.md` stay the reference for calls and t
 - **New here?** [What it is](start-here/what-it-is.md), then [Setup](start-here/setup.md).
 - **Adding an effect to a game?** [Call orders](start-here/call-orders.md), the [effect pages](effects/README.md), and [Recommended limits](limits/recommended-limits.md).
 - **Need a hardware number?** The [hardware ledger](hardware/README.md).
+- **How far along is a part?** The [maturity table](status/maturity.md).
 - **Something on the console disagrees with a document?** [Errata](errata/README.md).
 - **Using the code in your project?** [Licence and credit](start-here/license-and-credit.md). Credit is required.
 
@@ -43,6 +44,7 @@ Limits are **PROVEN** (a MEASURED number backs them) or **ADVISED** (not yet). S
 - **start-here/**: [what it is](start-here/what-it-is.md), [setup](start-here/setup.md), [call orders](start-here/call-orders.md), [licence and credit](start-here/license-and-credit.md)
 - **effects/**: [one page for each of the 34 effects](effects/README.md)
 - **limits/**: [budgets](limits/budgets.md), [recommended limits](limits/recommended-limits.md), [scenes](limits/scenes.md)
+- **status/**: [maturity](status/maturity.md)
 - **hardware/**: [the ledger](hardware/README.md): [PVR](hardware/ledger-pvr.md), [SH-4](hardware/ledger-sh4.md), [buses and DMA](hardware/ledger-bus-dma.md), [AICA](hardware/ledger-aica.md), [video](hardware/ledger-video.md)
 - **errata/**: [conflicts and corrections](errata/README.md)
 - **methods/**: [benchmarking](methods/benchmarking.md), [host test first](methods/host-test-first.md), [the SH4ZAM rule](methods/sh4zam-rule.md), [the fault catcher](methods/fault-catcher.md)

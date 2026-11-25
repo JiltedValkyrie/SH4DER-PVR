@@ -55,7 +55,7 @@ The ocean demo's own budget, from `demo/OCEAN.md`:
 
 ## Open
 
-- **RAM per wave: 24 B or 28 B?** README:1155 says 24 B a wave. water.h:11 says "7 values, 28 B". One of them is wrong.
+- ~~RAM per wave: 24 B or 28 B?~~ Answered 2026-11-25: 28 B (`sizeof` on the host, Parity; no pointers, so the SH-4 size matches), as water.h:11 says. README:1155's 24 B is out of date.
 - A steady 33.3 ms frame for the ocean demo on hardware (OCEAN.md:5, 116).
 - The cost of the ocean demo's BLOOM row, which only a console can measure (OCEAN.md:~128).
 

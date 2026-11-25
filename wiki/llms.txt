@@ -22,6 +22,10 @@
 - [Budgets](limits/budgets.md): measured unit costs to build a frame budget
 - [Scenes](limits/scenes.md): the demo scenes and every console number read from them
 
+## Status
+
+- [Maturity](status/maturity.md): how far along each part is (PROTOTYPE, ALPHA, BETA, STABLE), from the ledger alone, with what would promote it
+
 ## Hardware ledger
 
 - [Ledger guide](hardware/README.md): ID scheme, row format, how to add a row after a console run

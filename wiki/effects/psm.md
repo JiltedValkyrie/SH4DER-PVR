@@ -52,7 +52,7 @@ Read it with care:
 
 As-stated, not timed on a console:
 
-- `sh4der_psm.h`: 76 B a map description; 4 × 4 products at build; a lookup is a 4 × 3 transform and a divide (README:988).
+- `sh4der_psm.h`: 80 B a map description (`sizeof` on the host, 2026-11-25, Parity; README:988's 76 B leaves out the kind field); 4 × 4 products at build; a lookup is a 4 × 3 transform and a divide (README:988).
 - `sh4der_psm_raster.h`: RAM size × size × 2 B (32 KB at 128 × 128). One FTRV per caster vertex in a batch, three adds and one reciprocal per covered texel, three transforms per receiver vertex (psm_raster.h:34-42).
 - The MOVCA clear: 16.2 cycles a cache line against 41.9 for a plain write that misses (psm_raster.h:119-121). These are the h1 cache lines (MEASURED, one console, 2026-11-25; see the [SH-4 ledger](../hardware/ledger-sh4.md)).
 - `sh4der_psm_pvr.h`: per-vertex lookup error on the host only. With a 256 map, a 4 m ground cell is off by up to 57 texels at 6 m and 1.5 at 20 m; a 1 m cell by 1.1 and 0.07; a 0.25 m cell by 0.06 and 0.004 (README:985). This is ESTIMATE from the host model.

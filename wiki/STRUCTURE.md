@@ -43,6 +43,8 @@ wiki/
     budgets.md               frame budget by unit: SH-4 ms, PVR ms, TA vertices, VRAM, RAM, sound RAM
     recommended-limits.md    the "do this, not that" table: limit, why, number, status, scene it came from
     scenes.md                the scenes the numbers came from (town, ocean, street, torch walk), with their counts
+  status/
+    maturity.md              one row a part (effects, SH4ZAM-DCE kernels, demos, suite tools): PROTOTYPE, ALPHA, BETA, STABLE, the evidence, what would promote it
   hardware/
     README.md                how the ledger works, ID scheme, how to add an entry
     ledger-pvr.md            PVR CORE and TA: depth, blend, bump, fog, punch-through, pack, render to texture, fill

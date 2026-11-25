@@ -30,8 +30,8 @@ All as-stated (README:256). None of it is measured on a console.
 
 | Item | Cost |
 |---|---|
-| Frame state | 144 B |
-| Parameters | 136 B |
+| Frame state | 156 B (`sizeof` on the host, 2026-11-25, Parity; the ripple fields were added after README:256's 144 B. No pointers, so the SH-4 size matches) |
+| Parameters | 160 B (the same probe; README:256 says 136 B) |
 | Per vertex | two 2D distance tests and one 3D test; a feather only inside a tube or the blocker |
 | PVR | an untextured draw, said to cost the PVR less than the textured draw it replaces (not measured) |
 | VRAM | 0 |
