@@ -59,8 +59,10 @@ FOOTBRIDGE_AT = "north-mid"
 PASSAGE = ("west", 110.0, 10)
 # the lanes (src/map.c): lateral offset from the centre line (+ = the right of the travel direction (tz, -tx), the
 # screen's left in the demo's frame, so forward traffic keeps to the negative side) and speed in m/s along +s (negative:
-# oncoming). Four cars a lane, spread round the loop.
+# oncoming). Four cars a lane, spread round the loop, but none in the player's lane (-2: the demo's start and the
+# autorun's lane): nothing tests for a collision, so a car there drove through the player's (s7).
 LANES = [(-2.0, 12.5), (-6.0, 9.5), (2.0, -11.5), (6.0, -14.0)]
+PLAYER_LANE = 0
 CARS_A_LANE = 4                                                  # side, s from the side's start, bays of 8 m
 
 
@@ -262,6 +264,8 @@ def layout(models):
     # the self-driving traffic (src/map.c moves it): body, wheels, lane, start s. Not in map_inst.
     _pts, total = path()
     for li, (lat, _v) in enumerate(LANES):
+        if li == PLAYER_LANE:
+            continue
         for k in range(CARS_A_LANE):
             body = ["taxi", "police", "van"][(k + li) % 3]
             cars.append((idx["mdl_%s_body" % body], idx["mdl_%s_wheels" % body], li, (k * total / CARS_A_LANE + li * 23.0) % total))

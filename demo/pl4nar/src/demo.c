@@ -22,8 +22,13 @@
 #include "map.h"
 #include "map_gen.h"
 #include "map_ao_gen.h"                            /* tools/map_ao.c: a byte a model vertex, the road's patches */
-#define MAP_DRAW     300.0f        /* drawn round the camera, m */
-#define MAP_MIRROR   140.0f        /* mirrored round the camera */
+#define MAP_DRAW     200.0f        /* drawn round the camera, m (the haze is full by then) */
+#define MAP_MIRROR   80.0f         /* mirrored round the camera */
+#define LOD_NEAR     50.0f         /* a building past this is its box (lod_init): the screen pass (demo_auto_lod) */
+#define LOD_MIRROR   15.0f         /* and in the mirror pass */
+#define TRAFFIC_DRAW 150.0f        /* traffic drawn round the camera */
+#define CAR_NEAR     40.0f         /* a traffic car past this is its box */
+#define CAR_MIRROR   30.0f         /* traffic mirrored round the camera (s7: 60) */
 #define MAP_AO_DRAW  120.0f        /* the road's occlusion patches round the camera: past it the haze has them */
 #define MAP_CAP_NIGHT 0.50f        /* the layer's alpha at night at most: the strips over the paint keep its colour */
 #define TILE_N       8u            /* car shadow tiles: 4 x 2 in the right half of the reflection target */
@@ -71,8 +76,13 @@ _Static_assert(DRAW_BACK + DRAW_FWD == PERIOD, "DRAW_BACK + DRAW_FWD must be PER
 static float s_amb = 0.56f, s_dif = 0.50f;        /* the light of the hour (tod_eval) */
 #define AMBIENT      s_amb
 #define DIFFUSE      s_dif
+#ifdef PL4NAR_MAP                                  /* the map ends at MAP_DRAW: the haze is full (HAZE_MAX) there */
+#define HAZE_START   70.0f
+#define HAZE_INV     (1.0f / 130.0f)
+#else
 #define HAZE_START   90.0f
 #define HAZE_INV     (1.0f / 320.0f)
+#endif
 #define HAZE_MAX     0.88f
 static uint32_t s_haze = 0xffc4ced6u;
 #define COL_HAZE     s_haze
@@ -182,6 +192,9 @@ static int          s_fx_hidden;                  /* the labels: B + START; off 
 static unsigned     s_blob_n;                     /* blob discs drawn this frame (the labels) */
 
 static void demo_place(void);
+#ifdef PL4NAR_MAP
+static void lod_init(void);
+#endif
 
 /* The autorun's hold on the demo: what a stage sets, what it reads. */
 int demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit) {
@@ -247,6 +260,7 @@ void demo_init(void) {
 #ifdef PL4NAR_MAP
     (void)side; (void)b;
     map_traffic_reset();
+    lod_init();
 #else
     for (side = 0; side < 2u; side++) {
         const float sgn = side ? 1.0f : -1.0f;
@@ -308,6 +322,10 @@ void demo_update(const demo_input_t *in, float dt) {
     if (s_tod < 0.0f) s_tod += 1.0f;
     if (in->pressed & DEMO_BTN_SPLIT) s_split = !s_split;
     if (in->pressed & DEMO_BTN_FX) s_fx_hidden = !s_fx_hidden;
+#ifdef PL4NAR_MAP
+    if (in->pressed & DEMO_BTN_TILES) s_tiles = !s_tiles;
+    if (in->pressed & DEMO_BTN_AO) s_ao = !s_ao;
+#endif
     s_div = split_step(&s_split_step, s_div, SPLIT_COLS, in->split_l, in->split_r);
     if (in->pressed & DEMO_BTN_SIZE) {
         s_size = (s_size + 1u) % 3u;
@@ -471,33 +489,56 @@ static void draw_sky(shz_vec3_t eye) {
 
 /* ------------------------------------------------------------------------------------------------ road + buildings */
 #ifdef PL4NAR_MAP
-/* The ground: 20 m cells (the park in the middle green), then the loop's road band, a quad a path step. */
+/* The ground: 20 m cells (the park in the middle green), then the loop's road band, a quad a path step. Both share
+   their corners: a corner is transformed once (a row of the grid at a time; the road's last pair is the next quad's
+   first), not once a quad. */
+#define GROUND_NX 18u
+#define GROUND_NZ 26u
 static void draw_road(void) {
-    gfx_vert_t q[4];
+    static gfx_vert_t row[2][GROUND_NX + 1u];
+    gfx_vert_t q[4], prev[2];
     unsigned gx, gz, k;
+    int have = 0;
     gfx_bind(GFX_MAT_FLAT);
     VP_LOAD();
-    for (gz = 0; gz < 26u; gz++)
-        for (gx = 0; gx < 18u; gx++) {
-            const float x0 = -180.0f + 20.0f * (float)gx, z0 = -260.0f + 20.0f * (float)gz, x1 = x0 + 20.0f, z1 = z0 + 20.0f;
-            const float cx = x0 + 10.0f - s_camx, cz = z0 + 10.0f - s_camz;
-            const int park = x0 >= -40.0f && x1 <= 40.0f && z0 >= -40.0f && z1 <= 40.0f;
-            if (cx * cx + cz * cz > MAP_DRAW * MAP_DRAW) continue;            /* hand: scalar products */
-            gfx_xform(&q[0], shz_vec3_init(x0, -0.03f, z1)); gfx_xform(&q[1], shz_vec3_init(x1, -0.03f, z1));
-            gfx_xform(&q[2], shz_vec3_init(x1, -0.03f, z0)); gfx_xform(&q[3], shz_vec3_init(x0, -0.03f, z0));
-            for (k = 0; k < 4u; k++) { q[k].argb = gfx_mod(park ? 0xff4a6e3cu : 0xff6a6862u, s_road_col); q[k].u = q[k].v = 0.0f; haze_flat(&q[k]); }
-            quad(q);
+    for (gz = 0; gz <= GROUND_NZ; gz++) {
+        gfx_vert_t *cur = row[gz & 1u], *last = row[(gz & 1u) ^ 1u];
+        const float z1 = -260.0f + 20.0f * (float)gz, dz = z1 - 10.0f - s_camz;
+        int any = 0;
+        for (gx = 0; gx < GROUND_NX; gx++) {                                /* a row is needed when one of its cells is */
+            const float dx = -170.0f + 20.0f * (float)gx - s_camx;
+            if (dx * dx + dz * dz <= MAP_DRAW * MAP_DRAW || (dz + 20.0f) * (dz + 20.0f) + dx * dx <= MAP_DRAW * MAP_DRAW) { any = 1; break; }   /* hand: scalar products */
         }
+        if (!any) { have = 0; continue; }
+        for (gx = 0; gx <= GROUND_NX; gx++) gfx_xform(&cur[gx], shz_vec3_init(-180.0f + 20.0f * (float)gx, -0.03f, z1));
+        if (have)
+            for (gx = 0; gx < GROUND_NX; gx++) {
+                const float x0 = -180.0f + 20.0f * (float)gx, x1 = x0 + 20.0f, z0 = z1 - 20.0f;
+                const float cx = x0 + 10.0f - s_camx;
+                const int park = x0 >= -40.0f && x1 <= 40.0f && z0 >= -40.0f && z1 <= 40.0f;
+                if (cx * cx + dz * dz > MAP_DRAW * MAP_DRAW) continue;            /* hand: scalar products */
+                q[0] = cur[gx]; q[1] = cur[gx + 1u]; q[2] = last[gx + 1u]; q[3] = last[gx];
+                for (k = 0; k < 4u; k++) { q[k].argb = gfx_mod(park ? 0xff4a6e3cu : 0xff6a6862u, s_road_col); q[k].u = q[k].v = 0.0f; haze_flat(&q[k]); }
+                quad(q);
+            }
+        have = 1;
+    }
     gfx_bind(s_low ? GFX_MAT_P_ROAD : GFX_MAT_ROAD);
+    have = 0;
     for (k = 0; k + 3u < MAP_ROAD_V; k += 2u) {
         const float *a = map_road[k], *b = map_road[k + 1u], *c = map_road[k + 2u], *d = map_road[k + 3u];
         const float cx = a[0] - s_camx, cz = a[1] - s_camz;
         unsigned i;
-        if (cx * cx + cz * cz > MAP_DRAW * MAP_DRAW) continue;
-        gfx_xform(&q[0], shz_vec3_init(c[0], 0.0f, c[1])); q[0].u = c[2]; q[0].v = c[3];
-        gfx_xform(&q[1], shz_vec3_init(d[0], 0.0f, d[1])); q[1].u = d[2]; q[1].v = d[3];
-        gfx_xform(&q[2], shz_vec3_init(b[0], 0.0f, b[1])); q[2].u = b[2]; q[2].v = b[3];
-        gfx_xform(&q[3], shz_vec3_init(a[0], 0.0f, a[1])); q[3].u = a[2]; q[3].v = a[3];
+        if (cx * cx + cz * cz > MAP_DRAW * MAP_DRAW) { have = 0; continue; }
+        if (have) { q[3] = prev[0]; q[2] = prev[1]; }
+        else {
+            gfx_xform(&q[2], shz_vec3_init(b[0], 0.0f, b[1]));
+            gfx_xform(&q[3], shz_vec3_init(a[0], 0.0f, a[1]));
+        }
+        gfx_xform(&q[0], shz_vec3_init(c[0], 0.0f, c[1]));
+        gfx_xform(&q[1], shz_vec3_init(d[0], 0.0f, d[1]));
+        prev[0] = q[0]; prev[1] = q[1]; have = 1;                             /* untouched: the next quad's a, b */
+        q[0].u = c[2]; q[0].v = c[3]; q[1].u = d[2]; q[1].v = d[3]; q[2].u = b[2]; q[2].v = b[3]; q[3].u = a[2]; q[3].v = a[3];
         for (i = 0; i < 4u; i++) { q[i].argb = s_road_col; haze_tex(&q[i]); }
         quad(q);
     }
@@ -631,9 +672,110 @@ static void draw_model(const mdl_t *m, float x, float z, float yaw) {
 }
 
 #ifdef PL4NAR_MAP
+/* Level of detail. A building (a model of radius 8 m or more with no lit parts) past LOD_NEAR (LOD_MIRROR in the mirror)
+   is drawn as its box: the model's bounds, five faces (no floor), its mean colour x tint, lit per face, its mean baked
+   occlusion. 8 corners transformed, 10 triangles, against 150 .. 955 vertices for the model. A traffic car past
+   CAR_NEAR is its body's box too (490 .. 931 vertices), with no wheels. Structures (the lit strips) and lamps keep their
+   model.
+   The band: a model with lit strips facing down (the overpass's bars, the passage's) has, in the mirror pass only, one
+   quad 3 cm under them over all of them, their colour x the share of the band they cover. Bars mirrored one by one onto
+   the paint, looked up per vertex, gave a black and white moire (s7, the night orbit under the overpass). */
+typedef struct band { float x0, x1, z0, z1, y; uint32_t rgb; } band_t;   /* y 0: none */
+static uint32_t s_box_rgb[MAP_MODELS];             /* the mean colour of the model's unlit vertices */
+static uint8_t  s_box_bld[MAP_MODELS];             /* 1: a building, boxed past LOD_NEAR */
+static float    s_box_ao[MAP_MODELS];
+static float    s_box_r[MAP_MODELS];               /* the footprint's radius (x, z): the distance test (a tall tower's sphere is mostly height) */
+static band_t   s_band[MAP_MODELS];
+static float    s_lod_near = LOD_NEAR;
+void demo_auto_lod(float m) { s_lod_near = m > 0.0f ? m : LOD_NEAR; }
+
+static void lod_init(void) {
+    unsigned mi, i;
+    for (mi = 0; mi < MAP_MODELS; mi++) {
+        const mdl_t *m = map_models[mi];
+        float sum[3] = { 0.0f, 0.0f, 0.0f }, ao = 0.0f, area = 0.0f, n = 0.0f, lo[3] = { 1e9f, 1e9f, 1e9f }, hi[3] = { -1e9f, -1e9f, -1e9f };
+        unsigned lamps = 0u, down = 0u, k;
+        for (i = 0; i < m->nv; i++) {
+            const mdl_vert_t *v = &m->v[i];
+            if (v->cls == CLS_LAMP) {
+                lamps++;
+                if (v->n[1] < -0.9f) {
+                    down++;
+                    for (k = 0; k < 3u; k++) { lo[k] = shz_fminf(lo[k], v->p[k]); hi[k] = shz_fmaxf(hi[k], v->p[k]); }
+                    sum[0] += (float)((v->rgb >> 16) & 255u); sum[1] += (float)((v->rgb >> 8) & 255u); sum[2] += (float)(v->rgb & 255u);
+                }
+                continue;
+            }
+            ao += map_model_ao[mi][i] * (1.0f / 255.0f); n += 1.0f;
+        }
+        s_box_ao[mi] = n > 0.0f ? ao * shz_invf(n) : 1.0f;
+        if (down >= 8u) {                          /* two bars or more: their area over the band's (hand: scalar products) */
+            for (i = 0; i + 2u < m->ni; i += 3u) {
+                const mdl_vert_t *a = &m->v[m->idx[i]], *b = &m->v[m->idx[i + 1u]], *c = &m->v[m->idx[i + 2u]];
+                if (a->cls != CLS_LAMP || a->n[1] > -0.9f || b->cls != CLS_LAMP || c->cls != CLS_LAMP) continue;
+                area += 0.5f * shz_fabsf((b->p[0] - a->p[0]) * (c->p[2] - a->p[2]) - (c->p[0] - a->p[0]) * (b->p[2] - a->p[2]));
+            }
+            {
+                const float duty = shz_saturatef(area * shz_invf((hi[0] - lo[0]) * (hi[2] - lo[2]))), inv = shz_invf((float)down);
+                if (duty < 0.9f) {
+                    band_t *bd = &s_band[mi];
+                    bd->x0 = lo[0]; bd->x1 = hi[0]; bd->z0 = lo[2]; bd->z1 = hi[2]; bd->y = lo[1] - 0.03f;
+                    bd->rgb = gfx_rgb(255u, (unsigned)(sum[0] * inv * duty), (unsigned)(sum[1] * inv * duty), (unsigned)(sum[2] * inv * duty));
+                }
+            }
+        }
+        s_box_bld[mi] = m->radius >= 8.0f && !lamps;
+        sum[0] = sum[1] = sum[2] = 0.0f;
+        for (i = 0; i < m->nv; i++) {
+            const uint32_t c = m->v[i].rgb;
+            if (m->v[i].cls == CLS_LAMP) continue;
+            sum[0] += (float)((c >> 16) & 255u); sum[1] += (float)((c >> 8) & 255u); sum[2] += (float)(c & 255u);
+        }
+        s_box_r[mi] = shz_sqrtf(shz_fmaxf(m->lo[0] * m->lo[0], m->hi[0] * m->hi[0]) + shz_fmaxf(m->lo[2] * m->lo[2], m->hi[2] * m->hi[2]));   /* hand: scalar products */
+        {
+            const float inv = shz_invf((float)(m->nv - lamps > 0u ? m->nv - lamps : 1u));
+            s_box_rgb[mi] = gfx_rgb(255u, (unsigned)(sum[0] * inv), (unsigned)(sum[1] * inv), (unsigned)(sum[2] * inv));
+        }
+    }
+}
+
+/* The box of model mi (lod_init). XMTRX = s_vp x translate x rotate on return. */
+static void draw_box(unsigned mi, float x, float z, float yaw) {
+    static const uint8_t face[5][4] = { { 1, 3, 7, 5 }, { 0, 4, 6, 2 }, { 2, 6, 7, 3 }, { 4, 5, 7, 6 }, { 0, 2, 3, 1 } };   /* corner bits: x 1, y 2, z 4; counter-clockwise outside */
+    static const float fn[5][3] = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
+    const mdl_t *m = map_models[mi];
+    const shz_sincos_t sc = shz_sincosf(yaw);
+    const float lm[3] = { shz_fmaf(s_sun[0], sc.cos, -s_sun[2] * sc.sin), s_sun[1], shz_fmaf(s_sun[0], sc.sin, s_sun[2] * sc.cos) };
+    const float amb = s_ao ? AMBIENT * s_box_ao[mi] : AMBIENT;
+    const uint32_t base = gfx_mod(s_box_rgb[mi], s_tint);
+    gfx_vert_t c[8], q[4];
+    unsigned f, k;
+    VP_LOAD();
+    shz_xmtrx_translate(x, 0.0f, z);
+    shz_xmtrx_rotate_y(yaw);
+    for (k = 0; k < 8u; k++) gfx_xform(&c[k], shz_vec3_init(k & 1u ? m->hi[0] : m->lo[0], k & 2u ? m->hi[1] : m->lo[1], k & 4u ? m->hi[2] : m->lo[2]));
+    for (f = 0; f < 5u; f++) {
+        const float l = shz_fmaf(DIFFUSE, shz_fmaxf(0.0f, sh4der_dot3_(fn[f], lm)), amb);
+        const uint32_t col = lit(gfx_scale(base, (unsigned)(shz_fminf(l, 1.0f) * 256.0f)));
+        for (k = 0; k < 4u; k++) { q[k] = c[face[f][k]]; q[k].argb = col; q[k].u = q[k].v = 0.0f; haze_flat(&q[k]); }
+        quad(q);
+    }
+}
+
+/* The band under model mi's strips (mirror pass). XMTRX: the instance's (draw_model's), unchanged. */
+static void draw_band(unsigned mi) {
+    const band_t *b = &s_band[mi];
+    gfx_vert_t q[4];
+    unsigned k;
+    gfx_xform(&q[0], shz_vec3_init(b->x0, b->y, b->z0)); gfx_xform(&q[1], shz_vec3_init(b->x1, b->y, b->z0));
+    gfx_xform(&q[2], shz_vec3_init(b->x1, b->y, b->z1)); gfx_xform(&q[3], shz_vec3_init(b->x0, b->y, b->z1));
+    for (k = 0; k < 4u; k++) { q[k].argb = b->rgb; q[k].oargb = 0u; q[k].u = q[k].v = 0.0f; }
+    quad(q);
+}
+
 /* The map's instances (buildings, structures, lamps, furniture) and the traffic, by distance from the camera. */
 static void draw_props(int reflect_pass) {
-    const float lim = reflect_pass ? MAP_MIRROR : MAP_DRAW;
+    const float lim = reflect_pass ? MAP_MIRROR : MAP_DRAW, lod = reflect_pass ? LOD_MIRROR : s_lod_near;
     unsigned i;
     gfx_bind(GFX_MAT_FLAT);
     for (i = 0; i < MAP_INST; i++) {
@@ -641,23 +783,28 @@ static void draw_props(int reflect_pass) {
         const mdl_t *m = map_models[p->model];
         const float dx = p->x - s_camx, dz = p->z - s_camz, d2 = dx * dx + dz * dz, r = lim + m->radius;   /* hand: scalar products */
         if (d2 > r * r) continue;
-        if (reflect_pass && m->radius < 4.0f && d2 > 60.0f * 60.0f) continue;          /* small far things are not worth mirroring */
+        if (m->radius < 4.0f && d2 > (reflect_pass ? 60.0f * 60.0f : 100.0f * 100.0f)) continue;   /* small far things: not worth it */
         if (!sphere_seen(p->x, m->radius * 0.5f, p->z, m->radius)) continue;
         s_tint = 0xff000000u | p->tint;
-        s_mao = s_ao ? map_model_ao[p->model] : NULL;
-        draw_model(m, p->x, p->z, p->yaw);
+        if (s_box_bld[p->model] && d2 > (lod + s_box_r[p->model]) * (lod + s_box_r[p->model])) draw_box(p->model, p->x, p->z, p->yaw);
+        else {
+            s_mao = s_ao ? map_model_ao[p->model] : NULL;
+            draw_model(m, p->x, p->z, p->yaw);
+            if (reflect_pass && s_band[p->model].y != 0.0f) draw_band(p->model);
+        }
         s_tint = 0xffffffffu;
     }
     for (i = 0; i < map_traffic_n(); i++) {
         const map_pose_t q = map_traffic_pose(i);
         const mdl_t *body = map_models[map_car[i].body];
         const float dx = q.x - s_camx, dz = q.z - s_camz, d2 = dx * dx + dz * dz;
-        if (d2 > (reflect_pass ? 60.0f * 60.0f : 220.0f * 220.0f)) continue;
+        if (d2 > (reflect_pass ? CAR_MIRROR * CAR_MIRROR : TRAFFIC_DRAW * TRAFFIC_DRAW)) continue;
         if (!sphere_seen(q.x, body->radius * 0.5f, q.z, body->radius)) continue;
+        if (!reflect_pass && d2 > CAR_NEAR * CAR_NEAR) { draw_box(map_car[i].body, q.x, q.z, q.yaw); continue; }
         s_mao = s_ao ? map_model_ao[map_car[i].body] : NULL;
         draw_model(body, q.x, q.z, q.yaw);
         s_mao = NULL;
-        if (!reflect_pass && d2 < 110.0f * 110.0f) draw_model(map_models[map_car[i].wheels], q.x, q.z, q.yaw);
+        if (!reflect_pass) draw_model(map_models[map_car[i].wheels], q.x, q.z, q.yaw);
     }
     s_mao = NULL;
 }

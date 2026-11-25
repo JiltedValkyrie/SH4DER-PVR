@@ -39,7 +39,7 @@ static uint32_t ram_free_kb(void) {
     return (uint32_t)(((uint32_t)mi.fordblks + (heap_top > heap_end ? heap_top - heap_end : 0u)) / 1024u);
 }
 
-#ifndef PL4NAR_AUTORUN
+/* The pad, the live view's keys; the autorun reads the same keys (its driver keeps the gas, the brake and the wheel). */
 static void read_pad(demo_input_t *in, uint32_t *held) {
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
@@ -53,19 +53,21 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
     in->gas = (float)st->rtrig * (1.0f / 255.0f);            /* right trigger: engine */
     in->brake = (float)st->ltrig * (1.0f / 255.0f);          /* left trigger: brake, then reverse */
     if (st->buttons & CONT_B) {                              /* B held: the stick turns the camera round the car, the triggers move the divider */
-        in->orbit = in->steer; in->steer = 0.0f;
+        in->orbit = (float)st->joyx * (1.0f / 127.0f);       /* the stick only: B + D-pad left is the AO key */
+        if (in->orbit > -0.12f && in->orbit < 0.12f) in->orbit = 0.0f;
+        in->steer = 0.0f;
         in->split_l = st->ltrig > 128; in->split_r = st->rtrig > 128; in->gas = in->brake = 0.0f;
     }
     if (st->buttons & CONT_X)         now |= (st->buttons & CONT_B) ? DEMO_BTN_SPLIT : DEMO_BTN_REFLECT;
-    if (st->buttons & CONT_Y)         now |= DEMO_BTN_TOD;
+    if (st->buttons & CONT_Y)         now |= (st->buttons & CONT_B) ? DEMO_BTN_TILES : DEMO_BTN_TOD;
     if (st->buttons & CONT_A)         now |= (st->buttons & CONT_B) ? DEMO_BTN_SIZE : DEMO_BTN_LOOK;
     if (st->buttons & CONT_DPAD_UP)   now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_UP : DEMO_BTN_MORE;
     if (st->buttons & CONT_DPAD_DOWN) now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_DN : DEMO_BTN_LESS;
+    if ((st->buttons & CONT_DPAD_LEFT) && (st->buttons & CONT_B)) now |= DEMO_BTN_AO;
     if (st->buttons & CONT_START)     now |= (st->buttons & CONT_B) ? DEMO_BTN_FX : DEMO_BTN_INFO;
     in->pressed = now & ~*held;
     *held = now;
 }
-#endif
 
 #ifdef PL4NAR_AUTORUN
 /* pl4m, the measuring autorun: the demo as it is, driven by itself through fixed stages, then result pages (psm_page.h,
@@ -93,20 +95,21 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
-typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; } stage_t;   /* blobs: no shadow tiles; noao: no baked occlusion; split: the layer on the left half */
+typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; float lod; } stage_t;   /* blobs: no shadow tiles; noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default */
 #ifdef PL4NAR_MAP
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0, 0 }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0 },
-    { "on 256 day split", 1, 0, 1, 0, 0, 0, 1 }, { "off day",          0, 0, 1, 0, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0 },
-    { "off night",        0, 0, 2, 0, 0, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0 },
-    { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0 }, { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0 }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0, 0, 0.0f }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f },
+    { "on 256 day split", 1, 0, 1, 0, 0, 0, 1, 0.0f }, { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f },
+    { "off night",        0, 0, 2, 0, 0, 0, 0, 0.0f }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f },
+    { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f }, { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f },
+    { "on 256 day lod30", 1, 0, 1, 0, 0, 0, 0, 30.0f }, { "off day lod30",    0, 0, 1, 0, 0, 0, 0, 30.0f }
 };
 #else
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0 }, { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0 },
-    { "off day",          0, 0, 1, 0, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0 },
-    { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0 }, { "off night",        0, 0, 2, 0, 0, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0 },
-    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0 }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0, 0.0f }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0, 0.0f },
+    { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f },
+    { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f }, { "off night",        0, 0, 2, 0, 0, 0, 0, 0.0f }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f },
+    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f }
 };
 #endif
 #define STAGES (sizeof stages / sizeof stages[0])
@@ -114,7 +117,7 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
 typedef struct acc {
     uint32_t n, dt_sum, dt_max, cpu_n, cpu_sum, lookup_sum, tri_main_sum, tri_refl_sum;   /* the unsampled frames */
     uint32_t s, ta_scr_sum, ta_scr_max, ta_mir_sum, ta_mir_max, rnd_scr_sum, rnd_mir_sum;   /* the sampled frames */
-    uint32_t vram_kb, ram_kb, target_bytes, resize_fail, bad_binds, tiles_max;
+    uint32_t vram_kb, ram_kb, target_bytes, resize_fail, bad_binds, tiles_max, touched;
 } acc_t;
 static acc_t acc[STAGES];
 static unsigned auto_done;
@@ -156,10 +159,10 @@ static void report(void) {
     for (k = 0; k < STAGES; k++) {
         const acc_t *a = &acc[k];
         const float n = a->n ? (float)a->n : 1.0f;
-        pg_say("%-2u %6.2f %4u/%-4u %5u/%-5u %4u %5u %3u %u/%u%s%s", k + 1u, (double)((float)a->dt_max * 1e-3f),
+        pg_say("%-2u %6.2f %4u/%-4u %5u/%-5u %4u %5u %3u %u/%u%s%s%s", k + 1u, (double)((float)a->dt_max * 1e-3f),
                (unsigned)((a->ta_scr_max + 512u) / 1024u), (unsigned)((a->ta_mir_max + 512u) / 1024u),
                (unsigned)((float)a->tri_main_sum / n + 0.5f), (unsigned)((float)a->tri_refl_sum / n + 0.5f), (unsigned)a->vram_kb, (unsigned)a->ram_kb,
-               (unsigned)(a->target_bytes / 1024u), (unsigned)a->n, (unsigned)a->s, a->resize_fail ? " NOVRAM" : "", a->bad_binds ? " BADBIND" : "");
+               (unsigned)(a->target_bytes / 1024u), (unsigned)a->n, (unsigned)a->s, a->resize_fail ? " NOVRAM" : "", a->bad_binds ? " BADBIND" : "", a->touched ? " TOUCHED" : "");
     }
     if (pvr_get_stats(&ps) == 0) pg_say("largest scene of the run: %u KB of the 1024 KB vertex buffer", (unsigned)((ps.vtx_buffer_used_max + 512u) / 1024u));
     pg_say("headers refused (wrong list or never compiled): %u", (unsigned)gfx_pvr_bad_binds());
@@ -174,8 +177,10 @@ static void report(void) {
     }
 #endif
     pg_say("TA bytes include headers; PVR = rnd_last_time of the scene");
+    pg_say("keys as live; B+stick, B+LT/RT free; any other key: TOUCHED");
 #ifdef PL4NAR_MAP
     pg_say("effect labels OFF in every stage (fill); stage 4: the split at the middle");
+    pg_say("buildings boxed past %u m (traffic %u), stages 12-13 past 30 m", 50u, 40u);
 #endif
     g = pg_plot("pl4m: frame and PVR a stage, ms", "stage", "ms", 1);
     for (k = 0; k < STAGES; k++) { char c[4]; snprintf(c, sizeof c, "%u", k + 1u); pg_cat(g, c); }
@@ -209,6 +214,7 @@ int main(int argc, char **argv) {
     demo_auto_tiles(!stages[0].blobs);
     demo_auto_ao(!stages[0].noao);
     demo_auto_split(stages[0].split);
+    demo_auto_lod(stages[0].lod);
 #endif
     demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
     psm_fault_stage(&crumbs, stages[0].name);
@@ -232,7 +238,9 @@ int main(int argc, char **argv) {
         t_prev = t0;
         if (dt > 0.05f) dt = 0.05f;
 #ifdef PL4NAR_AUTORUN
-        memset(&in, 0, sizeof in);
+        read_pad(&in, &held);                        /* the live view's keys; the camera and the divider change no work */
+        if (in.pressed) a->touched = 1u;             /* any other key does: the stage is marked TOUCHED */
+        in.steer = 0.0f; in.brake = 0.0f;
         in.gas = demo_speed() < AUTO_SPEED ? 1.0f : 0.0f;
         gfx_pvr_sample(sampled ? 1 : drain ? 2 : 0);
         psm_fault_beat(&crumbs);
@@ -260,9 +268,9 @@ int main(int argc, char **argv) {
         if (counting) {
             demo_counts_t c;
             demo_counts(&c);
-            if (!sampled && !drain) { a->cpu_n++; a->cpu_sum += st.cpu_us; a->lookup_sum += c.lookup_us; a->tri_main_sum += c.tris_main; a->tri_refl_sum += c.tris_refl; }
             if (c.tiles > a->tiles_max) a->tiles_max = c.tiles;
-            else {
+            if (!sampled && !drain) { a->cpu_n++; a->cpu_sum += st.cpu_us; a->lookup_sum += c.lookup_us; a->tri_main_sum += c.tris_main; a->tri_refl_sum += c.tris_refl; }
+            else if (sampled) {                       /* the sampled frame alone: the drain frame's passes are not its own */
                 const gfx_pvr_pass_t *ps0 = gfx_pvr_pass(0u), *ps1 = gfx_pvr_pass(1u);
                 a->s++;
                 a->ta_scr_sum += ps0->ta_bytes; if (ps0->ta_bytes > a->ta_scr_max) a->ta_scr_max = ps0->ta_bytes;
@@ -286,6 +294,7 @@ int main(int argc, char **argv) {
             demo_auto_tiles(!stages[stage].blobs);
             demo_auto_ao(!stages[stage].noao);
             demo_auto_split(stages[stage].split);
+            demo_auto_lod(stages[stage].lod);
 #endif
             demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
             psm_fault_stage(&crumbs, stages[stage].name);

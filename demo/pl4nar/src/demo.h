@@ -15,7 +15,9 @@ enum {
     DEMO_BTN_LAMP_DN = 1u << 8,    /* and down */
     DEMO_BTN_LOOK    = 1u << 9,    /* textures: 64 x 64, 16 colours, point sampled <-> full size, filtered */
     DEMO_BTN_SPLIT   = 1u << 10,   /* the split: the reflection layer on the left of a divider only (B + X) */
-    DEMO_BTN_FX      = 1u << 11    /* the effect labels shown / hidden (B + START) */
+    DEMO_BTN_FX      = 1u << 11,   /* the effect labels shown / hidden (B + START) */
+    DEMO_BTN_TILES   = 1u << 12,   /* the new map: car shadow tiles on / off, blobs only (B + Y) */
+    DEMO_BTN_AO      = 1u << 13    /* the new map: baked occlusion on / off (B + D-pad left) */
 };
 
 typedef struct demo_input {
@@ -56,7 +58,8 @@ void  demo_auto_place(float z, float x, float v);   /* the car at z along the st
 void  demo_counts(demo_counts_t *c);
 void  demo_auto_tiles(int on);
 void  demo_auto_ao(int on);
-void  demo_auto_split(int on);                     /* the split at its middle (the reflection layer on the left half only), or off */                        /* the new map: baked occlusion on (default) or off */                     /* the new map: car shadow tiles on (default) or blobs only */
+void  demo_auto_lod(float m);                      /* the new map: a building past m (its footprint's edge) is its box; 0: LOD_NEAR */
+void  demo_auto_split(int on);                     /* the split at its middle (the reflection layer on the left half only), or off */
 
 /* Platform: microseconds since start. */
 uint64_t plat_us(void);
