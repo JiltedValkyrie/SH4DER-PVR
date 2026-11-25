@@ -1,0 +1,16 @@
+{
+  "note": "Third-party art the corridor is baked from. Nothing here is in the repository: ../../pl4nar/tools/fetch.py --root demo/psm/corr checks the pack's sha256 and unpacks the listed files into assets/. The pack has no stable direct link (url null): download it from its page by hand into assets/_dl under the name in 'file'. Retro Textures Fantasy 1.0 was pinned on 2026-11-25 from the owner's download off its page (Kenney publishes no hash). Every pack has a row in CREDITS.md (check_credits.py --root demo/psm/corr checks both ways).",
+  "packs": [
+    {
+      "name": "Retro Textures Fantasy",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/retro-textures-fantasy",
+      "licence": "CC0 1.0",
+      "url": null,
+      "file": "kenney_retro-textures-fantasy.zip",
+      "sha256": "46f30f2411dafa011f8e52e32d80be197f8ccfe1164818e664358ae6c78a38b9",
+      "into": "kenney_retro-textures-fantasy",
+      "take": ["PNG/floor_stone_pattern.png", "PNG/wall_brick_stone_center.png", "PNG/floor_wood_planks_wide.png", "PNG/door_metal_gate.png", "License.txt"]
+    }
+  ]
+}
