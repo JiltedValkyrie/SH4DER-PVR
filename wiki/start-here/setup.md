@@ -28,7 +28,9 @@ This builds every `test/*_test.c` and `example/blade.c` with plain C (`SH4DER_CO
 
 ## 2. SH4ZAM
 
-SH4ZAM is not shipped, and it is not ours: it is Falco Girgis's library (MIT). Fetch its master branch into `third_party/sh4zam` (the library follows SH4ZAM's latest, not a tag; `AGENTS.md`):
+**For a Dreamcast build, do not fetch SH4ZAM: KallistiOS includes it.** Use the copy in a current KallistiOS (Falco Girgis's guidance, 2026-11-25). A separate checkout is only for the host tests, as below.
+
+SH4ZAM is not shipped, and it is not ours: it is Falco Girgis's library (MIT). For a host test, point `SH4ZAM=` at the SH4ZAM tree in your KallistiOS, or fetch its master branch into `third_party/sh4zam` (the library follows SH4ZAM's latest, not a tag; `AGENTS.md`):
 
 ```
 git clone https://github.com/gyrovorbis/sh4zam third_party/sh4zam

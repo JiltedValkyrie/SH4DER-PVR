@@ -38,7 +38,9 @@ NEEDED = [
 def fix_text(path):
     rel = path
     return (
-        "SH4ZAM is not shipped with this repository. Get it (master: version %d.%d or later) into third_party:\n"
+        "SH4ZAM is not shipped with this repository, and KallistiOS already includes it: for a Dreamcast build use\n"
+        "KallistiOS's copy (update KallistiOS if its SH4ZAM is older than %d.%d). Host tests only: point SH4ZAM= at the\n"
+        "SH4ZAM tree in your KallistiOS, or get a checkout (master) into third_party:\n"
         "    git clone %s third_party/sh4zam\n"
         "and keep it current with:  git -C third_party/sh4zam pull\n"
         "(git ignores that folder; never commit it, and do not copy its files into this library).\n"
