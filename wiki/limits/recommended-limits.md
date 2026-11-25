@@ -14,7 +14,7 @@ Every limit is one of two kinds:
 - **PROVEN**: a MEASURED number from our console backs it. The ledger row is named.
 - **ADVISED**: it is our best judgement, but no measured number backs it yet. The test that would prove it is named.
 
-All PROVEN limits rest on **one console, one run**. A limit that is arithmetic on a measured cost says so.
+All PROVEN limits rest on **one console**. The run count is shown in each row, not used as a gate: a limit is PROVEN when a MEASURED number backs it, and a repeat that would harden it is named where it is cheap. A limit that is arithmetic on a measured cost says so.
 
 ## Hard rules (seen on a real console)
 
@@ -28,56 +28,60 @@ These are faults the console showed and an emulator hid. Break them and the cons
 
 | Limit | Kind | Backing |
 |---|---|---|
-| Send long meshes in store-queue runs, not `pvr_prim` per vertex: 142 against 260 ns a vertex. **But measure your own mesh:** the warp's mesh ran 6 % slower by runs (973 against 914 ns), for a reason not yet known, so the warp now sends its mesh by `pvr_prim` and its pixelate pass by runs. | PROVEN (TA test, warp pixelate pass); the exception is OPEN | BUS-001, BUS-003, BUS-004 |
-| Never place a copy's or a transform's source and destination a multiple of 16 KB apart. It cost up to 8.5 times; c4b's projection ran 2.2 times faster once its arrays were placed apart. | PROVEN | SH4-031, SH4-032, SH4-046, SH4-048 |
-| Copy RAM to RAM with `shz_sq_memcpy32` or `sq_cpy` (150 MB/s), or `shz_memcpy` (132), not `memcpy` (63). | PROVEN | SH4-030 |
-| Use `mat_transform`, not a C loop of single SH4ZAM calls (13.16 against 28.67 cycles a vertex). Our `shz_dce_xmtrx_project_point3_batch` is 5.7 to 6.0 % slower than `mat_transform` in the cache and 5.5 to 7.3 % out of it: it has no measured gain. | PROVEN (the batch: two runs) | SH4-020, SH4-022, SH4-050, SH4-065 |
-| Do not put a lookup grid in OC-RAM in a frame that also transforms vertices: the RAM cache halves, the vertices cost 6.8 % more, and the interleaved slice was slower overall. | PROVEN (two runs) | SH4-054, SH4-063, SH4-012 |
-| A burst DMAC copy holds the SH-4 for the whole copy. For a background copy use cycle steal (84 % of the SH-4 left). | PROVEN | BUS-031, BUS-032 |
+| Send long meshes in store-queue runs, not `pvr_prim` per vertex: 142 against 260 ns a vertex. **But measure your own mesh:** the warp's mesh ran 6 % slower by runs (973 against 914 ns), for a reason not yet known, so the warp now sends its mesh by `pvr_prim` and its pixelate pass by runs. | PROVEN (TA test in h1 and h2: two runs, one console; warp pixelate pass); the exception is OPEN | BUS-001, BUS-003, BUS-004 |
+| Never place a copy's or a transform's source and destination a multiple of 16 KB apart. It cost up to 8.5 times; c4b's projection ran 2.2 times faster once its arrays were placed apart. | PROVEN (h2, c4 and c4b: three runs, one console) | SH4-031, SH4-032, SH4-046, SH4-048 |
+| Copy RAM to RAM with `shz_sq_memcpy32` or `sq_cpy` (150 MB/s), or `shz_memcpy` (132), not `memcpy` (63). | PROVEN (h2: one run, one console; repeat: h2's copy test in a later image) | SH4-030 |
+| Use `mat_transform`, not a C loop of single SH4ZAM calls (13.16 against 28.67 cycles a vertex). Our `shz_dce_xmtrx_project_point3_batch` is 5.7 to 6.0 % slower than `mat_transform` in the cache and 5.5 to 7.3 % out of it: it has no measured gain. | PROVEN (`mat_transform` and the C loop: h2, ray1 and ray2, three runs; the batch: ray1 and ray2, two runs; one console) | SH4-020, SH4-022, SH4-050, SH4-065 |
+| Do not put a lookup grid in OC-RAM in a frame that also transforms vertices: the RAM cache halves, the vertices cost 6.8 % more, and the interleaved slice was slower overall. | PROVEN (ray1 and ray2: two runs, one console) | SH4-054, SH4-063, SH4-012 |
+| A burst DMAC copy holds the SH-4 for the whole copy. For a background copy use cycle steal (84 % of the SH-4 left). | PROVEN (h2, and h1 for BUS-032: one console) | BUS-031, BUS-032 |
 
 ## Reading back
 
 | Limit | Kind | Backing |
 |---|---|---|
-| Never read video memory pixel by pixel through the uncached address in a hot loop (3.7 MB/s). Use PVR-DMA (38 MB/s), or the cached address with `dcache_inval_range` first (38.7 MB/s). | PROVEN | SH4-040, SH4-041, BUS-021 |
-| Invalidate before every cached read of video memory; without it 238 of 256 lines read stale. Never write through that address. | PROVEN | SH4-006 |
-| Copy a map to RAM before random reads: 20,000 scattered reads took 12.9 ms from video memory, 2.8 ms from RAM. | PROVEN | SH4-042 |
-| Do not move per-frame data through sound RAM: 5.0-5.7 MB/s, so 32 KB costs 6.5 ms. Sound RAM suits data made once or rarely. | PROVEN (the rates; 6.5 ms is arithmetic on them, and one 32 KB copy to texture memory measured 6,511 us) | AICA-020, AICA-021, AICA-023 |
+| Never read video memory pixel by pixel through the uncached address in a hot loop (3.7 MB/s). Use PVR-DMA (38 MB/s), or the cached address with `dcache_inval_range` first (38.7 MB/s). | PROVEN (h2: one run, one console) | SH4-040, SH4-041, BUS-021 |
+| Invalidate before every cached read of video memory; without it 238 of 256 lines read stale. Never write through that address. | PROVEN (h2: one run, one console) | SH4-006 |
+| Copy a map to RAM before random reads: 20,000 scattered reads took 12.9 ms from video memory, 2.8 ms from RAM. | PROVEN (spike s2: one run, one console) | SH4-042 |
+| Do not move per-frame data through sound RAM: 5.0-5.7 MB/s, so 32 KB costs 6.5 ms. Sound RAM suits data made once or rarely. | PROVEN (the rates, h2: one run, one console; 6.5 ms is arithmetic on them, and one 32 KB copy to texture memory measured 6,511 us) | AICA-020, AICA-021, AICA-023 |
 
 ## Render targets
 
 | Limit | Kind | Backing |
 |---|---|---|
-| Render a target 2 rows taller than the map you need; the last 32 bytes arrive one render late. | PROVEN | PVR-021 |
-| Turn dither off for a target that holds codes, and back on after. | PROVEN | PVR-022 |
-| Keep a target at most 480 rows under KOS. | PROVEN | PVR-026 |
-| Keep a 16-bit depth code under 16,384 (14 bits) for exact codes. | PROVEN | PVR-024 |
-| Budget a render target pass at least 3.2 ms of PVR time, whatever its size, when it renders through the screen's whole tile list. | PROVEN (320 × 240 in c1; 128 × 128 map in c4: 3,312 us, and 3,311 to 3,314 us in four more c4 lines) | PVR-004, PVR-092, PVR-100 |
-| Render a small target through a tile list cut to the tiles it covers: the 128 × 128 map fell from 3,312 to 375 us, the 320 × 240 mask from 6,130 to 3,760 us, with the same picture. | PROVEN (one run); not yet in the library's own passes (Q54) | PVR-092 |
+| Render a target 2 rows taller than the map you need; the last 32 bytes arrive one render late. | PROVEN (spike s3: one run, one console) | PVR-021 |
+| Turn dither off for a target that holds codes, and back on after. | PROVEN (spikes s2 and s3: two runs, one console) | PVR-022 |
+| Keep a target at most 480 rows under KOS. | PROVEN (spike s3: one run, one console) | PVR-026 |
+| Keep a 16-bit depth code under 16,384 (14 bits) for exact codes. | PROVEN (spike s3: one run, one console) | PVR-024 |
+| Budget a render target pass at least 3.2 ms of PVR time, whatever its size, when it renders through the screen's whole tile list. | PROVEN (320 × 240 in c1; 128 × 128 map in c4: 3,312 us, and 3,311 to 3,314 us in four more c4 lines; one console) | PVR-004, PVR-092, PVR-100 |
+| Render a small target through a tile list cut to the tiles it covers: the 128 × 128 map fell from 3,312 to 375 us, the 320 × 240 mask from 6,130 to 3,760 us, with the same picture. | PROVEN (one run, one console); not yet in the library's own passes (Q54) | PVR-092 |
 | Start pl4nar's target at 256 × 128 and go down before anything else. | ADVISED | Test: pl4nar cost table at 128 × 64, 256 × 128, 512 × 256 (`demo/pl4nar/AGENT_WORKFLOW.md:60-71`) |
 
 ## Fill
 
 | Limit | Kind | Backing |
 |---|---|---|
-| Count 3.1 ms of PVR time for each full-screen translucent layer at 640 × 480. At 30 fps that is about 9 layers before anything else is drawn (arithmetic). | PROVEN (cost); the count is ESTIMATE | PVR-002 |
-| Do not let translucent triangles pile up in one tile: 256 in one tile took 6.4 ms, 82 us spread out. Spread particles; cap overlapping quads. | PROVEN | PVR-009 |
-| Use mipmaps on any texture drawn smaller than its size; without them a 16-times shrink cost 21 times as much. | PROVEN | PVR-008 |
+| Count 3.1 ms of PVR time for each full-screen translucent layer at 640 × 480. At 30 fps that is about 9 layers before anything else is drawn (arithmetic). | PROVEN (cost, h1 and c1: two runs, one console); the count is ESTIMATE | PVR-002 |
+| Do not let translucent triangles pile up in one tile: 256 in one tile took 6.4 ms, 82 us spread out. Spread particles; cap overlapping quads. | PROVEN (h1: one run, one console) | PVR-009 |
+| Use mipmaps on any texture drawn smaller than its size; without them a 16-times shrink cost 21 times as much. | PROVEN (h1: one run, one console) | PVR-008 |
 | Limit light pools and halos by distance; their cost is translucent fill. | ADVISED | Test: town or street scene, pools on and off, PVR render time by `pvr_get_stats` |
 
 ## Shadows
 
 | Limit | Kind | Backing |
 |---|---|---|
-| c4 chain: make Q from the window edges measured at boot, not from a cosine table. With them the ground showed 0 acne at every b0 from 0 to 3; with the cosine it needed b0 1.5. | PROVEN (ground alone, one sun, one run) | PVR-102, PVR-103 |
-| c4 chain: keep b0 at 3.0 with the measured edge until lower values are tested in a scene; both scenes showed 0 acne there. | ADVISED | Test: Q57 (b0 0 to 1.5 with the measured edge, three suns) |
-| c4 chain mask: use the 1555 route; punch-through gives the same pixels but costs 14 to 18 % more PVR time. Use punch-through only where its alpha test is needed (for example to join compares, Q58). | PROVEN (cost, two suns, one run); the join ADVISED | PVR-105 |
-| Budget a ray through a height grid at 22 cycles a cell plus 74 a ray (76 at worst), not the thesis's 12 to 16 plus 30. | PROVEN (two runs, twelve fits; the two constants are the page's fit to MEASURED cycles a ray) | SH4-052, SH4-059 |
-| Budget a ray-triangle test at 33 cycles when every ray shares one direction (prepared once a triangle, 64 bytes) and 62 for any direction, both with early outs and with the triangles in the cache. Out of the cache, measure. | PROVEN in the cache (one run, 96 triangles); a town-sized set ADVISED | SH4-066. Test: TOWN-085 |
-| Time with the cycle counter, not `timer_ns_gettime64`: the ns clock jumps 2.5 ms at each reload, about once a second, so any interval that spans one reads 2.5 ms long. | PROVEN (one console; the step measured, and predicted from the KallistiOS source) | SH4-057 |
-| **Do not cast shadows to infinity.** In the town at draw distance INF with all casters, route A ran at 18 fps and route B at 13-14. Limit casters to the shadow map's square, and set a shadow draw distance. | PROVEN that INF with all casters misses 30 fps in that view (one run, HUD photos; PVR-108 to PVR-113); the remedy is ADVISED | Town photos (see [scenes](scenes.md)). Test: sweep the demo's CASTERS and DRAW DISTANCE rows and log SH-4, PVR and fps. |
-| Route B (SH-4 depth map) cost 40-44 ms of SH-4 time in the town view: do not use it for a whole town at 30 fps. | PROVEN (one view, one run) | PVR-112, PVR-113 ([scenes](scenes.md)) |
-| Shadow map at most 256 × 256 for route AB: 512 × 512 needs 13.7 ms of download alone by its interrupt (14.8 ms polled) and does not render past row 479. | PROVEN | PVR-026, BUS-021 |
+| c4 chain: make Q from the window edges measured at boot, not from a cosine table. With them the ground showed 0 acne at every b0 from 0 to 3; with the cosine it needed b0 1.5. | PROVEN (ground alone, one sun; c4b and c4g: two runs, one console) | PVR-102, PVR-103, PVR-116 |
+| c4 chain: with the measured edge set b0 between 0 and 1. Acne was 0 at every b0 from 0 to 3 in both scenes at two suns; a higher b0 only trades a few edge pixels for real shadow shown lit (under 0.1 % of the mask). | PROVEN that b0 0 to 3 gives 0 acne (two suns, one run, one console); the choice of 0 to 1 is ADVISED | PVR-119. Test: a third sun (Q57) |
+| c4 chain mask: use the 1555 route; punch-through gives the same pixels but costs 14 to 18 % more PVR time. Use punch-through only where its alpha test is needed (for example to join compares, Q58). | PROVEN (cost, two suns; c4b and c4g: two runs, one console); the join ADVISED | PVR-105, PVR-116 |
+| Budget a ray through a height grid at 22 cycles a cell plus 74 a ray (76 at worst), not the thesis's 12 to 16 plus 30. | PROVEN (ray1 and ray2: two runs, twelve fits, one console; the two constants are the page's fit to MEASURED cycles a ray) | SH4-052, SH4-059 |
+| Budget a ray-triangle test at 33 cycles when every ray shares one direction (prepared once a triangle, 64 bytes) and 62 for any direction, both with early outs and with the triangles in the cache. Out of the cache, measure. | PROVEN in the cache (one run, one console, 96 triangles); a town-sized set ADVISED | SH4-066. Test: TOWN-085 |
+| Time work with the cycle counter, not `timer_ns_gettime64`: the ns clock jumps 2.5 ms at each reload, about once a second, so any interval that spans one reads 2.5 ms long. But the cycle counter stops while the CPU sleeps in a KallistiOS wait: for a frame's wall time use the ns clock with the step taken out, or poll the waits. | PROVEN (the step: one run, one console, and predicted from the KallistiOS source; the sleep: one run, one console; repeat: c4g test 8 again) | SH4-057, SH4-067 |
+| Poll the render-done event; do not block in KallistiOS's sleeping `pvr_wait_render_done`. It wakes on the 100 Hz tick, up to 10 ms a pass late: polled, c4g's frame fell from 39.9 to 23.3 ms. | PROVEN (one run, one console; repeat: c4g test 8b in the next image) | PVR-117, errata K8 |
+| Run a static-on-static sun bake at load or in slices, never inside one frame: it took 152 ms on the console. | PROVEN that a bake does not fit in a frame (152 ms; one run, one console); how to slice it is ADVISED | SH4-070 |
+| Do not trust the town's TA estimate as a limit: at an estimated 74 % of the buffer route A overflowed on every frame, and on route B the estimate read 21 % under KallistiOS's count. Count the PVR's error events instead (KallistiOS does not report them, errata K7), and send the HUD where an overflow cannot cut it. | PROVEN that the estimate is no limit (route A overflowed on every frame at an estimated 74 %; one run, one console, three binaries); counting the events and sending the HUD first are ADVISED | PVR-121, PVR-122 |
+| QR codes on a result page: 8 px a module by default, 6 px is safe; 4 px with six codes a page needs a second photo. Keep the numbers as text too. | PROVEN for 8 and 6 px (every code read; one run, one console, one television, one phone; repeat: another television); keeping the text beside is ADVISED | VID-014 |
+| **Do not cast shadows to infinity.** In the town at draw distance INF with all casters, route A ran at 18 fps and route B at 13-14. Limit casters to the shadow map's square, and set a shadow draw distance. | PROVEN that INF with all casters misses 30 fps in that view (one run, one console, HUD photos; PVR-108 to PVR-113); the remedy is ADVISED | Town photos (see [scenes](scenes.md)). Test: sweep the demo's CASTERS and DRAW DISTANCE rows and log SH-4, PVR and fps. |
+| Route B (SH-4 depth map) cost 40-44 ms of SH-4 time in the town view: do not use it for a whole town at 30 fps. | PROVEN (one view, one run, one console; suite s1's autorun, at another view, ran route B at 42 to 45 ms, SH4-069) | PVR-112, PVR-113 ([scenes](scenes.md)) |
+| Shadow map at most 256 × 256 for route AB: 512 × 512 needs 13.7 ms of download alone by its interrupt (14.8 ms polled) and does not render past row 479. | PROVEN (s3 and h2: one run each, one console) | PVR-026, BUS-021 |
 | **sh4dow-dc: shade only the first N characters within R metres of the camera.** N and R are not yet known. | **OPEN** | See the bench request below. |
 | Drop sh4dow-dc's foot cones past 20 units of camera distance (they fade from 18). | ADVISED (the library's default, not measured) | `sh4dow-dc/README.md:207` |
 

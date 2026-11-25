@@ -87,7 +87,7 @@ The projection's c4 cycle counts (132.5 against 138.8 a vertex) are a cache-plac
 | Sun 91°/34°, b0 5.25, bands 1 wide | 2,192 | 2,272 + 1,459 us | 3,236 us | 10,171 us | 9,947 us | 49,929 us |
 | Sun 182°/26°, b0 8.0, bands 4 wide | 676 | 811 + 422 us | 3,301 us | 4,792 us | 9,951 us | 39,929 us |
 
-- **The frame is set by waiting, not by work:** 39.9, 39.9 and 49.9 ms for 19.3, 21.7 and 27.1 ms of work. Why the frame is one of two values 10.0 ms apart is OPEN (PVR-094, Q53).
+- **The frame is set by waiting, not by work:** 39.9, 39.9 and 49.9 ms for 19.3, 21.7 and 27.1 ms of work. Why the frame is one of two values 10.0 ms apart: KallistiOS's sleeping render-done wait, woken on the 100 Hz tick (PVR-094, closed by PVR-117).
 
 ![The frame waits, c4 and c4b (one console, 2026-11-25): in c4 the frame is 39.9 or 49.9 ms while the SH-4 and PVR work in it adds to 19.3 to 27.1 ms (MEASURED PVR-090, 091, 101, 094); in c4b, over 60 frames, the vblank counts 2 or 3 a frame, a 60 Hz vblank, the frames are 29.9 or 39.9 ms (mean 39.2, not whole vblanks), and the three render-done waits take 36.2 of the 39.2 ms, running 2.9 to 9.1 ms past their renders, while the ready waits take 1 to 40 us and polling them changed nothing (MEASURED); a wait that wakes on a 10 ms clock fits (INFERENCE), the cause is OPEN (Q53, P10), and the next test is a render done polled on render_busy.](../images/frame-wait.svg)
 
@@ -118,7 +118,7 @@ Image `demo/psm/out/cdi/psm-c4-c4b.cdi`, run by the owner on 2026-11-25. Photos 
 - **Q from the measured edge ends the acne.** On the ground alone: 0 acne at every b0 from 0 to 3, bands 1 and 4 wide, where the cosine edge needed b0 1.5 (PVR-103). In both scenes at c4b's default b0 3.0, acne is 0 with either edge. The price shows there: real shadow shown lit rises from 6 to 30 and from 16 to 47 pixels, about what the host model gave (17, 39). Edge falls from 546 to 495 and from 1,254 to 1,222.
 - **The model now agrees with the console** to within 40 pixels a scene, once it uses the console's own level table (PVR-103). In c4 it was 2,832 / 193 and 2,564 / 137: the disagreement was the cosine table.
 - **The placing fix worked.** The projection now takes 60.5 to 61.7 cycles a vertex, against 115.7 to 132.5 in c4: 2.2 times faster. That is bench h2's out-of-cache figure (SH4-048).
-- **The frame is the render-done wait.** About 36 of a 39 ms frame. The ready waits are tens of microseconds, and polling them changed nothing. The vblank is 60 Hz; frames are 29.9 or 39.9 ms, not whole vblanks. The waits run past the renders by 2.9 to 9.1 ms, which fits KallistiOS's 100 Hz wake (PVR-011). That is not proven until a polled render-done is timed (PVR-104, Q53).
+- **The frame is the render-done wait.** About 36 of a 39 ms frame. The ready waits are tens of microseconds, and polling them changed nothing. The vblank is 60 Hz; frames are 29.9 or 39.9 ms, not whole vblanks. The waits run past the renders by 2.9 to 9.1 ms, which fits KallistiOS's 100 Hz wake (PVR-011). c4g timed a polled render-done and proved it: the frame fell from 39.9 to 23.3 ms (PVR-104, PVR-117).
 - **Punch-through is a working mask route.** It gives the same pixels as the 1555 route at two suns, 0 different. It costs 14 to 18 % more PVR time in the mask pass, and needs a green depth pass to tell its pixels apart (PVR-105). Joining several compares with it is untested (Q58).
 - c4's PVR times, test 0, test 1's counts and test 6 repeat to within 2 % or to the pixel (PVR-106). PVR-DMA: 37.0 to 38.9 MB/s (BUS-052).
 
@@ -134,7 +134,7 @@ Image `demo/psm/out/cdi/psm-c4-c4b.cdi`, run by the owner on 2026-11-25. Photos 
 
 Live view (PVR-107): sun 302°/42°, b0 5.25, bands 1 wide, measured edge: 3,008 vertices; SH-4 3,957 + 887 us; PVR map 3,248, mask 9,260, screen 9,943 us; frame 49,911 us.
 
-**Next:** lower b0 in the scenes with the measured edge (Q57); a polled render-done (Q53); the cut's slowdown (Q64); two compares joined into one mask (Q58).
+**Next:** a third sun for b0 (Q57; c4g found b0 0 to 3 all free of acne at two suns, PVR-119); the cut's slowdown, now not its Q (Q64, SH4-068); two compares joined into one mask (Q58). Done in c4g: the polled render-done (Q53 closed, PVR-117).
 
 ## Idea: a cached static map plus small mover maps (T4, ESTIMATE / OPEN)
 
@@ -171,7 +171,7 @@ Why the static part should be baked: band counts on the town (ESTIMATE, host, `d
 
 ![The static bake split (ESTIMATE, host, TOWN-060 to 067): static casters on static receivers are baked once a sun at load (a byte a vertex for the models, a 256 x 256 ground lightmap; about 169,000 ray-triangle tests, about 0.04 s at an assumed 50 cycles a test; 8,697 B + 64 KB, sizes FACT from the counts) and cost nothing a frame, while the movers' shadows go through c4 on 12 ground patches (mask pass about 1.1 to 4.1 ms); the share of model vertices in shadow moves with where the ray starts (14:00: 41.6 % from 0.05 m out against 28.5 % from 0.3 m + 0.5 m, screen mesh as casters), which is OPEN.](../images/static-bake-split.svg)
 
-**Test that would settle it:** now that c4b works (PVR-103), and after the polled wait test (Q53), time one static map plus one mover map against the single full map, by `pvr_get_stats` and the frame time.
+**Test that would settle it:** now that c4b works (PVR-103), and with the render-done wait polled (PVR-117), time one static map plus one mover map against the single full map, by `pvr_get_stats` and the frame time.
 
 ### c4 live-view pictures
 
@@ -191,7 +191,7 @@ The same comparator in texture space, where Q is one value for the whole object 
 
 
 - The bias with the measured edge: how low b0 can go in the scenes, at more suns (Q57).
-- The frame: is KallistiOS's 100 Hz wake the whole render-done wait? (PVR-104, Q53).
+- The frame: closed. KallistiOS's 100 Hz wake is the whole render-done wait (PVR-117); one frame in five is still 4 ms long when polled (PVR-118, Q69).
 - Why c4b's band cut is 22 to 28 % slower than c4's (SH4-049, Q64).
 - Tile lists cut to a target in the library's own passes (Q54).
 - A cached static map plus mover maps (T4), and how its compares join into one mask (Q58; the punch-through route works for one mask, PVR-105).

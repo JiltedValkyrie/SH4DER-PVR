@@ -1,5 +1,5 @@
 {
-  "note": "Third-party art the software shadow demo uses. Nothing here is in the repository: tools/fetch.py downloads each file into assets/_dl, checks its sha256 and keeps it there. A file with sha256 null is NOT pinned yet: fetch.py refuses it unless run with --pin, which prints the hash to put here. Every file has a row in CREDITS.md.",
+  "note": "Third-party art the software shadow demo uses, and the QR encoder of the QR test image (demo/psm/qr). Nothing here is in the repository: tools/fetch.py downloads each file into assets/_dl, checks its sha256 and keeps it there. A file with sha256 null is NOT pinned yet: fetch.py refuses it unless run with --pin, which prints the hash to put here. Every file has a row in CREDITS.md.",
   "files": [
     {
       "name": "Spot the cow",
@@ -27,6 +27,24 @@
       "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_48d_partly_cloudy_puresky_2k.hdr",
       "file": "kloofendal_48d_partly_cloudy_puresky_2k.hdr",
       "sha256": "5244534e9cf5b606f2ff513aa00ddb161b0a4826ffd88a0d3bd03ac29247d198"
+    },
+    {
+      "name": "QR Code generator library (C), source",
+      "author": "Project Nayuki",
+      "page": "https://www.nayuki.io/page/qr-code-generator-library",
+      "licence": "MIT",
+      "url": "https://raw.githubusercontent.com/nayuki/QR-Code-generator/9a217d443937f60cc56c1458c39a211d7f2d3af5/c/qrcodegen.c",
+      "file": "qrcodegen.c",
+      "sha256": "6a2b9cc65176f2345dde260c74b6d352627e8a0a6385d086ae0e9c5d0913c70c"
+    },
+    {
+      "name": "QR Code generator library (C), header",
+      "author": "Project Nayuki",
+      "page": "https://www.nayuki.io/page/qr-code-generator-library",
+      "licence": "MIT",
+      "url": "https://raw.githubusercontent.com/nayuki/QR-Code-generator/9a217d443937f60cc56c1458c39a211d7f2d3af5/c/qrcodegen.h",
+      "file": "qrcodegen.h",
+      "sha256": "9eb73b8ba0037c86a25979385fd6d21fbfbb89e56853d05ccdcb2d2bb8e00da3"
     }
   ]
 }

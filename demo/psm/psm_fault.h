@@ -432,9 +432,16 @@ static void psm_fault_vblanks_(unsigned n) {
     }
 }
 
+/* A way out of the report, for a program that has somewhere to go (the suite disc's menu, psm_suite.h): `fn` is called
+   once the report has been drawn `shows` times (one each half second), with interrupts off, from the fault's own
+   context. It is a try: the program is broken, and fn may not get anywhere. Not set: the report stays for ever. */
+static void (*psm_fault_leave_fn_)(void);
+static unsigned psm_fault_leave_shows_;
+static inline void psm_fault_leave(void (*fn)(void), unsigned shows) { psm_fault_leave_fn_ = fn; psm_fault_leave_shows_ = shows; }
+
 /* Put the report on the screen and never come back. */
 static void __attribute__((noreturn)) psm_fault_show_(const psm_fault_report_t *r) {
-    unsigned n, i, k;
+    unsigned n, i, k, shows = 0;
 
     irq_disable();
     n = psm_fault_format(r, psm_fault_crumbs_, psm_fault_ln_);
@@ -446,7 +453,19 @@ static void __attribute__((noreturn)) psm_fault_show_(const psm_fault_report_t *
             minifont_set_color(255, 255, i ? 255 : 0);           /* the title in yellow */
             minifont_draw_str(PSM_FAULT_FB + (32u + 16u * i) * 640u + 64u, 640, psm_fault_ln_[i]);
         }
+        if (psm_fault_leave_fn_ && shows <= psm_fault_leave_shows_) {   /* the countdown, under the report's last row */
+            psm_fault_line_t l;
+            char left[PSM_FAULT_COLS + 1u];
+
+            psm_fault_line_begin(&l, left);
+            psm_fault_put_s(&l, "PHOTOGRAPH NOW. menu in ");
+            psm_fault_put_i(&l, (int32_t)((psm_fault_leave_shows_ - shows + 1u) / 2u));
+            psm_fault_put_s(&l, " s (a try: power off if it stays)");
+            minifont_set_color(255, 255, 0);
+            minifont_draw_str(PSM_FAULT_FB + (32u + 16u * PSM_FAULT_ROWS) * 640u + 64u, 640, left);
+        }
         psm_fault_vblanks_(30u);                                 /* and again, in case a render was still landing */
+        if (psm_fault_leave_fn_ && shows++ == psm_fault_leave_shows_) psm_fault_leave_fn_();
     }
 }
 

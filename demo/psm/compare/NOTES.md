@@ -461,3 +461,181 @@ Image `psm-c4-c4b.cdi`, one console, the owner's run, 2026-11-25. Senior transcr
 - **The band cut got slower by about a quarter.** This is new and not explained. Nothing in the cut was meant to change. Test: time `c4_q_set` against `c4_q` alone, and check the cut's own arrays' placing against `vpool`.
 - **The frame is the render-done wait.** About 36 of 39 ms, in both runs. The ready waits are tens of microseconds. The vblank count is 60 Hz, and the frame is not a whole number of pictures. The next test is to time a render done polled on `render_busy` instead of `pvr_wait_render_done`.
 - **Punch-through is a working mask route.** Same pixels as 1555 at two suns. It is 14 to 18 % dearer on the PVR in this pass, and it needs the green depth pass to tell its pixels apart.
+
+## c4c: built, not run
+
+Built 2026-11-25 by Senior. **Not run on a console; no number from it exists yet.**
+
+- Image: `demo/psm/out/cdi/psm-c4-c4c.cdi` (1,806,697 bytes, sha256 e8202993824206e8fd6f3670298e6d1d8b1c41017f582ec4626b21b8a4d081c3).
+- ELF: `build/psm_cmp/psm-c4-c4c.elf`, 0 warnings at `-Wall -Wextra`.
+- Build log: `D:\tmp\psmbuild\logs\c4_c4c_20261125_093254.log`. The build ran the host model test twice (plain C, and SH4ZAM's software back end); both passed.
+- Everything c4b printed is still printed. The first page says "c4c".
+
+### Test 8b: the render-done wait polled
+
+**What is new in test 8.** It now has three runs of 60 frames:
+1. KallistiOS's waits;
+2. the ready waits polled (c4b's second run);
+3. **8b:** the ready waits and the render-done wait polled.
+
+**How 8b sees the render end.** This program puts its own handler in front of KallistiOS's for the render-done event. It calls KallistiOS's handler first, then notes the time and sets a flag. Nothing of KallistiOS is changed, and its own handler is put back before the PVR is shut down. If the hook is refused, the page says so and 8b is not run.
+
+**New lines in every run.**
+- The scheduler's rate (`thd_get_hz`).
+- For each pass's done-wait: how long after the interrupt the wait came back (mean / max), and how many vertical blanks passed in the 60 waits.
+- The mean frame by the cycle counter. If it is far under the frame's ns time, the counter stops while the CPU sleeps in a wait; the figure is then the time the CPU was awake.
+
+**Prediction, from KallistiOS's source** (read only; `pvr_irq.c`, `pvr_scene.c`, tree 568c3404). Status: ESTIMATE until photographed.
+- When the lists are taken, the interrupt handler wakes the ready-waiter and reschedules at once (`thd_schedule`).
+- When the render ends, it wakes the done-waiter and does **not** reschedule. The sleeping thread runs again only at the scheduler's next timer tick.
+- The scheduler is 100 Hz. With KallistiOS's clock constant a tick is about 9.98 ms by the ns clock. c4b's frames were 29.95 and 39.93 ms: 3 and 4 ticks of 9.98 ms.
+- So 8b's frames should fall to about the work plus the wait for the picture, and its "back after the interrupt" figures should be near 0. In runs 1 and 2 those figures should be the 2.9 to 9.1 ms c4b showed.
+
+**A caution for reading the maxima.** The ns clock is expected to step 2.5 ms ahead once a second (bench/NOTES.md, "Ray bench (image ray2)"; ESTIMATE). A max about 2.5 ms over its mean can be that step. c4b's done-wait maxima were 2.44 to 2.57 ms over their means in three of six lines.
+
+### Page S: the b0 sweep in the scenes (Q57)
+
+- Both scenes (sun 150/26.5 and 100/13), bands 2 wide, grow 0.75, Q from the measured edge, at b0 0, 0.5 … 3.0.
+- One line a b0: acne, edge, rim; real shadow shown lit (in bias + other); pixels that differ from the model run on the console's own table (inside + outline); holes.
+- Test 3 (the ground alone) now also has b0 2.5 and bands 2 wide.
+- Host model, ESTIMATE (`test/c4_model_test.c`, new `sweep()`, on a table cut to 99..157; the console's own table is only on the console):
+
+| b0 | Sun 150/26.5: acne / edge / lit in error | Sun 100/13: acne / edge / lit in error |
+|---|---|---|
+| 0.0 | 0 / 617 / 4 | 0 / 1,262 / 17 |
+| 0.5 | 0 / 525 / 8 | 0 / 1,243 / 20 |
+| 1.0 | 0 / 525 / 8 | 0 / 1,242 / 22 |
+| 1.5 | 0 / 513 / 13 | 0 / 1,234 / 29 |
+| 2.0 | 0 / 513 / 13 | 0 / 1,234 / 33 |
+| 2.5 | 0 / 503 / 17 | 0 / 1,225 / 39 |
+| 3.0 | 0 / 503 / 17 | 0 / 1,225 / 43 |
+
+- At b0 3.0 the console measured 0 / 495 / 30 and 0 / 1,222 / 47 (c4b), so the model is near.
+- What the model says the sweep will show: acne stays 0 down to b0 0; a smaller bias gives back real shadow (30 → about 4, 47 → about 17) and costs a little more edge.
+
+### Page C: the band cut in parts (Q64)
+
+c4b's cut was 22 to 28 % slower than c4's, cause OPEN. The page times, by the cycle counter, mean of 8:
+- the whole cut with Q from the cosine's edge and from the measured edge, at bands 1, 2 and 4 wide;
+- the parts, for each edge: the faces; kinds, corners and bias; the band polygons; Q and the strips. A part is the difference of two timed runs that stop at different stages.
+- one Q from each edge (`c4_q_set` against `c4_q`), 65,536 calls each.
+
+What it can and cannot say: it shows where the cut's time is and whether the edge switch costs anything. It has no c4 baseline for the parts; c4's whole-cut figures are printed on the page's first line for comparison.
+
+### Risks
+- 8b relies on this program's handler running in front of KallistiOS's. If KallistiOS's order of work inside its handler matters for a later frame, 8b could differ from runs 1 and 2 in more than timing; the frame counts and render times beside it would show that.
+- Test 5 still times the cut by the ns clock; page C uses cycles. The two will differ by the clock's own error.
+- Page S runs 14 more scenes; the result pages are about 14 now.
+
+## R3 page (image r3-a): built, not run
+
+Built 2026-11-25 by Senior, to Cortana's `../recipes/R3_PAGE_SPEC.md`. **Not run on a console.** It is meant to settle PVR-064: how the PVR rounds texture alpha × vertex alpha before the punch-through test.
+
+- Image: `demo/psm/out/cdi/psm-r3-a.cdi` (1,722,601 bytes, sha256 978e7ad3eec93ddf40eb5a8efdbf8e9c0f4458ddc03c268166542f963f4c1fd1).
+- ELF: `build/psm_cmp/psm-r3-a.elf`, 0 warnings.
+- Build log: `D:\tmp\psmbuild\logs\r3_a_20261125_093547.log`.
+- Files: `r3_spike.c` (the program), `r3_model.h` (what the page works out from its pixels), `test/r3_model_test.c` (host test), and an `r3` branch in `build.py` (`--spike r3 --tag a`).
+- A program of its own, not c4's test 6b: the page stays short and c4c's pages are not disturbed. It reuses c4's `punch_pass` steps, texture and header.
+
+**What it does, as the spec says.**
+- Page 1: lines A, B, C, D, F, C2, D2. Each prints a, r, n, lo, px, s, and under it the n the model gives for VTX256, BOTH256, ROUND, FLOOR. Then `RUN VOID` if A or B do not repeat c4's 16,384 and 2,048, a line is not a clean step, or C2 / D2 do not repeat. Last line: `RULE <name>` or `NO RULE`.
+- Pages 2 to 4: the fade curve at reference 16, 33 rows (a = 0, 8 … 248, 255), then which of the four rules fit all 33 rows.
+- Last page: the picture. The quad at a = 16, 24, 40, 64, 120, 240, each 256 × 64, as read back from the frame buffer and drawn again on the page with its a beside it.
+
+**Two differences from the spec.**
+- Lines are up to 50 characters (the spec says 40); the pages are c4's.
+- The picture is the read-back copy shown on a result page, not the live PVR frame: the labels can then be plain page text.
+
+**Host test** (`test/r3_model_test.c`, a model): for each of the four rules it draws the quad as the rule would, runs the page's own derive, validity and rule naming on it, and checks the spec's numbers.
+
+| Rule | A n / lo | B n / lo | C n / lo | D n / lo | F n / lo | Named |
+|---|---|---|---|---|---|---|
+| VTX256 | 8 / 8 | 1 / 15 | 9 / 7 | 4 / 12 | 0 / none | VTX256 |
+| BOTH256 | 8 / 8 | 1 / 15 | 9 / 7 | 5 / 11 | 1 / 15 | BOTH256 |
+| ROUND | 8 / 8 | 1 / 15 | 10 / 6 | 5 / 11 | 1 / 15 | ROUND |
+| FLOOR | 8 / 8 | 1 / 15 | 10 / 6 | 4 / 12 | 1 / 15 | FLOOR |
+
+- These are the spec's numbers; the test also checks page 2's twelve "differ" and "agree" rows, that a result no rule gives is `NO RULE`, and that a broken step or a wrong A / B voids the run. All pass.
+
+**Risk.** The frame is read back from the address in the PVR's render register after the render ends, as c4 does. c4's two counts came out right that way on the console.
+
+## Result pages with small text, graphs and a CRC (images c4e and r3-c): built, not run
+
+Built 2026-11-25 by Senior, on the owner's request: fewer photos, graphs for shape, pages inside the title-safe area. **Not run on a console.** Whether the small text photographs well off a television is OPEN; the host has no BIOS font, so it could not be judged there.
+
+**Images.** Same tests as c4c and r3-a; only the pages differ.
+
+| Image | sha256 | Size |
+|---|---|---|
+| `psm-c4-c4e.cdi` | bfd0f4defb0b76a431be2bc40d5af9a31240b32c4fc6870023d0bcb0fbb759c7 | 1,825,385 bytes |
+| `psm-r3-c.cdi` | 30053c5fa4a2d488288d656627217d1dccd2c33dd3820c4b543fc7368fb1f25b | 1,743,625 bytes |
+
+- Both ELFs have 0 warnings.
+- **Do not use `psm-c4-c4d.cdi` and `psm-r3-b.cdi`.** They are an earlier build of the same pages with three graph titles and one legend cut short at the page's width. Nothing else differs. They stay in the folder because no image is ever deleted or overwritten.
+- c4c and r3-a (old 12 × 24 pages) are still valid as a fallback if the small text cannot be read.
+
+**The page kit: `demo/psm/psm_page.h`** (new, shared; host test `compare/test/psm_page_test.c`).
+- **Text.** Each BIOS glyph (12 × 24) is reduced once to 8 × 16 by a 3-to-2 box filter with 10 grey levels, brightened so a one-pixel stroke stays bright.
+- **Area.** Everything is inside the title-safe area of 640 × 480: x 64 to 575, y 48 to 431. The old pages started at x 20, y 16, outside it.
+- **Size.** 64 columns × 22 lines under a header line, against 50 × 17 before: 1.66 times the characters a page. `PG_BIG 1` gives the BIOS size back (42 × 14 in the same area).
+- **Wrap.** A long line is cut at a space, so a number is never split across lines.
+- **Header.** Title, page n/N, GRAPH on graph pages, the keys, then `CRC xxxxxxxx`.
+- **CRC.** CRC-32 of the page's lines, each followed by a line feed, up to the last line that is not empty. `demo/psm/tools/page_crc.py page.txt <crc>` checks a page typed from a photo. The host test and the script agree on a sample page (6bfc1270).
+- **Graphs.** A graph is its own page after the text pages: title, two labelled axes with numbered ticks, up to 4 series as lines with point marks or grouped bars, a legend. A graph shows shape only; the exact values stay on the text pages, which the ledger is written from.
+- **Drawing.** By the SH-4 into the frame buffer after the PVR is shut down; no PVR state.
+- **Host test** (stand-ins for the frame buffer and the BIOS font): number and tick arithmetic, the wrap, the page count, nothing drawn outside the title-safe area, a one-pixel stroke keeps a pixel of at least 150 of 255 in every row, the CRC check value. All pass. It writes three PNG pages to look at the layout.
+
+**Graphs in c4e (8 pages).**
+- Test 3: acne pixels against b0, three band widths; one graph for each edge.
+- Page S: acne, edge and real-shadow-shown-lit against b0; one graph a sun.
+- Page C: the cut's four parts as bars, for bands 1, 2 and 4 wide.
+- Test 8: each frame's time for the three runs; the render-done wait of each pass as bars (with the PVR's render beside it); the vertical blanks a frame as a histogram.
+
+**Graph in r3-c (1 page).** The fade curve: nibbles drawn against vertex alpha, measured, with the models VTX256, BOTH256 and ROUND (FLOOR has ROUND's curve at reference 16). Page 1's lines carry RESULT and DERIVED markers; the fade rows are three to a line.
+
+**Page counts (ESTIMATE: the text's length depends on the run's numbers).**
+
+| Image | Old pages (50 × 17) | New text pages (64 × 22) | Graph pages | To photograph for the ledger |
+|---|---|---|---|---|
+| c4e | about 18 (c4c) | about 12 | 8 | the 12 text pages; graphs if wanted |
+| r3-c | 6 (r3-a: 1 + 3 fade + 1 picture, and 1 more of legend) | 2 | 1, plus the picture | 2 text pages and the picture |
+
+- The gain on c4 is smaller than a halving: the title-safe area costs 8 columns and 3 lines against a page that used the whole action-safe area (72 × 25 was the first version).
+- The live view and the tile stage of c4 still draw their own screens; they are not result pages.
+
+## c4f: c4e with the reload step of the ns clock taken out (built, not run)
+
+Built 2026-11-25 by Senior. **Not run.** Use c4f in place of c4e. c4e is not wrong, but its times can carry the step.
+
+| Image | sha256 | Size |
+|---|---|---|
+| `psm-c4-c4f.cdi` | 37b48e950c11bd8f2c33e40866667a52c9902afcaf83f2b95495194ec94d1c43 | 1,825,385 bytes |
+
+- **Why.** `c4_spike.c` times every wait and frame with the ns clock of KallistiOS. That clock steps 2,502,400 ns ahead at each timer reload, once every 0.9975 s (MEASURED 2026-11-25, one console, image ray2 CLOCK.4: 2,502,321 ns). A wait or frame that spans a reload reads 2.5 ms long.
+- **The change.** One line: `ns()` returns `n - n / 1000000000 * 2502400`. The render-done hook uses the same function. The first page says "c4f. ns clock: reload step taken out."
+- **Effect on the c4b numbers (ESTIMATE).** About 2 frames in a 60-frame run carried the step. A mean frame time moves by under 0.1 ms. A largest value in c4b may be 2.5 ms high.
+- The 29.95 and 39.93 ms frame times of c4b are not explained by the step. The scheduler-tick reading stands as the ESTIMATE, and test 8b is still its test.
+- **Cost.** The correction is a 64-bit divide a call. It is outside every cycle-counted kernel: the ns clock times only waits of milliseconds.
+- Build log: `D:\tmp\psmbuild\logs\c4_c4f_20261125_094752.log`. Host tests pass; no compiler warning.
+
+## c4g and r3-d: hardware result (suite s1, first run)
+
+The full ledger rows, with photo names, are in `compare/SUITE_RUN1_RESULTS_senior.md` (its first line is the photo range). Run by the owner on 2026-11-25, one console, from the suite disc's menu. This section is the summary.
+
+| Question | Answer | Status |
+|---|---|---|
+| Do c4g's counts repeat c4b? | Yes, every one, to the pixel: ramp, window, edges 99 to 157, bias, both scenes, punch, the punch-through route | MEASURED |
+| Do c4g's times repeat c4b? | Within about 1 % (cut 3,183 / 1,694 / 897 us; project 60.0 to 61.2 cycles; PVR map 3,288, mask 9,218 / 6,272 / 5,152 us) | MEASURED |
+| Q53: is the scheduler tick the whole cause of the long frame? | **Yes.** The render-done interrupt is on time; KallistiOS's sleeping wait returns 2.9, 4.6 and 9.9 ms after it. With the wait polled it returns 7 to 8 us after it, and the frame goes from 39.9 ms to 23.3 ms | MEASURED |
+| Q57: how low can b0 go with the measured edge? | **To 0.** Acne is 0 at every b0 from 0 to 3, in both scenes, at both suns. b0 now only trades about 50 px of false edge against about 30 px of real shadow shown lit. A third sun is still OPEN | MEASURED |
+| Q64: why is the band cut a quarter slower than c4's? | **Not the Q.** `c4_q_set` and `c4_q` cost the same (21.0 and 21.2 cycles); the whole cut is the same with either edge. Band polygons are 65 % of the cut. The cause stays OPEN; the placing of the cut's arrays is what is left | MEASURED (the parts); OPEN (the cause) |
+| PVR-064: how is texture alpha × vertex alpha rounded? | None of the four models fits. One rule fits all 38 measured rows: `((t + 1) × (a + 1)) >> 8 > reference`, with t the nibble × 17 | MEASURED (the rows); ESTIMATE (the rule, a fit) |
+| Does the cycle counter count during a KallistiOS wait? | No. It read 3,400 us of a 39,909 us frame. With polled waits it agrees with the ns clock to 2 us | MEASURED |
+| Does a menu start change a result? | Not here: c4g from the menu gives c4b's counts and times. One test, and not the same binary, so still OPEN | MEASURED (this pair) |
+
+New and OPEN from this run: in the polled run every fifth frame is about 4 ms longer (the screen pass's list close, 4,033 us at most against 786 us mean).
+
+What follows for our code (ESTIMATE until built and run):
+- Any frame of ours that sleeps in `pvr_wait_render_done` pays up to 10 ms a pass. Poll the render-done event as test 8b does. This is KallistiOS's behaviour; it goes in our notes and nothing in KallistiOS is changed.
+- b0 can default to 0 or 1 with the measured edge.
+- `rcp_pt_product` (Cortana's `recipes.h`) needs the rule above as a fifth form; the dither fade table is then built from it.

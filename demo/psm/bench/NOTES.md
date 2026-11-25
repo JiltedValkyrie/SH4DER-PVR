@@ -685,3 +685,53 @@ P1.2 and P1.4 run three times each (a, b, c).
 - The page count is higher (eight P1 runs of about 2.5 pages each).
 - The triangle kernels' bytes were compared on x86 only; the console prints its own comparison.
 - The interrupt count is taken in a second run of the row, not the timed one.
+
+## Ray bench ray2: the result notes checked against the design (Senior)
+
+Checked 2026-11-25 against `bench_ray.c`, the source the image was built from. I did not read the photos. The values are from `RAY2_RESULTS_cortana.md` (p1 to p19) and `RAY2_RESULTS_junior.md` (p19 to p41).
+
+### The pages match the design
+
+| Design item | In the notes | Verdict |
+|---|---|---|
+| CLOCK.1 to CLOCK.4 on one page | R2C-01 to R2C-04, p2 | present |
+| P1 rows: cycles, ns, then a second line of ns-cyc, two gaps, sec, irq | every P1 row, p3 to p25 | present, all fields |
+| P1.2 and P1.4 three times (a, b, c) | P1.2a/b/c, P1.4a/b/c | present |
+| Page RT: four forms and two byte comparisons | R2J-34 to R2J-39 | present |
+| P2, P9, h3 as in ray1 | R2J-13 to R2J-33 | present |
+| Group 2 (OC-RAM) on START | R2J-40 to R2J-46 | present |
+
+No page is missing and no value was marked unreadable.
+
+### Q62: settled
+
+| ID | Claim | Status |
+|---|---|---|
+| Q62-1 | The ns clock of KallistiOS steps ahead once every timer reload. Predicted from its source: 2,502,400 ns. CLOCK.4: largest step 2,502,321 ns, 2 steps in 2.2 s. | MEASURED 2026-11-25, one console (R2C-04). The prediction holds to 79 ns, which is under one 80 ns count. |
+| Q62-2 | The two odd rows of ray1 (P1.4 n 48 and P1.2 n 12) each spanned one reload. | DERIVED: the surplus of each row is one step (2.41 and 2.50 ms). ray1 printed no flag, so this is not MEASURED for those rows. In ray2 no P1 row has sec 1, and none shows the surplus. |
+| Q62-3 | The other ns figures of ray1 are sound. | DERIVED: in ray2 every ns a ray is 4.997 to 5.000 times its cycles a ray (R2C-14). |
+
+**Recommendation for the ledger:** close Q62. The cycle counter is the clock for every interval. An ns interval is safe only with the step taken out: `n - n / 1000000000 * 2502400`.
+
+**What this touches outside the ray bench.**
+- `compare/c4_spike.c` timed every wait and every frame with the ns clock. In c4b, a frame or wait that spanned a reload read 2.5 ms long: about 2 frames in a 60-frame run.
+- The c4b means move by under 0.1 ms. A single largest value may carry the step.
+- Image **c4f** takes the step out (see `compare/NOTES.md`).
+- `compare/r3_spike.c` does not use the ns clock.
+
+### Points in the notes that the source explains
+
+| Note | Explanation from `bench_ray.c` | Status |
+|---|---|---|
+| p1 and p2 say "/35", later pages "/41" | By design. Group 1 ends at page 35. START runs group 2, which adds pages 36 to 41. p1 and p2 were photographed before START was pressed. The CLOCK values do not change. | FACT from source |
+| CLOCK.1 reads 640 ns, more than one count (80 ns) | CLOCK.1 takes the least difference between two calls in a loop. One call is 92 cycles (460 ns), plus the compare of the loop. So it shows the period of the loop, not the step of the timer. **CLOCK.1 does not measure the resolution. That is my design error.** The count is 80 ns (FACT, KallistiOS source). | FACT from source |
+| ns-cyc is about -1,150 ns at zero length (R2C-31) | By construction. At each end the reads are `ns, cyc, ns`, and the ns of the row is taken from the inner pair. So the cycle window is longer than the ns window by part of gap a and part of gap b. Half of (1,400 + 950) ns is 1,175 ns. | DERIVED |
+| ns gains 30 to 33 ppm on the cycles (R2C-30) | The cycles of a row are turned into ns at 200.006 MHz. If that figure is right, the count of the timer is 79.998 ns and KallistiOS counts it as 80. The size depends on where 200.006 MHz came from, which I did not check again. | ESTIMATE |
+| Gap a is about 400 ns longer than gap b (R2C-32) | Not explained by the source: the two ends are the same three calls. | OPEN |
+| irq is counted in a second run | As designed, and listed as a risk. It cannot explain a slow timed row. | FACT from source |
+
+### What I would change in a ray3
+
+- Drop CLOCK.1, or replace it with the count read from the register of the timer.
+- Print "once a reload (0.9975 s)" for CLOCK.4, not "once a second".
+- Use `psm_page.h`: small text, a CRC line, and a cost-against-n graph for P1.

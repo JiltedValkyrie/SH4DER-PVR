@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""SH4DER-PVR: the PVR-side compare spikes (cmp, vol, sub, c4), build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+"""SH4DER-PVR: the PVR-side compare spikes (cmp, vol, sub, c4, r3), build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
-    python demo/psm/compare/build.py [--spike cmp|vol|sub|c4] [--tag <tag>] [--out <dir>] [--cdi-dir <dir>] [--mkdcdisc <exe>] [--host-cc <cc>]
+    python demo/psm/compare/build.py [--spike cmp|vol|sub|c4|r3] [--tag <tag>] [--out <dir>] [--cdi-dir <dir>] [--mkdcdisc <exe>] [--host-cc <cc>]
                                      [--sh4zam <checkout>] [--host-only] [--elf-only]
 
 Run it in a shell where the KallistiOS environment is sourced (kos-cc on the PATH, KOS_BASE set). It fetches nothing
@@ -18,6 +18,8 @@ the images are kept; git ignores it). Steps, each refusing to go on when it fail
 layer. It is written on the library's maths switch (include/sh4der_core.h) and on SH4ZAM-DCE: its host test is built
 twice (plain C, and on SH4ZAM's software back end), and its program with SH4ZAM (--sh4zam, default third_party/sh4zam;
 the checkout is only read) and the flags of the library's Dreamcast build.
+--spike r3 (default tag a) is the R3 page, the punch-through product (../recipes/R3_PAGE_SPEC.md): its host test is
+built as plain C with the library's include paths, its program as c4's; the tag is printed on its first page.
 
 --host-only stops after step 1 (no KallistiOS needed). --elf-only stops after step 2 (no mkdcdisc needed).
 """
@@ -49,7 +51,7 @@ def find_kos_cc():
 
 def main():
     ap = argparse.ArgumentParser(description="Build the PVR-side compare spike.")
-    ap.add_argument("--spike", choices=("cmp", "vol", "sub", "c4"), default="cmp")
+    ap.add_argument("--spike", choices=("cmp", "vol", "sub", "c4", "r3"), default="cmp")
     ap.add_argument("--tag", default=None)
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "psm_cmp"))
     ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "demo", "psm", "out", "cdi"))
@@ -59,7 +61,7 @@ def main():
     ap.add_argument("--host-only", action="store_true")
     ap.add_argument("--elf-only", action="store_true")
     a = ap.parse_args()
-    tag = a.tag or {"cmp": "c1", "vol": "c2", "sub": "c3", "c4": "c4"}[a.spike]
+    tag = a.tag or {"cmp": "c1", "vol": "c2", "sub": "c3", "c4": "c4", "r3": "a"}[a.spike]
 
     out = os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
@@ -82,6 +84,9 @@ def main():
         run("1 host test, SH4ZAM software back end (compile)", [a.host_cc, "-O2", "-std=gnu11", "-Wall", "-Wextra", "-Werror"] + lib_inc + shz_inc +
             [src, os.path.join(a.sh4zam, "source", "sw", "shz_xmtrx_sw.c"), "-o", test, "-lm"])
         run("1 host test, SH4ZAM software back end (run)", [test])
+    elif a.spike == "r3":
+        run("1 host test, plain C (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", "-DSH4DER_CORE_NO_SH4ZAM"] + lib_inc + [src, "-o", test, "-lm"])
+        run("1 host test, plain C (run)", [test])
     else:
         run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", src, "-o", test, "-lm"])
         run("1 host test (run)", [test])
@@ -91,10 +96,10 @@ def main():
     kos_cc = find_kos_cc()
     if not os.environ.get("KOS_BASE") or not kos_cc:
         raise SystemExit("kos-cc is not on the PATH or KOS_BASE is not set: source the KallistiOS environment first")
-    if a.spike == "c4":                    # the library's Dreamcast flags; SH4ZAM's compiled half only if the checkout has built it
+    if a.spike in ("c4", "r3"):            # the library's Dreamcast flags; SH4ZAM's compiled half only if the checkout has built it
         lib = os.path.join(a.sh4zam, "build", "libsh4zam.a")
         run("2 elf", kos_cc + ["-O3", "-Wall", "-Wextra", "-ffast-math", "-ffp-contract=fast", "-mfsrra", "-mfsca", "-fno-math-errno"] + lib_inc + shz_inc +
-            [os.path.join(HERE, "%s_spike.c" % a.spike)] + ([lib] if os.path.isfile(lib) else []) + ["-o", elf])
+            (["-DR3_TAG=%s" % tag] if a.spike == "r3" else []) + [os.path.join(HERE, "%s_spike.c" % a.spike)] + ([lib] if os.path.isfile(lib) else []) + ["-o", elf])
     else:
         run("2 elf", kos_cc + ["-O2", "-Wall", "-Wextra", os.path.join(HERE, "%s_spike.c" % a.spike), "-o", elf])
     if a.elf_only:

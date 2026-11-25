@@ -60,8 +60,16 @@
 
    Only PVR and system-bus DMA registers and video memory are written. The fault catcher (../psm_fault.h) is in;
    every wait is bounded. Every number comes from the run that prints it; only a real console's run is evidence.
-   Build: python demo/psm/compare/build.py --spike c4 --tag <new tag> --sh4zam <checkout>. c4b: not run on a console
-   when this file was written.
+   c4c, after c4b's run (compare/NOTES.md "c4b: hardware result"):
+     - test 8 has a third run, 8b: the render-done wait polled too. This program's handler sits in front of
+       KallistiOS's for the render-done event (it calls KallistiOS's, then notes the time), so every done-wait also
+       prints how long after the interrupt it came back and the vertical blanks that passed in it.
+     - page S: both scenes at b0 0 to 3 by 0.5 with Q from the measured edge. Test 3 has b0 2.5 and bands 2 wide too.
+     - page C: the band cut timed in parts by the cycle counter, with Q from each edge (c4b's cut was 22 to 28 %
+       slower than c4's: OPEN).
+
+   Build: python demo/psm/compare/build.py --spike c4 --tag <new tag> --sh4zam <checkout>. c4b ran on a console on
+   2026-11-25; c4c: not run on a console when this file was written.
 */
 
 #include <kos.h>
@@ -71,50 +79,17 @@
 
 #define PSM_FAULT_IMPL
 #include "../psm_fault.h"
+#include "../psm_suite.h"
 #include "c4_model.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
 /* ---- the result pages ----------------------------------------------------------- */
 
-#define COLS 50u
-#define ROWS 17u
-#define LINES_MAX 420u
-static char lines[LINES_MAX][COLS + 1u];
-static unsigned nlines;
+#define PG_PREFIX "c4"
+#include "../psm_page.h"
+#define say pg_say
 static psm_fault_crumbs_t crumbs;
-
-/* A line for the pages and the serial line. A line over the page's width goes on, indented, on the next. */
-static void say(const char *fmt, ...) {
-    char big[240];
-    const char *s = big;
-    size_t left;
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(big, sizeof big, fmt, ap);
-    va_end(ap);
-    printf("c4: %s\n", big);
-    for (left = strlen(big); nlines < LINES_MAX; ) {
-        const int cont = s != big;
-        const size_t room = cont ? COLS - 3u : COLS, n = left < room ? left : room;
-
-        snprintf(lines[nlines++], COLS + 1u, "%s%.*s", cont ? "   " : "", (int)n, s);
-        s += n; left -= n;
-        if (!left) break;
-    }
-}
-
-static void page_draw(unsigned page, unsigned pages, const char *keys) {
-    char head[96];
-    unsigned i;
-
-    vid_clear(0, 0, 0);
-    snprintf(head, sizeof head, "PVR CHAIN c4 p%u/%u A/B page %s", page + 1u, pages, keys);
-    bfont_draw_str(vram_s + 16u * 640u + 20u, 640, true, head);
-    for (i = 0; i < ROWS && page * ROWS + i < nlines; i++)
-        bfont_draw_str(vram_s + (16u + 24u * (i + 2u)) * 640u + 20u, 640, true, lines[page * ROWS + i]);
-}
 
 static void step(const char *name) {
     psm_fault_beat(&crumbs);
@@ -126,7 +101,10 @@ static void step(const char *name) {
 
 #define LIMIT_NS 200000000ull              /* no wait in this file is longer */
 
-static inline uint64_t ns(void) { return timer_ns_gettime64(); }
+/* KallistiOS reloads TMU2 each 997,497,600 ns of its own count and then adds a whole second, so its ns clock steps
+   2,502,400 ns ahead once a reload (MEASURED 2026-11-25, one console, image ray2 CLOCK.4: largest step 2,502,321 ns).
+   An interval across a reload would read 2.5 ms long; this takes the step out. */
+static inline uint64_t ns(void) { const uint64_t n = timer_ns_gettime64(); return n - n / 1000000000ull * 2502400ull; }
 static inline uint64_t cyc(void) { return perf_cntr_count(PRFC1); }
 static unsigned us_of(uint64_t t) { return (unsigned)((t + 500u) / 1000u); }
 static unsigned mbs10(uint64_t bytes, uint64_t t) { return t ? (unsigned)(bytes * 10000u / t) : 0u; }   /* 10 x (million bytes a second) */
@@ -290,6 +268,25 @@ static uint32_t render_addr;
 static int poll_ready;                     /* c4b test 8: 1 = the "ready" waits poll pvr_check_ready instead of sleeping */
 static uint64_t w_open_ns, w_close_ns, w_done_ns;   /* the last pass's three waits, apart */
 
+/* c4c test 8b: the render-done interrupt seen by this program. KallistiOS's handler for the event stays first (ours
+   calls it, then notes the time); nothing of KallistiOS is changed. poll_done: 1 = scene_close waits for rd_seen on the
+   timer and never sleeps in pvr_wait_render_done. w_late_ns: how long after the interrupt the wait came back.
+   w_done_vbl: vertical blanks that passed during the wait. */
+static asic_evt_handler_entry_t rd_prev;
+static volatile uint64_t rd_ns;
+static volatile uint32_t rd_seen;
+static int rd_hooked, poll_done;
+static uint64_t w_late_ns;
+static uint32_t w_done_vbl;
+static volatile uint32_t vbl_count;        /* vertical blanks, counted by this program's own handler */
+
+static void rd_evt(uint32_t code, void *data) {
+    (void)data;
+    if (rd_prev.hdl) rd_prev.hdl(code, rd_prev.data);
+    rd_ns = ns();
+    rd_seen = 1u;
+}
+
 /* Wait until the PVR takes a new scene: KallistiOS's sleeping wait (100 ms a try, 20 tries), or a poll on the timer. */
 static int wait_ready(void) {
     unsigned t;
@@ -322,14 +319,23 @@ static int scene_close(void) {
 
     uint64_t t0;
 
+    uint32_t v0;
+
+    rd_seen = 0u;                          /* the render starts inside pvr_scene_finish's wait at the earliest */
     pvr_scene_finish();
     t0 = ns();
     t = (unsigned)wait_ready();
     w_close_ns = ns() - t0;
     if (!t) return 0;
-    t0 = ns();
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
-    w_done_ns = ns() - t0;
+    t0 = ns(); v0 = vbl_count;
+    if (poll_done && rd_hooked) {
+        while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
+        t = 0;
+    } else {
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    }
+    w_done_ns = ns() - t0; w_done_vbl = vbl_count - v0;
+    w_late_ns = rd_hooked && rd_seen ? ns() - rd_ns : 0u;
     if (t == 20u || pvr_get_stats(&st) < 0) return 0;
     last_render_ns = st.rnd_last_time;
     render_addr = PVR_GET(PVR_RENDER_ADDR);
@@ -779,18 +785,20 @@ static void t_bias(void) {
 }
 
 static void t_bias_one(void) {
-    static const float b0s[6] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f };
-    unsigned sh[6] = { 0, 0, 0, 0, 0, 0 }, drawn = 0, k, x, y, gs;
+    static const float b0s[7] = { 0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 2.5f, 3.0f };
+    unsigned sh[7] = { 0, 0, 0, 0, 0, 0, 0 }, drawn = 0, k, x, y, gs;
     c4_light_t L;
     c4_set_t st;
+
+    pg_plot_t *g = pg_plot(edges_on ? "3 BIAS ground alone, MEASURED edge: acne px against b0" : "3 BIAS ground alone, cosine's edge: acne px against b0", "b0, codes", "shadow px (all acne)", 0);
 
     say("3 BIAS ground alone: every shadow px is acne; Q from the %s edge", edges_on ? "MEASURED" : "cosine's");
     c4_light_fit(&L, 150.0f, 26.5f);
     step("3 map");
     c4_set_init(&st, 32u, 0u, C4_B0, 0.75f);
     if (!map_scene(&L, &st, 0u, 1u)) { say("3 map: NO RENDER END"); return; }
-    for (gs = 0; gs < 3u; gs += 2u) {
-        for (k = 0; k < 6u; k++) {
+    for (gs = 0; gs < 3u; gs++) {
+        for (k = 0; k < 7u; k++) {
             step("3 bias");
             set_init(&st, 32u, gs, b0s[k], 0.75f);
             bands_build(&L, &st, 0u, 1u);
@@ -798,7 +806,9 @@ static void t_bias_one(void) {
             if (!mask_pass(bscr, nbv, st.thr)) { say("3 b0 x10 %u: NO RENDER END", (unsigned)(b0s[k] * 10.0f)); return; }
             for (sh[k] = drawn = 0, y = 0; y < C4_MASK_H; y++) for (x = 0; x < C4_MASK_W; x++) { const unsigned p = MASK_AT(x, y); if (MASK_DRAWN(p)) { drawn++; sh[k] += MASK_SHADOW(p); } }
         }
-        say("3 bands %u wide, b0 0 .5 1 1.5 2 3: %u %u %u %u %u %u shadow of %u px", 1u << gs, sh[0], sh[1], sh[2], sh[3], sh[4], sh[5], drawn);
+        say("3 bands %u wide, b0 0 .5 1 1.5 2 2.5 3: %u %u %u %u %u %u %u shadow of %u px", 1u << gs, sh[0], sh[1], sh[2], sh[3], sh[4], sh[5], sh[6], drawn);
+        pg_series(g, gs == 0u ? "bands 1 wide" : gs == 1u ? "bands 2 wide" : "bands 4 wide");
+        for (k = 0; k < 7u; k++) pg_point(g, b0s[k], (float)sh[k]);
     }
 }
 
@@ -806,7 +816,9 @@ static void t_bias_one(void) {
 
 enum { I_ANS = 1, I_TRUTH = 2, I_OWN = 4, I_BEHIND = 8, I_INBIAS = 16 };
 
-static void t_scene_at(float az, float el, unsigned w, unsigned gs) {
+static unsigned sc_acne, sc_edge, sc_literr, sc_ok;   /* the last scene's counts, for page S's graphs */
+
+static void t_scene_at(float az, float el, unsigned w, unsigned gs, float b0, int brief) {
     static const float up[3] = { 0.0f, 1.0f, 0.0f };
     unsigned eq = 0, one = 0, more = 0, x, y, i;
     unsigned holes_in = 0, holes_out = 0, dif_in = 0, dif_out = 0, lit = 0, shadow = 0, acne = 0, edge = 0, rim = 0, inbias = 0, other = 0;
@@ -814,10 +826,11 @@ static void t_scene_at(float az, float el, unsigned w, unsigned gs) {
     c4_set_t st;
     float ground_bias;
 
+    sc_ok = 0;
     c4_light_fit(&L, az, el);
-    set_init(&st, w, gs, C4_B0, 0.75f);
+    set_init(&st, w, gs, b0, 0.75f);
     ground_bias = c4_bias(&L, up, st.b0, st.gs);
-    say("4 SCENE sun %u/%u w %u bands %u wide grow .75 b0 x10 %u, Q from the %s edge", (unsigned)az, (unsigned)el, w, 1u << gs, (unsigned)(st.b0 * 10.0f), st.dtab ? "MEASURED" : "cosine's");
+    if (!brief) say("4 SCENE sun %u/%u w %u bands %u wide grow .75 b0 x10 %u, Q from the %s edge", (unsigned)az, (unsigned)el, w, 1u << gs, (unsigned)(st.b0 * 10.0f), st.dtab ? "MEASURED" : "cosine's");
     step("4 map");
     if (!map_scene(&L, &st, 0u, C4_FACES)) { say("4 map: NO RENDER END"); return; }
     c4_model_map(&L, &st, model_map, model_ids);
@@ -826,7 +839,7 @@ static void t_scene_at(float az, float el, unsigned w, unsigned gs) {
 
         if (!d) eq++; else if (d == 1 || d == -1) one++; else more++;
     }
-    say("4 map vs model: same %u, 1 code off %u, more %u, not a code %u", eq, one, more, map_notcode);
+    if (!brief) say("4 map vs model: same %u, 1 code off %u, more %u, not a code %u", eq, one, more, map_notcode);
     step("4 bands");
     bands_build(&L, &st, 0u, C4_FACES);
     bands_project();
@@ -869,6 +882,11 @@ static void t_scene_at(float az, float el, unsigned w, unsigned gs) {
             }
         }
     }
+    sc_acne = acne; sc_edge = edge; sc_literr = inbias + other; sc_ok = 1u;
+    if (brief) {
+        say("S  b0 x10 %u: acne %u edge %u rim %u; lit in error %u + %u; vs model %u + %u; holes %u", (unsigned)(b0 * 10.0f + 0.5f), acne, edge, rim, inbias, other, dif_in, dif_out, holes_in + holes_out);
+        return;
+    }
     say("4 bands %u, vertices %u; holes inside %u, at an outline %u", nbands, nbv, holes_in, holes_out);
     say("4 mask vs model on this map: differ inside a face %u, at an outline %u", dif_in, dif_out);
     say("4 mask vs ray: lit %u shadow %u; acne %u edge %u rim %u; lit in error: in bias %u other %u", lit, shadow, acne, edge, rim, inbias, other);
@@ -882,15 +900,119 @@ static void t_scene(void) {
 
     for (k = 0; k < (e_ok ? 2u : 1u); k++) {
         edges_on = (int)k;
-        t_scene_at(150.0f, 26.5f, 32u, 1u);
-        t_scene_at(100.0f, 13.0f, 32u, 1u);
+        t_scene_at(150.0f, 26.5f, 32u, 1u, C4_B0, 0);
+        t_scene_at(100.0f, 13.0f, 32u, 1u, C4_B0, 0);
     }
     edges_on = had;
 }
 
-/* ---- 5. the cost ------------------------------------------------------------------------------------- */
+/* ---- S. the b0 sweep in the scenes (c4c, Q57) ------------------------------------------------------------------ */
+
+/* Both scenes at b0 0 to 3 by 0.5 with Q from the measured edge: where acne starts, and what a smaller bias gives back
+   (edge: false shadow from a nearer face; real shadow shown lit). One line a b0; the columns are test 4's. */
+static void t_sweep(void) {
+    static const float suns[2][2] = { { 150.0f, 26.5f }, { 100.0f, 13.0f } };
+    const int had = edges_on;
+    unsigned s, k, j, v[7][3], got[7];
+    pg_plot_t *g;
+
+    if (!e_ok) { say("S SWEEP: the edges were not measured; not run"); return; }
+    edges_on = 1;
+    for (s = 0; s < 2u; s++) {
+        say("S SWEEP sun %u/%u w 32 bands 2 wide grow .75, Q from the MEASURED edge; counts as test 4's", (unsigned)suns[s][0], (unsigned)suns[s][1]);
+        for (k = 0; k < 7u; k++) { t_scene_at(suns[s][0], suns[s][1], 32u, 1u, 0.5f * (float)k, 1); v[k][0] = sc_acne; v[k][1] = sc_edge; v[k][2] = sc_literr; got[k] = sc_ok; }
+        g = pg_plot(s ? "S SWEEP sun 100/13, measured edge: px against b0" : "S SWEEP sun 150/26, measured edge: px against b0", "b0, codes", "px of the 320 x 240 mask", 0);
+        for (j = 0; j < 3u; j++) {
+            pg_series(g, j == 0u ? "acne" : j == 1u ? "edge (false shadow)" : "real shadow shown lit");
+            for (k = 0; k < 7u; k++) if (got[k]) pg_point(g, 0.5f * (float)k, (float)v[k][j]);
+        }
+    }
+    edges_on = had;
+    say("   (host model on a table 99..157, ESTIMATE: acne 0 at every b0; edge 617 to 503 and 1262 to 1225; lit in error 4 to 17 and 17 to 43)");
+}
+
+/* ---- C. the band cut in parts (c4c, Q64) ------------------------------------------------------------------------- */
 
 #define REPEAT 8u
+
+static volatile float cut_sink;
+
+/* bands_build up to a stage: 0 the faces alone; 1 and each face's kind, corners, depth range and bias; 2 and every
+   band's polygon (not stored); 3 the whole cut (bands_build itself). The differences are the parts. */
+static void bands_upto(const c4_light_t *L, const c4_set_t *st, unsigned upto) {
+    c4_face_t f[C4_FACES];
+    unsigned i, k;
+    float sink = 0.0f;
+
+    if (upto >= 3u) { bands_build(L, st, 0u, C4_FACES); return; }
+    c4_faces(f, 0.0f);
+    for (i = 0; upto >= 1u && i < C4_FACES; i++) {
+        c4_corner_t face[4], out[C4_BAND_MAX];
+        float inv[4], lo, hi;
+        int b, b1;
+        const int kind = c4_face_kind(L, f[i].n, st);
+
+        c4_face_corners(L, &f[i], face, inv);
+        if (kind != C4_FACE_COMPARE) continue;
+        lo = hi = face[0].m[2];
+        for (k = 1; k < 4u; k++) { if (face[k].m[2] < lo) lo = face[k].m[2]; if (face[k].m[2] > hi) hi = face[k].m[2]; }
+        sink += c4_bias(L, f[i].n, st->b0, st->gs);
+        if (upto < 2u) continue;
+        for (b = c4_band(lo, st->gs), b1 = c4_band(hi, st->gs); b <= b1; b++) {
+            const unsigned n = c4_band_poly(face, inv, b, st->gs, out);
+
+            if (n) sink += out[n - 1u].p[0];
+        }
+    }
+    cut_sink = sink + f[C4_FACES - 1u].n[1];
+}
+
+static void t_cut(void) {
+    const int had = edges_on;
+    unsigned gs, e, u, r, i, qa = 0, qb = 0;
+    c4_light_t L;
+    c4_set_t st;
+    uint64_t c0, ca, cb, bar[3][4];
+    pg_plot_t *g;
+
+    say("C CUT the band cut in parts, sun 150/26.5, cycles / 200 = us, mean of %u; (c4b: 3183 / 1691 / 908 us; c4: 2483 / 1332 / 744)", REPEAT);
+    c4_light_fit(&L, 150.0f, 26.5f);
+    for (gs = 0; gs < 3u; gs++) {
+        uint64_t part[2][4];
+
+        step("C cut");
+        for (e = 0; e < 2u; e++) {
+            edges_on = (int)e;
+            set_init(&st, 32u, gs, C4_B0, 0.75f);
+            for (u = 0; u < 4u; u++) {
+                bands_upto(&L, &st, u);
+                c0 = cyc(); for (r = 0; r < REPEAT; r++) bands_upto(&L, &st, u); part[e][u] = (cyc() - c0) / REPEAT;
+            }
+        }
+        say("C bands %u wide, %u vertices; whole cut: cosine edge %u us, MEASURED edge %u us", 1u << gs, nbv, (unsigned)(part[0][3] / 200u), (unsigned)(part[1][3] / 200u));
+        say("C  parts, MEASURED edge, us: faces %u; kinds, corners, bias %u; band polygons %u; Q and the strips %u", (unsigned)(part[1][0] / 200u),
+            (unsigned)((part[1][1] - part[1][0]) / 200u), (unsigned)((part[1][2] - part[1][1]) / 200u), (unsigned)((part[1][3] - part[1][2]) / 200u));
+        for (u = 0; u < 4u; u++) bar[gs][u] = u ? part[1][u] - part[1][u - 1u] : part[1][0];
+        say("C  parts, cosine edge, us: faces %u; kinds, corners, bias %u; band polygons %u; Q and the strips %u", (unsigned)(part[0][0] / 200u),
+            (unsigned)((part[0][1] - part[0][0]) / 200u), (unsigned)((part[0][2] - part[0][1]) / 200u), (unsigned)((part[0][3] - part[0][2]) / 200u));
+    }
+    g = pg_plot("C CUT the band cut's parts, measured edge, us", "band width, codes", "us", 1);
+    pg_cat(g, "1 wide"); pg_cat(g, "2 wide"); pg_cat(g, "4 wide");
+    for (u = 0; u < 4u; u++) {
+        pg_series(g, u == 0u ? "faces" : u == 1u ? "kinds, corners, bias" : u == 2u ? "band polygons" : "Q and the strips");
+        for (gs = 0; gs < 3u; gs++) pg_point(g, (float)gs, (float)(bar[gs][u] / 200u));
+    }
+    edges_on = 1; set_init(&st, 32u, 0u, C4_B0, 0.75f);
+    c0 = cyc(); for (i = 0; i < 65536u; i++) qa += c4_q_set(&st, (float)(i & 255u) + 0.5f, 3.5f); ca = cyc() - c0;
+    c0 = cyc(); for (i = 0; i < 65536u; i++) qb += c4_q((float)(i & 255u) + 0.5f, 32u, 3.5f); cb = cyc() - c0;
+    cut_sink = (float)(qa + qb);
+    say("C  one Q: from the measured edge %u.%u cycles, from the cosine's %u.%u (65536 calls each, the loop included)", (unsigned)(ca * 10u / 65536u) / 10u, (unsigned)(ca * 10u / 65536u) % 10u,
+        (unsigned)(cb * 10u / 65536u) / 10u, (unsigned)(cb * 10u / 65536u) % 10u);
+    edges_on = had;
+    say("   (a part is the difference of two timed runs; test 5 times the cut by the ns clock, this page by the cycle counter)");
+}
+
+/* ---- 5. the cost ------------------------------------------------------------------------------------- */
 
 static void t_cost(void) {
     c4_light_t L;
@@ -1044,8 +1166,6 @@ static void t_dma(void) {
 
 /* ---- 8. the frame: pictures and waits (c4b) ------------------------------------------------------------------ */
 
-static volatile uint32_t vbl_count;        /* vertical blanks, counted by this program's own handler */
-
 static void vbl_tick(uint32_t code, void *data) {
     (void)code; (void)data;
     vbl_count++;
@@ -1060,23 +1180,33 @@ static void fr_add(fr_stat_t *s, uint64_t v) { s->sum += v; if (v > s->max) s->m
 
 static void t_frame(void) {
     static const char *const pass[3] = { "map", "mask", "screen" };
+    static const char *const mname[3] = { "KallistiOS waits", "ready POLLED", "8b: ready and done POLLED" };
     static uint32_t ft[FR_N];
     unsigned mode, f, k, i;
+    pg_plot_t *gt, *gw, *gv;
+    uint64_t rnd0[3] = { 0, 0, 0 };
     c4_light_t L;
     c4_set_t st;
 
+    gt = pg_plot("8 FRAME each frame's time, us", "frame", "us", 0);
+    gw = pg_plot("8 FRAME render-done wait of each pass, mean us", "pass", "us", 1);
+    gv = pg_plot("8 FRAME vertical blanks a frame: frames of 60 with each count", "vblanks in the frame", "frames", 1);
+    pg_cat(gw, "map"); pg_cat(gw, "mask"); pg_cat(gw, "screen");
+    for (k = 0; k < 8u; k++) { static const char *const c[8] = { "0", "1", "2", "3", "4", "5", "6", "7+" }; pg_cat(gv, c[k]); }
     say("8 FRAME %u frames of the live chain at sun 150/26.5, bands 2 wide, layer on; us", FR_N);
+    say("8  scheduler %u Hz; render-done interrupt %s", (unsigned)thd_get_hz(), rd_hooked ? "seen by this program" : "NOT hooked: no 8b, no late figures");
     fetch_off = 1;
-    for (mode = 0; mode < 2u; mode++) {
-        fr_stat_t w[FR_WAITS], rnd[3], fr;
-        unsigned hist[8];
-        uint64_t fmin = ~0ull;
+    for (mode = 0; mode < (rd_hooked ? 3u : 2u); mode++) {
+        fr_stat_t w[FR_WAITS], rnd[3], late[3], fr;
+        unsigned hist[8], dvb[3] = { 0, 0, 0 };
+        uint64_t fmin = ~0ull, awake = 0;
 
-        memset(w, 0, sizeof w); memset(rnd, 0, sizeof rnd); memset(&fr, 0, sizeof fr); memset(hist, 0, sizeof hist);
-        poll_ready = (int)mode;
+        memset(w, 0, sizeof w); memset(rnd, 0, sizeof rnd); memset(late, 0, sizeof late); memset(&fr, 0, sizeof fr); memset(hist, 0, sizeof hist);
+        poll_ready = mode >= 1u;
+        poll_done = mode == 2u;
         for (f = 0; f < FR_N; f++) {
             const uint32_t v0 = vbl_count;
-            const uint64_t t0 = ns();
+            const uint64_t t0 = ns(), c0 = cyc();
             uint64_t t;
             unsigned vb;
 
@@ -1086,22 +1216,29 @@ static void t_frame(void) {
             bands_build(&L, &st, 0u, C4_FACES);
             faces_build(&L);
             if (!map_scene(&L, &st, 0u, C4_FACES)) { say("8 map: NO RENDER END"); goto out; }
-            fr_add(&w[0], w_open_ns); fr_add(&w[1], w_close_ns); fr_add(&w[2], w_done_ns); fr_add(&rnd[0], last_render_ns);
+            fr_add(&w[0], w_open_ns); fr_add(&w[1], w_close_ns); fr_add(&w[2], w_done_ns); fr_add(&rnd[0], last_render_ns); fr_add(&late[0], w_late_ns); dvb[0] += w_done_vbl;
             bands_project();
             if (!mask_pass(bscr, nbv, st.thr)) { say("8 mask: NO RENDER END"); goto out; }
-            fr_add(&w[3], w_open_ns); fr_add(&w[4], w_close_ns); fr_add(&w[5], w_done_ns); fr_add(&rnd[1], last_render_ns);
+            fr_add(&w[3], w_open_ns); fr_add(&w[4], w_close_ns); fr_add(&w[5], w_done_ns); fr_add(&rnd[1], last_render_ns); fr_add(&late[1], w_late_ns); dvb[1] += w_done_vbl;
             if (!screen_pass(140u, 1)) { say("8 screen: NO RENDER END"); goto out; }
-            fr_add(&w[6], w_open_ns); fr_add(&w[7], w_close_ns); fr_add(&w[8], w_done_ns); fr_add(&rnd[2], last_render_ns);
+            fr_add(&w[6], w_open_ns); fr_add(&w[7], w_close_ns); fr_add(&w[8], w_done_ns); fr_add(&rnd[2], last_render_ns); fr_add(&late[2], w_late_ns); dvb[2] += w_done_vbl;
             t = ns() - t0; vb = vbl_count - v0;
+            awake += cyc() - c0;
             fr_add(&fr, t); if (t < fmin) fmin = t;
             ft[f] = (uint32_t)t;
             hist[vb < 7u ? vb : 7u]++;
         }
-        say("8 %s: frame min %u mean %u max %u", mode ? "ready POLLED" : "KallistiOS waits", us_of(fmin), us_of(fr.sum / FR_N), us_of(fr.max));
+        say("8 %s: frame min %u mean %u max %u", mname[mode], us_of(fmin), us_of(fr.sum / FR_N), us_of(fr.max));
+        pg_series(gt, mname[mode]); for (f = 0; f < FR_N; f++) pg_point(gt, (float)(f + 1u), (float)us_of(ft[f]));
+        pg_series(gw, mname[mode]); for (k = 0; k < 3u; k++) pg_point(gw, (float)k, (float)us_of(w[3u * k + 2u].sum / FR_N));
+        pg_series(gv, mname[mode]); for (k = 0; k < 8u; k++) pg_point(gv, (float)k, (float)hist[k]);
+        if (mode == 0u) for (k = 0; k < 3u; k++) rnd0[k] = rnd[k].sum / FR_N;
         say("8  vblanks a frame 0..6, 7+: %u %u %u %u %u %u %u %u", hist[0], hist[1], hist[2], hist[3], hist[4], hist[5], hist[6], hist[7]);
-        for (k = 0; k < 3u; k++)
+        for (k = 0; k < 3u; k++) {
             say("8  %s waits mean/max: open %u/%u close %u/%u done %u/%u; render %u", pass[k], us_of(w[3u * k].sum / FR_N), us_of(w[3u * k].max),
                 us_of(w[3u * k + 1u].sum / FR_N), us_of(w[3u * k + 1u].max), us_of(w[3u * k + 2u].sum / FR_N), us_of(w[3u * k + 2u].max), us_of(rnd[k].sum / FR_N));
+            say("8   %s done-wait: back %u/%u us after the interrupt; %u vblanks in the %u waits", pass[k], us_of(late[k].sum / FR_N), us_of(late[k].max), dvb[k], FR_N);
+        }
         say("8  frames 1-8: %u %u %u %u %u %u %u %u", us_of(ft[0]), us_of(ft[1]), us_of(ft[2]), us_of(ft[3]), us_of(ft[4]), us_of(ft[5]), us_of(ft[6]), us_of(ft[7]));
         {
             uint64_t waits = 0;
@@ -1109,11 +1246,15 @@ static void t_frame(void) {
             for (i = 0; i < FR_WAITS; i++) waits += w[i].sum;
             say("8  DERIVED mean frame minus mean waits: %u", us_of((fr.sum - (waits < fr.sum ? waits : fr.sum)) / FR_N));
         }
+        say("8  mean frame by the cycle counter: %u us (it may stop while the CPU sleeps in a wait)", (unsigned)(awake / FR_N / 200u));
     }
+    pg_series(gw, "the PVR's render (run 1)"); for (k = 0; k < 3u; k++) pg_point(gw, (float)k, (float)us_of(rnd0[k]));
 out:
     poll_ready = 0;
+    poll_done = 0;
     fetch_off = 0;
-    say("   (a vblank is one picture: 16.7 ms at 60 Hz)");
+    say("   (a vblank is one picture: 16.7 ms at 60 Hz. The ns clock may step 2.5 ms ahead once a second: a max about 2.5 ms over its mean can be that step, ray2 CLOCK.4)");
+    say("   (8b predicted from KallistiOS's source, ESTIMATE: the render-done wake does not reschedule, so the sleeping wait comes back on the scheduler's next tick)");
 }
 
 /* ---- 9. the mask by punch-through (c4b) ------------------------------------------------------------------------ */
@@ -1184,17 +1325,21 @@ static int start(void) {
     if (!load()) { say("video memory allocation FAIL"); pvr_shutdown(); return 0; }
     headers();
     vid_set_dithering(false);
+    rd_prev = asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_evt, NULL);   /* c4c: ours in front of KallistiOS's */
+    rd_hooked = rd_prev.hdl != NULL;
+    if (!rd_hooked) asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, NULL, NULL);
     return 1;
 }
 
 static void stop(const char *stage) {
     step(stage);
+    if (rd_hooked) { asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_prev.hdl, rd_prev.data); rd_hooked = 0; }   /* KallistiOS's own back */
     vid_set_dithering(true);
     pvr_shutdown();
 }
 
 static void run(void) {
-    say("c4b. numbers below: measured by this run");
+    say("c4g. ns clock: reload step taken out. numbers below: measured by this run. GRAPH pages follow the text pages: shape only, the values are in the text");
     if (vblank_handler_add(vbl_tick, NULL) < 0) say("vblank counter: refused (test 8 counts 0)");
     if (!start()) return;
     if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
@@ -1205,7 +1350,9 @@ static void run(void) {
     t_window();
     t_bias();
     t_scene();
+    t_sweep();
     t_cost();
+    t_cut();
     t_punch();
     t_dma();
     t_frame();
@@ -1401,8 +1548,10 @@ int main(void) {
     unsigned page = 0, pages, held = ~0u;
     int tiled = 0, redraw = 1;
 
+    suite_init();                          /* the suite disc: the menu's binary into RAM, before anything else */
     run();
     vid_set_mode(DM_640x480, PM_RGB565);
+    pg_init();
     for (;;) {
         maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
@@ -1411,20 +1560,20 @@ int main(void) {
 
         psm_fault_beat(&crumbs);
         held = now;
-        pages = (nlines + ROWS - 1u) / ROWS;
-        if (!pages) pages = 1u;
+        pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
         else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
         else if (hit & CONT_START) { live(); back = 1; }
         else if ((hit & CONT_Y) && !tiled) { tiled = 1; tiles(); back = 1; }
+        else if (suite_tick(now, page, pages)) { page++; redraw = 1; }   /* the suite disc: a chained run turns the page; ABXY leaves */
         if (back) {
             vid_set_mode(DM_640x480, PM_RGB565);
-            pages = (nlines + ROWS - 1u) / ROWS;
-            page = pages - 1u;
+            pages = pg_pages();
+            page = pg_text_pages() ? pg_text_pages() - 1u : 0u;   /* the last text page: what the stage just added */
             held = ~0u;                    /* what is still held from the stage just left is not a press here */
             redraw = 1;
         }
-        if (redraw) { page_draw(page, pages, tiled ? "START live" : "START live Y tiles"); redraw = 0; }
+        if (redraw) { pg_draw(page, "PVR CHAIN c4", suite_keys_text(tiled ? "START live" : "START live Y tiles")); redraw = 0; }
         thd_sleep(20);
     }
     return 0;

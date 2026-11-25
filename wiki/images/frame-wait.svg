@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1164" viewBox="0 0 1200 1164" role="img" aria-labelledby="ttl dsc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1230" viewBox="0 0 1200 1230" role="img" aria-labelledby="ttl dsc">
 <title id="ttl">The frame waits: c4 and c4b</title>
-<desc id="dsc">Top: three live views of spike c4 on a millisecond axis, the SH-4 and the three PVR passes end to end, then waiting to the end of the frame: work 21.7, 27.1 and 19.3 ms, frames 39.9, 49.9 and 39.9 ms. Below: c4b, the mean frame of 39.2 ms split into the three render-done waits, each showing its render time and the wait past it, and a 2.9 ms rest; the eight first frames at 29.9, 39.9 and 42.7 ms; vblanks a frame, 2 in 38 frames and 3 in 22. The cause of the wait is open.</desc>
+<desc id="dsc">Top: three live views of spike c4 on a millisecond axis, the SH-4 and the three PVR passes end to end, then waiting to the end of the frame: work 21.7, 27.1 and 19.3 ms, frames 39.9, 49.9 and 39.9 ms. Below: c4b, the mean frame of 39.2 ms split into the three render-done waits, each showing its render time and the wait past it, and a 2.9 ms rest; the eight first frames at 29.9, 39.9 and 42.7 ms; vblanks a frame, 2 in 38 frames and 3 in 22. The cause, closed by c4g: the sleeping render-done wait wakes on the 100 Hz tick; polled, the frame falls from 39.9 to 23.3 ms; one polled frame in five is 26.5 ms, still open.</desc>
 <style>
 text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
@@ -11,9 +11,9 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
 </style>
 <defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
-<rect width="1200" height="1164" fill="#fbfaf7"/>
+<rect width="1200" height="1230" fill="#fbfaf7"/>
 <defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#f1ede4"/><path d="M0 0 L0 8" stroke="#b9b2a2" stroke-width="3"/></pattern></defs>
-<text x="30" y="36" class="t">The frame waits: c4 and c4b, frame time against the work in it</text>
+<text x="30" y="36" class="t">The frame waits: c4 and c4b, frame time against the work in it; the cause found in c4g</text>
 <text x="30" y="58" class="s">Top: the live view of spike c4, one console, 2026-11-25. Work = the SH-4 lines plus the three PVR passes, as the page printed them.</text>
 <text x="30" y="76" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
 <path d="M280.0 110 L280.0 460" stroke="#9aa3b2" stroke-dasharray="4 4"/>
@@ -79,7 +79,7 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <path d="M803.1999999999999 498 L803.1999999999999 516" stroke="#d9534f" stroke-width="3"/><text x="811.1999999999999" y="512" class="b">end of frame</text>
 <text x="30" y="536" class="s">Dashed: 10 ms marks. Gold: 60 Hz pictures (16.7 ms each). The parts are drawn end to end; on the console the SH-4 and</text>
 <text x="30" y="552" class="s">the PVR can overlap, so the sum is an upper bound of the serial work.</text>
-<rect x="20" y="574" width="1160" height="570" rx="6" fill="#ffffff" stroke="#5b6577" stroke-width="1.2"/>
+<rect x="20" y="574" width="1160" height="636" rx="6" fill="#ffffff" stroke="#5b6577" stroke-width="1.2"/>
 <text x="30" y="600" class="h">c4b: where the wait sits</text>
 <text x="30" y="620" class="s">Image psm-c4-c4b, one console, 2026-11-25, 60 frames: sun 150° / 26.5°, bands 2 wide, layer on. Photos 134817460, 134819541.</text>
 <text x="30" y="636" class="s">Each bar: the three render-done waits in pass order (map, mask, screen), then the rest. Inside each wait, solid = the PVR&#39;s render time,</text>
@@ -152,6 +152,9 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="30" y="1028" class="b">The frame is one of a few values 10 ms apart: c4 39.9 / 49.9, c4b 29.9 / 39.9 (and 49.9 in its live view, 3,008 vertices) <tspan class="k m">[MEASURED PVR-094, c4b]</tspan>.</text>
 <text x="30" y="1050" class="b">The time is in the render-done waits: 36.2 of 39.2 ms. The ready waits (open, close) take 1 to 40 µs <tspan class="k m">[MEASURED c4b]</tspan>.</text>
 <text x="30" y="1072" class="b">Polling the ready waits changed nothing: both runs sleep in the render-done wait <tspan class="k m">[MEASURED c4b]</tspan>.</text>
-<text x="30" y="1094" class="b">A wait that wakes on a 10 ms clock fits better than before <tspan class="k e">[INFERENCE]</tspan>. The cause <tspan class="k o">[OPEN Q53, P10]</tspan>.</text>
-<text x="30" y="1116" class="b"><tspan font-weight="700">Next test:</tspan> time a render done polled on render_busy in place of pvr_wait_render_done.</text>
+<text x="30" y="1094" class="b"><tspan font-weight="700">The cause, c4g (Q53 CLOSED by PVR-117):</tspan> KallistiOS&#39;s pvr_wait_render_done sleeps and wakes on the 100 Hz tick. It returned</text>
+<text x="30" y="1116" class="b">4,645 / 2,929 / 9,940 µs after the render-done interrupt (map, mask, screen); the frame is 39,932 µs after the first (mean 39,909): 4.00 ticks</text>
+<text x="30" y="1138" class="b">of 9,983 µs <tspan class="k m">[MEASURED PVR-117, one run]</tspan>. Both waits polled: back 7 .. 8 µs after, frame mean 23,264 µs, 42 % shorter <tspan class="k m">[MEASURED]</tspan>.</text>
+<text x="30" y="1160" class="b">Still open: polled, about 1 frame in 5 is 26.5 ms, not 22.4; the screen list close reaches 4,033 µs <tspan class="k m">[MEASURED PVR-118]</tspan>; why <tspan class="k o">[OPEN Q69]</tspan>.</text>
+<text x="30" y="1182" class="b">Over one frame, sleeping against polled: see render-wait-poll.</text>
 </svg>

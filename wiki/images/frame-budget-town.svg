@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="ttl dsc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1140" viewBox="0 0 1200 1140" role="img" aria-labelledby="ttl dsc">
 <title id="ttl">Where the 16.7 ms goes: the town frame</title>
-<desc id="dsc">Bars on a 0 to 60 ms scale for the town frame on route A: SH-4 13.6 ms split into transform, send and an unexplained rest; the TA fed beside the send with its vertex buffer 68 percent full; the PVR 15.9 ms split into the scene, the map pass, the shadow layer and an open remainder; no G2 work; the frame at about 55.6 ms, most of it waiting. Below: why the frame is longer than its work (in c4b the wait sits in the render-done waits), the per-engine plan with the static bake split, and the console tests that would settle it.</desc>
+<desc id="dsc">Bars on a 0 to 60 ms scale for the town frame on route A: SH-4 13.6 ms split into transform, send and an unexplained rest; the TA fed beside the send with its vertex buffer 68 percent full; the PVR 15.9 ms split into the scene, the map pass, the shadow layer and an open remainder; no G2 work; the frame at about 55.6 ms, most of it waiting. Below: why the frame is longer than its work (the render-done wait sleeps until the 100 Hz tick; polled, the c4g frame fell from 39.9 to 23.3 ms), the per-engine plan with the static bake split, and the console tests that would settle it.</desc>
 <style>
 text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
@@ -11,7 +11,7 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
 </style>
 <defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
-<rect width="1200" height="1100" fill="#fbfaf7"/>
+<rect width="1200" height="1140" fill="#fbfaf7"/>
 <text x="30" y="36" class="t">Where the 16.7 ms goes: the town frame, engine by engine</text>
 <text x="30" y="58" class="s">Route A (the PVR draws the map), map 256, all casters, 8 people and 4 hens; the HUD of 8 photos, one console, 2026-11-25 (wiki/limits/scenes.md).</text>
 <text x="30" y="78" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
@@ -64,18 +64,20 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="30" y="488" class="s">18 fps, about 55.6 ms <tspan class="k m">[MEASURED, HUD]</tspan></text>
 <rect x="330.0" y="460" width="206.7" height="26" fill="#5b6577" stroke="#fbfaf7" stroke-width="1"/><text x="433.4" y="477" class="k" text-anchor="middle" style="fill:#fff">work: max(SH-4, PVR)</text>
 <rect x="536.7" y="460" width="516.1" height="26" fill="#e9e4d8" stroke="#fbfaf7" stroke-width="1" stroke-dasharray="3 2"/><text x="794.8" y="477" class="k" text-anchor="middle" style="fill:#1d2330">waiting, 39.7 ms: not timed in the town</text>
-<rect x="30" y="560" width="560" height="236" rx="6" class="box"/>
+<rect x="30" y="560" width="560" height="276" rx="6" class="box"/>
 <text x="44" y="586" class="h">2  Why is the frame longer than its work?</text>
 <text x="44" y="610" class="b">The model: the SH-4 builds frame N+1 while the PVR draws N, so a</text>
 <text x="44" y="631" class="b">frame is the larger side, 15.9 ms: 60 fps on paper <tspan class="k e">[ASSUMPTION]</tspan>.</text>
 <text x="44" y="652" class="s">· a3: SH-4 22.6, PVR 16.0 ms, yet 25 fps <tspan class="k m">[MEASURED, relayed]</tspan></text>
 <text x="44" y="673" class="s">· c4 39.9 / 49.9 ms, c4b 29.9 / 39.9 ms: steps 10 ms apart <tspan class="k m">[MEASURED]</tspan></text>
-<text x="44" y="694" class="b">c4b found where: its three render-done waits take about 36 of</text>
-<text x="44" y="715" class="b">39.2 ms, up to 9.1 ms past their renders <tspan class="k m">[MEASURED c4b]</tspan>; the</text>
-<text x="44" y="736" class="b">ready waits 1 .. 40 µs. A 10 ms clock fits <tspan class="k e">[INFERENCE]</tspan>; cause <tspan class="k o">[OPEN]</tspan>.</text>
-<text x="44" y="757" class="s">The town&#39;s own waits are not timed <tspan class="k o">[OPEN Q53, P10]</tspan>; until they</text>
-<text x="44" y="778" class="s">are, every "room left" figure is an upper bound.</text>
-<rect x="610" y="560" width="560" height="236" rx="6" class="tm"/>
+<text x="44" y="694" class="b">c4b: the render-done waits take about 36 of 39.2 ms <tspan class="k m">[MEASURED]</tspan>.</text>
+<text x="44" y="715" class="b">c4g found why: KallistiOS&#39;s sleeping pvr_wait_render_done</text>
+<text x="44" y="736" class="b">wakes on the 100 Hz tick, 2.9 .. 9.9 ms after the render; polled,</text>
+<text x="44" y="757" class="b">the frame fell 39.9 → 23.3 ms <tspan class="k m">[MEASURED PVR-117]</tspan>. Q53 closed.</text>
+<text x="44" y="778" class="s">Polled, 1 frame in 5 is still about 26.5 ms <tspan class="k o">[OPEN Q69]</tspan>.</text>
+<text x="44" y="799" class="s">The town sleeps in it too (psm_dc.c:259, 328, 512, 627) <tspan class="k f">[FACT]</tspan>;</text>
+<text x="44" y="820" class="s">so it may pay up to 10 ms a pass <tspan class="k e">[ESTIMATE]</tspan>; its waits are not timed.</text>
+<rect x="610" y="560" width="560" height="276" rx="6" class="tm"/>
 <text x="624" y="586" class="h">3  With the bake split (gen 6.5 plan)</text>
 <text x="624" y="604" class="s">every line <tspan class="k e">ESTIMATE</tspan>; see static-bake-split</text>
 <text x="624" y="626" class="h2">PVR</text>
@@ -87,15 +89,15 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="624" y="744" class="s">+ the bands&#39; cut and the game&#39;s own work <tspan class="k o">[OPEN]</tspan></text>
 <text x="624" y="767" class="h2">G2 and the ARM</text>
 <text x="624" y="786" class="s">0 a frame; the ground rebake when the sun moves runs behind (S2 clock).</text>
-<rect x="30" y="816" width="1140" height="264" rx="6" class="box"/>
-<text x="44" y="842" class="h">Reading it, and what to measure next</text>
-<text x="44" y="866" class="b">Neither side is over 16.7 ms on its own: SH-4 13.6, PVR 15.9. The frame is long because something waits, not because the work is too big.</text>
-<text x="44" y="888" class="b">The PVR is the tighter side: 0.8 ms under 60 fps with the full-screen shadow layer in. Route B&#39;s 7.1 ms says the scene itself is cheap.</text>
-<text x="44" y="910" class="b">The SH-4&#39;s known parts (transform and send) are about 5.6 .. 6.7 ms of its 13.6; the other half is not broken down.</text>
-<text x="44" y="932" class="b">1 ms is about 200,000 SH-4 cycles <tspan class="k f">[FACT SH4-001]</tspan>. Every ESTIMATE here is a measured unit cost times a count, not a frame timed in parts.</text>
-<text x="44" y="960" class="h2">Console tests that would turn this page MEASURED</text>
-<text x="44" y="982" class="s">· time the town&#39;s waits apart as c4b did (render done, ready, vblanks), then a render done polled on render_busy (P10, Q53)</text>
-<text x="44" y="1004" class="s">· split the SH-4 line: scene update, cull, casters, transform, send, HUD, each with the s2 clock pair</text>
-<text x="44" y="1026" class="s">· route A&#39;s PVR with the map pass alone and the layer alone, to place the open 2.5 ms</text>
-<text x="44" y="1048" class="s">· the TA&#39;s own time, if the HUD can read it (BUS-006)</text>
+<rect x="30" y="856" width="1140" height="264" rx="6" class="box"/>
+<text x="44" y="882" class="h">Reading it, and what to measure next</text>
+<text x="44" y="906" class="b">Neither side is over 16.7 ms on its own: SH-4 13.6, PVR 15.9. The frame is long because something waits, not because the work is too big.</text>
+<text x="44" y="928" class="b">The PVR is the tighter side: 0.8 ms under 60 fps with the full-screen shadow layer in. Route B&#39;s 7.1 ms says the scene itself is cheap.</text>
+<text x="44" y="950" class="b">The SH-4&#39;s known parts (transform and send) are about 5.6 .. 6.7 ms of its 13.6; the other half is not broken down.</text>
+<text x="44" y="972" class="b">1 ms is about 200,000 SH-4 cycles <tspan class="k f">[FACT SH4-001]</tspan>. Every ESTIMATE here is a measured unit cost times a count, not a frame timed in parts.</text>
+<text x="44" y="1000" class="h2">Console tests that would turn this page MEASURED</text>
+<text x="44" y="1022" class="s">· poll the town&#39;s render-done waits as c4g test 8b did, and time them apart (render done, ready, vblanks); see Q69 for the 26.5 ms frames</text>
+<text x="44" y="1044" class="s">· split the SH-4 line: scene update, cull, casters, transform, send, HUD, each with the s2 clock pair</text>
+<text x="44" y="1066" class="s">· route A&#39;s PVR with the map pass alone and the layer alone, to place the open 2.5 ms</text>
+<text x="44" y="1088" class="s">· the TA&#39;s own time, if the HUD can read it (BUS-006)</text>
 </svg>

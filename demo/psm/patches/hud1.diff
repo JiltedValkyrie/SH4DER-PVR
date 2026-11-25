@@ -1,0 +1,358 @@
+--- a/demo/psm/psm_dc.c
++++ b/demo/psm/psm_dc.c
+@@ -103,6 +103,119 @@
+ static unsigned shed_now;                 /* SHED this frame (psm_send_plan): 0 everything sent */
+ static uint32_t est_now;                  /* this frame's parameter bytes, estimated (psm_send.h) */
+ 
++/* ---- hud1: the vertex buffer diagnostic (TOWN_NOTES "HUD lost at the start view") ------------------------------------
++   A box of four 8 x 16 lines in its own 512 x 64 texture, sent first in the opaque list (the one deliberate difference
++   from a3e's frame), at x 64 y 96 inside title-safe, from frame 0. Lines: KallistiOS's buffer reading and the estimate;
++   the TA's error events counted by our own ASIC handlers (KallistiOS hooks none in a normal build) and the switches; then
++   a frozen copy of both lines at the first parameter or bin overflow, kept until L+R+A. Switches: L+R held fully (the
++   town then sees no button, stick or trigger), X the text first in the translucent list, Y SHED 3 forced, A reset. The
++   buffer size and the bin pool are a boot menu (pvr_init cannot be redone without losing every texture). */
++#define DIAG_W 512u
++#define DIAG_H 64u
++#define DIAG_X 64.0f
++#define DIAG_Y 96.0f
++#define DIAG_LINES 4u
++#define DIAG_EVT_N 6u                     /* ASIC 0x0200 .. 0x0205: ISP, strip, PARAM, OPB, TA input error, TA input overflow */
++static uint16_t diag_px[DIAG_W * DIAG_H] __attribute__((aligned(32)));
++static pvr_ptr_t diag_mem;
++static pvr_poly_hdr_t hdr_diag;
++static char diag_ln[DIAG_LINES][PSM_HUD_COLS + 1u], diag_prev[DIAG_LINES][PSM_HUD_COLS + 1u];
++static volatile uint32_t diag_evt[DIAG_EVT_N];
++static asic_evt_handler_entry_t diag_evt_prev[DIAG_EVT_N];
++static uint32_t diag_evt_base[DIAG_EVT_N];  /* the counts at the last reset (L+R+A) or switch */
++static uint32_t diag_vbuf;                  /* the boot menu's choices (boot_menu sets both) */
++static unsigned diag_opb;
++static uint32_t diag_max_sw;                /* KallistiOS's last-frame reading, the largest since the last switch */
++static uint32_t est_op, est_tr;             /* this frame's estimate by list, from the live walk */
++static unsigned text_v;                     /* the readout's vertices this frame (text and its strips) */
++static int force_s3, hud_first, chord_prev, chord_kick;   /* hud_first goes into psm_send_hud_first_ each frame */
++static int frozen;                          /* 1: lines 2 and 3 hold the frame an overflow was first seen */
++static uint32_t ovf_seen;                   /* PARAM + OPB at the last frame looked at */
++
++static void diag_evt_hnd(uint32_t code, void *data) {
++    const unsigned i = (unsigned)(code - ASIC_EVT_PVR_ISP_OUTOFMEM);
++
++    (void)data;
++    if (i < DIAG_EVT_N) {
++        diag_evt[i]++;
++        if (diag_evt_prev[i].hdl) diag_evt_prev[i].hdl(code, diag_evt_prev[i].data);
++    }
++}
++
++static void diag_hook(void) {
++    unsigned i;
++
++    for (i = 0; i < DIAG_EVT_N; i++) {
++        diag_evt_prev[i] = asic_evt_set_handler((uint16_t)(ASIC_EVT_PVR_ISP_OUTOFMEM + i), diag_evt_hnd, NULL);
++        asic_evt_enable((uint16_t)(ASIC_EVT_PVR_ISP_OUTOFMEM + i), ASIC_IRQ_DEFAULT);
++    }
++}
++
++static uint32_t diag_since(unsigned i) { return diag_evt[i] - diag_evt_base[i]; }
++
++static void diag_reset(void) {
++    unsigned i;
++
++    for (i = 0; i < DIAG_EVT_N; i++) diag_evt_base[i] = diag_evt[i];
++    diag_max_sw = 0; frozen = 0;
++    ovf_seen = diag_evt[2] + diag_evt[3];
++}
++
++/* lines 0 and 1, live */
++static void diag_live(char l0[PSM_HUD_COLS + 1u], char l1[PSM_HUD_COLS + 1u]) {
++    const unsigned e = (unsigned)(diag_since(0) + diag_since(1) + diag_since(4));
++
++    snprintf(l0, PSM_HUD_COLS + 1u, "F%06u VB used%5uK/%uK sw%5uK boot%5uK est%5uK", frame_no % 1000000u,
++             (unsigned)(vbuf_used / 1024u), (unsigned)(diag_vbuf / 1024u), (unsigned)(diag_max_sw / 1024u),
++             (unsigned)(vbuf_max / 1024u), (unsigned)((est_op + est_tr) / 1024u));
++    snprintf(l1, PSM_HUD_COLS + 1u, "op%4uK tr%4uK txt%3uv SHED%u S3:%u 1ST:%u X%u P%u O%u I%u E%u%s",
++             (unsigned)(est_op / 1024u), (unsigned)(est_tr / 1024u), text_v, shed_now, force_s3, hud_first, diag_opb,
++             (unsigned)diag_since(2), (unsigned)diag_since(3), (unsigned)diag_since(5), e,
++             diag_since(2) + diag_since(3) + diag_since(5) ? " OVF" : "");
++}
++
++/* After the frame is sent: the largest reading since the switch, and the first overflow frozen into lines 2 and 3. */
++static void diag_frame(void) {
++    const uint32_t ovf = diag_evt[2] + diag_evt[3];
++
++    if (vbuf_used > diag_max_sw) diag_max_sw = vbuf_used;
++    if (ovf != ovf_seen && !frozen) {
++        char a[PSM_HUD_COLS + 1u], b[PSM_HUD_COLS + 1u];
++
++        diag_live(a, b);
++        snprintf(diag_ln[2], PSM_HUD_COLS + 1u, "FROZEN %.56s", a);
++        snprintf(diag_ln[3], PSM_HUD_COLS + 1u, "FROZEN %.56s", b);
++        frozen = 1;
++    }
++    ovf_seen = ovf;
++}
++
++/* The box's lines this refresh; 1 when they changed */
++static int diag_pending(void) {
++    diag_live(diag_ln[0], diag_ln[1]);
++    if (!frozen) {
++        snprintf(diag_ln[2], PSM_HUD_COLS + 1u, "no PARAM/OPB overflow since reset  (L+R: X 1ST, Y S3, A reset)");
++        diag_ln[3][0] = '\0';
++    }
++    return memcmp(diag_prev, diag_ln, sizeof diag_prev) != 0;
++}
++
++/* The changed lines into the box's texture (opaque list: black ground, white text). Call after the last render is done. */
++static void diag_upload(void) {
++    unsigned i, k;
++
++    for (i = 0; i < DIAG_LINES; i++) {
++        uint16_t *row = diag_px + i * 16u * DIAG_W;
++
++        if (!memcmp(diag_prev[i], diag_ln[i], sizeof diag_ln[i])) continue;
++        memset(row, 0, 16u * DIAG_W * sizeof *row);
++        minifont_draw_str(row, DIAG_W, diag_ln[i]);
++        for (k = 0; k < 16u * DIAG_W; k++) row[k] = row[k] ? 0xffffu : 0x8000u;    /* ARGB1555: white on black */
++        pvr_txr_load(row, (uint8_t *)diag_mem + i * 16u * DIAG_W * sizeof *row, 16u * DIAG_W * sizeof *row);
++    }
++    memcpy(diag_prev, diag_ln, sizeof diag_prev);
++}
++
+ /* ---- what is sent (psm_send.h walks it; the host test walks the same) ------- */
+ 
+ /* TA SEND (a menu row). Runs: each header and vertex is one 32-byte record in ta_run, its cache line taken with MOVCA (no
+@@ -149,6 +262,23 @@
+ };
+ static psm_sink_t sink;
+ 
++/* hud1: the DIAG box, one strip of four vertices under its own header, through the same path as the frame (runs or pvr_dr).
++   Call first in the opaque list. Not in the estimate (about 160 bytes). */
++static void diag_send(void) {
++    static const float xs[4] = { 0.0f, (float)DIAG_W, 0.0f, (float)DIAG_W }, ys[4] = { 0.0f, 0.0f, (float)DIAG_H, (float)DIAG_H };
++    unsigned i;
++
++    if (!diag_mem || !sh4der_poly_hdr_ok((const uint32_t *)&hdr_diag)) return;
++    if (ta_runs) {
++        const uint32_t *h = (const uint32_t *)&hdr_diag;
++        uint32_t *o = ta_record();
++
++        for (i = 0; i < 8u; i++) o[i] = h[i];
++    } else pvr_prim(&hdr_diag, sizeof hdr_diag);
++    for (i = 0; i < 4u; i++)
++        PSM_SINK_VTX(i == 3u, DIAG_X + xs[i], DIAG_Y + ys[i], 2000.0f, (i & 1u) ? 1.0f : 0.0f, (i & 2u) ? 1.0f : 0.0f, 0xffffffffu, 0u);
++}
++
+ static void send_hdr_(int kind) {
+     if (ta_runs) {
+         const uint32_t *h = (const uint32_t *)hdr_tab[kind];
+@@ -225,6 +355,15 @@
+     c.depth.write = PVR_DEPTHWRITE_DISABLE;
+     c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ZERO;
+     pvr_poly_compile(&hdr_inset_b, &c);
++
++    /* hud1: the DIAG box, first in the opaque list (an overflow loses what is sent last), drawn over everything after it */
++    pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_ARGB1555 | PVR_TXRFMT_NONTWIDDLED, DIAG_W, DIAG_H, diag_mem, PVR_FILTER_NEAREST);
++    c.gen.culling = PVR_CULLING_NONE;
++    c.gen.shading = PVR_SHADE_FLAT;
++    c.txr.env = PVR_TXRENV_REPLACE;
++    c.depth.comparison = PVR_DEPTHCMP_ALWAYS;
++    c.depth.write = PVR_DEPTHWRITE_ENABLE;
++    pvr_poly_compile(&hdr_diag, &c);
+ }
+ 
+ /* The target's two headers: the ground layer (target x what is on screen) and the inset (the target as it is). */
+@@ -340,6 +479,9 @@
+     inset_mem = pvr_mem_malloc(sizeof inset_px);
+     checker_mem = pvr_mem_malloc(sizeof checker_px);
+     if (!text_mem || !inset_mem || !checker_mem) return 0;
++    diag_mem = pvr_mem_malloc(sizeof diag_px);              /* hud1: 64 KB; none: no box (the image still runs) */
++    if (diag_mem) { memset(diag_px, 0, sizeof diag_px); pvr_txr_load(diag_px, diag_mem, sizeof diag_px); }
++    else printf("psm: hud1: no video memory for the DIAG box\n");
+     sky_mem = pvr_mem_malloc(PSM_SKY_W * PSM_SKY_H * 2u);  /* 256 KB; none: the town draws without the air */
+     if (sky_mem) pvr_txr_load_ex(psm_sky_px, sky_mem, PSM_SKY_W, PSM_SKY_H, PVR_TXRLOAD_16BPP);   /* twiddled on the way */
+     else printf("psm: no video memory for the sky band (%u KB)\n", PSM_SKY_W * PSM_SKY_H * 2u / 1024u);
+@@ -398,6 +540,17 @@
+         if (st->joyy > STICK_DEAD || st->joyy < -STICK_DEAD) in.sy = (float)st->joyy * (1.0f / 128.0f);
+         in.lt = (float)st->ltrig * (1.0f / 255.0f);
+         in.rt = (float)st->rtrig * (1.0f / 255.0f);
++        if (st->ltrig > 240 && st->rtrig > 240) {          /* hud1: the chord; the town sees nothing while it is held */
++            const int chord = (int)(b & (CONT_X | CONT_Y | CONT_A));
++
++            if ((chord & CONT_X) && !(chord_prev & CONT_X)) { hud_first = !hud_first; diag_reset(); }
++            if ((chord & CONT_Y) && !(chord_prev & CONT_Y)) { force_s3 = !force_s3; diag_reset(); }
++            if ((chord & CONT_A) && !(chord_prev & CONT_A)) diag_reset();
++            chord_prev = chord;
++            memset(&in, 0, sizeof in);
++            held = state.last;                               /* no edge for the town: its buttons stay as they were */
++            chord_kick = 1;                                  /* the readout is looked at now */
++        } else chord_prev = 0;
+     }
+     in.held = held;
+     psm_fault_frame(&fault_crumbs, frame_no, held, (unsigned)state.scene, (unsigned)state.route);
+@@ -413,6 +566,7 @@
+     }
+     psm_fault_menu(&fault_crumbs, state.menu, (unsigned)state.row, psm_row_int(&state, state.row));
+     psm_fault_camera(&fault_crumbs, state.x, PSM_EYE_H, state.z, state.yaw * 57.29578f, -state.pitch * 57.29578f);
++    if (chord_kick) { chord_kick = 0; return 1; }
+     return held != before || moved;
+ }
+ 
+@@ -458,7 +612,7 @@
+         psm_panel_lines(&state, &p, ln_now);
+     }
+     {
+-        const psm_diag_t d = { frame_no, est_now, vbuf_used, vbuf_max, PSM_TA_VBUF, shed_now };
++        const psm_diag_t d = { frame_no, est_now, vbuf_used, vbuf_max, diag_vbuf, shed_now };
+ 
+         psm_diag_line(&d, ln_now);
+     }
+@@ -514,6 +668,55 @@
+     return stats.rnd_last_time;
+ }
+ 
++/* hud1: the boot menu, before pvr_init (the frame buffer, the 8 x 16 font, inside title-safe). A, X, Y or B picks; with no
++   button in 5 s (or no controller) it goes on as a3e: 1,024 KB and 4. */
++static void boot_menu(void) {
++    static const char *const ln[] = {
++        "SH4DER PSM TOWN hud1: vertex buffer test", "",
++        "A  buffer 1024 KB, bin pool x4   (as a3e)",
++        "X  buffer 1536 KB, bin pool x4",
++        "Y  buffer 1024 KB, bin pool x8",
++        "B  buffer 1536 KB, bin pool x8", "",
++        "In the town: hold L and R fully, then",
++        "  X  text first in the translucent list on/off",
++        "  Y  SHED 3 forced on/off",
++        "  A  reset the counters (and the FROZEN lines)",
++    };
++    const uint64_t t0 = timer_ms_gettime64();
++    unsigned i, pick = 0u, left = 99u;
++
++    for (;;) {
++        maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
++        cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
++        const uint64_t ms = timer_ms_gettime64() - t0;
++        const unsigned s = ms >= 5000u ? 0u : (unsigned)((5000u - ms + 999u) / 1000u);
++        char line[64];
++
++        if (s != left) {
++            left = s;
++            memset(vram_s, 0, 640u * 480u * 2u);
++            for (i = 0; i < sizeof ln / sizeof ln[0]; i++) minifont_draw_str(vram_s + (64u + i * 20u) * 640u + 64u, 640u, ln[i]);
++            snprintf(line, sizeof line, "%u s, then A", s);
++            minifont_draw_str(vram_s + (64u + 12u * 20u) * 640u + 64u, 640u, line);
++        }
++        if (st && (st->buttons & (CONT_A | CONT_X | CONT_Y | CONT_B))) {
++            pick = (st->buttons & CONT_B) ? 3u : (st->buttons & CONT_Y) ? 2u : (st->buttons & CONT_X) ? 1u : 0u;
++            while (st->buttons & (CONT_A | CONT_X | CONT_Y | CONT_B)) {   /* let go first: the town must not see it */
++                thd_sleep(20);
++                dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
++                st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
++                if (!st || timer_ms_gettime64() - t0 > 20000u) break;
++            }
++            break;
++        }
++        if (ms >= 5000u) break;
++        thd_sleep(20);
++    }
++    diag_vbuf = (pick & 1u) ? 1536u * 1024u : PSM_TA_VBUF;
++    diag_opb = (pick & 2u) ? 8u : PSM_OPB_EXTRA;
++    printf("psm: hud1 boot menu: buffer %u KB, bin pool x%u\n", (unsigned)(diag_vbuf / 1024u), diag_opb);
++}
++
+ /* ---- main ---------------------------------------------------------------------- */
+ 
+ int main(void) {
+@@ -526,10 +729,12 @@
+        far parts past PSM_TA_SHARE (psm_send.h); the host test holds the worst view under it. KallistiOS makes two of them
+        (one a frame, pvr_buffers.c) and puts the background polygon after the last vertex. The tile bins: KallistiOS's
+        default 16-word blocks for the two lists, PSM_OPB_EXTRA times that again as the overflow pool */
+-    init.vertex_buf_size = PSM_TA_VBUF;
+-    init.opb_overflow_count = PSM_OPB_EXTRA;
++    boot_menu();                             /* hud1: the buffer and the bin pool */
++    init.vertex_buf_size = diag_vbuf;
++    init.opb_overflow_count = diag_opb;
+     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
+     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
++    diag_hook();                             /* hud1: the TA's error events counted */
+     psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
+     vram0 = pvr_mem_available();
+     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
+@@ -538,7 +743,7 @@
+            " %u caster triangles in %u objects\n", scene.rows, scene.rows * (PSM_COLS + 1u), scene.mvn, scene.mtn, scene.ctn, scene.con);
+     printf("psm: VRAM free %lu KB (after load; %lu after pvr_init), vertex buffers 2 x %u KB, textures %u KB (text %u, inset %u, ground %u,"
+            " sky %u%s); route A's target %u KB at %u from the free\n", (unsigned long)(pvr_mem_available() / 1024u), (unsigned long)(vram0 / 1024u),
+-           (unsigned)(PSM_TA_VBUF / 1024u),
++           (unsigned)(diag_vbuf / 1024u),
+            (unsigned)((sizeof text_px + sizeof inset_px + sizeof checker_px + (sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u : 0u) + 1023u) / 1024u),
+            (unsigned)(sizeof text_px / 1024u), (unsigned)(sizeof inset_px / 1024u), (unsigned)((sizeof checker_px + 1023u) / 1024u),
+            sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u / 1024u : 0u, PSM_SKY_HAVE ? "" : " stand-in", PSM_MAP_MAX_A * PSM_MAP_MAX_A * 2u / 1024u, PSM_MAP_MAX_A);
+@@ -613,7 +818,8 @@
+             uint8_t ok[PSM_HK_N];
+ 
+             hdr_ok_fill(ok);
+-            shed_now = psm_send_plan(&sink, &frame, &scene, &state, state.atmos && sky_mem ? &sky : NULL, a_drawn, ok, PSM_TA_VBUF);
++            shed_now = psm_send_plan(&sink, &frame, &scene, &state, state.atmos && sky_mem ? &sky : NULL, a_drawn, ok, diag_vbuf);
++            if (force_s3 && shed_now < 3u) shed_now = 3u;   /* hud1: Y on the chord */
+             est_now = sink.bytes + PSM_TA_BKG;
+         }
+ 
+@@ -622,11 +828,13 @@
+         if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text, the inset and the fog registers: written when they changed, after the last render */
+             hud_tick = 0;
+             want_text = text_pending();
++            want_text |= diag_pending() << 1;            /* hud1: bit 1 the DIAG box */
+             want_inset = state.inset && state.route != PSM_ROUTE_A && b_ok;
+             if (want_text || want_inset || look_pending) {
+                 pvr_wait_render_done();
+                 look_apply();
+-                if (want_text) text_upload();
++                if (want_text & 1) text_upload();
++                if (want_text & 2) diag_upload();
+                 if (want_inset) inset_update();
+             }
+         }
+@@ -642,11 +850,16 @@
+         ta_runs = state.send_runs;
+         pvr_scene_begin();
+         pvr_list_begin(PVR_LIST_OP_POLY);
++        diag_send();                         /* hud1: first, so an overflow cannot take it */
+         psm_send_op(&sink, &frame, &scene, state.atmos && sky_mem ? &sky : NULL);
++        est_op = sink.bytes;
+         ta_flush();
+         pvr_list_finish();
+         pvr_list_begin(PVR_LIST_TR_POLY);
++        psm_send_hud_first_ = hud_first;     /* hud1: X on the chord */
+         layer_v = psm_send_tr(&sink, &frame, &scene, &state, a_drawn, frame_no);
++        est_tr = sink.bytes - est_op + PSM_TA_BKG;
++        text_v = sink.kv[PSM_HK_TEXT] + sink.kv[PSM_HK_DIM];
+         ta_flush();
+         pvr_list_finish();
+         psm_fault_stage(&fault_crumbs, "finish");
+@@ -659,6 +872,7 @@
+             pvr_stats_t vs;                  /* KallistiOS's own reading of the buffer: the last frame registered, the largest */
+ 
+             if (pvr_get_stats(&vs) == 0) { vbuf_used = (uint32_t)vs.vtx_buffer_used; vbuf_max = (uint32_t)vs.vtx_buffer_used_max; }
++            diag_frame();                    /* hud1 */
+         }
+         if (sample) rnd_scr = render_wait();
+         win_frames++;
+--- a/demo/psm/psm_send.h
++++ b/demo/psm/psm_send.h
+@@ -352,11 +352,16 @@
+                   (beat & 8u) ? 0xffffd040u : 0xff40d0ffu);
+ }
+ 
++/* hud1 (diagnostic image): 1 sends the readout before route A's layer, so a full vertex buffer loses the layer, not the text */
++static int psm_send_hud_first_;
++
+ /* the translucent list: route A's layer (SHED 3 leaves it), the readout. Returns the layer's vertices. */
+ static inline unsigned psm_send_tr(psm_sink_t *k, const psm_frame_t *f, const psm_scene_t *s, const psm_state_t *st, int a_drawn, unsigned beat) {
+-    const unsigned layer_v = a_drawn && k->shed < 3u ? psm_send_ground(k, f, s, 1) : 0u;
++    unsigned layer_v;
+ 
+-    psm_send_hud(k, st, a_drawn, beat);
++    if (psm_send_hud_first_) psm_send_hud(k, st, a_drawn, beat);
++    layer_v = a_drawn && k->shed < 3u ? psm_send_ground(k, f, s, 1) : 0u;
++    if (!psm_send_hud_first_) psm_send_hud(k, st, a_drawn, beat);
+     psm_sink_list_end(k);
+     return layer_v;
+ }

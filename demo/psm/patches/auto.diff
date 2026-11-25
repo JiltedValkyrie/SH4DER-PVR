@@ -1,0 +1,478 @@
+--- a/Makefile
++++ b/Makefile
+@@ -363,7 +363,7 @@
+ 	$(PYTHON) -I demo/psm/tools/bake_cow.py $(PSM_COW_OBJ) $@ --tris $(PSM_COW_TRIS)
+ $(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h demo/psm/psm_fault.h $(PSM_TOWN_DEPS) include/sh4der_psm.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
+ 	@mkdir -p $(BUILD)/psm_dc
+-	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
++	$(DC_CC) $(DC_FLAGS) $(PSM_DC_EXTRA) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
+ $(PSM_DC_CDI): $(BUILD)/psm_dc/sh4der-psm-ab.elf
+ 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+ 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PSM-AB
+--- a/demo/psm/psm_dc.c
++++ b/demo/psm/psm_dc.c
+@@ -56,6 +56,11 @@
+ #include "psm_sky.h"
+ #define PSM_FAULT_IMPL
+ #include "psm_fault.h"
++#ifdef PSM_AUTORUN
++#define PG_PREFIX "auto"
++#include "psm_page.h"
++#include "psm_auto.h"
++#endif
+ 
+ KOS_INIT_FLAGS(INIT_DEFAULT);
+ 
+@@ -514,6 +519,144 @@
+     return stats.rnd_last_time;
+ }
+ 
++#ifdef PSM_AUTORUN
++/* ---- the autorun test (psm_auto.h): the script in place of the pad, then the result pages --------------------------- */
++
++#ifndef PSM_AUTO_IMG
++#define PSM_AUTO_IMG 0
++#endif
++static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto" };
++static psm_auto_t autos;
++static volatile uint32_t auto_evt[PSM_AUTO_EVT_N];
++static asic_evt_handler_entry_t auto_evt_prev[PSM_AUTO_EVT_N];
++static uint64_t auto_w0[4], auto_last_us;
++static uint32_t auto_vbuf_bytes;
++
++static void auto_evt_hnd(uint32_t code, void *data) {
++    const unsigned i = (unsigned)(code - ASIC_EVT_PVR_ISP_OUTOFMEM);
++
++    (void)data;
++    if (i < PSM_AUTO_EVT_N) {
++        auto_evt[i]++;
++        if (auto_evt_prev[i].hdl) auto_evt_prev[i].hdl(code, auto_evt_prev[i].data);
++    }
++}
++
++/* The TA's error events counted (KallistiOS hooks none in a normal build); the handler only counts, then chains */
++static void auto_hook(int on) {
++    unsigned i;
++
++    for (i = 0; i < PSM_AUTO_EVT_N; i++) {
++        const uint16_t code = (uint16_t)(ASIC_EVT_PVR_ISP_OUTOFMEM + i);
++
++        if (on) { auto_evt_prev[i] = asic_evt_set_handler(code, auto_evt_hnd, NULL); asic_evt_enable(code, ASIC_IRQ_DEFAULT); }
++        else asic_evt_set_handler(code, auto_evt_prev[i].hdl, auto_evt_prev[i].data);
++    }
++}
++
++static void auto_evt_now(uint32_t out[PSM_AUTO_EVT_N]) {
++    unsigned i;
++
++    for (i = 0; i < PSM_AUTO_EVT_N; i++) out[i] = auto_evt[i];
++}
++
++/* After the frame: its numbers into the script; 1 when the script is done */
++static int auto_record(const uint64_t win_us[4], uint32_t used, uint32_t used_max, uint32_t est, unsigned verts, unsigned shed,
++                       unsigned text_v, unsigned long bakes, uint32_t bake_us) {
++    const uint64_t now = timer_us_gettime64();
++    float v[PSM_AUTO_METRICS];
++    uint32_t evt[PSM_AUTO_EVT_N];
++    pvr_stats_t ps;
++    unsigned i;
++
++    v[PSM_AM_FRAME] = auto_last_us ? (float)(now - auto_last_us) * 1.0e-3f : 0.0f;
++    auto_last_us = now;
++    v[PSM_AM_SH4] = 0.0f;
++    for (i = 0; i < 4u; i++) { v[PSM_AM_P0 + i] = (float)(win_us[i] - auto_w0[i]) * 1.0e-3f; v[PSM_AM_SH4] += v[PSM_AM_P0 + i]; }
++    v[PSM_AM_PVR] = pvr_get_stats(&ps) == 0 ? (float)ps.rnd_last_time * 1.0e-6f : 0.0f;   /* the last finished render, no wait */
++    v[PSM_AM_TAV] = (float)verts;
++    v[PSM_AM_USED] = (float)used * (1.0f / 1024.0f);
++    v[PSM_AM_EST] = (float)est * (1.0f / 1024.0f);
++    auto_evt_now(evt);
++    return psm_auto_frame(&autos, v, evt, used_max, shed, text_v, bakes, bake_us);
++}
++
++/* The result pages: the numbers, then two graphs. A / B turn the page; with no controller the pages turn every 20 s. */
++static void auto_pages(void) {
++    static const char *const en[PSM_AUTO_EVT_N] = { "ISP", "strip", "PARAM", "OPB", "in-err", "in-ovf" };
++    unsigned g, i, page = 0, held = ~0u, pages, ncount = 0;
++    uint64_t turned;
++    pg_plot_t *p;
++    char nm[16];
++
++    pvr_wait_ready();
++    pvr_wait_render_done();
++    auto_hook(0);
++    pvr_shutdown();
++    vid_set_mode(DM_640x480, PM_RGB565);
++    pg_init();
++    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 5u], psm_auto_counted_frames());
++    pg_say("vertex buffer %u KB x2; one console; per segment min/mean/max", (unsigned)(auto_vbuf_bytes / 1024u));
++    pg_say("ms unless said. SH-4 = setup+map+casters+compare. PVR = last done render");
++    for (g = 0; g < PSM_AUTO_SEGS; g++) {
++        const psm_auto_stat_t *t = autos.st[g];
++
++        if (!psm_auto_script[g].counted) continue;
++        ncount++;
++        pg_say("%s (%u fr)%s%s: frame %.1f/%.1f/%.1f  SH-4 %.1f/%.1f/%.1f", psm_auto_script[g].name, t[PSM_AM_FRAME].n,
++               psm_auto_script[g].hud_first ? " 1ST" : "", psm_auto_script[g].s3 ? " S3" : "",
++               t[PSM_AM_FRAME].lo, psm_auto_mean(&t[PSM_AM_FRAME]), t[PSM_AM_FRAME].hi,
++               t[PSM_AM_SH4].lo, psm_auto_mean(&t[PSM_AM_SH4]), t[PSM_AM_SH4].hi);
++        pg_say("  parts %.1f %.1f %.1f %.1f  PVR %.1f/%.1f/%.1f  TAv %.0f/%.0f/%.0f",
++               psm_auto_mean(&t[PSM_AM_P0]), psm_auto_mean(&t[PSM_AM_P1]), psm_auto_mean(&t[PSM_AM_P2]), psm_auto_mean(&t[PSM_AM_P3]),
++               t[PSM_AM_PVR].lo, psm_auto_mean(&t[PSM_AM_PVR]), t[PSM_AM_PVR].hi,
++               t[PSM_AM_TAV].lo, psm_auto_mean(&t[PSM_AM_TAV]), t[PSM_AM_TAV].hi);
++        pg_say("  used KB %.0f/%.0f/%.0f  est KB %.0f/%.0f  KOS max %uK  SHED<=%u  text %uv",
++               t[PSM_AM_USED].lo, psm_auto_mean(&t[PSM_AM_USED]), t[PSM_AM_USED].hi, psm_auto_mean(&t[PSM_AM_EST]), t[PSM_AM_EST].hi,
++               (unsigned)(autos.used_max_kos[g] / 1024u), autos.shed_hi[g], autos.text_v[g]);
++        pg_say("  events %s %lu %s %lu %s %lu %s %lu %s %lu %s %lu%s",
++               en[0], (unsigned long)autos.evt[g][0], en[1], (unsigned long)autos.evt[g][1], en[2], (unsigned long)autos.evt[g][2],
++               en[3], (unsigned long)autos.evt[g][3], en[4], (unsigned long)autos.evt[g][4], en[5], (unsigned long)autos.evt[g][5],
++               autos.evt[g][2] + autos.evt[g][3] + autos.evt[g][5] ? "  OVERFLOW" : "");
++        if (autos.bakes[g] || autos.bake_us_hi[g]) pg_say("  bakes %lu, longest %lu us", autos.bakes[g], (unsigned long)autos.bake_us_hi[g]);
++    }
++    pg_say("END. OVERFLOW: the TA ran out of vertex buffer or bins.");
++    p = pg_plot("frame time: largest ms of each group of frames", "group (script order)", "ms", 0);
++    pg_series(p, "frame ms");
++    for (i = 0; i < PSM_AUTO_STRIP; i++) pg_point(p, (float)i, autos.strip[i]);
++    p = pg_plot("mean per segment", "segment", "ms / %", 1);
++    for (g = 0; g < PSM_AUTO_SEGS; g++)
++        if (psm_auto_script[g].counted) { snprintf(nm, sizeof nm, "%.11s", psm_auto_script[g].name); pg_cat(p, nm); }
++    pg_series(p, "frame ms");
++    for (g = 0, i = 0; g < PSM_AUTO_SEGS; g++) if (psm_auto_script[g].counted) pg_point(p, (float)i++, psm_auto_mean(&autos.st[g][PSM_AM_FRAME]));
++    pg_series(p, "SH-4 ms");
++    for (g = 0, i = 0; g < PSM_AUTO_SEGS; g++) if (psm_auto_script[g].counted) pg_point(p, (float)i++, psm_auto_mean(&autos.st[g][PSM_AM_SH4]));
++    pg_series(p, "PVR ms");
++    for (g = 0, i = 0; g < PSM_AUTO_SEGS; g++) if (psm_auto_script[g].counted) pg_point(p, (float)i++, psm_auto_mean(&autos.st[g][PSM_AM_PVR]));
++    pg_series(p, "used max %");
++    for (g = 0, i = 0; g < PSM_AUTO_SEGS; g++)
++        if (psm_auto_script[g].counted) pg_point(p, (float)i++, autos.st[g][PSM_AM_USED].hi * 102400.0f / (float)(auto_vbuf_bytes ? auto_vbuf_bytes : 1u));
++    (void)ncount;
++    turned = timer_ms_gettime64();
++    pg_draw(page, "TOWN AUTO", "turn");
++    for (;;) {
++        maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
++        cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
++        const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
++        int redraw = 0;
++
++        psm_fault_beat(&fault_crumbs);
++        held = now;
++        pages = pg_pages();
++        if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
++        else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
++        else if (!st && timer_ms_gettime64() - turned >= 20000u) { page = (page + 1u) % pages; redraw = 1; }
++        if (redraw) { pg_draw(page, "TOWN AUTO", "turn"); turned = timer_ms_gettime64(); }
++        thd_sleep(20);
++    }
++}
++#endif /* PSM_AUTORUN */
++
+ /* ---- main ---------------------------------------------------------------------- */
+ 
+ int main(void) {
+@@ -533,6 +676,16 @@
+     psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
+     vram0 = pvr_mem_available();
+     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
++#ifdef PSM_AUTORUN
++    {
++        uint32_t e[PSM_AUTO_EVT_N];
++
++        auto_vbuf_bytes = init.vertex_buf_size;
++        auto_hook(1);
++        auto_evt_now(e);
++        psm_auto_start(&autos, &state, e, 0ul);
++    }
++#endif
+     /* the rings' vertices are the whole ground lattice; a frame sends the window the view covers (psm_window_half) */
+     printf("psm: %u rings, %u ground vertices in the rings (a frame sends its view's window), %u model vertices, %u model triangles,"
+            " %u caster triangles in %u objects\n", scene.rows, scene.rows * (PSM_COLS + 1u), scene.mvn, scene.mtn, scene.ctn, scene.con);
+@@ -557,11 +710,22 @@
+         if (dt > 0.1f) dt = 0.1f;
+         frame_no++;
+         psm_fault_beat(&fault_crumbs);
++#ifdef PSM_AUTORUN
++        psm_auto_apply(&autos, &state, NULL, NULL);                /* the script, not the pad */
++        dt = PSM_AUTO_DT;
++        pad_edge = 0;
++        (void)pad;                           /* the pad is the script's in this image */
++        psm_fault_frame(&fault_crumbs, frame_no, 0u, (unsigned)state.scene, (unsigned)state.route);
++#else
+         pad_edge = pad(dt);
++#endif
+         if (state.scene != scene.town) scene_switch();     /* the SCENE row */
+         map_buffers();                                     /* MAP SIZE 512 on B / AB: its RAM while chosen */
+         psm_town_update(&scene, &state, dt);               /* the town's clock, sun, people and hens (nothing in the field) */
+         ta_v = 0; layer_v = 0;
++#ifdef PSM_AUTORUN
++        memcpy(auto_w0, win_us, sizeof auto_w0);
++#endif
+ 
+         /* the SH-4's work, in the label's parts. B: build, clear, casters, receivers. A: build, clip (the map pass), uv.
+            A wait for the PVR is the PVR's time: it is taken between two parts, in none of them. */
+@@ -663,6 +827,14 @@
+         if (sample) rnd_scr = render_wait();
+         win_frames++;
+         win_rnd_ns += rnd_rtt + rnd_scr;
++#ifdef PSM_AUTORUN
++        auto_record(win_us, vbuf_used, vbuf_max, est_now, ta_v, shed_now, sink.kv[PSM_HK_TEXT] + sink.kv[PSM_HK_DIM],
++#ifdef PSM_STATIC_BAKE
++                    0ul, 0u);
++#else
++                    0ul, 0u);
++#endif
++#endif
+ 
+         if (timer_us_gettime64() - win_t0 >= 1000000u) {      /* one second: the label's numbers */
+             const float fr = (float)win_frames, secs = (float)(timer_us_gettime64() - win_t0) * 1.0e-6f;
+@@ -680,7 +852,13 @@
+             win_us[0] = win_us[1] = win_us[2] = win_us[3] = 0; win_rnd_ns = 0; win_frames = 0;
+             win_t0 = timer_us_gettime64();
+         }
++#ifdef PSM_AUTORUN
++        if (autos.done) break;
++#endif
+     }
++#ifdef PSM_AUTORUN
++    auto_pages();
++#endif
+     return 0;
+ }
+ 
+--- a/demo/psm/psm_auto.h
++++ b/demo/psm/psm_auto.h
+@@ -0,0 +1,162 @@
++/* SH4DER-PVR: the town's autorun test: a fixed script and its numbers (demo/psm, PSM_AUTORUN images only)
++
++   demo/psm/psm_auto.h
++   Copyright (c) 2026 Jilted Valkyrie. See ../../LICENSE.
++
++   With PSM_AUTORUN, psm_dc.c boots the town into this script instead of the pad: the boot view (preset 0, the TOWN-001
++   view), 14:00, MAP 256 UNIFORM, CASTERS ALL, A FILTER bilinear, B FILTER 2 x 2, DIST INF, READOUT split, then a list of
++   segments, each a fixed number of frames: still, or a slow turn of 90 degrees right, on route A or B, at a time speed.
++   The simulation steps PSM_AUTO_DT a frame whatever the frame took, and every segment starts from the same pose, so the
++   camera, the sun and the walkers are the same in every image built with the same script. Then the program shows the
++   result pages (psm_page.h).
++
++   Each counted segment keeps min / mean / max of: the frame's time, the SH-4's four parts and their sum, the PVR's
++   render time (KallistiOS's last finished render, read every frame with no wait), the TA vertices, KallistiOS's vertex
++   buffer reading and this program's estimate; the TA's error events in the segment; for the bake image, the bakes and
++   their largest time. A frame strip (the largest frame time of each group of frames) is kept for the graph.
++
++   PSM_AUTO_HUD1 picks hud1's script: route A at the boot view in three states (normal, the text first, SHED 3 forced),
++   still then turning. Plain C, no KallistiOS: test/psm_auto_test.c runs the script and the statistics on the host. */
++
++#ifndef PSM_AUTO_H
++#define PSM_AUTO_H
++
++#include <stdint.h>
++#include <string.h>
++
++#define PSM_AUTO_DT      (1.0f / 30.0f)   /* the simulation's step a frame, seconds */
++#define PSM_AUTO_TURN    1.5707963f        /* a turning segment's yaw, radians, over its frames */
++#define PSM_AUTO_STRIP   64u               /* points of the frame-time strip (psm_page.h's PG_POINTS) */
++#define PSM_AUTO_EVT_N   6u                /* the TA's error events: ISP, strip, PARAM, OPB, input error, input overflow */
++#define PSM_AUTO_METRICS 10u
++
++enum { PSM_AM_FRAME, PSM_AM_SH4, PSM_AM_P0, PSM_AM_P1, PSM_AM_P2, PSM_AM_P3, PSM_AM_PVR, PSM_AM_TAV, PSM_AM_USED, PSM_AM_EST };
++
++typedef struct psm_auto_seg {
++    const char *name;
++    unsigned frames;
++    int route;            /* PSM_ROUTE_A or PSM_ROUTE_B */
++    int turn;             /* 1: the yaw goes 0 .. PSM_AUTO_TURN over the segment */
++    unsigned tspeed;      /* TIME SPEED's index (psm_time_speed: 1 x1, 3 x60) */
++    int hud_first, s3;    /* hud1: the text first in the translucent list; SHED 3 forced */
++    int counted;          /* 0: a warm-up, not in the results */
++} psm_auto_seg_t;
++
++#ifdef PSM_AUTO_HUD1
++static const psm_auto_seg_t psm_auto_script[] = {
++    { "warm",       60u, PSM_ROUTE_A, 0, 1u, 0, 0, 0 },
++    { "A normal",  150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1 },
++    { "A 1ST",     150u, PSM_ROUTE_A, 0, 1u, 1, 0, 1 },
++    { "A S3",      150u, PSM_ROUTE_A, 0, 1u, 0, 1, 1 },
++    { "A norm trn", 300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1 },
++    { "A 1ST trn", 300u, PSM_ROUTE_A, 1, 1u, 1, 0, 1 },
++    { "A S3 trn",  300u, PSM_ROUTE_A, 1, 1u, 0, 1, 1 },
++};
++#else
++static const psm_auto_seg_t psm_auto_script[] = {
++    { "warm",      60u, PSM_ROUTE_A, 0, 1u, 0, 0, 0 },
++    { "A still",  150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1 },
++    { "A turn",   300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1 },
++    { "B still",  150u, PSM_ROUTE_B, 0, 1u, 0, 0, 1 },
++    { "B turn",   300u, PSM_ROUTE_B, 1, 1u, 0, 0, 1 },
++    { "B x60",    300u, PSM_ROUTE_B, 0, 3u, 0, 0, 1 },
++};
++#endif
++#define PSM_AUTO_SEGS (sizeof psm_auto_script / sizeof psm_auto_script[0])
++
++typedef struct psm_auto_stat {
++    unsigned n;
++    double sum;
++    float lo, hi;
++} psm_auto_stat_t;
++
++typedef struct psm_auto {
++    unsigned seg, frame;                     /* the segment, the frame in it */
++    unsigned total;                          /* counted frames so far */
++    int done;
++    float x0, z0, yaw0, pitch0;              /* the pose every segment starts from */
++    psm_auto_stat_t st[PSM_AUTO_SEGS][PSM_AUTO_METRICS];
++    uint32_t evt0[PSM_AUTO_EVT_N];           /* the event counts at the segment's start */
++    uint32_t evt[PSM_AUTO_SEGS][PSM_AUTO_EVT_N];
++    uint32_t used_max_kos[PSM_AUTO_SEGS];    /* KallistiOS's since-boot largest, at the segment's end */
++    unsigned shed_hi[PSM_AUTO_SEGS], text_v[PSM_AUTO_SEGS];
++    unsigned long bakes0, bakes[PSM_AUTO_SEGS];
++    uint32_t bake_us_hi[PSM_AUTO_SEGS];
++    float strip[PSM_AUTO_STRIP];             /* the largest frame ms of each group of counted frames */
++    unsigned strip_seg[PSM_AUTO_STRIP];      /* the segment each point's first frame was in */
++} psm_auto_t;
++
++static inline unsigned psm_auto_counted_frames(void) {
++    unsigned i, n = 0;
++
++    for (i = 0; i < PSM_AUTO_SEGS; i++) if (psm_auto_script[i].counted) n += psm_auto_script[i].frames;
++    return n;
++}
++
++static inline void psm_auto_stat_add(psm_auto_stat_t *s, float v) {
++    if (!s->n || v < s->lo) s->lo = v;
++    if (!s->n || v > s->hi) s->hi = v;
++    s->sum += v;
++    s->n++;
++}
++
++static inline float psm_auto_mean(const psm_auto_stat_t *s) { return s->n ? (float)(s->sum / (double)s->n) : 0.0f; }
++
++/* The pose and the switches of the frame about to be made. The caller then runs the town with dt = PSM_AUTO_DT. */
++static inline void psm_auto_apply(const psm_auto_t *a, psm_state_t *st, int *hud_first, int *s3) {
++    const psm_auto_seg_t *g = &psm_auto_script[a->seg < PSM_AUTO_SEGS ? a->seg : PSM_AUTO_SEGS - 1u];
++    const float t = g->turn && g->frames > 1u ? (float)a->frame / (float)(g->frames - 1u) : 0.0f;
++
++    st->route = g->route;
++    st->tspeed = g->tspeed;
++    st->x = a->x0; st->z = a->z0; st->pitch = a->pitch0;
++    st->yaw = a->yaw0 + PSM_AUTO_TURN * t;
++    st->menu = 0;
++    if (hud_first) *hud_first = g->hud_first;
++    if (s3) *s3 = g->s3;
++}
++
++/* The boot state of the script: the town's own boot state (preset 0, 14:00) with the readout split. */
++static inline void psm_auto_start(psm_auto_t *a, psm_state_t *st, const uint32_t evt[PSM_AUTO_EVT_N], unsigned long bakes) {
++    memset(a, 0, sizeof *a);
++    psm_state_town(st);
++    st->readout = 2; st->split = 1;
++    st->warp = 0; st->size_i = 2u; st->movers_only = 0; st->filter_a = 1; st->pcf = 1; st->dist_i = PSM_DIST_INF;
++    a->x0 = st->x; a->z0 = st->z; a->yaw0 = st->yaw; a->pitch0 = st->pitch;
++    memcpy(a->evt0, evt, sizeof a->evt0);
++    a->bakes0 = bakes;
++}
++
++/* One frame's numbers, after it was sent. v[] in PSM_AM_ order (ms, counts, bytes). Moves the script on; 1 when done. */
++static inline int psm_auto_frame(psm_auto_t *a, const float v[PSM_AUTO_METRICS], const uint32_t evt[PSM_AUTO_EVT_N],
++                                 uint32_t used_max_kos, unsigned shed, unsigned text_v, unsigned long bakes, uint32_t bake_us) {
++    const psm_auto_seg_t *g;
++    unsigned i;
++
++    if (a->done) return 1;
++    g = &psm_auto_script[a->seg];
++    if (g->counted) {
++        const unsigned per = (psm_auto_counted_frames() + PSM_AUTO_STRIP - 1u) / PSM_AUTO_STRIP, k = a->total / per;
++
++        for (i = 0; i < PSM_AUTO_METRICS; i++) psm_auto_stat_add(&a->st[a->seg][i], v[i]);
++        if (shed > a->shed_hi[a->seg]) a->shed_hi[a->seg] = shed;
++        a->text_v[a->seg] = text_v;
++        if (bakes != a->bakes0 && bake_us > a->bake_us_hi[a->seg]) a->bake_us_hi[a->seg] = bake_us;
++        if (k < PSM_AUTO_STRIP) {
++            if (a->total % per == 0u) { a->strip[k] = v[PSM_AM_FRAME]; a->strip_seg[k] = a->seg; }
++            else if (v[PSM_AM_FRAME] > a->strip[k]) a->strip[k] = v[PSM_AM_FRAME];
++        }
++        a->total++;
++    }
++    if (++a->frame < g->frames) return 0;
++    for (i = 0; i < PSM_AUTO_EVT_N; i++) a->evt[a->seg][i] = evt[i] - a->evt0[i];
++    memcpy(a->evt0, evt, sizeof a->evt0);
++    a->used_max_kos[a->seg] = used_max_kos;
++    a->bakes[a->seg] = bakes - a->bakes0;
++    a->bakes0 = bakes;
++    a->frame = 0;
++    if (++a->seg >= PSM_AUTO_SEGS) { a->seg = PSM_AUTO_SEGS - 1u; a->done = 1; }
++    return a->done;
++}
++
++#endif /* PSM_AUTO_H */
+--- a/test/psm_auto_test.c
++++ b/test/psm_auto_test.c
+@@ -0,0 +1,71 @@
++/* Host test of demo/psm/psm_auto.h: the script's frame counts, the same poses on two runs, the statistics, the strip,
++   the events and bakes by segment. Plain C path. */
++#include <stdio.h>
++#include <math.h>
++#include "psm_scene.h"
++#include "psm_auto.h"
++
++static int fails;
++#define CHECK(c, ...) do { if (!(c)) { fails++; printf("FAIL %s:%d ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
++
++static psm_auto_t a, b;
++
++/* runs the script; poses[] gets x, z, yaw, route, tspeed of every frame */
++static unsigned run(psm_auto_t *au, float (*poses)[5], unsigned max) {
++    psm_state_t st;
++    uint32_t evt[PSM_AUTO_EVT_N] = { 0 };
++    unsigned n = 0, bakes = 0;
++    int hf = 0, s3 = 0;
++
++    psm_auto_start(au, &st, evt, 0ul);
++    for (;;) {
++        float v[PSM_AUTO_METRICS];
++        unsigned i;
++
++        psm_auto_apply(au, &st, &hf, &s3);
++        if (n < max) { poses[n][0] = st.x; poses[n][1] = st.z; poses[n][2] = st.yaw; poses[n][3] = (float)st.route; poses[n][4] = (float)st.tspeed; }
++        for (i = 0; i < PSM_AUTO_METRICS; i++) v[i] = (float)(n % 7u) + (float)i;
++        if (au->seg == 2u && au->frame == 5u) evt[2] += 3u;          /* three PARAM events in segment 2 */
++        if (st.route == PSM_ROUTE_B && au->frame == 0u) bakes++;       /* a bake at each B segment's start */
++        n++;
++        if (psm_auto_frame(au, v, evt, 1024u * 1024u, 0u, 84u, bakes, 1000u + n)) break;
++        if (n > 100000u) { CHECK(0, "script never ends"); break; }
++    }
++    return n;
++}
++
++static float pa[4000][5], pb[4000][5];
++
++int main(void) {
++    unsigned na = run(&a, pa, 4000u), nb = run(&b, pb, 4000u), i, all = 0, g;
++
++    for (g = 0; g < PSM_AUTO_SEGS; g++) all += psm_auto_script[g].frames;
++    CHECK(na == all, "frames %u, script %u", na, all);
++    CHECK(na == nb, "two runs %u %u", na, nb);
++    CHECK(memcmp(pa, pb, sizeof pa) == 0, "the poses differ between runs");
++    CHECK(a.total == psm_auto_counted_frames(), "counted %u of %u", a.total, psm_auto_counted_frames());
++    for (g = 0; g < PSM_AUTO_SEGS; g++) {
++        const psm_auto_stat_t *t = &a.st[g][PSM_AM_FRAME];
++
++        if (!psm_auto_script[g].counted) { CHECK(t->n == 0u, "warm-up counted"); continue; }
++        CHECK(t->n == psm_auto_script[g].frames, "segment %u: %u of %u frames", g, t->n, psm_auto_script[g].frames);
++        CHECK(t->lo == 0.0f && t->hi == 6.0f, "segment %u: min %g max %g", g, t->lo, t->hi);
++        CHECK(a.evt[g][2] == (g == 2u ? 3u : 0u), "segment %u: PARAM %u", g, (unsigned)a.evt[g][2]);
++        CHECK(a.bakes[g] == (psm_auto_script[g].route == PSM_ROUTE_B ? 1u : 0u), "segment %u: bakes %lu", g, a.bakes[g]);
++    }
++    {   /* every segment starts at the boot pose; a turn ends PSM_AUTO_TURN to the right */
++        unsigned f = 0;
++
++        for (g = 0; g < PSM_AUTO_SEGS; g++) {
++            const unsigned last = f + psm_auto_script[g].frames - 1u;
++
++            CHECK(pa[f][0] == a.x0 && pa[f][1] == a.z0 && pa[f][2] == a.yaw0, "segment %u starts off the boot pose", g);
++            CHECK(fabsf(pa[last][2] - a.yaw0 - (psm_auto_script[g].turn ? PSM_AUTO_TURN : 0.0f)) < 1e-5f, "segment %u ends at yaw %g", g, pa[last][2]);
++            CHECK((int)pa[f][3] == psm_auto_script[g].route && (unsigned)pa[f][4] == psm_auto_script[g].tspeed, "segment %u: route or speed", g);
++            f = last + 1u;
++        }
++    }
++    for (i = 0; i < PSM_AUTO_STRIP; i++) CHECK(a.strip[i] >= 0.0f && a.strip[i] <= 6.0f, "strip %u = %g", i, a.strip[i]);
++    printf("psm_auto: %u segments, %u frames (%u counted), %u checks failed\n", (unsigned)PSM_AUTO_SEGS, na, a.total, fails);
++    return fails != 0;
++}

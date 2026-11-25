@@ -1,0 +1,137 @@
+--- a/demo/psm/psm_dc.c
++++ b/demo/psm/psm_dc.c
+@@ -674,6 +674,47 @@
+     return stats.rnd_last_time;
+ }
+ 
++#ifdef PSM_BOOT_STAGES
++/* hud1b: the start, step by step (TOWN-107). Each step is a line in plain video memory (minifont into vram_s, no PVR,
++   so it shows before pvr_init too) and on the serial line, and the fault report's stage. The watchdog is armed from the
++   first step; a step that may take long gets a grace: the vertical blank beats for it, up to grace_s seconds, so a
++   hang there is reported grace_s + 2 s late instead of falsely at 2 s. */
++#define BOOT_ROWS 18u
++static char boot_ln[BOOT_ROWS][48];
++static unsigned boot_n;
++static volatile unsigned boot_grace;
++static int boot_pvr;                        /* 1 once pvr_init is done */
++
++static void boot_vbl(uint32_t code, void *data) {
++    (void)code; (void)data;
++    if (boot_grace) { boot_grace--; fault_crumbs.beat++; }
++}
++
++static void boot_stage(const char *name, unsigned grace_s) {
++    unsigned i;
++
++    psm_fault_stage(&fault_crumbs, name);
++    fault_crumbs.beat++;
++    boot_grace = grace_s * 60u;
++    printf("psm: boot %u %s\n", boot_n + 1u, name);
++    if (boot_n >= BOOT_ROWS) return;
++    snprintf(boot_ln[boot_n], sizeof boot_ln[0], "BOOT %2u  %s", boot_n + 1u, name);
++    boot_n++;
++    if (boot_pvr) {                          /* after pvr_init vram_s lies over buffer 0's vertex buffer: the new line only */
++        minifont_draw_str(vram_s + (72u + (boot_n - 1u) * 20u) * 640u + 64u, 640u, boot_ln[boot_n - 1u]);
++        return;
++    }
++    memset(vram_s, 0, 640u * 480u * 2u);     /* before pvr_init: the whole list again (the boot menu clears the screen) */
++    minifont_draw_str(vram_s + 40u * 640u + 64u, 640u, "SH4DER PSM TOWN hud1b: the start, step by step");
++    for (i = 0; i < boot_n; i++) minifont_draw_str(vram_s + (72u + i * 20u) * 640u + 64u, 640u, boot_ln[i]);
++}
++#define BOOT_STAGE(n, g) boot_stage((n), (g))
++#define BOOT_BEAT() (fault_crumbs.beat++)
++#else
++#define BOOT_STAGE(n, g) ((void)0)
++#define BOOT_BEAT() ((void)0)
++#endif
++
+ /* hud1: the boot menu, before pvr_init (the frame buffer, the 8 x 16 font, inside title-safe). A, X, Y or B picks; with no
+    button in 5 s (or no controller) it goes on as a3e: 1,024 KB and 4. */
+ static void boot_menu(void) {
+@@ -692,6 +733,7 @@
+     unsigned i, pick = 0u, left = 99u;
+ 
+     for (; !suite_chained(); ) {             /* a chained run takes the default at once */
++        BOOT_BEAT();
+         maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+         const uint64_t ms = timer_ms_gettime64() - t0;
+@@ -709,6 +751,7 @@
+             pick = (st->buttons & CONT_B) ? 3u : (st->buttons & CONT_Y) ? 2u : (st->buttons & CONT_X) ? 1u : 0u;
+             while (st->buttons & (CONT_A | CONT_X | CONT_Y | CONT_B)) {   /* let go first: the town must not see it */
+                 thd_sleep(20);
++                BOOT_BEAT();
+                 dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+                 st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+                 if (!st || timer_ms_gettime64() - t0 > 20000u) break;
+@@ -729,7 +772,7 @@
+ #ifndef PSM_AUTO_IMG
+ #define PSM_AUTO_IMG 0
+ #endif
+-static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto" };
++static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto", "hud1b-auto" };
+ static psm_auto_t autos;
+ static volatile uint32_t auto_evt[PSM_AUTO_EVT_N];
+ static asic_evt_handler_entry_t auto_evt_prev[PSM_AUTO_EVT_N];
+@@ -799,7 +842,7 @@
+     pvr_shutdown();
+     vid_set_mode(DM_640x480, PM_RGB565);
+     pg_init();
+-    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 5u], psm_auto_counted_frames());
++    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 6u], psm_auto_counted_frames());
+     pg_say("vertex buffer %u KB x2; one console; per segment min/mean/max", (unsigned)(auto_vbuf_bytes / 1024u));
+     pg_say("ms unless said. SH-4 = setup+map+casters+compare. PVR = last done render");
+     for (g = 0; g < PSM_AUTO_SEGS; g++) {
+@@ -869,7 +912,14 @@
+     uint64_t previous, win_t0, win_us[4] = { 0, 0, 0, 0 }, win_rnd_ns = 0;
+     unsigned win_frames = 0, hud_tick = HUD_EVERY;
+     size_t vram0;
++#ifdef PSM_BOOT_STAGES
++    psm_fault_init(&fault_crumbs);           /* hud1b: the report from the first step, not from after pvr_init */
++    vblank_handler_add(boot_vbl, NULL);
++    BOOT_STAGE("fault on", 0);
++    BOOT_STAGE("suite_init", 10);
++#endif
+     suite_init();                            /* the suite disc's menu, loaded while all is well (none: does nothing) */
++    BOOT_STAGE("boot menu", 0);
+ 
+     /* PSM_TA_VBUF bytes of the TA's parameters a frame: psm_send_plan counts each frame against it before sending and sheds
+        far parts past PSM_TA_SHARE (psm_send.h); the host test holds the worst view under it. KallistiOS makes two of them
+@@ -879,16 +929,29 @@
+     init.vertex_buf_size = diag_vbuf;
+     init.opb_overflow_count = diag_opb;
+     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
++    BOOT_STAGE("pvr_init", 5);
+     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
++#ifdef PSM_BOOT_STAGES
++    boot_pvr = 1;
++#endif
++    BOOT_STAGE("pvr_init ok", 0);
++#ifndef PSM_BOOT_STAGES
+     diag_hook();                             /* hud1: the TA's error events counted */
+     psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
++#endif
+     vram0 = pvr_mem_available();
++    BOOT_STAGE("load", 20);
+     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
++#ifdef PSM_BOOT_STAGES
++    BOOT_STAGE("diag_hook", 0);
++    diag_hook();                             /* hud1b: the events on after load(), as a3e's auto_hook */
++#endif
+ #ifdef PSM_AUTORUN
+     {
+         uint32_t e[PSM_AUTO_EVT_N];
+ 
+         auto_vbuf_bytes = init.vertex_buf_size;
++        BOOT_STAGE("auto_hook", 0);
+         auto_hook(1);
+         auto_evt_now(e);
+         psm_auto_start(&autos, &state, e, 0ul);
+@@ -906,6 +969,7 @@
+     printf("psm: RAM maps %u KB static (route B %u, route AB's second slot %u); MAP SIZE %u takes %u KB a slot from the heap while chosen\n",
+            (unsigned)((sizeof depth_map + sizeof depth_map2) / 1024u), (unsigned)(sizeof depth_map / 1024u), (unsigned)(sizeof depth_map2 / 1024u),
+            PSM_MAP_MAX_B, PSM_MAP_MAX_B * PSM_MAP_MAX_B * 2u / 1024u);
++    BOOT_STAGE("frame 1", 0);
+     previous = win_t0 = timer_us_gettime64();
+     for (;;) {
+         const uint64_t now = timer_us_gettime64();

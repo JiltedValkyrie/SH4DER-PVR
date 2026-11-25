@@ -16,7 +16,7 @@ The SH-4 and the PVR work at the same time. The SH-4 builds and sends frame N+1 
 Budget each side on its own, then check the frame rate on a console.
 
 
-A frame can be longer than its work. In the c4 live view most of the frame was waiting. c4b timed each wait (PVR-104, one console, one run): the ready waits took 1 to 40 us; the render-done waits took 36 of a 39 ms frame and ran 2.9 to 9.1 ms past the renders. That fits KallistiOS waking the waiting thread only at its 100 Hz tick (PVR-011), not yet proven (Q53). Until it is, do not block in `pvr_wait_render_done` early: do other work first, and read the PVR's render time from `pvr_get_stats`, not from a timer around the wait.
+A frame can be longer than its work. In the c4 live view most of the frame was waiting. c4b timed each wait (PVR-104, one console, one run): the ready waits took 1 to 40 us; the render-done waits took 36 of a 39 ms frame and ran 2.9 to 9.1 ms past the renders. c4g settled it (PVR-117, one run): KallistiOS's `pvr_wait_render_done` sleeps and wakes only at its 100 Hz tick, so it returned 2.9 to 9.9 ms after the render's interrupt; polled, 7 to 8 us, and the frame fell from 39.9 to 23.3 ms. **Poll the render-done event** (errata K8), and read the PVR's render time from `pvr_get_stats`, not from a timer around the wait. The cycle counter stops while the CPU sleeps (SH4-067).
 
 ![The frame waits, c4 and c4b (one console, 2026-11-25): in c4 the frame is 39.9 or 49.9 ms while the SH-4 and PVR work in it adds to 19.3 to 27.1 ms (MEASURED PVR-090, 091, 101, 094); in c4b, over 60 frames, the vblank counts 2 or 3 a frame, a 60 Hz vblank, the frames are 29.9 or 39.9 ms (mean 39.2, not whole vblanks), and the three render-done waits take 36.2 of the 39.2 ms, running 2.9 to 9.1 ms past their renders, while the ready waits take 1 to 40 us and polling them changed nothing (MEASURED); a wait that wakes on a 10 ms clock fits (INFERENCE), the cause is OPEN (Q53, P10), and the next test is a render done polled on render_busy.](../images/frame-wait.svg)
 
@@ -34,13 +34,15 @@ A frame can be longer than its work. In the c4 live view most of the frame was w
 | SH-4 → TA: one vertex by `pvr_prim` | 260 ns | BUS-001 |
 | SH-4 → TA: one vertex in a store-queue run | 142 ns | BUS-003 |
 | SH-4: `mat_transform`, a vertex in the cache | 13.16 cycles (0.066 us) | SH4-020 |
-| SH-4: `mat_transform` with 1/w, out of the cache | 42.86 cycles (two runs) | SH4-050, SH4-065 |
+| SH-4: `mat_transform` with 1/w, out of the cache | 42.86 cycles (two runs, one console) | SH4-050, SH4-065 |
 | SH-4: `shz_dce_pvr_project`, a vertex in the cache | 21.15 cycles | SH4-023 |
 | SH-4: `shz_dce_pvr_project`, arrays too large for the cache, placed apart | 58.1 to 61.7 cycles | SH4-023, SH4-048 |
-| SH-4: a ray through a 64 × 64 height grid in the cache | about 22 cycles a cell + 71 to 76 a ray (two runs) | SH4-052, SH4-059 |
-| SH-4: a moving proxy against one receiver, with early outs | 137.80 to 137.87 cycles (two runs) | SH4-055, SH4-064 |
+| SH-4: a ray through a 64 × 64 height grid in the cache | about 22 cycles a cell + 71 to 76 a ray (two runs, one console) | SH4-052, SH4-059 |
+| SH-4: a moving proxy against one receiver, with early outs | 137.80 to 137.87 cycles (two runs, one console) | SH4-055, SH4-064 |
 | SH-4: a ray against a triangle, in the cache, early outs | 33.16 cycles prepared for one direction; 62.49 any direction | SH4-066 |
 | SH-4: one `timer_ns_gettime64` call | 92 cycles | SH4-056 |
+| SH-4: KallistiOS's sleeping render-done wait, past the render | up to 10 ms a pass (polled: 7 to 8 us) | PVR-117 |
+| SH-4: the town's static-on-static sun bake | 152 ms a sun | SH4-070 |
 | SH-4: copy 1 MB, store queue | 6.98 ms (150 MB/s) | SH4-030 |
 | Upload 512 KB texture, ch2 DMA | 1.05 ms | BUS-011 |
 | Video memory → RAM, 32 KB, PVR-DMA | 0.87 ms | BUS-021 |

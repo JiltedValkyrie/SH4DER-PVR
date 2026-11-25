@@ -350,6 +350,36 @@ static void edges(void) {
     }
 }
 
+/* c4c: the b0 sweep the console will run (page S), on the window the console measured in c4b (MEASURED 2026-11-25: no
+   shadow pixel from difference 99 to 157, the cosine's 97 to 159). The table between is taken as the cosine's cut 2 codes
+   narrower at each end: the console's own table is only on the console. An ESTIMATE of the page, not a result. */
+static void sweep(void) {
+    static const float suns[2][2] = { { 150.0f, 26.5f }, { 100.0f, 13.0f } };
+    static uint8_t tab[256];
+    unsigned d, k, s;
+    c4_set_t st;
+
+    c4_set_init(&st, 32u, 1u, 0.0f, 0.75f);
+    for (d = 0; d < 256u; d++) tab[d] = (uint8_t)(c4_level[d] >= st.thr || d < 99u || d > 157u);
+    for (s = 0; s < 2u; s++) {
+        c4_light_t L;
+        unsigned last_acne = 0;
+
+        c4_light_fit(&L, suns[s][0], suns[s][1]);
+        printf("  MODEL c4c sweep, sun %.0f / %.1f, window 99 .. 157, bands 2 wide, grown 0.75; b0: acne, edge, rim, real shadow shown lit (in bias + other)\n", (double)suns[s][0], (double)suns[s][1]);
+        for (k = 0; k < 7u; k++) {
+            tally_t t;
+
+            c4_set_init(&st, 32u, 1u, 0.5f * (float)k, 0.75f);
+            c4_set_edges(&st, 99, 157, tab);
+            tally(&L, &st, &t);
+            printf("      b0 %.1f: acne %u, edge %u, rim %u, lit in error %u + %u\n", 0.5 * k, t.acne, t.edge, t.rim, t.inbias, t.other);
+            last_acne = t.acne;
+        }
+        CHECK(last_acne == 0);                                     /* b0 3.0: the console measured 0 at both suns */
+    }
+}
+
 int main(void) {
     c4_light_t L;
 
@@ -368,6 +398,7 @@ int main(void) {
     chain(100.0f, 13.0f, 64u, 0.75f);
     kinds();
     edges();
+    sweep();
     printf(fails ? "c4_model_test: %d FAILED\n" : "c4_model_test: ok\n", fails);
     return fails != 0;
 }

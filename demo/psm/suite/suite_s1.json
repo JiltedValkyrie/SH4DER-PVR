@@ -1,0 +1,40 @@
+{
+  "note": "The suite disc psm-suite-s1: demo/psm/suite/build.py --tag s1 --list demo/psm/suite/suite_s1.json. Times are ESTIMATE, not measured. The town ELFs are Junior's autorun builds with the suite hooks (demo/psm/patches/auto_suite.diff), in his build folders outside the repository.",
+  "tests": [
+    {
+      "name": "c4g", "file": "C4G.BIN", "elf": "build/psm_cmp/psm-c4-c4g.elf", "order": 1,
+      "what": "PVR shadow chain: bias, sweep, cut, waits. ~1 min",
+      "read": "photo every text page (about 12); the 8 graphs if wanted"
+    },
+    {
+      "name": "r3-d", "file": "R3D.BIN", "elf": "build/psm_cmp/psm-r3-d.elf", "order": 2,
+      "what": "punch-through product: 7 lines, the fade. ~10 s",
+      "read": "photo all 4 pages: 2 text, the graph, the picture"
+    },
+    {
+      "name": "a3e-auto", "file": "A3E.BIN", "elf": "D:/tmp/junior_build_a3e_auto_s/psm_dc/sh4der-psm-town-a3e-auto.elf", "order": 3,
+      "what": "town a3e, fixed script, then pages. ~2 min",
+      "read": "no pad needed; photo every page (text, 2 graphs)"
+    },
+    {
+      "name": "a3f-auto", "file": "A3F.BIN", "elf": "D:/tmp/junior_build_a3f_auto_s/psm_dc/sh4der-psm-town-a3f-auto.elf", "order": 4,
+      "what": "town a3f (cache pads), the same script. ~2 min",
+      "read": "photo every page; it is read against a3e-auto"
+    },
+    {
+      "name": "bake1-auto", "file": "BAKE1.BIN", "elf": "D:/tmp/junior_build_bake1_auto_s/psm_dc/sh4der-psm-town-bake1-auto.elf", "order": 5,
+      "what": "town with the static bake, same script. ~2 min",
+      "read": "photo every page; the bakes lines are the result"
+    },
+    {
+      "name": "hud1-auto", "file": "HUD1.BIN", "elf": "D:/tmp/junior_build_hud1_auto_s/psm_dc/sh4der-psm-town-hud1-auto.elf", "order": 6,
+      "what": "town HUD loss test: 3 states, DIAG box. ~3 min",
+      "read": "watch if the HUD goes; photo every page (events lines)"
+    },
+    {
+      "name": "qr-q2", "file": "QR.BIN", "elf": "build/psm_qr/psm-qr-q2.elf", "order": 0,
+      "what": "QR reading: 16 codes at 10/8/6/4 px. No timing",
+      "read": "phone at each of 7 code pages; one photo a page; Y level"
+    }
+  ]
+}
