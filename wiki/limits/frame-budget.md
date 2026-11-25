@@ -126,9 +126,49 @@ At 60 Hz a frame is 16.7 ms; at 30 Hz, 33.3 ms. The SH-4 (transform, light, send
 6. Watch the TA's peak and video memory free.
 7. Measure on the console: an emulator number is not evidence.
 
+## 5. The town: where the frame goes, and the fixes ranked
+
+The town is the slowest scene we have. This section is Senior's costing (2026-11-25), from the town's autorun pages and code reading. **Every gain below is an ESTIMATE** until vc-a runs: a town image with timers only, built and not yet run. The measured rows each gain leans on are named beside it, in their own column.
+
+### The measured base
+
+Still camera at the boot view, mean ms, one console, one run each (TOWN-119; TOWN-099 and PVR-136 agree within about 1 ms). The TOWN rows are in `demo/psm/TOWN_NOTES.md`.
+
+| Route | Frame | SH-4, the HUD's parts | PVR | TA vertices | Not in any timed part (DERIVED) |
+|---|---|---|---|---|---|
+| A (the PVR draws the map) | 57.1 | 13.0: build 2.8, map 6.3, uv 4.0 | 3.8 on these pages (see Q98) | 30,613 | 44.1 |
+| B (the SH-4 draws the map) | 76.8 | 43.3: build 2.9, clear 0.7, casters 15.4, compare 24.3 | 8.8 | 18,832 | 33.5 |
+
+- **Turning the camera** takes the build part from 2.8 to 21.8 ms on both routes (TOWN-099, TOWN-119): MEASURED.
+- **Route B's caster raster and compare** are 39.7 of its 43.3 ms of SH-4, and change little with the view (TOWN-099, TOWN-119): MEASURED.
+- **The untimed share** (frame less the HUD's SH-4 parts) is 33 to 44 ms of the frame: DERIVED. Waits, the colour pass, the send count and the two list sends are not in the HUD's parts.
+
+### The fixes, ranked
+
+| Rank | Fix | What it removes | Gain: ESTIMATE | Measured basis | Test that would prove it |
+|---|---|---|---|---|---|
+| 1 | A static sun's shadows in a bake, and a shadow method only for what moves. Route B: compare only where a mover's shadow can fall. Route A: a PVR tile for each mover in place of the whole map and the whole ground layer | B: the caster raster and nearly all of the compare. A: the map pass's static casters and the second ground draw | B: 24 to 28 ms of the 43.3 ms SH-4. A: about 6 ms SH-4, about 3 ms PVR, 8,656 vertices and the layer's fill | The bake took the casters part 15.3 → 2.1 ms but kept the whole compare, 24.1 → 29.5 ms (TOWN-102, TOWN-103); the map pass is 3,877 us of PVR (PVR-131) | A town image with the bake and mover-only shadows, against the same script |
+| 2 | Cheaper placement while the camera moves: area tests from the stored 1 / w (no reciprocals), one finite check a vertex instead of nine a triangle, placement by object against the frustum | Part of the +19 ms every moving frame pays, both routes | 8 to 12 ms on moving frames | Build 2.8 → 21.8 ms turning (TOWN-099, TOWN-119); the transform alone 13.16 cycles a vertex (SH4-020) | vc-a's turn stages, then the same stages after the change |
+| 3 | Measure the frame outside the HUD's parts first: the colour pass, the send count, the two list sends, each wait | Unknown | Unknown: it is 33 to 44 ms of the frame | DERIVED from TOWN-119 | vc-a (built) |
+| 4 | Cull model triangles by the screen's sides; no compare for ground vertices in no visible cell | Work in front of the eye but off the screen | Little at the boot view; large looking at a wall, the sky or away | 8,815 of 9,737 model vertices are sent at the boot view (TOWN-048: a host count, ESTIMATE for the share); the rest is code reading | vc-a's sky stages against the boot view, then the same after |
+| 5 | The compare kernel: batch transform for the models, a reciprocal for the divide | About half of a compare | About 10 ms on route B if the whole compare stays; little after fix 1 | 24.3 ms over about 9,500 points, about 500 cycles a point (DERIVED; the point count is a host figure) | A bench page of the kernel alone |
+| 6 | Tile cut round route A's map pass | The whole-table walk of a render target pass | About 3 ms of PVR a frame, if the frame is PVR bound | 3,256 → 344 us in ao4 (PVR-156); the map pass 3,877 us (PVR-131) | d1-c stage 6 (the same cut on another target), then the town |
+| 7 | No shadow work past a range (full strength to 40 m, none past 50 m: the rule in section 3) | Compare or tile work on far receivers | 3 to 5 ms of route B's ground compare; on route A, only the far layer's fill | At 60 m a map texel covers 0.5 to 1.6 pixels' ground (PVR-108 to PVR-113) | vc-a gives the base; the range needs its own image |
+
+**Order of work** (set by lead): fix 3 first (measure), then the tile header on the host, then a decision on fixes 1 and 2 from the run. Fixes 4 to 7 wait.
+
+### Practices the code reading suggests (ADVISED, none measured yet)
+
+- Cull by the screen's sides before lighting and sending, not by the near plane only.
+- Keep per-triangle tests free of reciprocals when 1 / w is already stored.
+- Do not walk the send twice a frame to count it.
+- A static sun's shadows belong in a bake; a map a frame is for movers only.
+
 ## Open
 
-- **Why scenery views cost more in the town.** Senior is costing it; this section waits for that report.
+- **The town's untimed 33 to 44 ms** (section 5): vc-a will time the parts the HUD does not.
+- Route A's PVR time: 15.9 ms on the HUD photos, 3.8 ms on the autorun pages (Q98).
+- No run has held the camera on the sky (Q99).
 - Whether the mirror pass walks the screen's tile table (Q97), and what the tile cut saves there (X43).
 - Why a sharper mip bias costs +1 ms (PVR-180).
 - The share of each street-demo change in the 110 → 25 ms fall (one change at a time, no key pressed).
