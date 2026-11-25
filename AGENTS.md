@@ -75,6 +75,8 @@ On the Dreamcast, the square roots, sines and cosines are FSRRA and FSCA inside 
 
 `third_party/dc-forerunner` is the owner's port starter (MIT, Jilted Valkyrie), copied here without its `.git`: build chain, KOS flags and the lessons in `DREAMCAST_MAGIC.md`. Read it for how to build for a Dreamcast; the library does not include or link it, and its files are not copied into `include/` or `src/`. Its source of truth is the sibling repo `dc-forerunner`; change it there, then recopy.
 
+`third_party/skmp` holds skmp's `polly2-rtl` (a PowerVR2 CORE model) and `dreamcast-tests` (console tests), cloned for reading only. Neither has a licence file: treat them as all rights reserved. Dev reference only, never shipped, never committed (Git ignores that folder), no code or tables copied into this tree; cite the file and commit when a fact from them is used, and credit skmp. `demo/psm/POLLY2_NOTES.md` is the reading so far.
+
 SH4ZAM is not shipped here. If `third_party/sh4zam` is missing (or `make check-sh4zam` fails), fetch it there: `git clone --branch v0.10.0 https://github.com/gyrovorbis/sh4zam third_party/sh4zam`. Git ignores that folder: never commit it. `tools/check_sh4zam.py` is the test: it fails, with that line, when there is no checkout, a file the build needs is missing, or the version is under 0.10 (`make test-shz` and `make dc` run it first; `--self-test` checks the script). `make test` (plain C) does not need SH4ZAM.
 
 `SH4DER_CORE_NO_SH4ZAM` compiles the same steps as plain C, for a host tool or a game without SH4ZAM. It also sets `SH4DOW_DC_NO_SH4ZAM`.
