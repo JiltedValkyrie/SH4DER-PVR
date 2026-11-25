@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1280" viewBox="0 0 1200 1280" role="img" aria-labelledby="ttl dsc">
-<title id="ttl">The ray bench: P1, P2 and P9, measured</title>
-<desc id="dsc">Top: the 4 KB height grid and a ray walking its cells toward the sun, with the cost model C_ray = C_setup + n C_step: predicted 12 to 16 a step and 30 a setup, measured 22.1 and about 72. Below, three panels: P1 cycles a ray against n, measured points on a zero grid and the town grid with their fit line above the old predicted band; P2 the slice batched, interleaved with the vertex transform, and with the grid in OC-RAM, with measured cycles a ray; P9 the movers proxy pass, 312 microseconds against a 2 ms slice. Foot: what the run changes. One console, one run, 2026-11-25.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500" viewBox="0 0 1200 1500" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">The ray bench: P1, P2, P9 and RT, two runs</title>
+<desc id="dsc">Top: the 4 KB height grid and a ray walking its cells toward the sun, with the cost model C_ray = C_setup + n C_step: predicted 12 to 16 a step and 30 a setup, measured 22.1 and 71 to 76 over two runs. Three panels: P1 cycles a ray against n, measured points with the fit line above the old predicted band; P2 the slice batched, interleaved with the vertex transform, and with the grid in OC-RAM, with both runs; P9 the movers proxy pass, 312 microseconds against a 2 ms slice. Below: RT, four bars of cycles a ray-triangle test, any direction and prepared, with and without early outs, against the assumed 50. Foot: what the two runs change. One console, 2026-11-25.</desc>
 <style>
 text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
@@ -11,11 +11,11 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
 </style>
 <defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
-<rect width="1200" height="1280" fill="#fbfaf7"/>
-<text x="30" y="36" class="t">The ray bench: three predictions, run on a console</text>
+<rect width="1200" height="1500" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">The ray bench: three predictions, run twice on a console</text>
 <rect x="30" y="48" width="1140" height="46" rx="4" fill="#eef6f0" stroke="#1d7a3a"/>
-<text x="42" y="67" class="b"><tspan class="k m">RUN: MEASURED, one console, 2026-11-25, one run.</tspan> Image psm-bench-ray1. Kernel bytes the same as the reference on every page.</text>
-<text x="42" y="85" class="s">Read from photos PXL_20261125_*: demo/psm/bench/RAY1_RESULTS_cortana.md and RAY1_RESULTS_junior.md. THESIS §6 P1, P2, P9; h3.</text>
+<text x="42" y="67" class="b"><tspan class="k m">RUN: MEASURED, one console, 2026-11-25, two runs.</tspan> Images psm-bench-ray1 and ray2. Kernel bytes the same as the reference in every run.</text>
+<text x="42" y="85" class="s">Read from photos PXL_20261125_*: demo/psm/bench/RAY1_RESULTS_*.md and RAY2_RESULTS_*.md; ledger SH4-050 .. 066. THESIS §6 P1, P2, P9; h3; RT.</text>
 <text x="30" y="116" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
 <rect x="30" y="130" width="1140" height="276" rx="6" class="box"/>
 <text x="44" y="154" class="h">What is timed: a ray walking a 4 KB height grid toward the sun (thesis §5.3)</text>
@@ -191,8 +191,8 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="640" y="206" class="mono">C_ray = C_setup + n · C_step</text>
 <text x="640" y="230" class="b">Predicted: C_step 12 .. 16, C_setup about 30</text>
 <text x="640" y="248" class="b"><tspan class="k e">[ESTIMATE §5.3]</tspan> <tspan class="k o">overturned</tspan></text>
-<text x="640" y="272" class="b">Console: C_step 22.07 .. 22.21, C_setup 70.88 .. 74.09</text>
-<text x="640" y="290" class="s"><tspan class="k m">[MEASURED; the page&#39;s fit, P1.1 .. P1.4]</tspan>; C_setup</text>
+<text x="640" y="272" class="b">Console: C_step 22.07 .. 22.21, C_setup 70.88 .. 76.04</text>
+<text x="640" y="290" class="s"><tspan class="k m">[MEASURED; 12 fits, two runs, SH4-059]</tspan>; C_setup</text>
 <text x="640" y="306" class="s">holds the loop&#39;s load and store.</text>
 <text x="640" y="326" class="b">n 22 (14:00): 338 predicted, 560 by the fit; n 48 (16:00): 702</text>
 <text x="640" y="344" class="b">against 1,133 <tspan class="k e">[DERIVED from the fit]</tspan>.</text>
@@ -206,7 +206,7 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="44" y="484" class="s">P1.3 / P1.4: the town grid, 14:00 / 16:00.</text>
 <path d="M90 506 L90 736 L380 736" class="ar"/>
 <polygon points="90.0,733.0 380.0,613.0 380.0,573.0" fill="#fbf1e2" stroke="#a86a00" stroke-dasharray="5 3"/>
-<path d="M90.0 728.6 L380.0 507.6" stroke="#1d7a3a" stroke-width="1.6"/>
+<path d="M90.0 728.8 L380.0 507.8" stroke="#1d7a3a" stroke-width="1.6"/>
 <circle cx="92.9" cy="726.6" r="3.2" fill="#1d7a3a"/>
 <circle cx="95.8" cy="724.0" r="3.2" fill="#1d7a3a"/>
 <circle cx="101.6" cy="719.9" r="3.2" fill="#1d7a3a"/>
@@ -240,22 +240,22 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="58" y="621.0" class="s" text-anchor="middle" transform="rotate(-90 58 621.0)">cycles a ray</text>
 <circle cx="104" cy="516" r="3.2" fill="#1d7a3a"/><text x="114" y="520" class="s">zero grid <tspan class="k m">[MEASURED]</tspan></text>
 <rect x="100" y="530" width="9" height="9" fill="none" stroke="#1f5fa8" stroke-width="1.4"/><text x="114" y="538" class="s">town grid <tspan class="k m">[MEASURED]</tspan></text>
-<path d="M100 550 L110 550" stroke="#1d7a3a" stroke-width="1.6"/><text x="114" y="554" class="s">fit 74 + 22.1 n</text>
+<path d="M100 550 L110 550" stroke="#1d7a3a" stroke-width="1.6"/><text x="114" y="554" class="s">fit 72 + 22.1 n</text>
 <rect x="100" y="562" width="10" height="9" fill="#fbf1e2" stroke="#a86a00" stroke-dasharray="3 2"/><text x="114" y="570" class="s">predicted band <tspan class="k e">[ESTIMATE]</tspan></text>
-<text x="44" y="784" class="h2">Verdict: P1 overturned</text>
+<text x="44" y="784" class="h2">Verdict: P1 overturned, in both runs</text>
 <text x="44" y="802" class="b">The step is 1.4 .. 1.8 x the prediction, the</text>
-<text x="44" y="820" class="b">setup about 2.4 x <tspan class="k m">[MEASURED]</tspan>. Town grid within</text>
-<text x="44" y="838" class="b">0.5 % of the zero grid (n 24 .. 48). Town grid:</text>
-<text x="44" y="856" class="b">lit rays only from n 24 up, as the host said.</text>
-<text x="44" y="880" class="h2">Still open</text>
-<text x="44" y="898" class="s">· P1.4 n 48: 6,286.93 ns, but 1,135.22 cycles is</text>
-<text x="44" y="916" class="s">  5,676 ns (+10.8 %). The cycles fit the line;</text>
-<text x="44" y="934" class="s">  the ns is suspect. Repeat P1.4 <tspan class="k o">[OPEN]</tspan></text>
-<text x="44" y="952" class="s">· CLOCK.2: 1,027,528 cycles in 1,000,320 ns,</text>
-<text x="44" y="970" class="s">  not 0.2 a ns: meaning <tspan class="k o">[OPEN]</tspan>; P1.2 n 12 ns</text>
-<text x="44" y="988" class="s">  off by 611 ns (one 640 ns tick?) <tspan class="k o">[OPEN]</tspan></text>
-<text x="44" y="1032" class="s" style="font-size:11px">Photos 135725896, 135727320, 135728755, 135730101,</text>
-<text x="44" y="1046" class="s" style="font-size:11px">135731481, 135219324, 135220573, 135221930, 135724347</text>
+<text x="44" y="820" class="b">setup 2.4 .. 2.5 x <tspan class="k m">[MEASURED]</tspan>. Points: ray1;</text>
+<text x="44" y="838" class="b">ray2&#39;s rows sit 0 .. 6 % above 72 + 22.1 n.</text>
+<text x="44" y="856" class="b">Town grid = zero grid within 0.5 %.</text>
+<text x="44" y="880" class="h2">Settled by ray2</text>
+<text x="44" y="898" class="s">· CLOCK.2 was read in the wrong order (SH4-056).</text>
+<text x="44" y="916" class="s">· P1.4 n 48, P1.2 n 12: the ns clock&#39;s 2.5 ms</text>
+<text x="44" y="934" class="s">  reload step fits both <tspan class="k e">[DERIVED SH4-057]</tspan>.</text>
+<text x="44" y="958" class="h2">Still open</text>
+<text x="44" y="976" class="s">· the same rays spread up to 2.3 % from run to</text>
+<text x="44" y="994" class="s">  run <tspan class="k o">[OPEN Q68, SH4-060]</tspan></text>
+<text x="44" y="1032" class="s" style="font-size:11px">Photos ray1 135725896 .. 135731481, 135219324,</text>
+<text x="44" y="1046" class="s" style="font-size:11px">135220573, 135221930; ray2 143335803 .. 143359493</text>
 <text x="430" y="448" class="h">P2  where the grid lives</text>
 <text x="430" y="468" class="s">1,024 stand-in receivers; cycles a ray at 14:00</text>
 <text x="430" y="484" class="s">/ 16:00, least of 5 runs <tspan class="k m">[MEASURED]</tspan> unless marked.</text>
@@ -263,30 +263,31 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="440" y="520" class="h2">Batched</text>
 <text x="760" y="520" class="k" text-anchor="end">best</text>
 <text x="440" y="540" class="s">cold 563.36 / 548.78, warm 554.19 / 539.68;</text>
-<text x="440" y="557" class="s">slice 2,837 / 2,763 µs warm. Predicted 338 / 702</text>
+<text x="440" y="557" class="s">ray2 within 0.2 %. Predicted 338 / 702</text>
 <text x="440" y="574" class="s"><tspan class="k e">[ESTIMATE §5.9, wrong]</tspan>. Cold − warm 47 / 46</text>
-<text x="440" y="591" class="s">µs; predicted ≤ 18 µs: <tspan class="k o">exceeded</tspan></text>
+<text x="440" y="591" class="s">µs, 47 / 47 in ray2; ≤ 18 predicted: <tspan class="k o">exceeded</tspan></text>
 <rect x="430" y="618" width="340" height="108" rx="5" class="mv"/>
 <text x="440" y="638" class="h2">Interleaved</text>
-<text x="760" y="638" class="k" text-anchor="end">+21 % / +16 %</text>
+<text x="760" y="638" class="k" text-anchor="end">+16 .. 30 %</text>
 <text x="440" y="658" class="s">28,699 vertices: 58.91 / 59.04 cycles each</text>
-<text x="440" y="675" class="s">(SH4-023 out of cache: 58.09). Extra 117 / 89</text>
-<text x="440" y="692" class="s">cycles a ray, 602 / 458 µs <tspan class="k e">[DERIVED]</tspan>: 2.9 .. 4.2</text>
-<text x="440" y="709" class="s">/ 2.2 .. 3.2 misses at 27.7 .. 40.3 <tspan class="k e">[ESTIMATE]</tspan></text>
+<text x="440" y="675" class="s">(SH4-023: 58.09). Extra a ray: 117 / 89 in ray1,</text>
+<text x="440" y="692" class="s">164 / 132 in ray2 <tspan class="k e">[DERIVED]</tspan>; why <tspan class="k o">[OPEN Q68]</tspan>;</text>
+<text x="440" y="709" class="s">at 27.7 .. 40.3 a miss (SH4-047) <tspan class="k e">[ESTIMATE]</tspan></text>
 <rect x="430" y="736" width="340" height="108" rx="5" class="box"/>
 <text x="440" y="756" class="h2">OC-RAM</text>
 <text x="760" y="756" class="k" text-anchor="end">slower overall</text>
-<text x="440" y="776" class="s">CCR 105 → 125 (cache halved). Cold start gone</text>
-<text x="440" y="793" class="s">(1 / 0 µs), extra 25 / 11 a ray; but vertices</text>
-<text x="440" y="810" class="s">62.94 / 63.08 (+6.8 %). Interleaved slice</text>
-<text x="440" y="827" class="s">12,027 / 11,903 against 11,893 / 11,694 µs</text>
+<text x="440" y="776" class="s">CCR 105 → 125 (cache halved). Cold start gone;</text>
+<text x="440" y="793" class="s">extra 25 / 11 (ray1), 61 / 62 (ray2); vertices</text>
+<text x="440" y="810" class="s">+3.9 .. 4.0 cycles. Interleaved slice +134 / +209</text>
+<text x="440" y="827" class="s">(ray1), +70 / +256 µs (ray2) against RAM</text>
 <text x="430" y="870" class="h2">Still open</text>
 <text x="430" y="888" class="s">16:00 costs less than 14:00 here (thesis: about</text>
 <text x="430" y="906" class="s">2 x). Stand-ins stop early at a low sun? The mean</text>
-<text x="430" y="924" class="s">n of these 1,024 at both suns <tspan class="k o">[OPEN]</tspan>; a host</text>
+<text x="430" y="924" class="s">n of these 1,024 at both suns <tspan class="k o">[OPEN Q63]</tspan>; a host</text>
 <text x="430" y="942" class="s">count would settle it, no console needed.</text>
-<text x="430" y="1032" class="s" style="font-size:11px">Photos A 135223181, B 135226153, C 135252032,</text>
-<text x="430" y="1046" class="s" style="font-size:11px">D 135258097, CCR 135250150</text>
+<text x="430" y="1018" class="s" style="font-size:11px">Photos ray1 A 135223181, B 135226153,</text>
+<text x="430" y="1032" class="s" style="font-size:11px">C 135252032, D 135258097, CCR 135250150;</text>
+<text x="430" y="1046" class="s" style="font-size:11px">ray2 143402000 .. 143418695</text>
 <text x="816" y="448" class="h">P9  movers against one slice</text>
 <text x="816" y="468" class="s">8 capsules (r 0.20 m) and 4 spheres (r 0.15 m)</text>
 <text x="816" y="484" class="s">at load places, 16:00.</text>
@@ -303,23 +304,50 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="816" y="644" class="h2">The pass against a 2 ms slice</text>
 <rect x="816" y="654" width="330" height="20" fill="#fff" stroke="#5b6577"/>
 <rect x="816" y="654" width="51.5" height="20" fill="#1d7a3a"/>
-<text x="873.48" y="669" class="s">312 µs <tspan class="k m">[MEASURED]</tspan></text>
+<text x="873.48" y="669" class="s">312 µs, both runs <tspan class="k m">[MEASURED]</tspan></text>
 <text x="1142" y="690" class="s" text-anchor="end">2 ms</text>
 <text x="816" y="710" class="b">454 receivers, 88 shadowed: the host&#39;s count</text>
-<text x="816" y="728" class="b"><tspan class="k m">[MEASURED]</tspan>. 137.87 cycles a pair with early</text>
-<text x="816" y="746" class="b">outs, 187.89 without: they save 27 %.</text>
-<text x="816" y="764" class="b">Predicted a pair 15 .. 100 <tspan class="k e">[ESTIMATE §5.6]</tspan>:</text>
+<text x="816" y="728" class="b"><tspan class="k m">[MEASURED]</tspan>. 137.87 / 137.80 cycles a pair</text>
+<text x="816" y="746" class="b">(two runs) with early outs, 187.89 / 184.43</text>
+<text x="816" y="764" class="b">without. Predicted 15 .. 100 <tspan class="k e">[ESTIMATE §5.6]</tspan>:</text>
 <text x="816" y="782" class="b">too low. 15.6 % of 2 ms; 741 rays fit beside</text>
 <text x="816" y="800" class="b">it <tspan class="k e">[DERIVED by the page]</tspan>.</text>
-<text x="816" y="824" class="h2">Verdict: P9 stands (312 µs &lt; 2 ms)</text>
-<text x="816" y="842" class="s">Load places only; box proxy not in this image.</text>
-<text x="816" y="1046" class="s" style="font-size:11px">Photos 135237020, 135239412</text>
-<rect x="30" y="1078" width="1140" height="186" rx="6" class="box"/>
-<text x="44" y="1104" class="h">What the run changes</text>
-<text x="44" y="1130" class="b">P1: every §5 cycle count built on 12 .. 16 a step and 30 a setup is low; the slice k and the refresh period P = N / (k f) need redoing.</text>
-<text x="44" y="1154" class="b">P2: run the slice batched, before the transform; interleaving costs 16 .. 21 % more a ray. Keep the grid in RAM: OC-RAM&#39;s halved cache costs more.</text>
-<text x="44" y="1178" class="b">P9: the movers&#39; proxies fit beside one slice. h3: mat_transform 13.38 / 42.86 cycles in / out of the cache, the DCE batch 14.15 / 45.99:</text>
-<text x="44" y="1202" class="b">no measured gain for the batch <tspan class="k m">[MEASURED]</tspan>; whether it stays is the owner&#39;s call.</text>
-<text x="44" y="1226" class="s">One console, one run. Stand-ins: random receivers, not the town&#39;s vertices; a synthetic 28,699-vertex stream.</text>
-<text x="44" y="1250" class="s">No ns figure from ray1 goes in the ledger until P1.4 is repeated.</text>
+<text x="816" y="824" class="h2">Verdict: P9 stands, in both runs</text>
+<text x="816" y="842" class="s">Load places only; box proxy not in these images.</text>
+<text x="816" y="1032" class="s" style="font-size:11px">Photos ray1 135237020, 135239412;</text>
+<text x="816" y="1046" class="s" style="font-size:11px">ray2 143405719, 143406712</text>
+<rect x="30" y="1078" width="1140" height="200" rx="6" class="st"/>
+<text x="44" y="1104" class="h">RT  a shadow ray against a triangle (ray2 only, one run)</text>
+<text x="44" y="1128" class="s">256 points x 96 triangles, all in the cache; each ray to its first hit:</text>
+<text x="44" y="1147" class="s">22,823 tests a pass (89.2 a ray), no divide in any form <tspan class="k m">[MEASURED SH4-066]</tspan>.</text>
+<text x="44" y="1166" class="s">Prepared for the sun: what depends on the direction and the</text>
+<text x="44" y="1185" class="s">triangle alone, worked out once, 64 bytes a triangle.</text>
+<text x="44" y="1204" class="s">Same bytes as the reference in both forms; 44 of 256 rays shadowed.</text>
+<text x="44" y="1223" class="s">A town-sized set (1,162 x 64 B = 74 KB) does not fit the 16 KB</text>
+<text x="44" y="1242" class="s">cache: its cost <tspan class="k o">[OPEN TOWN-085]</tspan>.</text>
+<text x="820" y="1128" class="s">cycles a test</text>
+<text x="812" y="1128" class="s" text-anchor="end">ray2, 96 triangles in the cache</text>
+<rect x="820" y="1140" width="181" height="20" fill="#1d7a3a"/>
+<text x="812" y="1155" class="s" text-anchor="end">any direction, early outs</text>
+<text x="995" y="1155" class="k" text-anchor="end" style="fill:#fff">62.49</text>
+<rect x="820" y="1168" width="334" height="20" fill="#7fb08e"/>
+<text x="812" y="1183" class="s" text-anchor="end">any direction, reference</text>
+<text x="1148" y="1183" class="k" text-anchor="end" style="fill:#fff">115.21</text>
+<rect x="820" y="1196" width="96" height="20" fill="#1d7a3a"/>
+<text x="812" y="1211" class="s" text-anchor="end">prepared, early outs</text>
+<text x="910" y="1211" class="k" text-anchor="end" style="fill:#fff">33.16</text>
+<rect x="820" y="1224" width="257" height="20" fill="#7fb08e"/>
+<text x="812" y="1239" class="s" text-anchor="end">prepared, reference</text>
+<text x="1071" y="1239" class="k" text-anchor="end" style="fill:#fff">88.60</text>
+<path d="M965 1134 L965 1254" stroke="#a86a00" stroke-width="1.6" stroke-dasharray="5 4"/>
+<text x="1156" y="1270" class="s" text-anchor="end">TOWN-063 assumed 50 <tspan class="k e">[ESTIMATE]</tspan>: between the two forms</text>
+<text x="44" y="1264" class="s">Prepared saves 47 %; early outs save 46 % (any direction) and 63 % (prepared) <tspan class="k e">[DERIVED]</tspan>.</text>
+<rect x="30" y="1294" width="1140" height="190" rx="6" class="box"/>
+<text x="44" y="1320" class="h">What the two runs change</text>
+<text x="44" y="1346" class="b">P1: every §5 cycle count built on 12 .. 16 a step and 30 a setup is low; the slice k and the refresh period P = N / (k f) need redoing.</text>
+<text x="44" y="1370" class="b">P2: run the slice batched, before the transform; interleaving costs 16 .. 30 % more a ray. Keep the grid in RAM: OC-RAM&#39;s halved cache costs more.</text>
+<text x="44" y="1394" class="b">P9: the movers&#39; proxies fit beside one slice. h3, two runs: the DCE batch is 5.7 .. 6.0 % slower than mat_transform in the cache</text>
+<text x="44" y="1418" class="b">and 5.5 .. 7.3 % out of it (SH4-065): no measured gain <tspan class="k m">[MEASURED]</tspan>; whether it stays is the owner&#39;s call.</text>
+<text x="44" y="1442" class="b">Clocks: the ns clock steps 2.5 ms at each TMU2 reload, once a second (SH4-057, see ns-clock-step): use the cycle counter.</text>
+<text x="44" y="1466" class="s">One console. Stand-ins: random receivers, not the town&#39;s vertices; a synthetic 28,699-vertex stream. Also OPEN: the clock-read gaps (Q67).</text>
 </svg>

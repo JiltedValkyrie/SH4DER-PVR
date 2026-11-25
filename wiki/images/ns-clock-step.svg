@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="852" viewBox="0 0 1200 852" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">Why the ns clock jumps</title>
+<desc id="dsc">Top: one second of real time with the TMU2 reload period of 997,497,600 ns marked, at whose end KallistiOS adds a whole second. Left: a close-up of the reload, the ns clock reading stepping up 2,502,400 ns predicted and 2,502,321 measured while the cycle counter runs on. Right: the ns clock less the cycles over CLOCK.4 2.2 s, a staircase of two steps reaching 5,070 microseconds. Foot: what it means for benches: time with the cycle counter.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="852" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">Why the ns clock jumps: one timer reload, one whole second added</text>
+<text x="30" y="58" class="s">KallistiOS&#39;s timer_ns_gettime64 against the SH-4 cycle counter. Source read: kernel/arch/dreamcast/kernel/timer.c, tree 568c3404 (bench/NOTES.md:645-653);</text>
+<text x="30" y="74" class="s">console: ray2 CLOCK.4, one console, one run, 2026-11-25 (SH4-057; photo PXL_20261125_143322667, p2).</text>
+<text x="30" y="96" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<rect x="30" y="112" width="1140" height="172" rx="6" class="box"/>
+<text x="44" y="136" class="h">1  One reload period, on a 1 s scale of real time (cycles)</text>
+<rect x="80" y="176" width="1037.4" height="30" fill="#1f5fa8"/>
+<text x="600" y="196" class="k" text-anchor="middle" style="fill:#fff">TMU2: 12,468,720 counts x 80 ns = 997,497,600 ns, then it reloads</text>
+<path d="M1117.4 166 L1117.4 216" stroke="#d9534f" stroke-width="3"/>
+<path d="M80 222 L1120 222" class="ar"/>
+<path d="M80 222 L80 228" class="ar"/>
+<text x="80" y="242" class="s" text-anchor="middle">0 s</text>
+<path d="M340 222 L340 228" class="ar"/>
+<text x="340" y="242" class="s" text-anchor="middle">0.25 s</text>
+<path d="M600 222 L600 228" class="ar"/>
+<text x="600" y="242" class="s" text-anchor="middle">0.5 s</text>
+<path d="M860 222 L860 228" class="ar"/>
+<text x="860" y="242" class="s" text-anchor="middle">0.75 s</text>
+<path d="M1120 222 L1120 228" class="ar"/>
+<text x="1120" y="242" class="s" text-anchor="middle">1 s</text>
+<text x="1116" y="162" class="k" text-anchor="end">reload: KallistiOS adds 1 s to its seconds count</text>
+<text x="44" y="262" class="s">The period is set from KallistiOS&#39;s clock constant 199,499,520 Hz (TMU2 reload = TIMER_PCK / 4) <tspan class="k f">[FACT, the source]</tspan>.</text>
+<text x="44" y="278" class="s">The 2.5 ms by which the period falls short of a second is too thin to see at this scale: see 2.</text>
+<rect x="30" y="300" width="560" height="340" rx="6" class="box"/>
+<text x="44" y="324" class="h">2  The reload, close up</text>
+<path d="M110 360 L110 550 L560 550" class="ar"/>
+<path d="M259.9 502.5 L560.0 407.5" stroke="#9aa3b2" stroke-width="1.6" stroke-dasharray="5 4"/>
+<path d="M110.0 550.0 L259.9 502.5 L259.9 455.0 L560.0 360.0" stroke="#1f5fa8" stroke-width="2.6" fill="none"/>
+<path d="M251.9 502.5 L251.9 455.0" stroke="#d9534f" stroke-width="2" marker-end="url(#h)"/>
+<text x="245.85600000000204" y="472.7727999999997" class="k" text-anchor="end">+2,502,400 ns predicted</text>
+<text x="245.85600000000204" y="488.7727999999997" class="k" text-anchor="end"><tspan class="f">[FACT, the source]</tspan></text>
+<text x="245.85600000000204" y="506.7727999999997" class="k" text-anchor="end">2,502,321 ns measured</text>
+<text x="245.85600000000204" y="522.7727999999997" class="k" text-anchor="end"><tspan class="m">[MEASURED CLOCK.4]</tspan></text>
+<text x="556.0" y="425.5" class="s" text-anchor="end">no step (the cycles)</text>
+<text x="556.0" y="349.95440000000065" class="k" text-anchor="end">ns clock</text>
+<text x="110" y="566" class="s" text-anchor="middle">995</text>
+<text x="260" y="566" class="s" text-anchor="middle">997.5</text>
+<text x="410" y="566" class="s" text-anchor="middle">1000</text>
+<text x="560" y="566" class="s" text-anchor="middle">1002.5</text>
+<text x="560" y="582" class="s" text-anchor="end">real time, ms (cycles)</text>
+<text x="102" y="364" class="s" text-anchor="end">1,005</text>
+<text x="102" y="550" class="s" text-anchor="end">995</text>
+<text x="70" y="455.0" class="s" text-anchor="middle" transform="rotate(-90 70 455.0)">ns clock reads, ms</text>
+<text x="44" y="606" class="s">1,000,000,000 − 997,497,600 = 2,502,400 ns. Measured and predicted</text>
+<text x="44" y="622" class="s">differ by 79 ns: one 80 ns count.</text>
+<rect x="610" y="300" width="560" height="340" rx="6" class="box"/>
+<text x="624" y="324" class="h">3  Over CLOCK.4&#39;s 2.2 s: the ns clock less the cycles</text>
+<path d="M690 370 L690 550 L1130 550" class="ar"/>
+<path d="M690.0 550.0 L810.0 549.5 L810.0 474.4 L810.0 474.4 L1009.5 473.5 L1009.5 398.4 L1130.0 397.9" stroke="#1f5fa8" stroke-width="2.6" fill="none"/>
+<text x="682" y="554" class="s" text-anchor="end">0</text>
+<text x="682" y="479" class="s" text-anchor="end">2.5</text>
+<text x="682" y="404" class="s" text-anchor="end">5</text>
+<text x="690" y="566" class="s" text-anchor="middle">0 s</text>
+<text x="890" y="566" class="s" text-anchor="middle">1 s</text>
+<text x="1090" y="566" class="s" text-anchor="middle">2 s</text>
+<text x="650" y="460.0" class="s" text-anchor="middle" transform="rotate(-90 650 460.0)">ns − cycles, ms</text>
+<text x="1126.0" y="419.9" class="s" text-anchor="end">gain 5,070 µs <tspan class="k m">[MEASURED]</tspan></text>
+<text x="700" y="418.0" class="s">2 steps over 1 ms, the largest</text>
+<text x="700" y="434.0" class="s">2,502,321 ns <tspan class="k m">[MEASURED]</tspan></text>
+<text x="624" y="606" class="s">5,070 = 2 x 2,502.4 + 65 µs; the 65 µs is 30 ppm of 2.2 s</text>
+<text x="624" y="622" class="s"><tspan class="k e">[DERIVED, SH4-058]</tspan>. Where the reloads fall in the window: drawn, not known.</text>
+<rect x="30" y="656" width="1140" height="182" rx="6" class="tm"/>
+<text x="44" y="682" class="h">What it means for every bench</text>
+<text x="44" y="708" class="b">An interval timed with timer_ns_gettime64 that spans a reload reads 2.5 ms long. A reload comes about once a second <tspan class="k f">[FACT]</tspan>.</text>
+<text x="44" y="731" class="b">ray1&#39;s two odd rows fit it: P1.4 n 48 was 2.41 ms long over its row, P1.2 n 12 2.50 ms <tspan class="k e">[DERIVED; fits, not proven: ray1 printed no reload flag]</tspan>.</text>
+<text x="44" y="754" class="b">ray2 prints a reload flag a row; no P1 row spanned one, and every row&#39;s ns is 4.997 to 5.000 times its cycles <tspan class="k m">[MEASURED]</tspan>.</text>
+<text x="44" y="777" class="b"><tspan font-weight="700">Rule:</tspan> time with the cycle counter; it has no step. Read the ns clock only beside it, and drop or flag a row that spans a reload.</text>
+<text x="44" y="800" class="s">Between reloads the ns clock gains about 30 ppm on the cycles: the timer counts 79.998 ns, KallistiOS assumes 80 <tspan class="k e">[ESTIMATE, SH4-058]</tspan>.</text>
+<text x="44" y="823" class="s">One ns call costs 92.01 cycles <tspan class="k m">[MEASURED SH4-056]</tspan>.</text>
+</svg>
