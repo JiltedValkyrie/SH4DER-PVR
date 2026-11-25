@@ -510,3 +510,123 @@ Built 2026-11-25, 04:2x local, by Senior; **not run on a console**. No number fr
   - the box proxy (5.6);
   - the movers at other places on their routes.
 - Risk to watch: the kernels' bytes were compared on x86 only. The console prints its own comparison (`RESULT ... kernel against reference`) on every page. If a page says BYTES DIFFER, that page's timings stand, but the kernel is not the reference on the SH-4.
+
+## Ray bench ray1: answers to lead's four questions (Senior, host work)
+
+Senior wrote this on 2026-11-25. Sources:
+- `bench_ray.c`;
+- KallistiOS's `perfctr.c` and `timer.c` (read only, nothing copied);
+- Cortana's and Junior's photo transcriptions (`RAY1_RESULTS_cortana.md`, `RAY1_RESULTS_junior.md`); every MEASURED number quoted below is theirs;
+- one new host count.
+
+No console was run.
+
+### 1. CLOCK.2: 1,027,528 cycles in 1,000,320 ns
+
+Status: a bench bug. The cause is found in the source; its size is ESTIMATE.
+
+**The source (FACT, `bench_ray.c:149-153`).**
+- The counter's start is read, 1 ms of the ns timer runs out, and `t` is taken.
+- Then `say("RESULT CLOCK.1 ...")` runs. Only after it does `cyc()` run, inside the argument list of the CLOCK.2 `say`.
+- So the cycles include all of CLOCK.1's `say`: a `vsnprintf`, a `printf` to the debug port, and the copy into the page buffer. The ns figure does not, because `t` was taken before the `say`.
+
+**The size (ESTIMATE).**
+- At 200.006 MHz, 1,000,320 ns is 200,070 cycles. That leaves 827,458 cycles, 4.14 ms, for one `say`.
+- A `printf` of the 49 characters "ray: RESULT CLOCK.1 ns timer least step: 640 ns\n" to a 115,200-baud serial port takes 49 × 86.8 us = 4.25 ms, if the call waits for every character. That is the right size.
+- The exact split is not measured: the port and its FIFO decide it.
+
+**The counter is right; the console is stock (owner): 200 MHz, not 1.03 GHz.**
+- In every P1 row but two, the cycles and the ns agree at 5 ns a cycle to 0.01 % (Cortana's list).
+- Those rows read both clocks round the same code.
+
+**Fix for the next image.** Read `cyc()` into a variable at the same point as `t`, before any `say`. CLOCK.2 stays OPEN as a bench bug until that image prints about 200,000 cycles in 1 ms.
+
+**CLOCK.1, "least step 640 ns".** This is probably the cost of one `timer_ns_gettime64` call, not the timer's step (ESTIMATE).
+- KallistiOS's ns time comes from TMU2 at Pck / 4: 80 ns a count if Pck is 50 MHz. The divider is FACT, from `timer.c`'s `TIMER_TPSC`; Pck was not checked.
+- The loop takes the least difference between two back-to-back calls. So 640 ns is 8 counts of call time.
+- Fix: compute the step from TPSC, and time a call apart.
+
+### 2. The ns that do not match the cycles
+
+The two rows: P1.4 n 48 (6,286.93 ns against 1,135.22 cycles) and P1.2 n 12 (2,321.85 ns against 342.21 cycles). Status: OPEN. The cycles are the trusted figure.
+
+**The extra (my arithmetic from their MEASURED rows).**
+
+| Row | ns a ray − cycles × 4.99985 |
+|---|---|
+| n 48 | 6,286.93 − 1,135.22 × 4.99985 = 610.9 ns |
+| n 12 | 2,321.85 − 342.21 × 4.99985 = 610.8 ns |
+
+- Each row is 16 × 256 = 4,096 rays. So both rows carry an extra 2.502 ms in the ns and none in the cycles, and the two extras are the same to 0.01 %.
+- The "640 ns step" match is a coincidence of dividing by the ray count. The event is 2.5 ms long, not one count.
+
+**Why the cycles are trusted.**
+- Both rows' cycles lie on their P1 lines (slopes 22.41 / 22.10 / 21.89 round n 48).
+- A 2.5 ms event inside the 16 runs would show in the cycles too, about 122 cycles a ray. So the event happened where only one clock sees it.
+
+**Two readings, neither tested.**
+- (a) **The read gap.** The reads are `c0 = cyc(); t0 = ns(); … dc = cyc() − c0; dt = ns() − t0` (`bench_ray.c:191-193`). Anything that runs between the last `cyc()` and the last `ns()` lands in `dt` alone.
+  - That gap is under 1 us. A 2.5 ms interrupt or thread switch landing there in 2 rows out of 30 would be unlikely, unless something ties it to the `ns()` call itself.
+- (b) **The counter stops.** The cycle counter would not count during some 2.5 ms state, for example a sleep in another thread. The SH7750's counting rules in such states are not checked here.
+
+**Test for the next image.**
+- Read `ns(), cyc(), ns()` at both ends, and print the larger of the two ns gaps.
+- Count interrupts in the timed region: PMCR mode 0x16 on PRFC1, in a second run.
+- Repeat P1.2 and P1.4 three times.
+
+Until then no ns figure from ray1 goes in the ledger; the cycles do.
+
+### 3. Why the 16:00 slice is cheaper than the 14:00 one
+
+The console measured P2.B 539.68 against P2.A 554.19 cycles a ray. Status: settled on the host.
+
+**The count.** A new host program, `demo/psm/bench/ray_mean_n.c`, log `D:\tmp\psmbuild\logs\ray_mean_n_20261125.log`. It counts the steps of P2's own 1,024 stand-ins (`ray_points` seed 7) at both suns with `ray_walk_ref`. The console kernel matched that walk byte for byte on every page. This is a HOST count, with no timing.
+
+| Sun | lit / shadow | mean n | lit rays' mean n | shadowed rays' mean n | rays with n 0 to 7 | P1.4 line at these n | console P2 warm (MEASURED) |
+|---|---|---|---|---|---|---|---|
+| 14:00 (213.8° / 26.5°) | 524 / 500 | 22.08 | 38.61 | 4.75 | 407 | 561.35 cycles | 554.19 (P2.A.2) |
+| 16:00 (242.1° / 12.9°) | 432 / 592 | 21.47 | 41.64 | 6.75 | 432 | 547.91 cycles | 539.68 (P2.B.2) |
+
+**What it shows.**
+- At 16:00 more stand-ins are shadowed (592 against 500), and a shadowed ray stops after a few steps.
+- So the mean n falls from 22.08 to 21.47, although a lit ray walks further (41.64 against 38.61).
+- P1.4's fitted line (C_setup 74.09 + 22.07 n), applied ray by ray, gives 561.35 and 547.91. The console measured 554.19 and 539.68:
+  - 1.3 % and 1.5 % under the line;
+  - in the same ratio, 0.976 on the host and 0.974 on the console.
+- The slice's cost is explained by its n.
+
+**What it does not settle.** P2 does not test thesis 5.9's 16:00 figure (mean n 48, on the town's real receivers). That figure stays OPEN. Its test is P2 run on the real receivers, not on the stand-ins.
+
+### 4. The SH4ZAM-DCE projecting batch is slower than `mat_transform`
+
+What stays and what is demoted. This is a recommendation; the owner decides.
+
+**The figures** (MEASURED, h3, one console, Cortana's transcription):
+
+| Routine | Cycles a vertex in the cache | Out of the cache |
+|---|---|---|
+| `mat_transform` | 13.38 | 42.86 |
+| the batch, with prefetch | 14.15 | 45.99 |
+| the batch, without prefetch | 14.14 | 48.14 |
+| SH4ZAM's C loop | 28.60 | 57.12 |
+
+- The batch's bytes equal SH4ZAM's own calls. `mat_transform` is up to 2 ulp off them (h3.5, h3.6).
+- The header's pipeline model said 11.0 cycles in the cache (`shz_dce_xmtrx.h:73`, E). The console says 14.15, so the model is 29 % low.
+- The rule (AGENTS.md): "Show a measured gain on a real console for any asm kernel."
+
+**The recommendation, routine by routine.**
+
+| Routine | Measured gain on a console | Recommendation |
+|---|---|---|
+| `shz_dce_pvr_project` | Yes, over its C form: 21.15 against 43.19 cycles in the cache (h2, SH4-023), and 60.5 to 61.7 against 76.7 to 79.2 in c4b. KallistiOS has no routine that writes PVR vertices. | **Stays.** |
+| `shz_dce_xmtrx_project_point3_batch` | Over SH4ZAM's C loop, yes: 2.0 times faster in the cache, 1.24 times out of it. Over `mat_transform`, no: 5.8 % slower in the cache and 7.3 % out of it. | **Demote: not for hot paths.** Use `mat_transform` where 2 ulp does not matter. Keep the batch only where the bytes must equal SH4ZAM's own calls (host and console agreement, tests). Mark the header's cycle table as a model that the console contradicts. |
+| The batch's prefetch | 4.5 % out of the cache (48.14 to 45.99); nothing in it. | Keep the switch, default on. |
+| `shz_dce_xmtrx_transform_vec4_batch`, `_point3_batch`, `_vec3_batch` | Never timed on a console. | **Not proven.** No hot-path use until a console page shows a gain over the best KallistiOS or SH4ZAM call for the same job. |
+| The `shz_dce_` wrappers over SH4ZAM (asinf, acosf, atan2f and the others, from the audit of 2026-11-25) | They are not our asm; they call SH4ZAM. | They stay. The asm rule does not apply. |
+
+**Not changed by this note.** Nothing in `third_party/sh4zam-dce` is deleted or edited. The header comment and the README change only after the owner decides.
+
+**One thing to try before demoting for good** (ESTIMATE, not built).
+- `mat_transform` keeps one vector in flight, with its loads interleaved.
+- The batch keeps three in flight. It may pay in register moves what the model did not count.
+- The next image could time the batch with two vectors in flight.

@@ -60,6 +60,8 @@ An assembly kernel is kept only with a measured gain on a real console. An emula
 - plain C took 72.43;
 - FIPR and FTRV gave bit-identical results.
 
+The rule also cuts the other way. In ray1 (one console, one run) our batch kernel `shz_dce_xmtrx_project_point3_batch` gave the right bytes and ran 2 times faster than a C loop of SH4ZAM calls, but 5.8 % slower than KallistiOS's `mat_transform` in the cache and 7.3 % out of it (SH4-050). It has no measured gain over the routine it would replace; whether it stays is the owner's call.
+
 ## Related
 
 - [Host test first](host-test-first.md)

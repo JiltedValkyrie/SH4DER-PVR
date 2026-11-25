@@ -29,9 +29,10 @@ These are faults the console showed and an emulator hid. Break them and the cons
 | Limit | Kind | Backing |
 |---|---|---|
 | Send long meshes in store-queue runs, not `pvr_prim` per vertex: 142 against 260 ns a vertex. **But measure your own mesh:** the warp's mesh ran 6 % slower by runs (973 against 914 ns), for a reason not yet known, so the warp now sends its mesh by `pvr_prim` and its pixelate pass by runs. | PROVEN (TA test, warp pixelate pass); the exception is OPEN | BUS-003, BUS-004 |
-| Never place a copy's or a transform's source and destination a multiple of 16 KB apart. It cost up to 8.5 times. | PROVEN | SH4-031, SH4-032 |
+| Never place a copy's or a transform's source and destination a multiple of 16 KB apart. It cost up to 8.5 times; c4b's projection ran 2.2 times faster once its arrays were placed apart. | PROVEN | SH4-031, SH4-032, SH4-046, SH4-048 |
 | Copy RAM to RAM with `shz_sq_memcpy32` or `sq_cpy` (150 MB/s), or `shz_memcpy` (132), not `memcpy` (63). | PROVEN | SH4-030 |
-| Use `mat_transform` or a batch kernel, not a C loop of single SH4ZAM calls (13.16 against 28.67 cycles a vertex). | PROVEN | SH4-022 |
+| Use `mat_transform`, not a C loop of single SH4ZAM calls (13.16 against 28.67 cycles a vertex). Our `shz_dce_xmtrx_project_point3_batch` is 5.8 % slower than `mat_transform` in the cache and 7.3 % out of it: it has no measured gain. | PROVEN (one run each) | SH4-022, SH4-050 |
+| Do not put a lookup grid in OC-RAM in a frame that also transforms vertices: the RAM cache halves, the vertices cost 6.8 % more, and the interleaved slice was slower overall. | PROVEN (one run) | SH4-054, SH4-012 |
 | A burst DMAC copy holds the SH-4 for the whole copy. For a background copy use cycle steal (84 % of the SH-4 left). | PROVEN | BUS-031, BUS-032 |
 
 ## Reading back
@@ -68,6 +69,10 @@ These are faults the console showed and an emulator hid. Break them and the cons
 
 | Limit | Kind | Backing |
 |---|---|---|
+| c4 chain: make Q from the window edges measured at boot, not from a cosine table. With them the ground showed 0 acne at every b0 from 0 to 3; with the cosine it needed b0 1.5. | PROVEN (ground alone, one sun, one run) | PVR-102, PVR-103 |
+| c4 chain: keep b0 at 3.0 with the measured edge until lower values are tested in a scene; both scenes showed 0 acne there. | ADVISED | Test: Q57 (b0 0 to 1.5 with the measured edge, three suns) |
+| c4 chain mask: use the 1555 route; punch-through gives the same pixels but costs 14 to 18 % more PVR time. Use punch-through only where its alpha test is needed (for example to join compares, Q58). | PROVEN (cost, two suns, one run); the join ADVISED | PVR-105 |
+| Budget a ray through a height grid at 22 cycles a cell plus 74 a ray, not the thesis's 12 to 16 plus 30. | PROVEN (one run) | SH4-052 |
 | **Do not cast shadows to infinity.** In the town at draw distance INF with all casters, route A ran at 18 fps and route B at 13-14. Limit casters to the shadow map's square, and set a shadow draw distance. | PROVEN that INF with all casters misses 30 fps in that view; the remedy is ADVISED | Town photos (see [scenes](scenes.md)). Test: sweep the demo's CASTERS and DRAW DISTANCE rows and log SH-4, PVR and fps. |
 | Route B (SH-4 depth map) cost 40-44 ms of SH-4 time in the town view: do not use it for a whole town at 30 fps. | PROVEN (one view) | Town photos |
 | Shadow map at most 256 × 256 for route AB: 512 × 512 needs 14.8 ms of download alone and does not render past row 479. | PROVEN | PVR-026, BUS-021 |

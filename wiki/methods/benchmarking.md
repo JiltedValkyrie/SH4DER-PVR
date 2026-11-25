@@ -27,9 +27,9 @@ sources: [demo/psm/bench/bench_h1.c, demo/psm/bench/build.py, demo/psm/bench/NOT
 - Times come from `timer_ns_gettime64` and the SH-4's cycle counter. The first lines print the timer's resolution (560 ns step in h1 and h2) (NOTES.md:15).
 - Results are read from photos of the pages. Note the photo file names. Since nothing is repeated, there is no spread to give (NOTES.md:7-9).
 
-A bench built and not yet run, the ray bench, laid out test by test:
+The ray bench, laid out test by test as it was planned. It ran once on 2026-11-25; its results are SH4-051 to SH4-055 in the [SH-4 ledger](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9):
 
-![The ray bench (image psm-bench-ray1 built and host-tested, not run on a console; every cycle count ESTIMATE): a ray walks a 64 x 64, 4 KB height grid toward the sun at a predicted 12 to 16 cycles a step plus about 30 (P1, timed against n with the ns timer and performance counter 1); the same slice is run batched (grid loaded once, 18 to 26 us), interleaved with the vertex transform (27.7 to 40.3 cycles a missing step, SH4-047; the miss share ESTIMATE) and with the grid in OC-RAM, which h1 measured as no faster than a hit while halving the cache (P2, SH4-010 to 012); and proxies for 8 people and 4 hens are timed at 16:00 against one slice (P9). No ray, slice or proxy has been timed on a console yet.](../images/ray-bench-plan.svg)
+![The ray bench, run on one console on 2026-11-25 (image psm-bench-ray1, one run, MEASURED; photos in bench/RAY1_RESULTS_cortana.md and _junior.md): a ray walking the 4 KB height grid costs 22.07 to 22.21 cycles a step and 70.88 to 74.09 to set up (the page's fit, P1.1 to P1.4), against the thesis ESTIMATE of 12 to 16 and about 30, so P1 is overturned; the slice of 1,024 stand-in rays costs 563.36 / 548.78 cycles a ray cold and 554.19 / 539.68 warm (14:00 / 16:00) batched, interleaving with the vertex transform adds 117 / 89 cycles a ray (DERIVED; 27.7 to 40.3 cycles a miss, SH4-047, so the miss count is an ESTIMATE), and the grid in OC-RAM makes the interleaved slice slower overall (P2); the movers' proxy pass takes 312 us, under a 2 ms slice, so P9 stands. OPEN: CLOCK.2's cycles a ns, the P1.4 n 48 ns gap, why 16:00 costs less than 14:00 with these stand-ins.](../images/ray-bench-plan.svg)
 
 ## Traps that have given wrong numbers here
 
@@ -41,6 +41,7 @@ A bench built and not yet run, the ray bench, laid out test by test:
 3. **Polling a status register in a tight loop.** It shares the bus with what you are timing. Polled all the time, a 512 KB PVR-DMA took 14,775 us; ended by its interrupt, 13,742 us, about 7 % less (MEASURED, one console, h1 and h2).
 4. **A timer round a whole PVR pass reads the PVR's queue, not the pass.** KallistiOS wakes the waiting thread on a 100 Hz scheduler tick, so a wait is quantised to 10 ms steps (ROUTE_AB_NOTES.md:373-378). Report the render time from `pvr_get_stats` and your two waits apart (`AGENTS.md`, pl4nar cost table).
 5. **Work inside the timed region that is not the thing timed.** Route AB spike s3's "send 3,111 us" included a sine, a cosine and a divide per vertex. It is not a send cost (ROUTE_AB_NOTES.md:380). Build the data outside the timing.
+6. **Two clocks round the same work that disagree.** ray1 read the cycle counter and the ns timer round the same runs. Its CLOCK.2 line printed about 1.03 GHz on a stock 200 MHz console, and its ns column disagreed with the cycles on two rows (+10.8 % and one 640 ns tick); every other row agreed within 0.01 % (SH4-051). Treat such a line as a bench bug, not a hardware fact; trust the clock that fits the rest of the page (there, the cycles), and repeat the run before using the other.
 
 ## Lessons from the porting starter
 

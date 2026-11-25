@@ -16,9 +16,9 @@ The SH-4 and the PVR work at the same time. The SH-4 builds and sends frame N+1 
 Budget each side on its own, then check the frame rate on a console.
 
 
-A frame can be longer than its work. In the c4 live view most of the frame was waiting:
+A frame can be longer than its work. In the c4 live view most of the frame was waiting. c4b timed each wait (PVR-104, one console, one run): the ready waits took 1 to 40 us; the render-done waits took 36 of a 39 ms frame and ran 2.9 to 9.1 ms past the renders. That fits KallistiOS waking the waiting thread only at its 100 Hz tick (PVR-011), not yet proven (Q53). Until it is, do not block in `pvr_wait_render_done` early: do other work first, and read the PVR's render time from `pvr_get_stats`, not from a timer around the wait.
 
-![The c4 frame waits: the live view's frame is 39.9 or 49.9 ms while the measured SH-4 and PVR work in it adds to only 21.7, 27.1 and 19.3 ms (MEASURED PVR-090, 091, 101, PVR-094, one console, 2026-11-25); the rest is waiting, and why the frame takes one of two values 10 ms apart is OPEN (Q53).](../images/frame-wait.svg)
+![The frame waits, c4 and c4b (one console, 2026-11-25): in c4 the frame is 39.9 or 49.9 ms while the SH-4 and PVR work in it adds to 19.3 to 27.1 ms (MEASURED PVR-090, 091, 101, 094); in c4b, over 60 frames, the vblank counts 2 or 3 a frame, a 60 Hz vblank, the frames are 29.9 or 39.9 ms (mean 39.2, not whole vblanks), and the three render-done waits take 36.2 of the 39.2 ms, running 2.9 to 9.1 ms past their renders, while the ready waits take 1 to 40 us and polling them changed nothing (MEASURED); a wait that wakes on a 10 ms clock fits (INFERENCE), the cause is OPEN (Q53, P10), and the next test is a render done polled on render_busy.](../images/frame-wait.svg)
 
 ![Where the 16.7 ms goes in the town (route A, one view, one console): the SH-4 takes 13.3 to 13.6 ms and the PVR 15.9 ms (MEASURED, HUD), both under 16.7 ms, yet the frame runs at 18 fps, about 55.6 ms; the PVR splits into the scene 7.1 ms (route B, MEASURED), a map pass about 3.2 ms and a shadow layer about 3.1 ms (ESTIMATE) and 2.5 ms OPEN; the SH-4's transform and send are about 5.6 to 6.7 ms (ESTIMATE from unit costs) and the rest is not broken down; no G2 work is in the frame; the wait that makes the frame long is OPEN (Q53, P10).](../images/frame-budget-town.svg)
 
@@ -34,7 +34,11 @@ A frame can be longer than its work. In the c4 live view most of the frame was w
 | SH-4 → TA: one vertex by `pvr_prim` | 260 ns | BUS-001 |
 | SH-4 → TA: one vertex in a store-queue run | 142 ns | BUS-003 |
 | SH-4: `mat_transform`, a vertex in the cache | 13.16 cycles (0.066 us) | SH4-020 |
+| SH-4: `mat_transform` with 1/w, out of the cache | 42.86 cycles | SH4-050 |
 | SH-4: `shz_dce_pvr_project`, a vertex in the cache | 21.15 cycles | SH4-023 |
+| SH-4: `shz_dce_pvr_project`, arrays too large for the cache, placed apart | 58.1 to 61.7 cycles | SH4-023, SH4-048 |
+| SH-4: a ray through a 64 × 64 height grid in the cache | about 22 cycles a cell + 71 to 74 a ray | SH4-052 |
+| SH-4: a moving proxy against one receiver, with early outs | 137.87 cycles | SH4-055 |
 | SH-4: copy 1 MB, store queue | 6.98 ms (150 MB/s) | SH4-030 |
 | Upload 512 KB texture, ch2 DMA | 1.05 ms | BUS-011 |
 | Video memory → RAM, 32 KB, PVR-DMA | 0.87 ms | BUS-021 |

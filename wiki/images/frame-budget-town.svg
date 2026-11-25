@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="ttl dsc">
 <title id="ttl">Where the 16.7 ms goes: the town frame</title>
-<desc id="dsc">Bars on a 0 to 60 ms scale for the town frame on route A: SH-4 13.6 ms split into transform, send and an unexplained rest; the TA fed beside the send with its vertex buffer 68 percent full; the PVR 15.9 ms split into the scene, the map pass, the shadow layer and an open remainder; no G2 work; the frame at about 55.6 ms, most of it waiting. Below: why the frame is longer than its work, the per-engine plan with the static bake split, and the console tests that would settle it.</desc>
+<desc id="dsc">Bars on a 0 to 60 ms scale for the town frame on route A: SH-4 13.6 ms split into transform, send and an unexplained rest; the TA fed beside the send with its vertex buffer 68 percent full; the PVR 15.9 ms split into the scene, the map pass, the shadow layer and an open remainder; no G2 work; the frame at about 55.6 ms, most of it waiting. Below: why the frame is longer than its work (in c4b the wait sits in the render-done waits), the per-engine plan with the static bake split, and the console tests that would settle it.</desc>
 <style>
 text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
@@ -63,18 +63,18 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="30" y="472" class="h2">The frame</text>
 <text x="30" y="488" class="s">18 fps, about 55.6 ms <tspan class="k m">[MEASURED, HUD]</tspan></text>
 <rect x="330.0" y="460" width="206.7" height="26" fill="#5b6577" stroke="#fbfaf7" stroke-width="1"/><text x="433.4" y="477" class="k" text-anchor="middle" style="fill:#fff">work: max(SH-4, PVR)</text>
-<rect x="536.7" y="460" width="516.1" height="26" fill="#e9e4d8" stroke="#fbfaf7" stroke-width="1" stroke-dasharray="3 2"/><text x="794.8" y="477" class="k" text-anchor="middle" style="fill:#1d2330">waiting? 39.7 ms not explained</text>
+<rect x="536.7" y="460" width="516.1" height="26" fill="#e9e4d8" stroke="#fbfaf7" stroke-width="1" stroke-dasharray="3 2"/><text x="794.8" y="477" class="k" text-anchor="middle" style="fill:#1d2330">waiting, 39.7 ms: not timed in the town</text>
 <rect x="30" y="560" width="560" height="236" rx="6" class="box"/>
 <text x="44" y="586" class="h">2  Why is the frame longer than its work?</text>
 <text x="44" y="610" class="b">The model: the SH-4 builds frame N+1 while the PVR draws N, so a</text>
-<text x="44" y="631" class="b">frame is the larger side, 15.9 ms here: 60 fps on paper <tspan class="k e">[ASSUMPTION]</tspan>.</text>
-<text x="44" y="652" class="b">The HUD says 18 fps. Two other frames disagree the same way:</text>
-<text x="44" y="673" class="s">· a3, another view: SH-4 22.6, PVR 16.0 ms, 25 fps <tspan class="k m">[MEASURED, relayed]</tspan></text>
-<text x="44" y="694" class="s">· c4: frames 39.9 / 49.9 ms for 19 .. 27 ms of work, in steps 10.0 ms</text>
-<text x="44" y="715" class="s">  apart <tspan class="k m">[MEASURED PVR-094]</tspan></text>
-<text x="44" y="736" class="b">A wait that wakes on the 100 Hz scheduler tick fits c4&#39;s steps</text>
-<text x="44" y="757" class="b"><tspan class="k e">[INFERENCE, three frames]</tspan>. Cause <tspan class="k o">[OPEN Q53, P10]</tspan>.</text>
-<text x="44" y="778" class="s">Until it is found, every "room left" figure is an upper bound.</text>
+<text x="44" y="631" class="b">frame is the larger side, 15.9 ms: 60 fps on paper <tspan class="k e">[ASSUMPTION]</tspan>.</text>
+<text x="44" y="652" class="s">· a3: SH-4 22.6, PVR 16.0 ms, yet 25 fps <tspan class="k m">[MEASURED, relayed]</tspan></text>
+<text x="44" y="673" class="s">· c4 39.9 / 49.9 ms, c4b 29.9 / 39.9 ms: steps 10 ms apart <tspan class="k m">[MEASURED]</tspan></text>
+<text x="44" y="694" class="b">c4b found where: its three render-done waits take about 36 of</text>
+<text x="44" y="715" class="b">39.2 ms, up to 9.1 ms past their renders <tspan class="k m">[MEASURED c4b]</tspan>; the</text>
+<text x="44" y="736" class="b">ready waits 1 .. 40 µs. A 10 ms clock fits <tspan class="k e">[INFERENCE]</tspan>; cause <tspan class="k o">[OPEN]</tspan>.</text>
+<text x="44" y="757" class="s">The town&#39;s own waits are not timed <tspan class="k o">[OPEN Q53, P10]</tspan>; until they</text>
+<text x="44" y="778" class="s">are, every "room left" figure is an upper bound.</text>
 <rect x="610" y="560" width="560" height="236" rx="6" class="tm"/>
 <text x="624" y="586" class="h">3  With the bake split (gen 6.5 plan)</text>
 <text x="624" y="604" class="s">every line <tspan class="k e">ESTIMATE</tspan>; see static-bake-split</text>
@@ -94,7 +94,7 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="44" y="910" class="b">The SH-4&#39;s known parts (transform and send) are about 5.6 .. 6.7 ms of its 13.6; the other half is not broken down.</text>
 <text x="44" y="932" class="b">1 ms is about 200,000 SH-4 cycles <tspan class="k f">[FACT SH4-001]</tspan>. Every ESTIMATE here is a measured unit cost times a count, not a frame timed in parts.</text>
 <text x="44" y="960" class="h2">Console tests that would turn this page MEASURED</text>
-<text x="44" y="982" class="s">· time each wait apart in one frame: render done, vblank, the KOS tick, the list flips (P10, Q53; c4b counts vblanks per frame)</text>
+<text x="44" y="982" class="s">· time the town&#39;s waits apart as c4b did (render done, ready, vblanks), then a render done polled on render_busy (P10, Q53)</text>
 <text x="44" y="1004" class="s">· split the SH-4 line: scene update, cull, casters, transform, send, HUD, each with the s2 clock pair</text>
 <text x="44" y="1026" class="s">· route A&#39;s PVR with the map pass alone and the layer alone, to place the open 2.5 ms</text>
 <text x="44" y="1048" class="s">· the TA&#39;s own time, if the HUD can read it (BUS-006)</text>
