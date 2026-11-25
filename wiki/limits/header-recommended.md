@@ -60,7 +60,7 @@ The block for `demo/psm/ao/tile_cut.h`:
    Status:     the PVR saving PROVEN (three passes); a frame gain ADVISED: the first form did not pay in d1-c
                (its begin read the whole tables from video memory); this form, tables kept in RAM, has not run
                on a console. To prove: the whole frame cut and uncut, with the begin and end timed apart
-   Do:         wait for render done after every cut pass (the table must not change under a render)
+   Do:         wait for render done after every cut pass; cut only with every tile table found (PVR-200: one of two cut)
    Do not:     cut while the next scene fills during a render; carry on if tile_cut_end returns bad
                (shut the PVR down and pvr_init again)
    Maturity:   ALPHA v0.5
