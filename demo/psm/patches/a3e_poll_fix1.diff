@@ -1,0 +1,12 @@
+79c79
+< static int rd_hooked;
+---
+> static int rd_hooked, rd_was_hooked;     /* rd_was_hooked: for the page, which is drawn after rd_hook(0) */
+95c95
+<         rd_hooked = 0;
+---
+>         rd_hooked = 0; rd_was_hooked = 1;
+689c689
+<     pg_say("WAITS POLLED: ready by pvr_check_ready, done by our render-done count%s; town t2 (arch fixed)", rd_hooked ? "" : " (NOT HOOKED: KOS's)");
+---
+>     pg_say("WAITS POLLED: ready by pvr_check_ready, done by our render-done count%s; town t2 (arch fixed)", rd_was_hooked ? "" : " (NOT HOOKED: KOS's)");

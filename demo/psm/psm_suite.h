@@ -44,6 +44,7 @@
 #define PSM_SUITE_H
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -165,6 +166,15 @@ static int suite_tick(unsigned buttons, unsigned page, unsigned pages) {
 
 /* What a result page's header says about the way out, for pg_draw's keys. */
 static inline const char *suite_keys_text(const char *alone) { return suite_present() ? (suite_chained() ? "ABXY menu (auto)" : "ABXY menu") : alone; }
+
+/* The console's chip revisions as text, "HOLLY REV xxxx SB xx": the PVR core's REVISION register (0x005F8004) and the
+   system bus's SB_SBREV (0x005F689C), read through the uncached mirror. Two reads, nothing written; the PVR need not
+   be started. For the menu's foot and a test's first line, so a photo says which console it was. */
+static inline void suite_rev_text(char *out, size_t size) {
+    const uint32_t holly = *(volatile uint32_t *)0xa05f8004u, sb = *(volatile uint32_t *)0xa05f689cu;
+
+    snprintf(out, size, "HOLLY REV %04X SB %02X", (unsigned)(holly & 0xffffu), (unsigned)(sb & 0xffu));
+}
 
 #endif /* _arch_dreamcast */
 

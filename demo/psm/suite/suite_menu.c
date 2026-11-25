@@ -90,6 +90,12 @@ static void draw(unsigned cursor) {
     line(PG_ROWS - 2u, PG_GREY, "In a test: hold A+B+X+Y on its result pages for this menu.");
     line(PG_ROWS - 1u, PG_GREY, "A fault page tries the menu after 60 s; if it stays, power off.");
     line(PG_ROWS, PG_GREY, "No reset button is needed. Every test starts from a full restart.");
+    {
+        char rev[32];
+
+        suite_rev_text(rev, sizeof rev);    /* two register reads: which console this is, on every photo of the menu */
+        pg_text(PG_X0 + (PG_COLS - 22u) * PG_CW, ROW_Y(0u), PG_GREY, rev);
+    }
     if (note[0]) line(PG_ROWS + 1u, PG_YELLOW, "%s", note);
 }
 

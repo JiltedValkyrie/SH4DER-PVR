@@ -1,0 +1,22 @@
+6 blend ONE/ZERO: 32768
+6 vertex alpha 128: 2048
+   (texture alpha >= ref: 16384; all: 32768; if the vertex alpha
+   counts, the last line is 2048 or 0)
+6 bump level as the tested alpha: 10200 drawn of 20480, model
+   10320, differ 120
+7 DMA video memory to RAM by PVR-DMA
+7 128 KB polled each 1 ms: 4020 us, 32.6 MB/s, copy right
+7 128 KB polled each 250 us: 3377 us, 38.8 MB/s, copy right
+7 128 KB by interrupt: 3439 us, 38.1 MB/s, copy right
+7 512 KB polled each 1 ms: 14066 us, 37.2 MB/s, copy right
+7 512 KB polled each 250 us: 13264 us, 39.5 MB/s, copy right
+7 512 KB by interrupt: 13725 us, 38.1 MB/s, copy right
+   (a polled time is rounded up to the next poll)
+8 FRAME 60 frames of the live chain at sun 150/26.5, bands 2
+   wide, layer on; us
+8  scheduler 100 Hz; render-done interrupt seen by this program
+8 KallistiOS waits: frame min 29960 mean 39746 max 39934
+8  vblanks a frame 0..6, 7+: 0 0 36 24 0 0 0 0
+8  map waits mean/max: open 2/2 close 35/46 done 7934/7964;
+   render 3344
+8   map done-wait: back 4648/4697 us after the interrupt; 36

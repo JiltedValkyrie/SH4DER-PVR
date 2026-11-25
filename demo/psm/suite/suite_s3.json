@@ -1,0 +1,60 @@
+{
+  "note": "The suite disc psm-suite-s3: demo/psm/suite/build.py --tag s3 --list demo/psm/suite/suite_s3.json. s2 plus ao0 (AO method 2's hardware questions), ao1 (the town's AO demo), a3e-auto-t2 and a3e-poll (the town with the arch fixed: town v2). RUN ALL runs the five that have not given pages yet, ao0 first; the tests that ran on s1 are picked by hand. Times are ESTIMATE, not measured. The town ELFs are Junior's autorun builds with the suite hooks, in his build folders outside the repository.",
+  "tests": [
+    {
+      "name": "ao0", "file": "AO0.BIN", "elf": "build/psm_ao/psm-ao0-b.elf", "order": 1,
+      "what": "AO in the shadow target: union test, cost. ~20 s",
+      "read": "no pad; photo both pages; START = live view (X K, Y way)"
+    },
+    {
+      "name": "ao1", "file": "AO1.BIN", "elf": "D:/tmp/junior_build_ao1_m2/psm_dc/sh4der-psm-town-ao1.elf", "order": 2,
+      "what": "town v2 AO: OFF, 1 baked, 2 PVR map. ~1 min",
+      "read": "photo every page; AO1/AO2 against OFF, map TAv/KB"
+    },
+    {
+      "name": "a3e-t2", "file": "A3ET2.BIN", "elf": "D:/tmp/junior_build_a3e-auto-t2/psm_dc/sh4der-psm-town-a3e-auto-t2.elf", "order": 3,
+      "what": "town v2 (arch fixed) a3e, KOS waits timed. ~2 min",
+      "read": "photo every page; the new baseline, read against a3e-poll"
+    },
+    {
+      "name": "a3e-poll", "file": "A3EPOLL.BIN", "elf": "D:/tmp/junior_build_a3e-poll/psm_dc/sh4der-psm-town-a3e-poll.elf", "order": 4,
+      "what": "town v2, the PVR waits polled. ~2 min",
+      "read": "photo every page; waits and timeouts against a3e-t2"
+    },
+    {
+      "name": "hud1b-auto", "file": "HUD1B.BIN", "elf": "D:/tmp/junior_build_hud1b_auto_s/psm_dc/sh4der-psm-town-hud1b-auto.elf", "order": 5,
+      "what": "HUD loss test, boot steps (town v1). ~3 min",
+      "read": "photo the pages; if it stops, photo the BOOT list/fault"
+    },
+    {
+      "name": "c4g", "file": "C4G.BIN", "elf": "build/psm_cmp/psm-c4-c4g.elf", "order": 0,
+      "what": "PVR shadow chain (ran on s1). ~1 min",
+      "read": "photo every text page (about 12); the 8 graphs if wanted"
+    },
+    {
+      "name": "r3-d", "file": "R3D.BIN", "elf": "build/psm_cmp/psm-r3-d.elf", "order": 0,
+      "what": "punch-through product (ran on s1). ~10 s",
+      "read": "photo all 4 pages: 2 text, the graph, the picture"
+    },
+    {
+      "name": "a3e-auto", "file": "A3E.BIN", "elf": "D:/tmp/junior_build_a3e_auto_s/psm_dc/sh4der-psm-town-a3e-auto.elf", "order": 0,
+      "what": "town v1 a3e, fixed script (ran on s1). ~2 min",
+      "read": "no pad needed; photo every page (text, 2 graphs)"
+    },
+    {
+      "name": "a3f-auto", "file": "A3F.BIN", "elf": "D:/tmp/junior_build_a3f_auto_s/psm_dc/sh4der-psm-town-a3f-auto.elf", "order": 0,
+      "what": "town v1 a3f, cache pads (ran on s1). ~2 min",
+      "read": "photo every page; it is read against a3e-auto"
+    },
+    {
+      "name": "bake1-auto", "file": "BAKE1.BIN", "elf": "D:/tmp/junior_build_bake1_auto_s/psm_dc/sh4der-psm-town-bake1-auto.elf", "order": 0,
+      "what": "town v1, the static bake (ran on s1). ~2 min",
+      "read": "photo every page; the bakes lines are the result"
+    },
+    {
+      "name": "qr-q2", "file": "QR.BIN", "elf": "build/psm_qr/psm-qr-q2.elf", "order": 0,
+      "what": "QR reading: 16 codes (ran on s1). No timing",
+      "read": "phone at each of 7 code pages; one photo a page; Y level"
+    }
+  ]
+}

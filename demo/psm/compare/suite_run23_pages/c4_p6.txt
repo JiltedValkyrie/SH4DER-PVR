@@ -1,0 +1,22 @@
+5 bands 1 wide: 616 bands 2464 vertices; fit 54 us, cut 3173 us
+5  project: asm 60.0 cycles a vertex, C form 74.7, bytes the
+   same
+5  send map 14 us (68 vertices), mask 846 us (2 x 2464); PVR map
+   3291 us, mask 9219 us
+5 bands 2 wide: 322 bands 1288 vertices; fit 56 us, cut 1682 us
+5  project: asm 61.2 cycles a vertex, C form 75.2, bytes the
+   same
+5  send map 14 us (68 vertices), mask 467 us (2 x 1288); PVR map
+   3285 us, mask 6261 us
+5 bands 4 wide: 173 bands 692 vertices; fit 56 us, cut 897 us
+5  project: asm 60.8 cycles a vertex, C form 77.2, bytes the
+   same
+5  send map 14 us (68 vertices), mask 274 us (2 x 692); PVR map
+   3291 us, mask 5115 us
+5 PVR screen: scene 3322 us, with the shadow layer 9634 us
+C CUT the band cut in parts, sun 150/26.5, cycles / 200 = us,
+   mean of 8; (c4b: 3183 / 1691 / 908 us; c4: 2483 / 1332 / 744)
+C bands 1 wide, 2464 vertices; whole cut: cosine edge 3207 us,
+   MEASURED edge 3217 us
+C  parts, MEASURED edge, us: faces 15; kinds, corners, bias 64;
+   band polygons 2106; Q and the strips 1031

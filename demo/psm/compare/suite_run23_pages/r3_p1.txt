@@ -1,0 +1,22 @@
+TEST R3 PT PRODUCT  d: numbers below are measured by this run
+(a: vertex alpha, r: reference, n: nibbles drawn, lo: first
+   drawn
+ nibble, px: pixels of 32768, s: 1 a clean step;
+ model: n by VTX256 BOTH256 ROUND FLOOR, ESTIMATE)
+RESULT A  a255 r128 n08 lo08 px16384 s1   (model n 8 8 8 8)
+RESULT B  a128 r128 n01 lo15 px02048 s1   (model n 1 1 1 1)
+RESULT C  a040 r016 n09 lo07 px18432 s1   (model n 9 9 10 10)
+RESULT D  a174 r128 n04 lo12 px08192 s1   (model n 4 5 5 4)
+RESULT F  a016 r016 n01 lo15 px02048 s1   (model n 0 1 1 1)
+RESULT C2 a040 r016 n09 lo07 px18432 s1   (model n 9 9 10 10)
+RESULT D2 a174 r128 n04 lo12 px08192 s1   (model n 4 5 5 4)
+DERIVED NO RULE
+TEST E FADE reference 16: a, n, s (and px if odd); model n by
+   VTX256 BOTH256 ROUND FLOOR
+RESULT E a000 n00 s1   a008 n00 s1   a016 n01 s1
+RESULT E a024 n05 s1   a032 n08 s1   a040 n09 s1
+RESULT E a048 n10 s1   a056 n11 s1   a064 n12 s1
+RESULT E a072 n12 s1   a080 n12 s1   a088 n13 s1
+RESULT E a096 n13 s1   a104 n13 s1   a112 n13 s1
+RESULT E a120 n13 s1   a128 n14 s1   a136 n14 s1
+RESULT E a144 n14 s1   a152 n14 s1   a160 n14 s1

@@ -29,7 +29,7 @@ Saturating adds, an invert and doublings in a mask target (`compare/NOTES.md:15-
 (`compare/NOTES.md:92-178`)
 
 - The bump unit's level follows 128 + 127·sin(M − Q). M is the map's code in the texture; Q is one value a polygon (PVR-045).
-- Equal depths are undecided: a bias of at least one code is needed (PVR-046).
+- Equal depths are undecided: a bias of at least one code is needed (PVR-046). Its neighbour, a depth union in a render-to-texture translucent pass, fails on this console (PVR-127); the chain does not use one.
 - A render target worked as a bump texture, non-twiddled, point sampled (PVR-070). Sega's errata says this hangs; the outside rule says only with bilinear filtering (errata E3).
 - The 1555 write threshold is exact, so the level can be cut to a mask bit at write (PVR-028).
 - The fog table gives a depth code per pixel, about one 6-bit step low (PVR-049).
@@ -89,7 +89,7 @@ The projection's c4 cycle counts (132.5 against 138.8 a vertex) are a cache-plac
 
 - **The frame is set by waiting, not by work:** 39.9, 39.9 and 49.9 ms for 19.3, 21.7 and 27.1 ms of work. Why the frame is one of two values 10.0 ms apart: KallistiOS's sleeping render-done wait, woken on the 100 Hz tick (PVR-094, closed by PVR-117).
 
-![The frame waits, c4 and c4b (one console, 2026-11-25): in c4 the frame is 39.9 or 49.9 ms while the SH-4 and PVR work in it adds to 19.3 to 27.1 ms (MEASURED PVR-090, 091, 101, 094); in c4b, over 60 frames, the vblank counts 2 or 3 a frame, a 60 Hz vblank, the frames are 29.9 or 39.9 ms (mean 39.2, not whole vblanks), and the three render-done waits take 36.2 of the 39.2 ms, running 2.9 to 9.1 ms past their renders, while the ready waits take 1 to 40 us and polling them changed nothing (MEASURED); a wait that wakes on a 10 ms clock fits (INFERENCE), the cause is OPEN (Q53, P10), and the next test is a render done polled on render_busy.](../images/frame-wait.svg)
+![The frame waits, c4 and c4b (one console, 2026-11-25): in c4 the frame is 39.9 or 49.9 ms while the SH-4 and PVR work in it adds to 19.3 to 27.1 ms (MEASURED PVR-090, 091, 101, 094); in c4b, over 60 frames, the vblank counts 2 or 3 a frame, a 60 Hz vblank, the frames are 29.9 or 39.9 ms (mean 39.2, not whole vblanks), and the three render-done waits take 36.2 of the 39.2 ms, running 2.9 to 9.1 ms past their renders, while the ready waits take 1 to 40 us and polling them changed nothing (MEASURED); c4g found the cause (Q53 CLOSED, PVR-117, MEASURED one run): KallistiOS's sleeping pvr_wait_render_done wakes on the 100 Hz tick, 4,645 / 2,929 / 9,940 us after the render-done interrupt, so the frame is 4.00 ticks (39,909 us mean), and with both waits polled the frame is 23,264 us, 42 % shorter; still OPEN: polled, about 1 frame in 5 is 26.5 ms (Q69).](../images/frame-wait.svg)
 
 - **Tile stage:** rendering only the tiles a target covers took the map from 3,312 to 375 us, and the mask from 6,130 to 3,760 us, with the picture unchanged (PVR-092). That points at the old 3.2 ms target floor (PVR-004).
 
@@ -192,11 +192,16 @@ The same comparator in texture space, where Q is one value for the whole object 
 
 - The bias with the measured edge: how low b0 can go in the scenes, at more suns (Q57).
 - The frame: closed. KallistiOS's 100 Hz wake is the whole render-done wait (PVR-117); one frame in five is still 4 ms long when polled (PVR-118, Q69).
+
+  ![The render-done wait over one frame, sleeping against polled (spike c4g tests 8 and 8b, 60 frames each, one console, one run, 2026-11-25, PVR-117, closes Q53): with KallistiOS's sleeping pvr_wait_render_done the render-done interrupt comes at each render's end but the wait returns 4,645 / 2,929 / 9,940 us later (map, mask, screen), on the next 100 Hz tick, and the frame is 39.9 ms, 4.00 ticks of 9,983 us; with the event polled each wait returns 7 to 8 us after its interrupt and the frame is 22.4 to 22.6 ms, mean 23,264 us, 42 % shorter (MEASURED); where the SH-4 work sits between the waits is DERIVED; with both waits polled about 1 frame in 5 is still about 26.5 ms (OPEN, Q69).](../images/render-wait-poll.svg)
+
+  The picture places the SH-4 work between the waits (the 2.05, 0.94 and 0.13 ms gaps): that placing is **DERIVED**, not measured; the waits, the interrupt times and the frame lengths are MEASURED (PVR-117).
+
 - Why c4b's band cut is 22 to 28 % slower than c4's (SH4-049, Q64).
 - Tile lists cut to a target in the library's own passes (Q54).
 - A cached static map plus mover maps (T4), and how its compares join into one mask (Q58; the punch-through route works for one mask, PVR-105).
 - Punch-through: blended with alpha 0 or not drawn; the texture × vertex rounding; the depth mode with an occluder (Q16, Q21).
-- PVR-046: why equal depths are undecided.
+- PVR-046: why equal depths are undecided; and why the depth union fails (PVR-127, Q76).
 - c3b's level 28 where the rules say 32 (`POLLY2_NOTES.md:276`).
 - c2 (modifier volumes at town scale): built, not run.
 

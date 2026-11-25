@@ -1,0 +1,178 @@
+diff --git a/a3e_auto_src/demo/psm/psm_auto.h b/a3e_poll_src/demo/psm/psm_auto.h
+index 1dc7d9d..daeb418 100644
+--- a/a3e_auto_src/demo/psm/psm_auto.h
++++ b/a3e_poll_src/demo/psm/psm_auto.h
+@@ -28,9 +28,11 @@
+ #define PSM_AUTO_TURN    1.5707963f        /* a turning segment's yaw, radians, over its frames */
+ #define PSM_AUTO_STRIP   64u               /* points of the frame-time strip (psm_page.h's PG_POINTS) */
+ #define PSM_AUTO_EVT_N   6u                /* the TA's error events: ISP, strip, PARAM, OPB, input error, input overflow */
+-#define PSM_AUTO_METRICS 10u
++#define PSM_AUTO_METRICS 12u
+ 
+-enum { PSM_AM_FRAME, PSM_AM_SH4, PSM_AM_P0, PSM_AM_P1, PSM_AM_P2, PSM_AM_P3, PSM_AM_PVR, PSM_AM_TAV, PSM_AM_USED, PSM_AM_EST };
++/* WRDY, WDONE: the frame's time in the PVR's "ready" waits and its render-done waits, ms (psm_dc.c's wait_ready_, wait_done_) */
++enum { PSM_AM_FRAME, PSM_AM_SH4, PSM_AM_P0, PSM_AM_P1, PSM_AM_P2, PSM_AM_P3, PSM_AM_PVR, PSM_AM_TAV, PSM_AM_USED, PSM_AM_EST,
++       PSM_AM_WRDY, PSM_AM_WDONE };
+ 
+ typedef struct psm_auto_seg {
+     const char *name;
+diff --git a/a3e_auto_src/demo/psm/psm_dc.c b/a3e_poll_src/demo/psm/psm_dc.c
+index 3d1dc79..c860fb7 100644
+--- a/a3e_auto_src/demo/psm/psm_dc.c
++++ b/a3e_poll_src/demo/psm/psm_dc.c
+@@ -61,6 +61,82 @@
+ #define PG_PREFIX "auto"
+ #include "psm_page.h"
+ #include "psm_auto.h"
++
++/* ---- the PVR's waits: each timed apart; PSM_POLL_WAIT polls them --------------------------------------------------
++   KallistiOS's pvr_wait_render_done sleeps and wakes up to 10 ms after the render is done (Q53, PVR-117). With
++   PSM_POLL_WAIT (off by default) the "ready" wait spins on pvr_check_ready, and the render-done wait spins until this
++   program's handler, put in front of KallistiOS's for the render-done event (KallistiOS's runs first, unchanged), has
++   counted as many renders as scenes were finished. Interrupts stay on: the spin only reads a counter the handler
++   writes. A wait longer than PSM_WAIT_LIMIT_US gives up, counts a timeout and resyncs the count. Without the switch the
++   same two functions call KallistiOS's waits, so the two images time the same waits the same way. */
++#define PSM_WAIT_LIMIT_US 100000u
++static uint64_t wait_us[2];               /* since boot: in the ready waits [0], in the render-done waits [1] */
++static unsigned long wait_n[2], wait_timeouts;
++#ifdef PSM_POLL_WAIT
++static asic_evt_handler_entry_t rd_prev;
++static volatile uint32_t rd_n;            /* render-done events seen */
++static uint32_t rd_want;                  /* scenes finished since the hook */
++static int rd_hooked;
++
++static void rd_evt(uint32_t code, void *data) {
++    (void)data;
++    if (rd_prev.hdl) rd_prev.hdl(code, rd_prev.data);
++    rd_n++;
++}
++
++static void rd_hook(int on) {
++    if (on && !rd_hooked) {
++        rd_n = 0u; rd_want = 0u;
++        rd_prev = asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_evt, NULL);
++        rd_hooked = rd_prev.hdl != NULL;
++        if (!rd_hooked) asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, NULL, NULL);   /* none to chain: KallistiOS's waits */
++    } else if (!on && rd_hooked) {
++        asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_prev.hdl, rd_prev.data);
++        rd_hooked = 0;
++    }
++}
++#endif
++
++static int scene_finish_(void) {
++    const int r = pvr_scene_finish();
++#ifdef PSM_POLL_WAIT
++    rd_want++;
++#endif
++    return r;
++}
++
++static int wait_ready_(void) {
++    const uint64_t t0 = timer_us_gettime64();
++    int r;
++
++#ifdef PSM_POLL_WAIT
++    while ((r = pvr_check_ready()) < 0)
++        if (timer_us_gettime64() - t0 > PSM_WAIT_LIMIT_US) { wait_timeouts++; break; }
++#else
++    r = pvr_wait_ready();
++#endif
++    wait_us[0] += timer_us_gettime64() - t0; wait_n[0]++;
++    return r;
++}
++
++static int wait_done_(void) {
++    const uint64_t t0 = timer_us_gettime64();
++    int r = 0;
++
++#ifdef PSM_POLL_WAIT
++    if (rd_hooked) {
++        while ((int32_t)(rd_n - rd_want) < 0)
++            if (timer_us_gettime64() - t0 > PSM_WAIT_LIMIT_US) { wait_timeouts++; rd_want = rd_n; r = -1; break; }
++    } else r = pvr_wait_render_done();
++#else
++    r = pvr_wait_render_done();
++#endif
++    wait_us[1] += timer_us_gettime64() - t0; wait_n[1]++;
++    return r;
++}
++#define pvr_scene_finish() scene_finish_()
++#define pvr_wait_ready() wait_ready_()
++#define pvr_wait_render_done() wait_done_()
+ #endif
+ 
+ KOS_INIT_FLAGS(INIT_DEFAULT);
+@@ -526,11 +602,11 @@ static uint64_t render_wait(void) {
+ #ifndef PSM_AUTO_IMG
+ #define PSM_AUTO_IMG 0
+ #endif
+-static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto" };
++static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto", "ao1", "a3e-auto-t2", "a3e-poll" };
+ static psm_auto_t autos;
+ static volatile uint32_t auto_evt[PSM_AUTO_EVT_N];
+ static asic_evt_handler_entry_t auto_evt_prev[PSM_AUTO_EVT_N];
+-static uint64_t auto_w0[4], auto_last_us;
++static uint64_t auto_w0[4], auto_last_us, auto_wt0[2];
+ static uint32_t auto_vbuf_bytes;
+ 
+ static void auto_evt_hnd(uint32_t code, void *data) {
+@@ -578,6 +654,9 @@ static int auto_record(const uint64_t win_us[4], uint32_t used, uint32_t used_ma
+     v[PSM_AM_TAV] = (float)verts;
+     v[PSM_AM_USED] = (float)used * (1.0f / 1024.0f);
+     v[PSM_AM_EST] = (float)est * (1.0f / 1024.0f);
++    v[PSM_AM_WRDY] = (float)(wait_us[0] - auto_wt0[0]) * 1.0e-3f;
++    v[PSM_AM_WDONE] = (float)(wait_us[1] - auto_wt0[1]) * 1.0e-3f;
++    auto_wt0[0] = wait_us[0]; auto_wt0[1] = wait_us[1];
+     auto_evt_now(evt);
+     return psm_auto_frame(&autos, v, evt, used_max, shed, text_v, bakes, bake_us);
+ }
+@@ -593,11 +672,26 @@ static void auto_pages(void) {
+     pvr_wait_ready();
+     pvr_wait_render_done();
+     auto_hook(0);
++#ifdef PSM_POLL_WAIT
++    rd_hook(0);                               /* KallistiOS's handler back before the PVR stops */
++#endif
+     pvr_shutdown();
+     vid_set_mode(DM_640x480, PM_RGB565);
+     pg_init();
+-    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 5u], psm_auto_counted_frames());
+-    pg_say("vertex buffer %u KB x2; one console; per segment min/mean/max", (unsigned)(auto_vbuf_bytes / 1024u));
++    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 8u], psm_auto_counted_frames());
++    {
++        char rv[32];
++
++        suite_rev_text(rv, sizeof rv);           /* which console the photo is of: two register reads */
++        pg_say("vertex buffer %u KB x2; one console (%s); per segment min/mean/max", (unsigned)(auto_vbuf_bytes / 1024u), rv);
++    }
++#ifdef PSM_POLL_WAIT
++    pg_say("WAITS POLLED: ready by pvr_check_ready, done by our render-done count%s; town t2 (arch fixed)", rd_hooked ? "" : " (NOT HOOKED: KOS's)");
++#else
++    pg_say("WAITS: KallistiOS's sleeping pvr_wait_ready / pvr_wait_render_done; town t2 (arch fixed)");
++#endif
++    pg_say("waits: %lu ready %llu ms, %lu done %llu ms in all; timeouts (%u ms) %lu", wait_n[0], (unsigned long long)(wait_us[0] / 1000u),
++           wait_n[1], (unsigned long long)(wait_us[1] / 1000u), PSM_WAIT_LIMIT_US / 1000u, wait_timeouts);
+     pg_say("ms unless said. SH-4 = setup+map+casters+compare. PVR = last done render");
+     for (g = 0; g < PSM_AUTO_SEGS; g++) {
+         const psm_auto_stat_t *t = autos.st[g];
+@@ -612,6 +706,8 @@ static void auto_pages(void) {
+                psm_auto_mean(&t[PSM_AM_P0]), psm_auto_mean(&t[PSM_AM_P1]), psm_auto_mean(&t[PSM_AM_P2]), psm_auto_mean(&t[PSM_AM_P3]),
+                t[PSM_AM_PVR].lo, psm_auto_mean(&t[PSM_AM_PVR]), t[PSM_AM_PVR].hi,
+                t[PSM_AM_TAV].lo, psm_auto_mean(&t[PSM_AM_TAV]), t[PSM_AM_TAV].hi);
++        pg_say("  wait ready %.2f/%.2f/%.2f  done %.2f/%.2f/%.2f", t[PSM_AM_WRDY].lo, psm_auto_mean(&t[PSM_AM_WRDY]), t[PSM_AM_WRDY].hi,
++               t[PSM_AM_WDONE].lo, psm_auto_mean(&t[PSM_AM_WDONE]), t[PSM_AM_WDONE].hi);
+         pg_say("  used KB %.0f/%.0f/%.0f  est KB %.0f/%.0f  KOS max %uK  SHED<=%u  text %uv",
+                t[PSM_AM_USED].lo, psm_auto_mean(&t[PSM_AM_USED]), t[PSM_AM_USED].hi, psm_auto_mean(&t[PSM_AM_EST]), t[PSM_AM_EST].hi,
+                (unsigned)(autos.used_max_kos[g] / 1024u), autos.shed_hi[g], autos.text_v[g]);
+@@ -677,6 +773,10 @@ int main(void) {
+     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
+     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
+     psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
++#ifdef PSM_POLL_WAIT
++    rd_hook(1);                              /* before the first scene: the count starts at 0 with no render queued */
++    printf("psm: PSM_POLL_WAIT on, render-done %s\n", rd_hooked ? "hooked" : "NOT hooked (KallistiOS's waits)");
++#endif
+     vram0 = pvr_mem_available();
+     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
+ #ifdef PSM_AUTORUN

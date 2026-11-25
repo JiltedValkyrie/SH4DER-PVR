@@ -1,0 +1,22 @@
+ao0 b AO, sky directions into the shadow target. This run's
+ numbers. U union P plain C one side UC both. 256x256 565
+HOLLY REV 0011 SB 0B
+1 UNION 48 triangles, no sun. c values/levels b bad of n f flip
+1 k1 U c3/2 b477 n63832 f0|P c3 b460|C c3 b460
+1 k1 U565 ffff 7bef 39e7
+1 k1 C565 ffff 7bef 39e7
+1 k2 U c5/3 b1184 n63237 f0|P c5 b870|C c5 b870
+1 k2 U565 ffff b5b6 7bef 5acb 39e7
+1 k2 C565 ffff b5b6 7bef 5acb 39e7
+1 k4 U c8/5 b1310 n62405 f0|P c8 b970|C c8 b970
+1 k4 U565 ffff d6ba b596 94b2 7bef 6b4d 52aa 4a49
+1 k4 C565 ffff d6ba b596 94b2 7bef 6b4d 52aa 39e7
+1 k8 U c15/8 b2541 n61279 f0|P c14 b1764|C c14 b1764
+1 k8 U565 ffff ef5d d6ba c638 b596 a534 94b2 8c51 7bef 738e
+1 k8 C565 ffff ef5d d6ba c638 b596 a534 94b2 8c51 7bef 738e
+1 DERIVED UNION FAILS
+1 DERIVED ONE SIDE differs where two casters overlap (b above)
+2 COST 1164 triangles + sun. 8 frames a row. us; K = KB
+2 k0 U  v0 e68K k68K ao0 sun1822 pvr3877 mx3970
+2 k1 U  v3492 e136K k136K ao1824 sun1850 pvr4630 mx4752
+2 k2 U  v6984 e205K k205K ao3633 sun1855 pvr5654 mx5702

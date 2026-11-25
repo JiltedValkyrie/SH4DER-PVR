@@ -1,0 +1,8 @@
+2 k4 U  v13968 e341K k341K ao7300 sun1848 pvr8298 mx8325
+2 k8 U  v27936 e614K k614K ao14592 sun1831 pvr13582 mx13622
+2 k8 P  v27936 e614K k614K ao14535 sun1850 pvr16638 mx16704
+2 k8 C  v13968 e341K k341K ao10227 sun1852 pvr9900 mx9948
+2 k8 UC v13968 e341K k341K ao10242 sun1824 pvr9750 mx9791
+2 k4 UC v6984 e205K k205K ao5115 sun1832 pvr6533 mx6593
+2 DERIVED a direction (k8 U - k0)/8: SH-4 1824 us, PVR 1213 us
+2 TA out-of-memory events: param 0 bins 46 isp 0

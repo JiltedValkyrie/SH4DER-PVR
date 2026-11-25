@@ -1,0 +1,22 @@
+C  parts, cosine edge, us: faces 15; kinds, corners, bias 64;
+   band polygons 2104; Q and the strips 1023
+C bands 2 wide, 1288 vertices; whole cut: cosine edge 1711 us,
+   MEASURED edge 1711 us
+C  parts, MEASURED edge, us: faces 15; kinds, corners, bias 64;
+   band polygons 1083; Q and the strips 547
+C  parts, cosine edge, us: faces 15; kinds, corners, bias 64;
+   band polygons 1074; Q and the strips 557
+C bands 4 wide, 692 vertices; whole cut: cosine edge 896 us,
+   MEASURED edge 895 us
+C  parts, MEASURED edge, us: faces 15; kinds, corners, bias 64;
+   band polygons 569; Q and the strips 246
+C  parts, cosine edge, us: faces 15; kinds, corners, bias 64;
+   band polygons 568; Q and the strips 248
+C  one Q: from the measured edge 21.0 cycles, from the cosine's
+   21.2 (65536 calls each, the loop included)
+   (a part is the difference of two timed runs; test 5 times the
+   cut by the ns clock, this page by the cycle counter)
+6 PUNCH ref 128, 4444 alpha ramp: px drawn of 32768
+6 KallistiOS's header: 16384
+6 no depth write: 16384
+6 depth ALWAYS: 16384

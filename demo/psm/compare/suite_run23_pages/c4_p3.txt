@@ -1,0 +1,22 @@
+4 map vs model: same 16115, 1 code off 269, more 0, not a code 0
+4 bands 322, vertices 1288; holes inside 0, at an outline 0
+4 mask vs model on this map: differ inside a face 24, at an
+   outline 15
+4 mask vs ray: lit 36418 shadow 1378; acne 0 edge 546 rim 0; lit
+   in error: in bias 6 other 0
+4 SCENE sun 100/13 w 32 bands 2 wide grow .75 b0 x10 30, Q from
+   the cosine's edge
+4 map vs model: same 16226, 1 code off 158, more 0, not a code 0
+4 bands 337, vertices 1348; holes inside 0, at an outline 0
+4 mask vs model on this map: differ inside a face 22, at an
+   outline 14
+4 mask vs ray: lit 34889 shadow 2907; acne 0 edge 1254 rim 0;
+   lit in error: in bias 6 other 10
+4 SCENE sun 150/26 w 32 bands 2 wide grow .75 b0 x10 30, Q from
+   the MEASURED edge
+4 map vs model: same 16115, 1 code off 269, more 0, not a code 0
+4 bands 322, vertices 1288; holes inside 0, at an outline 0
+4 mask vs model on this map: differ inside a face 12, at an
+   outline 2
+4 mask vs ray: lit 36418 shadow 1378; acne 0 edge 495 rim 0; lit
+   in error: in bias 30 other 0

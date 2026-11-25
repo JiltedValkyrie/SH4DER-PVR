@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="846" viewBox="0 0 1200 846" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">Render-done wait: sleeping against polled</title>
+<desc id="dsc">Two bars on a 0 to 42 ms axis with the 100 Hz scheduler ticks marked every 9.983 ms. Top, the sleeping wait: SH-4 work, then the map, mask and screen renders, each followed by a hatched stretch asleep after the render-done interrupt until the next tick, 4.6, 2.9 and 9.9 ms; the frame ends on tick 4 at 39.9 ms. Bottom, the polled wait: the same work and renders end to end, the frame ends at about 22.5 ms, with a dashed outline to 26.5 ms for the one frame in five that is still long. Below: a table of the measured means and what it means: poll the render-done event.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="846" fill="#fbfaf7"/>
+<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#f1ede4"/><path d="M0 0 L0 8" stroke="#b9b2a2" stroke-width="3"/></pattern></defs>
+<text x="30" y="36" class="t">The render-done wait over one frame: sleeping against polled</text>
+<text x="30" y="58" class="s">Spike c4g test 8 (sleeping) and 8b (polled), 60 frames each, one console, one run, 2026-11-25 (PVR-117, closes Q53).</text>
+<text x="30" y="74" class="s">Source: compare/SUITE_RUN1_RESULTS_senior.md:103-124; photos PXL_20261125_151718936 .. 151723069 (c4g p8 .. p11), 151735925 (p18, frame strip).</text>
+<text x="30" y="96" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<path d="M230.0 132 L230.0 400" stroke="#7a3ea8" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="230.0" y="126" class="k r" text-anchor="middle">tick 0</text>
+<path d="M444.6 132 L444.6 400" stroke="#7a3ea8" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="444.6" y="126" class="k r" text-anchor="middle">tick 1</text>
+<path d="M659.3 132 L659.3 400" stroke="#7a3ea8" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="659.3" y="126" class="k r" text-anchor="middle">tick 2</text>
+<path d="M873.9 132 L873.9 400" stroke="#7a3ea8" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="873.9" y="126" class="k r" text-anchor="middle">tick 3</text>
+<path d="M1088.5 132 L1088.5 400" stroke="#7a3ea8" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="1088.5" y="126" class="k r" text-anchor="middle">tick 4</text>
+<path d="M230 400 L1133 400" class="ar"/>
+<path d="M230 400 L230 406" class="ar"/>
+<text x="230" y="420" class="s" text-anchor="middle">0 ms</text>
+<path d="M445 400 L445 406" class="ar"/>
+<text x="445" y="420" class="s" text-anchor="middle">10 ms</text>
+<path d="M660 400 L660 406" class="ar"/>
+<text x="660" y="420" class="s" text-anchor="middle">20 ms</text>
+<path d="M875 400 L875 406" class="ar"/>
+<text x="875" y="420" class="s" text-anchor="middle">30 ms</text>
+<path d="M1090 400 L1090 406" class="ar"/>
+<text x="1090" y="420" class="s" text-anchor="middle">40 ms</text>
+<text x="30" y="172" class="h2">Sleeping wait</text>
+<text x="30" y="189" class="s">pvr_wait_render_done</text>
+<text x="30" y="205" class="s"><tspan class="k m">[MEASURED c4g 8]</tspan></text>
+<rect x="230.0" y="168" width="44.1" height="30" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="274.1" y="168" width="71.0" height="30" fill="#9fd0a8" stroke="#fff" stroke-width="0.8"/>
+<text x="309.6" y="188" class="k" text-anchor="middle" style="fill:#fff">map 3.3</text>
+<path d="M345.1 166 l-5 -10 h10 z" fill="#d9534f"/>
+<rect x="345.1" y="168" width="99.9" height="30" fill="url(#hatch)" stroke="#9fd0a8" stroke-width="1.4"/>
+<text x="395.0" y="188" class="k" text-anchor="middle">asleep +4.6</text>
+<circle cx="445.0" cy="183" r="4.5" fill="#7a3ea8"/>
+<rect x="445.0" y="168" width="20.2" height="30" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="465.2" y="168" width="131.9" height="30" fill="#5fae74" stroke="#fff" stroke-width="0.8"/>
+<text x="531.1" y="188" class="k" text-anchor="middle" style="fill:#fff">mask 6.1</text>
+<path d="M597.0 166 l-5 -10 h10 z" fill="#d9534f"/>
+<rect x="597.0" y="168" width="63.0" height="30" fill="url(#hatch)" stroke="#5fae74" stroke-width="1.4"/>
+<text x="628.5" y="188" class="k" text-anchor="middle">+2.9</text>
+<circle cx="660.0" cy="183" r="4.5" fill="#7a3ea8"/>
+<rect x="660.0" y="168" width="2.8" height="30" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="662.8" y="168" width="213.0" height="30" fill="#2f7d48" stroke="#fff" stroke-width="0.8"/>
+<text x="769.3" y="188" class="k" text-anchor="middle" style="fill:#fff">screen 9.9</text>
+<path d="M875.8 166 l-5 -10 h10 z" fill="#d9534f"/>
+<rect x="875.8" y="168" width="213.7" height="30" fill="url(#hatch)" stroke="#2f7d48" stroke-width="1.4"/>
+<text x="982.7" y="188" class="k" text-anchor="middle">asleep +9.9</text>
+<circle cx="1089.5" cy="183" r="4.5" fill="#7a3ea8"/>
+<path d="M1089.5 160 L1089.5 206" stroke="#d9534f" stroke-width="3"/>
+<rect x="789.5" y="209" width="296.0" height="18" fill="#fbfaf7"/>
+<text x="1085.5055" y="222" class="h2" text-anchor="end" style="fill:#d9534f">frame 39.9 ms = 4.00 ticks of 9,983 µs</text>
+<text x="30" y="294" class="h2">Polled wait</text>
+<text x="30" y="311" class="s">render-done event, our loop</text>
+<text x="30" y="327" class="s"><tspan class="k m">[MEASURED c4g 8b]</tspan></text>
+<rect x="230.0" y="290" width="44.1" height="30" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="274.1" y="290" width="70.8" height="30" fill="#9fd0a8" stroke="#fff" stroke-width="0.8"/>
+<text x="309.5" y="310" class="k" text-anchor="middle" style="fill:#fff">map 3.3</text>
+<path d="M344.8 288 l-5 -10 h10 z" fill="#d9534f"/>
+<rect x="344.8" y="290" width="20.2" height="30" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="365.0" y="290" width="133.1" height="30" fill="#5fae74" stroke="#fff" stroke-width="0.8"/>
+<text x="431.6" y="310" class="k" text-anchor="middle" style="fill:#fff">mask 6.2</text>
+<path d="M498.1 288 l-5 -10 h10 z" fill="#d9534f"/>
+<rect x="498.1" y="290" width="2.8" height="30" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="500.9" y="290" width="214.0" height="30" fill="#2f7d48" stroke="#fff" stroke-width="0.8"/>
+<text x="607.9" y="310" class="k" text-anchor="middle" style="fill:#fff">screen 10.0</text>
+<path d="M714.9 288 l-5 -10 h10 z" fill="#d9534f"/>
+<rect x="714.9" y="290" width="85.6" height="30" fill="none" stroke="#666" stroke-width="1.4" stroke-dasharray="4 3"/>
+<path d="M714.9 282 L714.9 328" stroke="#d9534f" stroke-width="3"/>
+<rect x="448.9" y="331" width="262.0" height="18" fill="#fbfaf7"/>
+<text x="710.9110000000001" y="344" class="h2" text-anchor="end" style="fill:#d9534f">frame 22.4 .. 22.6 ms; mean 23.3</text>
+<rect x="804.5" y="290" width="200.0" height="18" fill="#fbfaf7"/>
+<rect x="804.5" y="305" width="200.0" height="18" fill="#fbfaf7"/>
+<text x="806.5025" y="303" class="k o">1 frame in 5: about 26.5 ms</text>
+<text x="806.5025" y="318" class="s">(max 26,535 µs) <tspan class="k o">[OPEN Q69]</tspan></text>
+<path d="M1088.0 374 L716.9 374" stroke="#1d7a3a" stroke-width="2" marker-end="url(#h)"/>
+<rect x="701.5" y="355" width="400.0" height="18" fill="#fbfaf7"/>
+<text x="901.47725" y="368" class="b" text-anchor="middle">mean 39.9 → 23.3 ms a frame: 42 % shorter <tspan class="k m">[MEASURED]</tspan></text>
+<rect x="30" y="437" width="16" height="14" fill="#5b8cc0"/><text x="52" y="449" class="s">SH-4 work (split not timed)</text>
+<rect x="267.0" y="437" width="16" height="14" fill="#5fae74"/><text x="289.0" y="449" class="s">PVR render</text>
+<rect x="385.0" y="437" width="16" height="14" fill="url(#hatch)" stroke="#8a8f99"/><text x="407.0" y="449" class="s">asleep after the interrupt</text>
+<path d="M623.0 447 l-5 -10 h10 z" fill="#d9534f"/><text x="637.0" y="449" class="s">render-done interrupt</text>
+<circle cx="818.0" cy="444" r="4.5" fill="#7a3ea8"/><text x="832.0" y="449" class="s">wake on the tick</text>
+<path d="M978.0 436 L978.0 452" stroke="#d9534f" stroke-width="3"/><text x="992.0" y="449" class="s">end of frame</text>
+<text x="30" y="474" class="s">Where each part sits is <tspan class="k e">[DERIVED]</tspan>: the three SH-4 gaps (2.05, 0.94, 0.13 ms) are the ones that put every sleeping wake on a tick; together 3.1 ms,</text>
+<text x="30" y="490" class="s">against 3.0 measured as frame less waits. In this placement the screen render ends about 50 µs after tick 3, so it sleeps until tick 4. Polled row: the same gaps.</text>
+<rect x="30" y="518" width="560" height="250" rx="6" class="box"/>
+<text x="44" y="544" class="h">The numbers, mean µs over 60 frames</text>
+<text x="44" y="562" class="s">every cell <tspan class="k m">[MEASURED c4g, one run]</tspan></text>
+<text x="44" y="588" class="h2">pass</text>
+<text x="150" y="588" class="h2">render</text>
+<text x="240" y="588" class="h2">sleeping wait</text>
+<text x="370" y="588" class="h2">back after</text>
+<text x="462" y="588" class="h2">polled wait</text>
+<text x="370" y="602" class="s">the interrupt</text>
+<text x="44" y="626" class="b">map</text>
+<text x="150" y="626" class="b">3,303</text>
+<text x="240" y="626" class="b">7,930</text>
+<text x="370" y="626" class="b">4,645</text>
+<text x="462" y="626" class="b">3,278 (+8)</text>
+<text x="44" y="647" class="b">mask</text>
+<text x="150" y="647" class="b">6,134</text>
+<text x="240" y="647" class="b">9,047</text>
+<text x="370" y="647" class="b">2,929</text>
+<text x="462" y="647" class="b">6,180 (+7)</text>
+<text x="44" y="668" class="b">screen</text>
+<text x="150" y="668" class="b">9,906</text>
+<text x="240" y="668" class="b">19,830</text>
+<text x="370" y="668" class="b">9,940</text>
+<text x="462" y="668" class="b">9,900 (+7)</text>
+<text x="44" y="689" class="s">frame</text>
+<text x="150" y="689" class="s"></text>
+<text x="240" y="689" class="s">39,909</text>
+<text x="370" y="689" class="s"></text>
+<text x="462" y="689" class="s">23,264</text>
+<text x="44" y="710" class="s">frame min / max</text>
+<text x="150" y="710" class="s"></text>
+<text x="240" y="710" class="s">38,520 / 39,934</text>
+<text x="370" y="710" class="s"></text>
+<text x="462" y="710" class="s">22,390 / 26,535</text>
+<text x="44" y="731" class="s">frame less waits</text>
+<text x="150" y="731" class="s"></text>
+<text x="240" y="731" class="s">3,003</text>
+<text x="370" y="731" class="s"></text>
+<text x="462" y="731" class="s">3,042</text>
+<text x="44" y="758" class="s">Polled renders 3,291 / 6,190 / 9,953; (+8) is µs back after the interrupt.</text>
+<rect x="610" y="518" width="560" height="250" rx="6" class="tm"/>
+<text x="624" y="544" class="h">What it means</text>
+<text x="624" y="570" class="b">The interrupt is on time; the wake is late. The sleeping wait runs</text>
+<text x="624" y="589" class="b">again only on the next 100 Hz tick: up to 10 ms a pass.</text>
+<text x="624" y="608" class="b"><tspan font-weight="700">Rule:</tspan> poll the render-done event in our own code. Nothing</text>
+<text x="624" y="627" class="b">in KallistiOS is changed <tspan class="k e">[ADVISED, one run]</tspan>.</text>
+<text x="624" y="646" class="s">The town still calls the sleeping wait (psm_dc.c:259, 328, 512, 627)</text>
+<text x="624" y="665" class="s"><tspan class="k f">[FACT, the code]</tspan>; what it pays there is not timed <tspan class="k e">[ESTIMATE]</tspan>.</text>
+<text x="624" y="684" class="s">The cycle counter stops while the CPU sleeps: it counted 3,400 µs of a</text>
+<text x="624" y="703" class="s">39,909 µs sleeping frame; polled, it agrees with the ns clock to 2 µs.</text>
+<text x="624" y="722" class="s">Q69: the screen list close is 786 µs mean, 4,033 at most; the flip</text>
+<text x="624" y="741" class="s">waiting for a vertical blank? <tspan class="k e">[ESTIMATE, not tested]</tspan></text>
+<text x="30" y="794" class="s">Scale: 21.5 px a ms. The tick is 9,983 µs, from the sleeping frame of 39,932 µs in every frame after the first (4.00 ticks) <tspan class="k m">[MEASURED]</tspan>; KallistiOS&#39;s</text>
+<text x="30" y="810" class="s">scheduler runs at 100 Hz <tspan class="k f">[FACT, PVR-011, the source]</tspan>. Frames 1 .. 8 polled: 22,440 22,506 22,390 24,920 22,471 22,457 22,550 22,464 µs <tspan class="k m">[MEASURED]</tspan>.</text>
+</svg>

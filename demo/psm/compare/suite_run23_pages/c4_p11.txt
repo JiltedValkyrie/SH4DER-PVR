@@ -1,0 +1,22 @@
+8   screen done-wait: back 7/8 us after the interrupt; 24
+   vblanks in the 60 waits
+8  frames 1-8: 22470 22339 24367 22445 22468 22523 22510 26459
+8  DERIVED mean frame minus mean waits: 3043
+8  mean frame by the cycle counter: 23255 us (it may stop while
+   the CPU sleeps in a wait)
+   (a vblank is one picture: 16.7 ms at 60 Hz. The ns clock may
+   step 2.5 ms ahead once a second: a max about 2.5 ms over its
+   mean can be that step, ray2 CLOCK.4)
+   (8b predicted from KallistiOS's source, ESTIMATE: the
+   render-done wake does not reschedule, so the sleeping wait
+   comes back on the scheduler's next tick)
+9 ROUTE the mask by punch-through, reference = threshold 38, Q
+   from the measured edge
+9 sun 150/26: shadow px 1555 1843, punch-through 1843; differ 0;
+   not drawn by route 2 0
+9  PVR mask pass: 1555 6137 us, punch-through 7176 us
+9  punch-through colours: ffff x1843 0000 x0 0000 x0 0000 x0
+9 sun 100/13: shadow px 1555 4082, punch-through 4082; differ 0;
+   not drawn by route 2 0
+9  PVR mask pass: 1555 6953 us, punch-through 7924 us
+9  punch-through colours: ffff x4082 0000 x0 0000 x0 0000 x0

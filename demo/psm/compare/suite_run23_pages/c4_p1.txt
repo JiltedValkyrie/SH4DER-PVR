@@ -1,0 +1,22 @@
+c4g. ns clock: reload step taken out. numbers below: measured by
+   this run. GRAPH pages follow the text pages: shape only, the
+   values are in the text
+PLACING bsrc 8c1a57a0 bscr 8c1e77a0 bref 8c22a7a0; apart mod 16
+   KB: 8192 4096 12288
+0 RAMP code from the pixel's own depth, px wrong of 16384
+fetch: PVR-DMA of 32768 bytes matches 256 words read from video
+   memory
+0 plain 1024 texels: 2303 wrong, worst 1 codes, 0 px not a code
+0 8 sub-steps through v: 348 wrong, worst 1 codes, 0 px not a
+   code
+0 ramp used from here: 8 sub-steps
+0 whole codes (2y, 2y+1): 0 of 16384 wrong
+1 WINDOW each code against 160 Q, px of 40960
+1 w 16 thr 10: differ 784, of them within 2 levels of thr 320,
+   holes 0
+1 w 32 thr 38: differ 443, of them within 2 levels of thr 320,
+   holes 0
+1 w 64 thr 128: differ 240, of them within 2 levels of thr 240,
+   holes 0
+1 EDGES w 32 thr 38: lit from 99 to 157 (cosine 97 to 159); 2
+   mixed; 256 of 256 seen

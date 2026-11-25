@@ -160,3 +160,35 @@ s2 is s1 with **hud1b-auto in place of hud1-auto**. Nothing else changed: the ot
 **hud1b-auto** (Junior's, `demo/psm/patches/hud1b.diff`): the fault catcher is armed first, and each boot step prints a "BOOT n <stage>" line to the screen. What the owner photographs is one of three: the town and then its pages; a HANG or EXCEPTION page that names the step; or a still screen with the BOOT list, whose last line is the step that hung.
 
 Menu row 6 reads: "HUD loss test, boot steps printed. ~3 min" and "photo the pages; if it stops, photo the BOOT list/fault".
+
+## Suite s3: built, not run
+
+s3 is s2 plus four tests, with the menu's RUN ALL order changed. The seven binaries of s2 are the same bytes (same sha256 in both manifests). The menu was built again.
+
+| Item | Value |
+|---|---|
+| Image | `demo/psm/out/cdi/psm-suite-s3.cdi` |
+| sha256 | b41afae5d0553344725c6738855dac861456e6983922186dfb26b5c81059a244 |
+| Size | 9,496,809 bytes |
+| Build | `python demo/psm/suite/build.py --tag s3 --list demo/psm/suite/suite_s3.json` |
+| Log | `D:\tmp\psmbuild\logs\suite_s3_20261125_111702.log` |
+
+**New entries.**
+
+| Entry | What it is | ELF sha256 |
+|---|---|---|
+| ao0 | AO method 2's hardware questions (`ao/NOTES.md`): the depth union, one side only, the cost a direction | bd154e0e…7c78 |
+| ao1 | Junior's town AO demo: OFF, 1 baked, 2 the PVR map (K 4, union), on the town with the arch fixed | 5e5b3e32…876d |
+| a3e-t2 | Junior's a3e-auto-t2: a3e on the town with the arch fixed, KallistiOS's waits timed | bb8113b7…f2e8 |
+| a3e-poll | the same with the PVR waits polled | a339c051…4e55 |
+
+**RUN ALL** runs, in this order: ao0, ao1, a3e-t2, a3e-poll, hud1b-auto. These are the five that have given no pages yet. c4g, r3-d, a3e-auto, a3f-auto, bake1-auto and qr-q2 ran on s1 and are picked by hand.
+
+**Town v1 and v2.** a3e-auto, a3f-auto, bake1-auto and hud1b-auto are the builds of s1 and s2, on the town before the arch fix (v1). ao1, a3e-t2 and a3e-poll are on the fixed town (v2). The menu rows say which.
+
+**The console's revision on the menu.** `psm_suite.h` has `suite_rev_text()`: two reads through the uncached mirror, the PVR core's REVISION (0xA05F8004) and the system bus's SB_SBREV (0xA05F689C); nothing is written. The menu prints "HOLLY REV xxxx SB xx" at the right of its title line. ao0 prints it as line 3 of its first page; Junior's three new town builds print it on page 1. c4g, r3-d and qr-q2 were not rebuilt for it.
+
+| Claim | Status |
+|---|---|
+| The console's Holly and system-bus revisions | OPEN until a photo of the s3 menu |
+| The menu with the revision line starts and lists 11 tests | built; not run |

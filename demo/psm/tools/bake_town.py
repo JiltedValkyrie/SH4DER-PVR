@@ -32,6 +32,7 @@ import sys
 import zipfile
 
 U = 1.5                                    # metres a kit unit; a storey is 2 units
+ARCH_PROUD = 0.05                          # metres the arch stands out of its facade: its front face was in the wall's plane (z-fight)
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOD_DEFAULT = os.path.join(HERE, "..", "..", "..", "third_party", "dc-forerunner", "tools", "lod")
 
@@ -401,10 +402,10 @@ class Town:
         if arch is not None:
             lz = (-d[2], d[0])
             tgt = arch if (lz[0] * al[0] + lz[1] * al[2]) < 0 else arch + 1
-            at = F((tgt + 0.5) * U, 0.0, 0.5 * U)
+            at = F((tgt + 0.5) * U, 0.0, 0.5 * U - ARCH_PROUD)   # the piece's front face (local x 0.5) off the wall's plane
             self.place("Stone_Arch_Outer", at, (d[0], d[2]), item)
             st = self.col("Stone_Brit_Gray")
-            rs = [U * q for q in (1, 2, 3, 4)]
+            rs = [U - ARCH_PROUD, 2 * U, 3 * U, 4 * U]          # the passage starts where the piece's back face now is
             hs = [0.0, U, 2 * U, 3 * U]
             s0, s1 = arch * U, (arch + 2) * U
             for j in range(3):

@@ -1,0 +1,22 @@
+4 SCENE sun 100/13 w 32 bands 2 wide grow .75 b0 x10 30, Q from
+   the MEASURED edge
+4 map vs model: same 16226, 1 code off 158, more 0, not a code 0
+4 bands 337, vertices 1348; holes inside 0, at an outline 0
+4 mask vs model on this map: differ inside a face 14, at an
+   outline 16
+4 mask vs ray: lit 34889 shadow 2907; acne 0 edge 1222 rim 0;
+   lit in error: in bias 27 other 20
+S SWEEP sun 150/26 w 32 bands 2 wide grow .75, Q from the
+   MEASURED edge; counts as test 4's
+S  b0 x10 0: acne 0 edge 546 rim 0; lit in error 6 + 0; vs model
+   10 + 12; holes 0
+S  b0 x10 5: acne 0 edge 519 rim 0; lit in error 8 + 0; vs model
+   8 + 2; holes 0
+S  b0 x10 10: acne 0 edge 519 rim 0; lit in error 8 + 0; vs
+   model 8 + 2; holes 0
+S  b0 x10 15: acne 0 edge 512 rim 0; lit in error 14 + 0; vs
+   model 9 + 2; holes 0
+S  b0 x10 20: acne 0 edge 512 rim 0; lit in error 14 + 0; vs
+   model 9 + 2; holes 0
+S  b0 x10 25: acne 0 edge 495 rim 0; lit in error 30 + 0; vs
+   model 12 + 2; holes 0

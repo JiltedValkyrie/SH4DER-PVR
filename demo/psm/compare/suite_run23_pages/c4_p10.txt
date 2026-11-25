@@ -1,0 +1,22 @@
+   vblanks in the 60 waits
+8  screen waits mean/max: open 4/4 close 17/35 done 19827/19832;
+   render 9905
+8   screen done-wait: back 9940/9982 us after the interrupt; 72
+   vblanks in the 60 waits
+8  frames 1-8: 39007 39933 39932 39932 39934 39933 39934 39932
+8  DERIVED mean frame minus mean waits: 3002
+8  mean frame by the cycle counter: 3406 us (it may stop while
+   the CPU sleeps in a wait)
+8 8b: ready and done POLLED: frame min 22339 mean 23254 max
+   26544
+8  vblanks a frame 0..6, 7+: 0 36 24 0 0 0 0 0
+8  map waits mean/max: open 5/6 close 31/38 done 3278/3297;
+   render 3291
+8   map done-wait: back 8/8 us after the interrupt; 1 vblanks in
+   the 60 waits
+8  mask waits mean/max: open 4/5 close 33/36 done 6177/6266;
+   render 6187
+8   mask done-wait: back 7/8 us after the interrupt; 24 vblanks
+   in the 60 waits
+8  screen waits mean/max: open 4/4 close 777/4014 done
+   9900/9954; render 9911

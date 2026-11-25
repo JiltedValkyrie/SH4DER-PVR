@@ -1,0 +1,22 @@
+1 EDGES differences whose answer is not the cosine's: 1 under
+   128, 1 over
+1 EDGES from here on Q is made from the edge 99 (c4b fix 4),
+   unless a line says cosine
+3 BIAS ground alone: every shadow px is acne; Q from the
+   cosine's edge
+3 bands 1 wide, b0 0 .5 1 1.5 2 2.5 3: 16867 2774 2774 0 0 0 0
+   shadow of 34928 px
+3 bands 2 wide, b0 0 .5 1 1.5 2 2.5 3: 2981 2775 2775 0 0 0 0
+   shadow of 34928 px
+3 bands 4 wide, b0 0 .5 1 1.5 2 2.5 3: 1485 1364 1364 0 0 0 0
+   shadow of 34928 px
+3 BIAS ground alone: every shadow px is acne; Q from the
+   MEASURED edge
+3 bands 1 wide, b0 0 .5 1 1.5 2 2.5 3: 0 0 0 0 0 0 0 shadow of
+   34928 px
+3 bands 2 wide, b0 0 .5 1 1.5 2 2.5 3: 0 0 0 0 0 0 0 shadow of
+   34928 px
+3 bands 4 wide, b0 0 .5 1 1.5 2 2.5 3: 0 0 0 0 0 0 0 shadow of
+   34928 px
+4 SCENE sun 150/26 w 32 bands 2 wide grow .75 b0 x10 30, Q from
+   the cosine's edge

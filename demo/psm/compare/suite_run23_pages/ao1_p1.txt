@@ -1,0 +1,22 @@
+TOWN AUTORUN ao1: 1350 frames counted, sim step 1/30 s
+vertex buffer 1024 KB x2; one console (HOLLY REV 0011 SB 0B);
+   per segment min/mean/max
+ms unless said. SH-4 = setup+map+casters+compare. PVR = last
+   done render
+AO1 baked: walls+ground, 0 PVR. AO2 PVR map: ground only, K 4,
+   union
+map = route A's map pass alone (in TAv); screen = TAv - map
+OFF still (150 fr): frame 50.7/53.2/87.0  SH-4 13.1/14.0/29.6
+  parts 2.5 7.7 3.7 0.0  PVR 3.3/3.9/14.2  TAv 27746/27802/27903
+  map TAv 3215/3220/3242  map KB 63/63/63
+  used KB 63/683/976  est KB 699/701  KOS max 975K  SHED<=0 
+   text 92v
+  events ISP 0 strip 0 PARAM 0 OPB 150 in-err 0 in-ovf 0 
+   OVERFLOW
+OFF turn (300 fr): frame 53.4/67.6/99.4  SH-4 13.2/29.8/42.0
+  parts 19.1 7.0 3.7 0.0  PVR 3.3/4.0/16.0  TAv
+   24084/26068/28021
+  map TAv 2702/2923/3218  map KB 53/57/63
+  used KB 53/619/996  est KB 674/710  KOS max 996K  SHED<=0 
+   text 92v
+  events ISP 0 strip 0 PARAM 0 OPB 300 in-err 0 in-ovf 0 

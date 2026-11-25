@@ -1,0 +1,733 @@
+diff --git a/a3e_auto_src/Makefile b/ao1_src/Makefile
+index 3fae399..9e9b09c 100644
+--- a/a3e_auto_src/Makefile
++++ b/ao1_src/Makefile
+@@ -145,7 +145,12 @@ PSM_TOWN_DEPS = demo/psm/psm_scene.h demo/psm/psm_town.h demo/psm/psm_sky.h demo
+ PSM_TOWN_INC  = -DPSM_HAVE_TOWN -I$(BUILD)/psm_town -I$(BUILD)/psm_sky
+ $(PSM_TOWN_H): demo/psm/tools/bake_town.py $(wildcard $(PSM_TOWN_ZIP))
+ 	@mkdir -p $(BUILD)/psm_town
+-	$(PYTHON) -I demo/psm/tools/bake_town.py $(if $(wildcard $(PSM_TOWN_ZIP)),$(PSM_TOWN_ZIP),-) $@ --json $(BUILD)/psm_town/psm_town_mesh.json
++	$(PYTHON) -I demo/psm/tools/bake_town.py $(if $(wildcard $(PSM_TOWN_ZIP)),$(PSM_TOWN_ZIP),-) $@ --json $(BUILD)/psm_town/psm_town_mesh.json $(PSM_TOWN_BAKE_FLAGS)
++# The AO demo (PSM_AO_DEMO, PSM_TOWN_BAKE_FLAGS=--ao-demo): method 1's bytes, baked on the host from the same mesh (tools/ao_bake.c)
++AO_HOSTCC ?= gcc
++$(BUILD)/psm_town/psm_town_ao.h: demo/psm/tools/ao_bake.c $(PSM_TOWN_H)
++	$(AO_HOSTCC) -O2 -std=c99 -Wall -Wextra -I$(BUILD)/psm_town $< -lm -o $(BUILD)/psm_town/ao_bake
++	$(BUILD)/psm_town/ao_bake $@
+ $(PSM_SKY_H): demo/psm/tools/bake_sky.py $(wildcard $(PSM_SKY_HDR))
+ 	@mkdir -p $(BUILD)/psm_sky
+ 	$(PYTHON) -I demo/psm/tools/bake_sky.py $(if $(wildcard $(PSM_SKY_HDR)),$(PSM_SKY_HDR),-) $@ --json $(BUILD)/psm_sky/psm_sky_tex.json
+@@ -361,7 +366,7 @@ psm-dc: $(PSM_DC_CDI)
+ $(PSM_COW_H): $(PSM_COW_OBJ) demo/psm/tools/bake_cow.py
+ 	@mkdir -p $(BUILD)/psm_dc
+ 	$(PYTHON) -I demo/psm/tools/bake_cow.py $(PSM_COW_OBJ) $@ --tris $(PSM_COW_TRIS)
+-$(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h demo/psm/psm_fault.h $(PSM_TOWN_DEPS) include/sh4der_psm.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
++$(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h demo/psm/psm_fault.h $(PSM_TOWN_DEPS) $(PSM_DC_DEPS_EXTRA) include/sh4der_psm.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
+ 	@mkdir -p $(BUILD)/psm_dc
+ 	$(DC_CC) $(DC_FLAGS) $(PSM_DC_EXTRA) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
+ $(PSM_DC_CDI): $(BUILD)/psm_dc/sh4der-psm-ab.elf
+diff --git a/a3e_auto_src/demo/psm/tools/bake_town.py b/ao1_src/demo/psm/tools/bake_town.py
+index df7e2b1..0bff024 100644
+--- a/a3e_auto_src/demo/psm/tools/bake_town.py
++++ b/ao1_src/demo/psm/tools/bake_town.py
+@@ -1,7 +1,7 @@
+ #!/usr/bin/env python3
+ """Build the town square of demo/psm/TOWN_STORY.md into a C header for the Dreamcast program and the host test.
+ 
+-  python -I demo/psm/tools/bake_town.py <modular_village_collection.zip | -> <out.h> [--lod <dir>] [--json <report.json>]
++  python -I demo/psm/tools/bake_town.py <modular_village_collection.zip | -> <out.h> [--lod <dir>] [--json <report.json>] [--ao-demo]
+ 
+ The kit is Modular Village (Keith at Fertile Soil Productions, CC0, fetch_table.json), read from the zip; nothing is
+ extracted. The kit's pieces as they are come to about 64,000 triangles in the mock-up's placement (TOWN_MOCKUP.md), so:
+@@ -455,7 +455,7 @@ class Town:
+         H_ = "houses and hall"
+         # North: NW houses (2), the guildhall (4, the arch on the centre line), the NE house (3). Facades at z 12, facing south.
+         self.terrace("NW houses", -18.0, 12.0, "E", "S", 8, 2, H_, doors=(5,), ends=(False, False), hide=(0, 1, 2, 3))
+-        self.terrace("guildhall", -6.0, 12.0, "E", "S", 8, 4, H_, arch=3, chimney=0)
++        self.terrace("guildhall", -6.0, 12.0, "E", "S", 8, 4, H_, arch=None if AO_DEMO else 3, chimney=0)   # --ao-demo: no gate
+         F_ne = self.terrace("NE house", 6.0, 12.0, "E", "S", 8, 3, H_, doors=(3,), chimney=6, ends=(False, False), hide=(4, 5, 6, 7))
+         # West: SW houses (2), the tavern (3), the corner house (2). Facades at x -12, facing east; tiles run north.
+         self.terrace("SW ring houses", -12.0, -12.0, "N", "E", 7, 2, H_, doors=(2, 5), ends=(True, False))
+@@ -540,16 +540,17 @@ class Town:
+         self.frame_piece(lambda s, y, r: F2(5 * U - r, y, s), 3.0, 0.0, 1.05, 2.3, 0.06, MID_TIMBER, KD["Wood_Dark"], "doors", inset=0.1)
+ 
+         # ---- the open square ----
+-        self.place("Prop_Well_1", R(-2.0, 0, -7.0), "E", "well", center=True)
+-        self.cst.begin("well", "well")
+-        wc = R(-2.0, 0, -7.0)
+-        prism(None, wc, 0.85, 0.8, 8, None, None, cst=self.cst)
+-        for dx in (-0.85, 0.75):
+-            cbox(self.cst, (wc[0] + dx, 0.8, wc[2]), (0.12, 1.2, 0.12))
+-        rp = [(wc[0] - 1.1, 1.9, wc[2] - 0.85), (wc[0] + 0.95, 1.9, wc[2] - 0.85), (wc[0] + 0.95, 1.9, wc[2] + 0.85), (wc[0] - 1.1, 1.9, wc[2] + 0.85)]
+-        rg = [(wc[0] - 1.1, 2.3, wc[2]), (wc[0] + 0.95, 2.3, wc[2])]
+-        self.cst.quad(rp[0], rp[1], rg[1], rg[0])
+-        self.cst.quad(rp[3], rg[0], rg[1], rp[2])
++        if not AO_DEMO:                                      # --ao-demo: no well
++            self.place("Prop_Well_1", R(-2.0, 0, -7.0), "E", "well", center=True)
++            self.cst.begin("well", "well")
++            wc = R(-2.0, 0, -7.0)
++            prism(None, wc, 0.85, 0.8, 8, None, None, cst=self.cst)
++            for dx in (-0.85, 0.75):
++                cbox(self.cst, (wc[0] + dx, 0.8, wc[2]), (0.12, 1.2, 0.12))
++            rp = [(wc[0] - 1.1, 1.9, wc[2] - 0.85), (wc[0] + 0.95, 1.9, wc[2] - 0.85), (wc[0] + 0.95, 1.9, wc[2] + 0.85), (wc[0] - 1.1, 1.9, wc[2] + 0.85)]
++            rg = [(wc[0] - 1.1, 2.3, wc[2]), (wc[0] + 0.95, 2.3, wc[2])]
++            self.cst.quad(rp[0], rp[1], rg[1], rg[0])
++            self.cst.quad(rp[3], rg[0], rg[1], rp[2])
+         # Market cross at (4, 0): a step, an eight-sided shaft 5 m, a head with arms.
+         c = R(4.0, 0, 0.0)
+         box(self.scr, c, (2.0, 0.35, 2.0), KD["Stone_Brit_Gray_Light"], "market cross")
+@@ -708,6 +709,9 @@ def write_screen(f, prefix, scr, strips):
+     f.write("static const unsigned short %s_sl[%s_S] = {\n%s\n};\n" % (prefix, prefix.upper(), c_ints([len(s) for s in strips])))
+ 
+ 
++AO_DEMO = "--ao-demo" in sys.argv          # the AO demo's town (psm_dc.c PSM_AO_DEMO): no well, no gate in the guildhall
++
++
+ def main(argv):
+     if len(argv) < 3:
+         print(__doc__)
+diff --git a/a3e_auto_src/demo/psm/psm_scene.h b/ao1_src/demo/psm/psm_scene.h
+index eeffa4e..76b0011 100644
+--- a/a3e_auto_src/demo/psm/psm_scene.h
++++ b/ao1_src/demo/psm/psm_scene.h
+@@ -50,6 +50,9 @@
+ #endif
+ #ifdef PSM_HAVE_TOWN
+ #include "psm_town_mesh.h"
++#ifdef PSM_AO_DEMO
++#include "psm_town_ao.h"                /* tools/ao_bake.c, from the same mesh: the AO demo's method 1 */
++#endif
+ #endif
+ 
+ /* ---- tuning ---------------------------------------------------------------- */
+@@ -190,6 +193,9 @@ typedef struct psm_scene {
+     int town;                           /* 0 the field, 1 the town */
+     float obst[PSM_OBST_MAX][3];        /* x, z, radius: the eye stays out of each (psm_walk_limit) */
+     unsigned obn;
++#ifdef PSM_AO_DEMO
++    const uint8_t *ao_v;                /* method 1: a byte a static model vertex (the first mdyn0), 255 open; NULL: none */
++#endif
+ } psm_scene_t;
+ 
+ /* The sky and the fog at `hour` from the scene's table. */
+@@ -670,6 +676,9 @@ typedef struct psm_state {
+     unsigned tpreset;    /* the town's last preset */
+     int atmos;           /* 1: the sky band, the hills and the quadratic fog (demo/psm/psm_sky.h, TOWN_LOOK.md section 3); the town's
+                             default, and the slot the LOOK row will set (LAUNCH 0, LATE 1) */
++#ifdef PSM_AO_DEMO
++    int ao;              /* the AO demo: 0 off, 1 baked (method 1), 2 the PVR map (method 2); X cycles it */
++#endif
+ } psm_state_t;
+ 
+ /* What the program reads from the controller: the PSM_BTN_ bits held, the stick -1 .. 1 (y down positive), the triggers 0 .. 1. */
+@@ -933,7 +942,11 @@ static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, cons
+         for (k = 0; k < nl; k++) { if (st->scene) psm_clock_step_(st, -PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az - 5.0f); }
+         if (held & PSM_BTN_Y) fwd += 1.0f;
+         if (held & PSM_BTN_A) fwd -= 1.0f;
++#ifdef PSM_AO_DEMO
++        if (down & PSM_BTN_X) st->ao = (st->ao + 1) % 3;       /* the AO demo: X cycles OFF, 1 baked, 2 the PVR map (no strafe left) */
++#else
+         if (held & PSM_BTN_X) side -= 1.0f;
++#endif
+         if (held & PSM_BTN_B) side += 1.0f;
+     }
+     if (lt > 0.0f || rt > 0.0f) { st->el = psm_step_(st->el, (rt - lt) * PSM_SUN_SPEED * dt, 5.0f, 85.0f); st->sun_free = 1; }
+@@ -986,6 +999,13 @@ typedef struct psm_frame {
+     float gscr[PSM_GV_MAX][3];  /* x, y, 1 / W */
+     uint32_t gcol[PSM_GV_MAX];
+     uint32_t glut[256];         /* the ground's colour by its shadow level */
++#ifdef PSM_AO_DEMO
++    uint32_t glut_ao[16][256];  /* method 1: the ground's colour by AO level (16) and shadow level, made again when the sun moves */
++    float glut_ao_sun;          /* the sun term it was made for */
++    int glut_ao_ok;
++    uint8_t gao[PSM_GV_MAX];    /* method 1: the ground vertices' AO, read from the baked grid when the ground positions change */
++    unsigned gao_gen;           /* gpos_gen gao was read for, + 1 (0: never) */
++#endif
+     uint8_t cell[PSM_ROWS_MAX * PSM_COLS];   /* 1: both triangles of the cell have area, every corner is in front, and it is not wholly off one side of the screen */
+     float mclip[PSM_MV_MAX][3];
+     float mscr[PSM_MV_MAX][3];
+@@ -1363,6 +1383,31 @@ static inline void psm_place_geo(psm_frame_t *f, const psm_scene_t *s) {
+     f->vis_ok = 1;
+ }
+ 
++#if defined(PSM_AO_DEMO) && defined(PSM_HAVE_TOWN)
++static int psm_ao_now_;                  /* the AO state psm_colour uses (psm_ao_set, from psm_state_t.ao each frame) */
++static inline void psm_ao_set(int ao) { psm_ao_now_ = ao; }
++
++/* method 1: each ground vertex's AO from the baked grid (tools/ao_bake.c), bilinear; outside it, open */
++static inline void psm_ao_ground_(psm_frame_t *f) {
++    unsigned i;
++
++    for (i = 0; i < f->gvn; i++) {
++        const float gx = (f->gpos[i][0] - PSM_TOWN_AO_X0) * (1.0f / PSM_TOWN_AO_STEP), gz = (f->gpos[i][2] - PSM_TOWN_AO_Z0) * (1.0f / PSM_TOWN_AO_STEP);
++        const int ix = (int)gx, iz = (int)gz;
++
++        if (gx < 0.0f || gz < 0.0f || ix + 1 >= PSM_TOWN_AO_GN || iz + 1 >= PSM_TOWN_AO_GN) { f->gao[i] = 255u; continue; }
++        {
++            const float fx = gx - (float)ix, fz = gz - (float)iz;
++            const unsigned char *g = &psm_town_ao_g[iz * PSM_TOWN_AO_GN + ix];
++            const float top = (float)g[0] + ((float)g[1] - (float)g[0]) * fx;
++            const float bot = (float)g[PSM_TOWN_AO_GN] + ((float)g[PSM_TOWN_AO_GN + 1] - (float)g[PSM_TOWN_AO_GN]) * fx;
++
++            f->gao[i] = (uint8_t)(top + (bot - top) * fz + 0.5f);
++        }
++    }
++}
++#endif
++
+ /* This frame's colours: they follow the sun and the shadows, so they are made every frame, the ground's from a 256 level
+    table. The light by channel (the field's is grey). */
+ static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
+@@ -1373,6 +1418,34 @@ static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
+ 
+         f->glut[r] = psm_pack_rgb(psm_light_c(s, 0u, d), psm_light_c(s, 1u, d), psm_light_c(s, 2u, d));
+     }
++#if defined(PSM_AO_DEMO) && defined(PSM_HAVE_TOWN)
++    if (psm_ao_now_ == 1 && s->ao_v) {                           /* method 1: ambient x ao + sun x lit */
++        if (f->gao_gen != f->gpos_gen + 1u) { psm_ao_ground_(f); f->gao_gen = f->gpos_gen + 1u; }
++        if (!f->glut_ao_ok || sh4der_abs_(f->glut_ao_sun - f->sun[1]) > 1.0f / 1024.0f) {   /* the sun moved: the 16 x 256 table again */
++            unsigned q;
++
++            for (q = 0; q < 16u; q++) {
++                const float a = ((float)q + 0.5f) * (1.0f / 16.0f);
++
++                for (r = 0; r < 256u; r++) {
++                    const float d = f->sun[1] * (float)r * (1.0f / 255.0f);
++
++                    f->glut_ao[q][r] = psm_pack_rgb(s->amb[0] * a + s->sunc[0] * d, s->amb[1] * a + s->sunc[1] * d, s->amb[2] * a + s->sunc[2] * d);
++                }
++            }
++            f->glut_ao_sun = f->sun[1]; f->glut_ao_ok = 1;
++        }
++        for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut_ao[f->gao[i] >> 4][f->glit[i]];
++        for (i = 0; i < s->mvn; i++) {
++            const float d = (float)f->mlit[i] * (1.0f / 255.0f), a = i < s->mdyn0 ? (float)s->ao_v[i] * (1.0f / 255.0f) : 1.0f;
++            const float *alb = s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
++
++            f->mcol[i] = psm_pack_rgb(alb[0] * (s->amb[0] * a + s->sunc[0] * d), alb[1] * (s->amb[1] * a + s->sunc[1] * d),
++                                      alb[2] * (s->amb[2] * a + s->sunc[2] * d));
++        }
++        return;
++    }
++#endif
+     for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut[f->glit[i]];
+     for (i = 0; i < s->mvn; i++) {
+         const float d = (float)f->mlit[i] * (1.0f / 255.0f);
+@@ -1509,8 +1582,14 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
+     unsigned i;
+ 
+     memset(ln, 0, PSM_HUD_LINES * (PSM_HUD_COLS + 1u));
++#ifdef PSM_AO_DEMO
++    PSM_LINE_(0, "%s  MAP %s  AO %s", st->route == PSM_ROUTE_A ? "ROUTE A" : "ROUTE B",
++             !f->built ? "NONE" : !st->warp ? "UNIFORM" : "PSM",
++             st->ao == 1 ? "1 BAKED (walls+ground)" : st->ao == 2 ? "2 PVR MAP (ground only)" : "OFF   (X: next)");
++#else
+     PSM_LINE_(0, "%s   MAP %s%s%s", st->route == PSM_ROUTE_A ? "ROUTE A  PVR DRAWS THE MAP" : "ROUTE B  SH-4 DEPTH",
+              !f->built ? "NONE" : !st->warp ? "UNIFORM" : f->head_on ? "PSM -> UNIFORM" : "PSM", f->head_on ? "  [HEAD-ON]" : "", st->scene ? "  TOWN" : "");
++#endif
+     for (i = 0; i < 4u; i++) {
+         if (f->ratio[i] < 0.0f) snprintf(a[i], sizeof a[i], "--");
+         else psm_f1_(a[i], sizeof a[i], f->ratio[i] > 999.0f ? 999.0f : f->ratio[i]);
+diff --git a/a3e_auto_src/demo/psm/psm_town.h b/ao1_src/demo/psm/psm_town.h
+index 283e899..89858bf 100644
+--- a/a3e_auto_src/demo/psm/psm_town.h
++++ b/ao1_src/demo/psm/psm_town.h
+@@ -73,8 +73,13 @@ static const psm_wp_t psm_cast_wp[] = {
+     { 8.6f, 7.7f, 0.0f }, { 11.0f, 7.7f, 0.0f },
+     { 9.4f, 11.3f, 3.0f }, { 11.6f, 11.3f, 3.0f },                                                 /* sweeper, the doorstep */
+     { 7.4f, 10.6f, 20.0f }, { 7.6f, 9.2f, 5.0f },                                                  /* roofer's mate at the ladder */
++#ifdef PSM_AO_DEMO
++    { 1.5f, -24.0f, 3.0f }, { 1.5f, -16.0f, 0.0f }, { 8.3f, -3.6f, 2.0f }, { 1.5f, -16.0f, 0.0f },   /* porter (AO demo, no arch): */
++    { 1.5f, -24.0f, 0.0f }                                                                          /* in by the south street, out */
++#else
+     { 0.0f, 19.0f, 0.0f }, { 0.0f, 13.0f, 0.0f }, { 8.3f, -3.6f, 2.0f }, { 1.5f, -16.0f, 0.0f },   /* porter: arch, the sacks, out */
+     { 1.5f, -24.0f, 3.0f }
++#endif
+ };
+ static const unsigned char psm_cast_route[PSM_CAST][3] = {   /* first point, points, 1: open (the last point jumps to the first) */
+     { 0, 2, 0 }, { 2, 2, 0 }, { 4, 6, 0 }, { 10, 2, 0 }, { 12, 6, 0 }, { 18, 2, 0 }, { 20, 2, 0 }, { 22, 5, 1 }
+@@ -194,7 +199,11 @@ typedef struct psm_town_preset {
+ 
+ /* TOWN_STORY.md "Where the shadows are, by preset" */
+ static const psm_town_preset_t psm_town_preset[PSM_TOWN_PRESETS] = {
++#ifdef PSM_AO_DEMO
++    { "AO view 14:00", 14.0f, -6.0f, -9.0f, 40.0f, 6.0f },      /* the AO demo: from the south-west, the cross, the stalls, the NE corner */
++#else
+     { "first view 14:00", 14.0f, 0.0f, -14.0f, 0.0f, 4.0f },
++#endif
+     { "morning 09:00", 9.0f, 0.0f, -14.0f, 0.0f, 4.0f },
+     { "tower shadow 15:30", 15.5f, 0.0f, -14.0f, 0.0f, 4.0f },
+     { "head-on 16:00", 16.0f, 6.0f, -9.0f, 236.0f, -6.0f },
+@@ -318,7 +327,11 @@ static inline void psm_scene_init_town(psm_scene_t *s) {
+     s->ground_uv = PSM_TOWN_GROUND_UV; s->ground_tex = 1;
+     s->look = psm_town_look; s->lookn = PSM_TOWN_LOOK_ROWS;
+     s->x0 = PSM_TOWN_X0; s->x1 = PSM_TOWN_X1; s->z0 = -PSM_TOWN_ZS1; s->z1 = -PSM_TOWN_ZS0;
++#ifdef PSM_AO_DEMO
++    s->ao_v = psm_town_ao_v;                                        /* method 1's bytes, for the static vertices (the mesh's own) */
++#else
+     psm_scene_obst_(s, -2.0f, 7.0f, 1.0f + PSM_WALK_BODY);          /* the well at story (-2, -7): its roof's half width */
++#endif
+     psm_scene_obst_(s, 4.0f, 0.0f, 1.42f + PSM_WALK_BODY);          /* the cross's step, 2 x 2 m: its half diagonal */
+     psm_scene_objects_(s);
+     psm_movers_apply(s);                                            /* the movers' vertices placed once, so the mesh is whole from load */
+diff --git a/a3e_auto_src/demo/psm/psm_auto.h b/ao1_src/demo/psm/psm_auto.h
+index 1dc7d9d..73e62ba 100644
+--- a/a3e_auto_src/demo/psm/psm_auto.h
++++ b/ao1_src/demo/psm/psm_auto.h
+@@ -28,9 +28,10 @@
+ #define PSM_AUTO_TURN    1.5707963f        /* a turning segment's yaw, radians, over its frames */
+ #define PSM_AUTO_STRIP   64u               /* points of the frame-time strip (psm_page.h's PG_POINTS) */
+ #define PSM_AUTO_EVT_N   6u                /* the TA's error events: ISP, strip, PARAM, OPB, input error, input overflow */
+-#define PSM_AUTO_METRICS 10u
++#define PSM_AUTO_METRICS 12u
+ 
+-enum { PSM_AM_FRAME, PSM_AM_SH4, PSM_AM_P0, PSM_AM_P1, PSM_AM_P2, PSM_AM_P3, PSM_AM_PVR, PSM_AM_TAV, PSM_AM_USED, PSM_AM_EST };
++enum { PSM_AM_FRAME, PSM_AM_SH4, PSM_AM_P0, PSM_AM_P1, PSM_AM_P2, PSM_AM_P3, PSM_AM_PVR, PSM_AM_TAV, PSM_AM_USED, PSM_AM_EST,
++       PSM_AM_MAPV, PSM_AM_MAPKB };   /* route A's map pass alone: its TA vertices and KB (estimate); 0 on route B */
+ 
+ typedef struct psm_auto_seg {
+     const char *name;
+@@ -40,26 +41,37 @@ typedef struct psm_auto_seg {
+     unsigned tspeed;      /* TIME SPEED's index (psm_time_speed: 1 x1, 3 x60) */
+     int hud_first, s3;    /* hud1: the text first in the translucent list; SHED 3 forced */
+     int counted;          /* 0: a warm-up, not in the results */
++    int ao;               /* the AO demo's state in the segment (PSM_AO_DEMO): 0 off, 1 baked, 2 the PVR map */
+ } psm_auto_seg_t;
+ 
+-#ifdef PSM_AUTO_HUD1
++#if defined(PSM_AO_DEMO)
++static const psm_auto_seg_t psm_auto_script[] = {    /* the AO demo (ao1): route A, the three AO states, the same still view and turn */
++    { "warm",       60u, PSM_ROUTE_A, 0, 1u, 0, 0, 0, 0 },
++    { "OFF still", 150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1, 0 },
++    { "OFF turn",  300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1, 0 },
++    { "AO1 still", 150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1, 1 },
++    { "AO1 turn",  300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1, 1 },
++    { "AO2 still", 150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1, 2 },
++    { "AO2 turn",  300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1, 2 },
++};
++#elif defined(PSM_AUTO_HUD1)
+ static const psm_auto_seg_t psm_auto_script[] = {
+-    { "warm",       60u, PSM_ROUTE_A, 0, 1u, 0, 0, 0 },
+-    { "A normal",  150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1 },
+-    { "A 1ST",     150u, PSM_ROUTE_A, 0, 1u, 1, 0, 1 },
+-    { "A S3",      150u, PSM_ROUTE_A, 0, 1u, 0, 1, 1 },
+-    { "A norm trn", 300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1 },
+-    { "A 1ST trn", 300u, PSM_ROUTE_A, 1, 1u, 1, 0, 1 },
+-    { "A S3 trn",  300u, PSM_ROUTE_A, 1, 1u, 0, 1, 1 },
++    { "warm",       60u, PSM_ROUTE_A, 0, 1u, 0, 0, 0, 0 },
++    { "A normal",  150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1, 0 },
++    { "A 1ST",     150u, PSM_ROUTE_A, 0, 1u, 1, 0, 1, 0 },
++    { "A S3",      150u, PSM_ROUTE_A, 0, 1u, 0, 1, 1, 0 },
++    { "A norm trn", 300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1, 0 },
++    { "A 1ST trn", 300u, PSM_ROUTE_A, 1, 1u, 1, 0, 1, 0 },
++    { "A S3 trn",  300u, PSM_ROUTE_A, 1, 1u, 0, 1, 1, 0 },
+ };
+ #else
+ static const psm_auto_seg_t psm_auto_script[] = {
+-    { "warm",      60u, PSM_ROUTE_A, 0, 1u, 0, 0, 0 },
+-    { "A still",  150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1 },
+-    { "A turn",   300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1 },
+-    { "B still",  150u, PSM_ROUTE_B, 0, 1u, 0, 0, 1 },
+-    { "B turn",   300u, PSM_ROUTE_B, 1, 1u, 0, 0, 1 },
+-    { "B x60",    300u, PSM_ROUTE_B, 0, 3u, 0, 0, 1 },
++    { "warm",      60u, PSM_ROUTE_A, 0, 1u, 0, 0, 0, 0 },
++    { "A still",  150u, PSM_ROUTE_A, 0, 1u, 0, 0, 1, 0 },
++    { "A turn",   300u, PSM_ROUTE_A, 1, 1u, 0, 0, 1, 0 },
++    { "B still",  150u, PSM_ROUTE_B, 0, 1u, 0, 0, 1, 0 },
++    { "B turn",   300u, PSM_ROUTE_B, 1, 1u, 0, 0, 1, 0 },
++    { "B x60",    300u, PSM_ROUTE_B, 0, 3u, 0, 0, 1, 0 },
+ };
+ #endif
+ #define PSM_AUTO_SEGS (sizeof psm_auto_script / sizeof psm_auto_script[0])
+@@ -112,6 +124,9 @@ static inline void psm_auto_apply(const psm_auto_t *a, psm_state_t *st, int *hud
+     st->x = a->x0; st->z = a->z0; st->pitch = a->pitch0;
+     st->yaw = a->yaw0 + PSM_AUTO_TURN * t;
+     st->menu = 0;
++#ifdef PSM_AO_DEMO
++    st->ao = g->ao;
++#endif
+     if (hud_first) *hud_first = g->hud_first;
+     if (s3) *s3 = g->s3;
+ }
+diff --git a/a3e_auto_src/demo/psm/psm_send.h b/ao1_src/demo/psm/psm_send.h
+index 6f202b1..d164d81 100644
+--- a/a3e_auto_src/demo/psm/psm_send.h
++++ b/ao1_src/demo/psm/psm_send.h
+@@ -34,12 +34,12 @@
+ /* the headers the demo sends, by part */
+ enum {
+     PSM_HK_SKY, PSM_HK_SKYCOL, PSM_HK_GROUND, PSM_HK_GROUND_FOG, PSM_HK_LAYER, PSM_HK_MODEL, PSM_HK_MODEL_FOG, PSM_HK_FLAT,
+-    PSM_HK_TEXT, PSM_HK_DIM, PSM_HK_INSET_A, PSM_HK_INSET_B, PSM_HK_N
++    PSM_HK_TEXT, PSM_HK_DIM, PSM_HK_INSET_A, PSM_HK_INSET_B, PSM_HK_AO, PSM_HK_N
+ };
+ /* the TA's words a vertex under each header: xyz 3, uv 2 when textured, colour 1, offset 1 when specular */
+-static const uint8_t psm_hk_words[PSM_HK_N] = { 7, 4, 6, 6, 6, 4, 4, 4, 6, 4, 6, 6 };
+-static const uint8_t psm_hk_tr[PSM_HK_N] = { 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1 };   /* 1: the translucent list */
+-static const char *const psm_hk_name[PSM_HK_N] = { "sky", "skycol", "ground", "ground_fog", "layer", "model", "model_fog", "flat", "text", "dim", "inset_a", "inset_b" };
++static const uint8_t psm_hk_words[PSM_HK_N] = { 7, 4, 6, 6, 6, 4, 4, 4, 6, 4, 6, 6, 4 };
++static const uint8_t psm_hk_tr[PSM_HK_N] = { 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1 };   /* 1: the translucent list */
++static const char *const psm_hk_name[PSM_HK_N] = { "sky", "skycol", "ground", "ground_fog", "layer", "model", "model_fog", "flat", "text", "dim", "inset_a", "inset_b", "ao" };   /* ao: AO method 2 in the map pass (ao_layer.h) */
+ 
+ #define PSM_TA_VBUF      (1024u * 1024u)  /* psm_dc.c's vertex buffer, bytes a frame (pvr_init_params_t.vertex_buf_size) */
+ #define PSM_TA_SHARE     0.90f            /* SHED starts when the frame's estimate passes this share of it */
+diff --git a/a3e_auto_src/demo/psm/psm_dc.c b/ao1_src/demo/psm/psm_dc.c
+index 3d1dc79..63d1ede 100644
+--- a/a3e_auto_src/demo/psm/psm_dc.c
++++ b/ao1_src/demo/psm/psm_dc.c
+@@ -96,6 +96,11 @@ static pvr_poly_hdr_t hdr_sky, hdr_skycol, hdr_ground, hdr_model, hdr_ground_fog
+ static int hdr_target_ok;                 /* hdr_layer and hdr_inset_a are compiled for the current target */
+ static unsigned ta_v;                     /* vertices sent this frame (the map pass and the scene), counted where they are sent */
+ static unsigned map_tris, layer_v;        /* route A: triangles into the target, vertices of the ground layer */
++static unsigned map_v, map_bytes;         /* route A: the map pass's TA vertices and estimated bytes this frame (0: no pass) */
++#ifdef PSM_AO_DEMO
++static unsigned map_ao_v;                 /* of them, method 2's (psm_ao2.h) */
++static int ao2_ok;                        /* psm_ao2_init said method 2 can draw */
++#endif
+ static int rtt_refused_shown;
+ static float fog_dist;                    /* the distance the fog table was made for (0: none yet) */
+ static float sky_now[3] = { -1.0f, -1.0f, -1.0f }, fog_now[3];   /* the sky and fog colours set on the PVR */
+@@ -148,20 +153,34 @@ static void send_hdr_(int kind);
+         if (!ta_runs) pvr_dr_commit(o_);                           \
+     } while (0)
+ #include "psm_send.h"
++#ifdef PSM_AO_DEMO
++#if !defined(PSM_HAVE_TOWN)
++#error PSM_AO_DEMO needs the town (PSM_HAVE_TOWN) and its psm_town_ao.h (tools/ao_bake.c)
++#endif
++#include "psm_ao2.h"                     /* method 2: Senior's ao_layer.h, the PVR map AO, ground only */
++#endif
+ 
++static const pvr_poly_hdr_t hdr_none_;   /* never compiled: refused by sh4der_poly_hdr_ok, so its part is not sent */
+ static const pvr_poly_hdr_t *const hdr_tab[PSM_HK_N] = {
+     &hdr_sky, &hdr_skycol, &hdr_ground, &hdr_ground_fog, &hdr_layer, &hdr_model, &hdr_model_fog, &hdr_flat,
+-    &hdr_text, &hdr_dim, &hdr_inset_a, &hdr_inset_b
++    &hdr_text, &hdr_dim, &hdr_inset_a, &hdr_inset_b, &hdr_none_
+ };
+ static psm_sink_t sink;
+ 
++static const pvr_poly_hdr_t *hdr_of_(int kind) {
++#ifdef PSM_AO_DEMO
++    if (kind == PSM_HK_AO) return ao2_ok ? &psm_ao2_hdr[psm_ao2_unite] : &hdr_none_;   /* method 2: plain or the depth union */
++#endif
++    return hdr_tab[kind];
++}
++
+ static void send_hdr_(int kind) {
+     if (ta_runs) {
+-        const uint32_t *h = (const uint32_t *)hdr_tab[kind];
++        const uint32_t *h = (const uint32_t *)hdr_of_(kind);
+         uint32_t *o = ta_record();
+ 
+         o[0] = h[0]; o[1] = h[1]; o[2] = h[2]; o[3] = h[3]; o[4] = h[4]; o[5] = h[5]; o[6] = h[6]; o[7] = h[7];
+-    } else pvr_prim((void *)hdr_tab[kind], sizeof(pvr_poly_hdr_t));
++    } else pvr_prim((void *)hdr_of_(kind), sizeof(pvr_poly_hdr_t));
+ }
+ 
+ /* The headers the lists can take this frame: a header that was never compiled is "end of list" to the tile accelerator, so
+@@ -169,7 +188,7 @@ static void send_hdr_(int kind) {
+ static void hdr_ok_fill(uint8_t ok[PSM_HK_N]) {
+     unsigned k;
+ 
+-    for (k = 0; k < PSM_HK_N; k++) ok[k] = (uint8_t)sh4der_poly_hdr_ok((const uint32_t *)hdr_tab[k]);
++    for (k = 0; k < PSM_HK_N; k++) ok[k] = (uint8_t)sh4der_poly_hdr_ok((const uint32_t *)hdr_of_((int)k));
+     if (!sky_mem) ok[PSM_HK_SKY] = 0;
+ }
+ 
+@@ -445,8 +464,18 @@ static int map_pass(void) {
+     map_tris = psm_send_map(&sink, &frame, &scene, &state, target_size, out);
+     ta_flush();
+     pvr_list_finish();
++#ifdef PSM_AO_DEMO
++    map_ao_v = 0;
++    if (state.ao == 2 && ao2_ok && psm_ao2_ready()) {    /* method 2: the casters again, slid along the sky directions (psm_ao2.h) */
++        pvr_list_begin(PVR_LIST_TR_POLY);
++        map_ao_v = psm_ao2_send(&sink, &frame, &scene, target_size, PSM_AO2_K);
++        ta_flush();
++        pvr_list_finish();
++    }
++#endif
+     pvr_scene_finish();
+     ta_v += sink.verts;
++    map_v = sink.verts; map_bytes = sink.bytes;
+     return 1;
+ }
+ 
+@@ -526,7 +555,7 @@ static uint64_t render_wait(void) {
+ #ifndef PSM_AUTO_IMG
+ #define PSM_AUTO_IMG 0
+ #endif
+-static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto" };
++static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto", "ao1" };
+ static psm_auto_t autos;
+ static volatile uint32_t auto_evt[PSM_AUTO_EVT_N];
+ static asic_evt_handler_entry_t auto_evt_prev[PSM_AUTO_EVT_N];
+@@ -578,6 +607,8 @@ static int auto_record(const uint64_t win_us[4], uint32_t used, uint32_t used_ma
+     v[PSM_AM_TAV] = (float)verts;
+     v[PSM_AM_USED] = (float)used * (1.0f / 1024.0f);
+     v[PSM_AM_EST] = (float)est * (1.0f / 1024.0f);
++    v[PSM_AM_MAPV] = (float)map_v;
++    v[PSM_AM_MAPKB] = (float)map_bytes * (1.0f / 1024.0f);
+     auto_evt_now(evt);
+     return psm_auto_frame(&autos, v, evt, used_max, shed, text_v, bakes, bake_us);
+ }
+@@ -596,9 +627,18 @@ static void auto_pages(void) {
+     pvr_shutdown();
+     vid_set_mode(DM_640x480, PM_RGB565);
+     pg_init();
+-    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 5u], psm_auto_counted_frames());
+-    pg_say("vertex buffer %u KB x2; one console; per segment min/mean/max", (unsigned)(auto_vbuf_bytes / 1024u));
++    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 6u], psm_auto_counted_frames());
++    {
++        char rv[32];
++
++        suite_rev_text(rv, sizeof rv);           /* which console the photo is of: two register reads */
++        pg_say("vertex buffer %u KB x2; one console (%s); per segment min/mean/max", (unsigned)(auto_vbuf_bytes / 1024u), rv);
++    }
+     pg_say("ms unless said. SH-4 = setup+map+casters+compare. PVR = last done render");
++#ifdef PSM_AO_DEMO
++    pg_say("AO1 baked: walls+ground, 0 PVR. AO2 PVR map: ground only, K %u, %s", (unsigned)PSM_AO2_K, psm_ao2_unite ? "union" : "blend");
++    pg_say("map = route A's map pass alone (in TAv); screen = TAv - map");
++#endif
+     for (g = 0; g < PSM_AUTO_SEGS; g++) {
+         const psm_auto_stat_t *t = autos.st[g];
+ 
+@@ -612,6 +652,10 @@ static void auto_pages(void) {
+                psm_auto_mean(&t[PSM_AM_P0]), psm_auto_mean(&t[PSM_AM_P1]), psm_auto_mean(&t[PSM_AM_P2]), psm_auto_mean(&t[PSM_AM_P3]),
+                t[PSM_AM_PVR].lo, psm_auto_mean(&t[PSM_AM_PVR]), t[PSM_AM_PVR].hi,
+                t[PSM_AM_TAV].lo, psm_auto_mean(&t[PSM_AM_TAV]), t[PSM_AM_TAV].hi);
++#ifdef PSM_AO_DEMO
++        pg_say("  map TAv %.0f/%.0f/%.0f  map KB %.0f/%.0f/%.0f", t[PSM_AM_MAPV].lo, psm_auto_mean(&t[PSM_AM_MAPV]), t[PSM_AM_MAPV].hi,
++               t[PSM_AM_MAPKB].lo, psm_auto_mean(&t[PSM_AM_MAPKB]), t[PSM_AM_MAPKB].hi);
++#endif
+         pg_say("  used KB %.0f/%.0f/%.0f  est KB %.0f/%.0f  KOS max %uK  SHED<=%u  text %uv",
+                t[PSM_AM_USED].lo, psm_auto_mean(&t[PSM_AM_USED]), t[PSM_AM_USED].hi, psm_auto_mean(&t[PSM_AM_EST]), t[PSM_AM_EST].hi,
+                (unsigned)(autos.used_max_kos[g] / 1024u), autos.shed_hi[g], autos.text_v[g]);
+@@ -679,6 +723,11 @@ int main(void) {
+     psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
+     vram0 = pvr_mem_available();
+     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
++#ifdef PSM_AO_DEMO
++    ao2_ok = psm_ao2_init();
++    printf("psm: AO demo: method 1 baked (%u vertex bytes, %d x %d ground), method 2 %s\n", (unsigned)PSM_TOWN_V,
++           PSM_TOWN_AO_GN, PSM_TOWN_AO_GN, ao2_ok ? "ready" : "init failed");
++#endif
+ #ifdef PSM_AUTORUN
+     {
+         uint32_t e[PSM_AUTO_EVT_N];
+@@ -725,7 +774,7 @@ int main(void) {
+         if (state.scene != scene.town) scene_switch();     /* the SCENE row */
+         map_buffers();                                     /* MAP SIZE 512 on B / AB: its RAM while chosen */
+         psm_town_update(&scene, &state, dt);               /* the town's clock, sun, people and hens (nothing in the field) */
+-        ta_v = 0; layer_v = 0;
++        ta_v = 0; layer_v = 0; map_v = 0; map_bytes = 0;
+ #ifdef PSM_AUTORUN
+         memcpy(auto_w0, win_us, sizeof auto_w0);
+ #endif
+@@ -774,6 +823,9 @@ int main(void) {
+             psm_frame_a_ground(&frame);
+             win_us[1] += t3 - t2; win_us[2] += timer_us_gettime64() - t3;
+         }
++#ifdef PSM_AO_DEMO
++        psm_ao_set(state.ao);                /* the AO demo: method 1 in the colours when AO is 1 */
++#endif
+         psm_colour(&frame, &scene);          /* the colours: this frame's, after the lit and the lookup */
+         look_update();
+         {                                    /* SHED: the frame counted before it is sent; far parts dropped past 90 % */
+diff --git a/ao1_src/demo/psm/tools/ao_bake.c b/ao1_src/demo/psm/tools/ao_bake.c
+new file mode 100644
+index 0000000..214ec5c
+--- /dev/null
++++ b/ao1_src/demo/psm/tools/ao_bake.c
+@@ -0,0 +1,163 @@
++/* SH4DER-PVR: the AO demo's baked ambient occlusion (method 1), a host tool run at build time
++
++   demo/psm/tools/ao_bake.c
++   Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
++
++   cc -O2 -I<build>/psm_town demo/psm/tools/ao_bake.c -lm -o ao_bake && ./ao_bake <out.h>
++
++   Includes the baked town (psm_town_mesh.h, tools/bake_town.py --ao-demo) and writes psm_town_ao.h:
++   - psm_town_ao_v: a byte a static screen vertex, 255 open sky .. 0 closed, what the vertex's ambient light is multiplied by;
++   - psm_town_ao_g: the same on a grid over the ground (y 0), PSM_TOWN_AO_STEP metres a cell, read bilinear by the ground's
++     vertices at runtime (the ground is the ring lattice round the camera, not in the mesh).
++   Each point casts PSM_AO_RAYS cosine-weighted rays over its hemisphere (a fixed Hammersley set, so the output is the same on
++   every run), against the town's screen triangles within PSM_AO_R metres and the ground plane. A hit at distance t takes
++   1 - t / R of a ray. The movers (people, hens) are not in it: they move. Plain C, no SH4ZAM: it never runs on the console. */
++
++#include <math.h>
++#include <stdio.h>
++#include <stdint.h>
++#include <stdlib.h>
++#include <string.h>
++#include "psm_town_mesh.h"
++
++#define PSM_AO_RAYS   64
++#define PSM_AO_R      2.5f        /* metres: the reach of the occlusion */
++#define PSM_AO_LIFT   0.01f       /* metres off the surface a ray starts */
++#define GRID_X0       (-40.0f)    /* the ground grid, world metres (x east, z south) */
++#define GRID_Z0       (-40.0f)
++#define GRID_STEP     0.5f
++#define GRID_N        161
++
++typedef struct { float a[3], e1[3], e2[3], lo[3], hi[3]; } tri_t;
++
++static tri_t tri[PSM_TOWN_T];
++static unsigned ntri, near_t[PSM_TOWN_T];
++static float dirs[PSM_AO_RAYS][3];
++
++static void sub3(const float *a, const float *b, float *o) { o[0] = a[0] - b[0]; o[1] = a[1] - b[1]; o[2] = a[2] - b[2]; }
++static void cross3(const float *a, const float *b, float *o) { o[0] = a[1] * b[2] - a[2] * b[1]; o[1] = a[2] * b[0] - a[0] * b[2]; o[2] = a[0] * b[1] - a[1] * b[0]; }
++static float dot3(const float *a, const float *b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
++static void norm3(float *a) { const float l = sqrtf(dot3(a, a)); if (l > 1e-12f) { a[0] /= l; a[1] /= l; a[2] /= l; } }
++
++/* Moller-Trumbore, both faces; the hit distance or -1 */
++static float ray_tri(const float o[3], const float d[3], const tri_t *t) {
++    float h[3], s[3], q[3], det, inv, u, v, k;
++
++    cross3(d, t->e2, h);
++    det = dot3(t->e1, h);
++    if (fabsf(det) < 1e-9f) return -1.0f;
++    inv = 1.0f / det;
++    sub3(o, t->a, s);
++    u = dot3(s, h) * inv;
++    if (u < 0.0f || u > 1.0f) return -1.0f;
++    cross3(s, t->e1, q);
++    v = dot3(d, q) * inv;
++    if (v < 0.0f || u + v > 1.0f) return -1.0f;
++    k = dot3(t->e2, q) * inv;
++    return k > 1e-4f ? k : -1.0f;
++}
++
++/* the open share of p's hemisphere about unit n, 0 .. 1 */
++static float ao_at(const float p[3], const float n[3], int ground) {
++    float t0[3], t1[3], o[3], occl = 0.0f;
++    unsigned i, k, nn = 0;
++
++    for (i = 0; i < 3; i++) o[i] = p[i] + n[i] * PSM_AO_LIFT;
++    for (i = 0; i < ntri; i++) {                         /* the triangles whose box comes within R */
++        const tri_t *t = &tri[i];
++
++        if (o[0] < t->lo[0] - PSM_AO_R || o[0] > t->hi[0] + PSM_AO_R || o[1] < t->lo[1] - PSM_AO_R || o[1] > t->hi[1] + PSM_AO_R
++            || o[2] < t->lo[2] - PSM_AO_R || o[2] > t->hi[2] + PSM_AO_R) continue;
++        near_t[nn++] = i;
++    }
++    if (fabsf(n[1]) < 0.9f) { const float up[3] = { 0.0f, 1.0f, 0.0f }; cross3(up, n, t0); }
++    else { const float ex[3] = { 1.0f, 0.0f, 0.0f }; cross3(ex, n, t0); }
++    norm3(t0);
++    cross3(n, t0, t1);
++    for (k = 0; k < PSM_AO_RAYS; k++) {
++        float d[3], best = PSM_AO_R;
++
++        for (i = 0; i < 3; i++) d[i] = t0[i] * dirs[k][0] + n[i] * dirs[k][1] + t1[i] * dirs[k][2];
++        if (!ground && d[1] < -1e-6f && o[1] > 0.0f) {   /* the ground plane */
++            const float tg = -o[1] / d[1];
++
++            if (tg < best) best = tg;
++        }
++        for (i = 0; i < nn; i++) {
++            const float h = ray_tri(o, d, &tri[near_t[i]]);
++
++            if (h > 0.0f && h < best) best = h;
++        }
++        if (best < PSM_AO_R) occl += 1.0f - best / PSM_AO_R;
++    }
++    return 1.0f - occl / (float)PSM_AO_RAYS;
++}
++
++static unsigned char to_byte(float a) {
++    const float c = a < 0.0f ? 0.0f : a > 1.0f ? 1.0f : a;
++
++    return (unsigned char)(c * 255.0f + 0.5f);
++}
++
++int main(int argc, char **argv) {
++    static unsigned char av[PSM_TOWN_V], ag[GRID_N * GRID_N];
++    unsigned i, k, o, x, z, hist[5] = { 0 };
++    double sum = 0.0;
++    FILE *f;
++
++    if (argc < 2) { fprintf(stderr, "ao_bake <out.h>\n"); return 2; }
++    for (k = 0; k < PSM_AO_RAYS; k++) {                  /* cosine-weighted, Hammersley: u1 even steps, u2 the base-2 radical inverse */
++        unsigned b = k, r = 0;
++        float u1 = ((float)k + 0.5f) / (float)PSM_AO_RAYS, u2, rr, ph;
++
++        for (i = 0; i < 16; i++) { r = (r << 1) | (b & 1u); b >>= 1; }
++        u2 = (float)r / 65536.0f;
++        rr = sqrtf(u1); ph = 6.2831853f * u2;
++        dirs[k][0] = rr * cosf(ph); dirs[k][1] = sqrtf(1.0f - u1); dirs[k][2] = rr * sinf(ph);
++    }
++    for (k = 0, o = 0; k < PSM_TOWN_S; o += psm_town_sl[k], k++)
++        for (i = 0; i + 2u < psm_town_sl[k]; i++) {
++            const float *a = psm_town_v[psm_town_sv[o + i]], *b = psm_town_v[psm_town_sv[o + i + 1u]], *c = psm_town_v[psm_town_sv[o + i + 2u]];
++            tri_t *t = &tri[ntri];
++            unsigned j;
++
++            if (ntri >= PSM_TOWN_T) break;
++            memcpy(t->a, a, sizeof t->a);
++            sub3(b, a, t->e1); sub3(c, a, t->e2);
++            for (j = 0; j < 3; j++) {
++                t->lo[j] = fminf(a[j], fminf(b[j], c[j]));
++                t->hi[j] = fmaxf(a[j], fmaxf(b[j], c[j]));
++            }
++            ntri++;
++        }
++    for (i = 0; i < PSM_TOWN_V; i++) {
++        float n[3] = { (float)psm_town_n[i][0], (float)psm_town_n[i][1], (float)psm_town_n[i][2] };
++
++        norm3(n);
++        av[i] = to_byte(ao_at(psm_town_v[i], n, 0));
++        sum += av[i];
++        hist[av[i] * 5u / 256u]++;
++    }
++    for (z = 0; z < GRID_N; z++)
++        for (x = 0; x < GRID_N; x++) {
++            const float p[3] = { GRID_X0 + GRID_STEP * (float)x, 0.0f, GRID_Z0 + GRID_STEP * (float)z }, n[3] = { 0.0f, 1.0f, 0.0f };
++
++            ag[z * GRID_N + x] = to_byte(ao_at(p, n, 1));
++        }
++    f = fopen(argv[1], "w");
++    if (!f) { perror(argv[1]); return 1; }
++    fprintf(f, "/* Generated by demo/psm/tools/ao_bake.c from psm_town_mesh.h. Not in the repository: the build folder.\n"
++               "   %d rays a point, reach %.2f m; %u triangles; vertex mean %.1f of 255, by fifths %u %u %u %u %u. */\n",
++            PSM_AO_RAYS, (double)PSM_AO_R, ntri, sum / PSM_TOWN_V, hist[0], hist[1], hist[2], hist[3], hist[4]);
++    fprintf(f, "#if PSM_TOWN_V != %uu\n#error psm_town_ao.h was baked for another town mesh\n#endif\n", PSM_TOWN_V);
++    fprintf(f, "#define PSM_TOWN_AO_GN %d\n#define PSM_TOWN_AO_X0 (%.1ff)\n#define PSM_TOWN_AO_Z0 (%.1ff)\n#define PSM_TOWN_AO_STEP %.2ff\n",
++            GRID_N, (double)GRID_X0, (double)GRID_Z0, (double)GRID_STEP);
++    fprintf(f, "static const unsigned char psm_town_ao_v[PSM_TOWN_V] = {");
++    for (i = 0; i < PSM_TOWN_V; i++) fprintf(f, "%s%u,", i % 32u ? "" : "\n   ", av[i]);
++    fprintf(f, "\n};\nstatic const unsigned char psm_town_ao_g[PSM_TOWN_AO_GN * PSM_TOWN_AO_GN] = {");
++    for (i = 0; i < GRID_N * GRID_N; i++) fprintf(f, "%s%u,", i % 32u ? "" : "\n   ", ag[i]);
++    fprintf(f, "\n};\n");
++    fclose(f);
++    printf("ao_bake: %u vertices (mean %.1f), %d x %d ground cells, %u triangles\n", PSM_TOWN_V, sum / PSM_TOWN_V, GRID_N, GRID_N, ntri);
++    return 0;
++}
+diff --git a/ao1_src/demo/psm/psm_ao2.h b/ao1_src/demo/psm/psm_ao2.h
+new file mode 100644
+index 0000000..afe4ac5
+--- /dev/null
++++ b/ao1_src/demo/psm/psm_ao2.h
+@@ -0,0 +1,24 @@
++/* SH4DER-PVR: the AO demo's method 2 hook: Senior's ao_layer.h (the PVR map's AO) wired into the town's sink
++
++   demo/psm/psm_ao2.h
++   Copyright (c) 2026 Jilted Valkyrie. See ../../LICENSE.
++
++   psm_dc.c (PSM_AO_DEMO) includes this after psm_send.h. In route A's map pass, after the sun's casters (the opaque
++   list), with AO 2 on it opens the translucent list, calls psm_ao2_send (which ends the list in the sink), closes it.
++   The triangles go under the sink's kind PSM_HK_AO (4 words a vertex, translucent); psm_dc.c's send_hdr_ sends
++   psm_ao2_hdr[psm_ao2_unite] for it. The pages count the map pass's TA vertices and KB apart from the screen's.
++   Method 2 is ground only: route A's layer is the ground only, so it cannot darken walls. Uniform map only in v1. */
++
++#ifndef PSM_AO2_H
++#define PSM_AO2_H
++
++#define PSM_AO2_KIND PSM_HK_AO
++#ifndef PSM_AO2_K
++#define PSM_AO2_K 4u                        /* sky directions a frame: 0, 1, 2, 4 or 8 (ao_count) */
++#endif
++#include "ao_layer.h"
++
++/* 1 when psm_ao2_send has something to send this frame: the map is uniform (ao_layer.h does not clip) */
++static inline int psm_ao2_ready(void) { return state.warp == 0; }
++
++#endif /* PSM_AO2_H */

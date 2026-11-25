@@ -1,0 +1,4 @@
+   (the tested alpha is texture x vertex alpha: PVR-064; here
+   vertex alpha 255)
+START: live view. Y: the tile list stage, LAST (photograph
+   first).

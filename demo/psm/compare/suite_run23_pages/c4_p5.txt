@@ -1,0 +1,22 @@
+S  b0 x10 30: acne 0 edge 495 rim 0; lit in error 30 + 0; vs
+   model 12 + 2; holes 0
+S SWEEP sun 100/13 w 32 bands 2 wide grow .75, Q from the
+   MEASURED edge; counts as test 4's
+S  b0 x10 0: acne 0 edge 1254 rim 0; lit in error 4 + 12; vs
+   model 10 + 8; holes 0
+S  b0 x10 5: acne 0 edge 1238 rim 0; lit in error 10 + 12; vs
+   model 10 + 0; holes 0
+S  b0 x10 10: acne 0 edge 1238 rim 0; lit in error 10 + 14; vs
+   model 10 + 2; holes 0
+S  b0 x10 15: acne 0 edge 1230 rim 0; lit in error 15 + 13; vs
+   model 14 + 4; holes 0
+S  b0 x10 20: acne 0 edge 1230 rim 0; lit in error 15 + 17; vs
+   model 12 + 6; holes 0
+S  b0 x10 25: acne 0 edge 1222 rim 0; lit in error 27 + 16; vs
+   model 9 + 4; holes 0
+S  b0 x10 30: acne 0 edge 1222 rim 0; lit in error 27 + 20; vs
+   model 14 + 16; holes 0
+   (host model on a table 99..157, ESTIMATE: acne 0 at every b0;
+   edge 617 to 503 and 1262 to 1225; lit in error 4 to 17 and 17
+   to 43)
+5 COST sun 150/26, SH-4 us and cycles, PVR render us
