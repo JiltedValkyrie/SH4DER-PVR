@@ -59,12 +59,14 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="640" y="462" class="b">The curve: level ≈ K1 + K3 cos(2π (M − Q) / 256), cyclic,</text>
 <text x="640" y="480" class="b">256 codes a turn <tspan class="k m">[MEASURED PVR-045]</tspan>. It is not exactly</text>
 <text x="640" y="498" class="b">the cosine: 443 of 40,960 pairs differ at window 32</text>
-<text x="640" y="516" class="b"><tspan class="k m">[MEASURED PVR-096]</tspan>. Take the threshold from edges</text>
-<text x="640" y="534" class="b">measured at boot on strips of known codes <tspan class="k o">[OPEN Q56]</tspan>.</text>
-<text x="640" y="560" class="b">The pass: punch-through list, bump texture, nearest,</text>
-<text x="640" y="578" class="b">offset colour on (it carries K1, K3 and Q), reference =</text>
-<text x="640" y="596" class="b">the threshold. The bump level is the tested alpha:</text>
-<text x="640" y="614" class="b">10,200 of 20,480 drawn, the table predicted 10,320 <tspan class="k m">[MEASURED PVR-065]</tspan></text>
+<text x="640" y="516" class="b"><tspan class="k m">[MEASURED PVR-096]</tspan>. Edges measured on strips of</text>
+<text x="640" y="534" class="b">known codes: 99 .. 157 at w 32, thr 38, 2 codes narrower</text>
+<text x="640" y="552" class="b">each end <tspan class="k m">[MEASURED PVR-102]</tspan>; Q from them ends the acne</text>
+<text x="640" y="570" class="b"><tspan class="k m">[MEASURED PVR-103]</tspan>.</text>
+<text x="640" y="586" class="b">The pass: punch-through list, bump texture, nearest,</text>
+<text x="640" y="601" class="b">offset colour on (it carries K1, K3 and Q), reference =</text>
+<text x="640" y="616" class="b">the threshold. The bump level is the tested alpha:</text>
+<text x="640" y="631" class="b">10,200 of 20,480 drawn, the table predicted 10,320 <tspan class="k m">[MEASURED PVR-065]</tspan></text>
 <rect x="30" y="650" width="555" height="290" rx="6" class="box"/>
 <text x="44" y="674" class="h">R7: waterline, snow line, flood</text>
 <polygon points="293.0,795.0 295.6,806.5 295.4,817.7 292.1,828.2 285.4,837.6 275.5,846.0 263.2,853.0 249.0,858.7 234.0,863.2 218.8,866.5 203.8,868.7 189.3,870.0 175.0,870.4 160.7,870.0 146.2,868.7 131.2,866.5 116.0,863.2 101.0,858.7 86.8,853.0 74.5,846.0 64.6,837.6 57.9,828.2 54.6,817.7 54.4,806.5 57.0,795.0 61.6,783.5 67.5,772.3 74.0,761.8 81.0,752.4 88.3,744.0 96.3,737.0 105.4,731.3 116.0,726.8 128.5,723.5 142.7,721.3 158.5,720.0 175.0,719.6 191.5,720.0 207.3,721.3 221.5,723.5 234.0,726.8 244.6,731.3 253.7,737.0 261.7,744.0 269.0,752.4 276.0,761.8 282.5,772.3 288.4,783.5" fill="#c9b48a" stroke="#5b6577" stroke-width="0.6"/>
