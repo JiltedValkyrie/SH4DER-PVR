@@ -87,7 +87,7 @@ def build(kos, sh4zam):
     t += wrap("SH4ZAM-DCE (a layer over SH4ZAM, used by some programs) carries the same notice and the same license.")
     t += wrap("SH4ZAM-DCE is based on SH4ZAM but is not affiliated with, endorsed by or maintained by Falco Girgis or the SH4ZAM project; "
               "report its problems to SH4DER-PVR, not to them.")
-    t += [PAGE, "SH4ZAM and SH4ZAM-DCE: MIT License", mit_notice]              # no blank lines to spare: the terms fill the page
+    t += [PAGE, "SH4ZAM (and SH4ZAM-DCE, with the same notice): MIT License", mit_notice]              # no blank lines to spare: the terms fill the page
     t += wrap(mit_terms)
     cut = kos_terms.find("THIS SOFTWARE IS PROVIDED")
     if cut < 0:

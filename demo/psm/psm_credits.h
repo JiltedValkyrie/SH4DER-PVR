@@ -36,7 +36,7 @@ static const char *const psm_credits_text[] = {
     "endorsed by or maintained by Falco Girgis or the SH4ZAM project;",
     "report its problems to SH4DER-PVR, not to them.",
     "\f",
-    "SH4ZAM and SH4ZAM-DCE: MIT License",
+    "SH4ZAM (and SH4ZAM-DCE, with the same notice): MIT License",
     "Copyright (c) 2025, 2026 Falco Girgis and SH4ZAM Contributors",
     "Permission is hereby granted, free of charge, to any person",
     "obtaining a copy of this software and associated documentation",

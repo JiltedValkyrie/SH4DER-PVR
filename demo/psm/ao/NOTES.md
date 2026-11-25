@@ -365,3 +365,33 @@ Written 2026-11-25 by Senior. **Not run on a console. The design is an ESTIMATE 
 **The run** (about 45 s): T1 five bands read back (PVR-DMA, checked against direct reads at first use), a picture held 5 s; T2a a flat and a tilted quad, T2b the room's codes at the floor's vertices, a picture each; T3 five stages of 5 s (no glow; plain | plain; plain | alpha as grey; plain | fade; plain | fade without FAR), costs and a graph. T3 takes its FADE from whichever of T1's bands 0 and 2 read as the model says; with neither it draws the plain glow and its page says so. Each test has its own page.
 
 **What to photograph:** the three held pictures, each T3 stage, every page and the graph. PASS for the look: right of the divider the glow's edge at the wall is soft and the rest of the glow is as on the left.
+
+---
+
+# s7's console run, and the builds made from it: d1-b, lamp-d, ao4-i, hen-e, pd-d (built, not run; for s8)
+
+Written 2026-11-25 by Senior. The run: suite s7 on one console (HOLLY REV 0011 SB 0B), recorded as `s7.mkv` by the owner. The ledger rows are Scholar's (PVR-152 to 158, PVR-163 to 165, SH4-082, 083, 085, BUS-053); the typed pages are in `../compare/suite_run7_pages/`. This section is what the run meant for these programs. **The five builds below have not run on a console.**
+
+**What the run showed (MEASURED, the rows have the numbers).**
+- d1, T1: the bump unit's level can be laid into destination alpha as an alpha-only add on a black base, with MODULATE and MODULATEALPHA alike (both read 252 at code 64, 172 at 96, 0 at 128, 160, 192 and 0; the backdrop's colour kept on 256 of 256 pixels). A level below zero reads 0. The level is not an exact cosine (172 where a cosine gives 180).
+- d1, T2: the repeating ramp gives a code exactly linear in depth (flat quad 160 of 160; tilted quad off by 0 on 160 of 160).
+- d1, T3: **not a test of the fade.** d1-a judged T1 by "within 4 of a cosine on 240 of 256 codes"; the console's curve gave 212, so T3 fell back to the plain glow in every stage. The rule was wrong, not the hardware. The fade on a glow is still untested.
+- ao-lamp: the lamp without slots (ROOM LIGHT stage) is the look the owner liked. With slots, each slit showed dark pieces the colour of the dimmed room, not the host preview's bright slit, and read as holes; the cut edges were clean (no fault of the punch-through test or the user clip seen). The cause (the eye looks out through the far slot and the open bottom) is a reading of the picture, ESTIMATE. Stage 2 showed no lit lamp: it stood in the OFF half. The point light misses the frame: 4,530 us for 3,883 vertices, 20.6 ms a frame.
+- ao4, the clip guard's two stages: the magenta mark stayed in the left half with the guard off, so the early clip change (CORE 18) was not seen in this program's opaque list.
+- The owner's note on the controls: the runs ignored every key while their last text line still listed the keys. In ao4 the stick moved the eye during the run (it always did), nothing else.
+- Every graph page drew its title and axis label over the effect labels' rows.
+
+**The builds** (`build/psm_ao/`, 0 warnings, host tests pass; list `../suite/suite_s8.json`).
+
+| Entry | ELF, sha256 | Against the s7 build |
+|---|---|---|
+| d1 | psm-d1-b.elf e507ac19c9645364f4b037b3e8e59d72174437b3b2b41f4778ef70cde2608e90 | T1 judged by shape; band 0's curve printed; the pad ends the run |
+| ao-lamp | psm-lamp-d.elf da5266c6c0cf88a962558af211f63486deda6cc27828eb5e7d5bde0df577f765 | LAMP ON a whole shade; stage 2 swapped; the lit inside on a key; the pad ends the run |
+| ao4 | psm-ao4-i.elf 92a0f037b6400f8803b7ced926789c9ec343320a4ebbc8264a0d2d0fb6cb911a | the pad ends the run; nothing measured differently |
+| hens-eyes | psm-hen-e.elf b5099c84c1bf8a657b53add5aa3905f46226ee8e14a76f6aa40b21943bfd202e | the pad ends the run; nothing measured differently |
+| pvr-dma | psm-pd-d.elf 1103f72ee7cc1e31dc53cdc0a963277267b2a487dd1369793105ae5146765103 | the graph page only |
+
+- **d1-b.** A band passes T1 when it has the shape the fade needs: at least 240 at code 64, not falling on the way up to it, not rising from 64 to 128, at most 8 from code 128 on (a step of the 565 target's green is allowed for). Page 1 prints band 0 at every 8th code, 32 numbers: the console's own curve, to replace the cosine in `d1_model.h` once it is measured. T3 is as it was: this will be its first real run, and the FAR quad claim, the half-size map's lookup and the look are still ESTIMATE / OPEN.
+- **lamp-d.** LAMP ON is a whole shade in every comparison; the slots are in SLOTS OFF | ON alone (stage 3). Stage 2 is ON | OFF so the lit lamp is on the screen; stage numbers and count are lamp-c's, but stages 2, 5 and 6 no longer draw slots, so their numbers are not lamp-c's. D-pad down in the live view draws a lit inside behind the slits: the shade's rings at 0.9 of their radius, 96 untextured triangles in the opaque list, one flat warm colour, only for a half that has slots; off in the run. Its cost is not measured.
+- **The pad during a run** (d1-b, lamp-d, ao4-i, hen-e). The run's last text line reads "MEASURING stage n of N: any button = live view now" (the same number of lines as before: the fill a stage counts is unchanged). Any button or trigger ends the run there and opens the live view at once, as the stage it stopped; the stick does not end it. The pages then say "RUN STOPPED BY THE PAD ..." and hold only what completed (ao4 keeps the stopped stage's partial sums in its lines and its first line warns of it). Nothing is measured from a frame in which a key acted. A "live first" choice in the menu was not built (lead: not for now).
+- **The graph pages** (`../psm_page.h`). A graph's title is on row 2 and the graph moves down by `PG_TOP` rows, so it clears the effect labels. Text pages and every page CRC are unchanged. Every program with a graph page needs a rebuild on this header to get it.

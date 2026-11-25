@@ -282,3 +282,15 @@ The current disc is **s6b**, the only suite disc in `out/cdi`. s5, s5b and s6 we
 MENU.BIN 209,924 bytes, sha256 bb426e59…65da. Notes on the entries: `../ao/NOTES.md` (labels, divider, ao-lamp, d1).
 
 **OPEN: Newlib's notices.** The programs link Newlib (94 objects of libc), whose BSD and AT&T notices must go with a binary ("in the documentation and/or other materials provided with the distribution"); s7 carries a sentence that names Newlib, not the notices. libgcc needs nothing (GCC Runtime Library Exception 3.1). Proposed, not done: COPYING.NEWLIB as a text file on every disc. Reported to lead 2026-11-25; the owner decides.
+
+---
+
+# s7 ran (2026-11-25, one console); s8's list is ready, NOT BUILT
+
+**s7's run.** The owner recorded it (`s7.mkv`). The disc booted, both menu levels worked, every entry that was started returned to the menu, no hang and no fault page. What the entries showed: `../ao/NOTES.md` "s7's console run"; the ledger rows are Scholar's.
+
+**s8** (`suite_s8.json`; lead cuts the image when Junior's pl4nar ELF is in). s7 with d1-b, lamp-d, ao4-i, hen-e and pd-d in place of d1-a, lamp-c, ao4-h, hen-d and pd-c (shas in `../ao/NOTES.md`); hero1 and pl4nar as on s7 until Junior's new ELFs; ao1c-live and hud1c-2 as on s7. `--no-image` check on 2026-11-25: all nine return to the menu.
+
+**The menu's credits changed** (`../tools/make_credits.py`, `../psm_credits.h` regenerated): after the line that names SH4ZAM-DCE, "SH4ZAM-DCE is based on SH4ZAM but is not affiliated with, endorsed by or maintained by Falco Girgis or the SH4ZAM project; report its problems to SH4DER-PVR, not to them."; and the second page's heading is "SH4ZAM (and SH4ZAM-DCE, with the same notice): MIT License" (the owner's wording "which carries the same notice" is 67 columns; the page is 64 wide and has no line to spare). MENU.BIN for s8's list as it stands: 210,128 bytes, sha256 a59b4c35370fbe19fb6d27457818f3a07734e9cf25ec355190d9c25760f64a3e; it changes again if an entry's name or text changes.
+
+**Still OPEN:** Newlib's notices on the disc (the owner's decision).
