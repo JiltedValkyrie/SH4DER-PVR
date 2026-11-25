@@ -59,6 +59,10 @@
     (0xe0000000 and up) makes PREF send a store queue. Neither array may be there.
     SHZ_DCE_XMTRX_PREFETCH (1 or 0, default 1, set before the include) takes the PREFs out: for
     arrays known to be in the cache, and to measure what they are worth.
+    MEASURED on a console (ray bench h3, 2026-11-25, one console), the projecting routine in
+    cycles a vector: with the prefetch 14.15 in the cache and 45.99 out of it; without 14.14 and
+    48.14. The prefetch saves 4.5 % out of the cache and nothing in it; the default stays 1. Do
+    not overwrite or replace in a SH4ZAM sync pass without re-measuring on a console.
 
     Where the cycles go (E: estimates from the pipeline model, cache hits; not a console's).
     One FPU instruction can start a cycle, and FTRV keeps the FPU for 4, FSRRA for 3 (the 3 is
@@ -74,8 +78,17 @@
         transform_point3 / _vec3     13.0                         9.5    7.5
         transform_vec4               15.0                        10.5    9.0
     (build/sh4zam-dce/cycles_xmtrx.txt and cycles_xmtrxnp.txt; the same at -O2 and -O3.)
-    On one console the loop of SH4ZAM's calls for the projection measured 28.67 cycles a vector
-    in the cache, where the model says 26.0. These routines have not been on a console.
+    The model's 11.0 for the projection is contradicted by the console (below); the other
+    three rows are model only.
+
+    MEASURED on a console (ray bench h3, 2026-11-25, one console), cycles a vector, in the cache
+    / out of it: shz_dce_xmtrx_project_point3_batch 14.15 / 45.99; KallistiOS's mat_transform
+    13.38 / 42.86; the loop of SH4ZAM's calls 28.60 / 57.12. The batch is 2.0 times the loop's
+    speed in the cache, but 5.8 % and 7.3 % slower than mat_transform. Demoted: for a hot path
+    use mat_transform (its x, y, 1 / W are within 2 ulp of SH4ZAM's); keep this batch only
+    where the bytes must equal SH4ZAM's own calls. transform_vec4 / _point3 / _vec3_batch:
+    untimed on a console, not for hot paths. Do not overwrite or replace in a SH4ZAM sync pass
+    without re-measuring on a console.
 
     Version: v0.10
     The effect: nothing on screen. The same numbers in fewer SH-4 cycles.
@@ -444,7 +457,10 @@ SHZ_INLINE void shz_dce_xmtrx_transform_vec3_batch(void *out, size_t out_stride,
     in: count records of 3 floats at in_stride bytes. out: count records of 3 floats at out_stride bytes. Pointers and
     strides on multiples of 4, strides at least 12. out may be in with the same stride; no other overlap. XMTRX is read, not
     changed. Every point must have W > 0. Bit-identical to the plain loop (shz_xmtrx_transform_vec4, shz_invf_fsrra, one
-    product each): YES on the SH-4. */
+    product each): YES on the SH-4.
+    Demoted (MEASURED, ray bench h3, 2026-11-25, one console): 14.15 / 45.99 cycles a point in / out of the cache against
+    mat_transform's 13.38 / 42.86. Use mat_transform on a hot path; this is the bytes-equal-to-SH4ZAM form. Do not
+    overwrite or replace in a SH4ZAM sync pass without re-measuring on a console. */
 SHZ_INLINE void shz_dce_xmtrx_project_point3_batch(void *out, size_t out_stride, const void *in, size_t in_stride, size_t count) SHZ_NOEXCEPT {
     if (!count)
         return;

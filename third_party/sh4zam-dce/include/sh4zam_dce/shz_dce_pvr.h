@@ -63,6 +63,14 @@
     The input is prefetched 96 bytes ahead, also past its end (PREF raises no exception and reads
     nothing into the program; the address must not be in the store-queue area).
 
+    MEASURED on a console (one console, cycles a vertex, this routine against its plain C form,
+    bytes the same each time): bench h2, 2026-11-25: 21.15 against 43.19 in the cache, 58.09
+    against 74.07 out of it. Spike c4b, 2026-11-25 (1,288 to 2,464 vertices, a clean placing):
+    60.5 to 61.7 against 76.7 to 79.2. Ray bench h3, 2026-11-25: 58.91 / 59.04 for 28,699
+    vertices out of the cache. KallistiOS has no routine that writes the PVR's vertices, so the
+    plain form is what it replaces: kept. Do not overwrite or replace in a SH4ZAM sync pass
+    without re-measuring on a console.
+
     Version: v0.10
     The effect: nothing on screen. The same vertices in fewer SH-4 cycles.
     Use it for: any mesh kept as PVR vertices and drawn through one matrix with no clipping by
