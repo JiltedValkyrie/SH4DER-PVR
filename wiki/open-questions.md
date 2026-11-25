@@ -77,6 +77,7 @@ Q53 in one picture:
 | Q32 | A Yamaha AICA datasheet with timing. The AICA manual was found and read 2026-11-25 (AICA-026 to AICA-031): it gives the memory cycle (4 clocks) but no ARM wait-state count, so Q28 stays | Console test 1 (Q28) | AICA ledger |
 | Q59 | Does a muted DSP (send level 0, master volume 0) still compute and write to sound RAM as normal? | Run a known DSP program muted; read EFREG and its writes | AICA-029, [sound chip](research/sound-chip-precompute.md) |
 | Q60 | The DSP ring buffer base step: 1 K or 4 K words (the manual disagrees with itself) | Write at two bases one step apart; read back | AICA-031 |
+| Q65 | What does one SH-4 write to an AICA voice register (pan, level, filter, send) cost across G2, with the FIFO wait after every 8, and how many fit a frame? The voice registers themselves are not yet ledger rows | Time 8, 64 and 256 register writes in a loop; read the manual's voice register table into FACT rows | AICA-011, AICA-012, [ray uses](research/ray-uses.md) RU7 |
 
 ## 5. Video memory and the frame
 

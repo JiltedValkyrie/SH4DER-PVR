@@ -26,7 +26,7 @@ The rules are in [`AGENTS.md`](../../AGENTS.md), "Read first".
 
 | Library | Licence | Rule |
 |---|---|---|
-| SH4ZAM | MIT, Falco Girgis | Use as a library; keep its notice. Never copy its files into this repository; never commit `third_party/sh4zam`. |
+| SH4ZAM | MIT, Falco Girgis | Use as a library; keep its notice. Never copy its files into this repository; never commit, edit or re-version `third_party/sh4zam` (pull only). Our `sh4zam-dce` layer is separate and keeps SH4ZAM's notice. |
 | SH4DOW-DC | its own, in `sh4dow-dc/` | Kept whole; its code is not copied into the effect files. |
 | KallistiOS | BSD-style KOS licence, attribution required | Linked, not copied. |
 | Outside research sources | see [Outside sources](../research/outside-sources.md) | Cite only. |

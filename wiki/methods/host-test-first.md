@@ -32,6 +32,8 @@ From README:1262-1265:
 
 ## Assembly hooks (the sh4zam-dce layer)
 
+`sh4zam-dce` is our layer beside SH4ZAM, not part of it; SH4ZAM itself (upstream, Falco Girgis, MIT) is never edited ([the SH4ZAM rule](sh4zam-rule.md)).
+
 From `third_party/sh4zam-dce/KERNEL_GUIDE.md`:93-107:
 
 - Each batch routine has three forms: `_c` (plain C on SH4ZAM's public calls, the reference), `_sh4` (the assembly) and the plain name (checks alignment, then dispatches).

@@ -30,7 +30,7 @@ The library is licensed work, not a free sample. Before using any of it, read [L
 
 ## What it depends on
 
-- **SH4ZAM** (MIT, Falco Girgis): the maths library for the SH-4, version 0.10 or later. Every square root, sine, reciprocal and matrix step goes through it on the Dreamcast. It is not shipped here: see [Setup](setup.md).
+- **SH4ZAM** (MIT, Falco Girgis): the maths library for the SH-4, version 0.10 or later. It is upstream, used as a library and never edited here; our own SH-4 kernels live in a separate layer, `sh4zam-dce`. Every square root, sine, reciprocal and matrix step goes through it on the Dreamcast. It is not shipped here: see [Setup](setup.md).
 - **KallistiOS** (KOS): the Dreamcast operating system and drawing library the `.c` files call.
 - **SH4DOW-DC**: included in `sh4dow-dc/`, kept whole.
 

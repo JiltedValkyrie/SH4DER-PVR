@@ -11,6 +11,8 @@ sources: [AGENTS.md "Maths and speed: standing rule for every agent", third_part
 
 The rule is in [`AGENTS.md`](../../AGENTS.md), "Maths and speed". In plain words:
 
+**Whose code is whose.** SH4ZAM is upstream: Falco Girgis's library, MIT licence, at [github.com/gyrovorbis/sh4zam](https://github.com/gyrovorbis/sh4zam). `third_party/sh4zam` is a plain checkout of its master branch: we never edit it, never change or pin its version, never commit it; we only `git pull`. `sh4zam-dce` (`third_party/sh4zam-dce`, names `shz_dce_*`) is **our own layer** beside it, not part of SH4ZAM: it follows SH4ZAM's style and calls SH4ZAM, and its optional override header puts SH4ZAM's names on our routines at compile time without touching SH4ZAM's files. What we measure or find about SH4ZAM (SH4-019, SH4-022) is our notes; a fix we think upstream could use is offered to its author, never applied to the checkout.
+
 ## 1. SH4ZAM everywhere on the Dreamcast path
 
 On the Dreamcast path, these maths steps go through SH4ZAM's `shz_*` calls, never libm or hand-written C:
@@ -32,12 +34,12 @@ Plain C stays only as the `SH4DER_CORE_NO_SH4ZAM` path, for the host.
 ## 2. When SH4ZAM has no call for it, write a hook
 
 - Write a thin SH-4 assembly (or inline assembly) kernel in our own file.
-- Use SH4ZAM's style and naming (`shz_`-like) and put it in the `sh4zam-dce` layer (`third_party/sh4zam-dce`). Call it from C.
+- Use SH4ZAM's style and naming (`shz_dce_`) and put it in our `sh4zam-dce` layer (`third_party/sh4zam-dce`), never in SH4ZAM's checkout. Call it from C.
 - Keep a C reference beside it, and a host test that checks the two agree.
 - Do not copy SH4ZAM's files here. Keep Falco Girgis's MIT notice with SH4ZAM.
-- Offer a hook that proves useful back to SH4ZAM.
+- Offer a hook that proves useful to SH4ZAM's author; whether it goes upstream is their call.
 
-The hooks that exist so far are listed in `third_party/sh4zam-dce/README.md`. One example is `shz_dce_pvr_project`, which transforms and projects vertices for the PVR.
+Our hooks that exist so far are listed in `third_party/sh4zam-dce/README.md`. One example is `shz_dce_pvr_project`, which transforms and projects vertices for the PVR.
 
 ## 3. No slow code
 

@@ -28,13 +28,14 @@ This builds every `test/*_test.c` and `example/blade.c` with plain C (`SH4DER_CO
 
 ## 2. SH4ZAM
 
-SH4ZAM is not shipped. Fetch version 0.10 into `third_party/sh4zam`:
+SH4ZAM is not shipped, and it is not ours: it is Falco Girgis's library (MIT). Fetch its master branch into `third_party/sh4zam` (the library follows SH4ZAM's latest, not a tag; `AGENTS.md`):
 
 ```
-git clone --branch v0.10.0 https://github.com/gyrovorbis/sh4zam third_party/sh4zam
+git clone https://github.com/gyrovorbis/sh4zam third_party/sh4zam
+git -C third_party/sh4zam pull
 ```
 
-- Git ignores that folder: never commit it.
+- Git ignores that folder: never commit it, never edit its files or its version. Pull to update; nothing else.
 - `make check-sh4zam` (which runs `tools/check_sh4zam.py`) fails, and prints that line, when the checkout is missing, incomplete or older than 0.10.
 - Then run the tests on SH4ZAM's path:
 
