@@ -379,34 +379,92 @@ static inline void psm_scene_init(psm_scene_t *s) {
     psm_scene_objects_(s);
 }
 
-/* The movers' vertices from their templates: tipped by tilt about the hip (0.1 m up), turned to the bearing, at (x, -z) in
-   the world; their casters the same, and their objects' boxes. Every frame, before the placement. */
+/* A row-form matrix applied to many points (p' = (x, y, z, 1) x M). On the SH-4 the matrix goes into XMTRX once, its rows
+   being the matrix's columns, so FTRV gives each column's dot with the point: that is p x M, and one point is one FTRV.
+   Between a load and its applies nothing else may use XMTRX. Plain C otherwise (SH4DER_CORE_NO_SH4ZAM). */
+typedef struct psm_xf {
+    float m[16];
+} psm_xf_t;
+
+static inline void psm_xf_load(psm_xf_t *x, const float m[16]) {
+    unsigned i;
+
+    for (i = 0; i < 16u; i++) x->m[i] = m[i];
+#ifndef SH4DER_CORE_NO_SH4ZAM
+    {
+        const shz_vec4_t r0 = shz_vec4_init(m[0], m[4], m[8], m[12]);
+        const shz_vec4_t r1 = shz_vec4_init(m[1], m[5], m[9], m[13]);
+        const shz_vec4_t r2 = shz_vec4_init(m[2], m[6], m[10], m[14]);
+        const shz_vec4_t r3 = shz_vec4_init(m[3], m[7], m[11], m[15]);
+
+        shz_xmtrx_load_rows_4x4(&r0, &r1, &r2, &r3);
+    }
+#endif
+}
+
+/* h = (p, 1) x M */
+static inline void psm_xf_apply(const psm_xf_t *x, const float p[3], float h[4]) {
+#ifndef SH4DER_CORE_NO_SH4ZAM
+    const shz_vec4_t v = shz_xmtrx_transform_vec4(shz_vec4_init(p[0], p[1], p[2], 1.0f));
+
+    (void)x;
+    h[0] = v.x; h[1] = v.y; h[2] = v.z; h[3] = v.w;
+#else
+    sh4der_psm_xform(x->m, p, 1.0f, h);
+#endif
+}
+
+/* o = (p, w) x M, the first three: w 1 a point, w 0 a direction. o may not be p. */
+static inline void psm_xf_apply3(const psm_xf_t *x, const float p[3], float w, float o[3]) {
+#ifndef SH4DER_CORE_NO_SH4ZAM
+    const shz_vec4_t v = shz_xmtrx_transform_vec4(shz_vec4_init(p[0], p[1], p[2], w));
+
+    (void)x;
+    o[0] = v.x; o[1] = v.y; o[2] = v.z;
+#else
+    float h[4];
+
+    sh4der_psm_xform(x->m, p, w, h);
+    o[0] = h[0]; o[1] = h[1]; o[2] = h[2];
+#endif
+}
+
+/* A mover's matrix in row form (p' = (p, 1) x M): tipped by tilt about the hip (0.1 m up, about x), turned to the bearing
+   (about y), at (x, -z). The rows are the images of x, y, z and the origin. */
+static inline void psm_mover_rows(const psm_mover_t *m, float r[16]) {
+    float sb, cb, st, ct;
+
+    sh4der_sincos_(m->bearing, &sb, &cb);
+    sh4der_sincos_(m->tilt, &st, &ct);
+    r[0] = cb;            r[1] = 0.0f;                r[2] = sb;                       r[3] = 0.0f;
+    r[4] = sb * st;       r[5] = ct;                  r[6] = -cb * st;                 r[7] = 0.0f;
+    r[8] = -sb * ct;      r[9] = st;                  r[10] = cb * ct;                 r[11] = 0.0f;
+    r[12] = m->x - 0.1f * st * sb; r[13] = 0.1f - 0.1f * ct; r[14] = -m->z + 0.1f * st * cb; r[15] = 1.0f;
+}
+
+/* The movers' vertices from their templates through their matrix (psm_mover_rows, one FTRV a point on the console; the
+   normals with w 0); their casters the same, and their objects' boxes. Every frame, before the placement (which loads its
+   own rows: XMTRX is left with the last mover's). */
 static inline void psm_movers_apply(psm_scene_t *s) {
     unsigned k, i, c;
 
     for (k = 0; k < s->movern; k++) {
         const psm_mover_t *m = &s->mover[k];
         psm_cobj_t *o = &s->co[m->co];
-        float sb, cb, st, ct;
+        psm_xf_t xf;
+        float r[16];
 
-        sh4der_sincos_(m->bearing, &sb, &cb);
-        sh4der_sincos_(m->tilt, &st, &ct);
+        psm_mover_rows(m, r);
+        psm_xf_load(&xf, r);
         for (i = 0; i < m->vn; i++) {
-            const float *l = s->dloc[m->v0 + i - s->mdyn0], *n = s->dnloc[m->v0 + i - s->mdyn0];
-            const float y = (l[1] - 0.1f) * ct + l[2] * st + 0.1f, z = l[2] * ct - (l[1] - 0.1f) * st;
-            const float ny = n[1] * ct + n[2] * st, nz = n[2] * ct - n[1] * st;
-            float *p = s->mv[m->v0 + i], *q = s->mn[m->v0 + i];
-
-            p[0] = m->x + l[0] * cb - z * sb; p[1] = y; p[2] = -m->z + l[0] * sb + z * cb;
-            q[0] = n[0] * cb - nz * sb; q[1] = ny; q[2] = n[0] * sb + nz * cb;
+            psm_xf_apply3(&xf, s->dloc[m->v0 + i - s->mdyn0], 1.0f, s->mv[m->v0 + i]);
+            psm_xf_apply3(&xf, s->dnloc[m->v0 + i - s->mdyn0], 0.0f, s->mn[m->v0 + i]);
         }
         for (c = 0; c < 3u; c++) { o->lo[c] = 1e30f; o->hi[c] = -1e30f; }
         for (i = 0; i < m->cvn; i++) {
-            const float *l = s->dcloc[m->cv0 + i - s->cdyn0];
-            const float y = (l[1] - 0.1f) * ct + l[2] * st + 0.1f, z = l[2] * ct - (l[1] - 0.1f) * st;
             float *p = s->cv[m->cv0 + i];
 
-            p[0] = m->x + l[0] * cb - z * sb; p[1] = y; p[2] = -m->z + l[0] * sb + z * cb;
+            psm_xf_apply3(&xf, s->dcloc[m->cv0 + i - s->cdyn0], 1.0f, p);
             for (c = 0; c < 3u; c++) {
                 if (p[c] < o->lo[c]) o->lo[c] = p[c];
                 if (p[c] > o->hi[c]) o->hi[c] = p[c];
@@ -521,11 +579,11 @@ static inline unsigned psm_repeat_step(psm_repeat_t *r, int held, float dt) {
    left / right (and A) change it. */
 enum {
     PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_HOLD, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_FILTER_A, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
-    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROW_FREEZE, PSM_ROWS
+    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROW_FREEZE, PSM_ROW_SEND, PSM_ROWS
 };
 static const char *const psm_row_name[PSM_ROWS] = {
     "ROUTE", "MAP", "MAP HOLD", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "A FILTER", "B FILTER", "BIAS CONST", "BIAS SLOPE", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
-    "SCENE", "TIME", "TIME SPEED", "FREEZE"
+    "SCENE", "TIME", "TIME SPEED", "FREEZE", "TA SEND"
 };
 
 /* The rows as data, for a panel that draws the table: the group (a tab), the kind, and for a slider its range and step in
@@ -560,6 +618,7 @@ static const psm_row_def_t psm_row_def[PSM_ROWS] = {
     { PSM_GRP_SUN,    PSM_RK_SLIDER, 1, 1, 0.0f, 1425.0f, 15.0f },    /* TIME, minutes of the day */
     { PSM_GRP_SUN,    PSM_RK_CHOICE, 0, 1, 0.0f, 0.0f, 0.0f },        /* TIME SPEED */
     { PSM_GRP_SUN,    PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* FREEZE */
+    { PSM_GRP_VIEW,   PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* TA SEND */
 };
 #define PSM_ROUTES 3                  /* A, B, AB (demo/psm/psm_mapsrc.h: PSM_ROUTE_AB 2) */
 
@@ -605,6 +664,8 @@ typedef struct psm_state {
     unsigned tspeed;     /* TIME SPEED: psm_time_speed's index */
     int sun_free;        /* 1: the sun was set by hand (azimuth, elevation), off the clock */
     int freeze;          /* FREEZE: the people and the hens stand still */
+    int send_runs;       /* TA SEND: 1 the vertices into 8 KB of cache lines (MOVCA) and to the TA in store-queue runs, 0 one
+                            pvr_dr store-queue write a vertex (psm_dc.c; the host draws nothing) */
     float cast_t;        /* the cast's clock, seconds */
     unsigned tpreset;    /* the town's last preset */
     int atmos;           /* 1: the sky band, the hills and the quadratic fog (demo/psm/psm_sky.h, TOWN_LOOK.md section 3); the town's
@@ -626,6 +687,7 @@ static inline void psm_state_default(psm_state_t *st) {
     st->pcf = 1;
     st->filter_a = 1;
     st->hold = 1;
+    st->send_runs = 1;
     st->invert_y = 1;
     st->size_i = 2u;                                   /* 256 (512 is a choice for route B and AB) */
     st->az = psm_preset_sun[0][0]; st->el = psm_preset_sun[0][1];
@@ -636,6 +698,23 @@ static inline void psm_state_default(psm_state_t *st) {
     st->clock = 14.0f;
     st->tspeed = 1u;
 }
+
+/* The trigonometry sh4der_core.h does not wrap (AGENTS.md "Maths and speed"): SH4ZAM's on the console, libm on the host's
+   plain C path. psm_town.h and psm_sky.h use these. */
+#ifndef SH4DER_CORE_NO_SH4ZAM
+#include <sh4zam_dce/shz_dce_atan2.h>
+/* shz_atan2f and shz_asinf are fast approximations (0.58 and 0.28 degrees worst on the host's software back end), too coarse
+   for the story's sun table (0.1 degree in elevation): the atan2 is SH4ZAM-DCE's (0.0007 degrees), and asin goes through it. */
+static inline float psm_sin_(float x) { return shz_sinf(x); }
+static inline float psm_tan_(float x) { return shz_tanf(x); }
+static inline float psm_atan2_(float y, float x) { return shz_dce_atan2f(y, x); }
+static inline float psm_asin_(float x) { return shz_dce_atan2f(x, sh4der_sqrt_(1.0f - x * x)); }   /* |x| <= 1 */
+#else
+static inline float psm_sin_(float x) { return sinf(x); }
+static inline float psm_tan_(float x) { return tanf(x); }
+static inline float psm_asin_(float x) { return asinf(x); }
+static inline float psm_atan2_(float y, float x) { return atan2f(y, x); }
+#endif
 
 #include "psm_town.h"
 
@@ -727,6 +806,7 @@ static inline void psm_row_change(psm_state_t *st, int row, int d) {
         case PSM_ROW_TIME: psm_clock_step_(st, PSM_CLOCK_STEP * (float)d); break;
         case PSM_ROW_TSPEED: st->tspeed = (st->tspeed + (d > 0 ? 1u : PSM_TIME_SPEEDS - 1u)) % PSM_TIME_SPEEDS; break;
         case PSM_ROW_FREEZE: st->freeze = !st->freeze; break;
+        case PSM_ROW_SEND: st->send_runs = !st->send_runs; break;
         default: break;
     }
     st->split = st->readout == 2;
@@ -770,6 +850,7 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
             snprintf(buf, cap, "x%u", (unsigned)psm_time_speed[st->tspeed % PSM_TIME_SPEEDS]);
             return buf;
         case PSM_ROW_FREEZE: return st->freeze ? "on: people and hens stand" : "off";
+        case PSM_ROW_SEND: return st->send_runs ? "SQ RUNS  8 KB a run" : "PVR_DR  a vertex a write";
         default: return "?";
     }
 }
@@ -798,6 +879,7 @@ static inline int32_t psm_row_int(const psm_state_t *st, int row) {
         case PSM_ROW_TIME: return (int32_t)(st->clock * 60.0f);
         case PSM_ROW_TSPEED: return (int32_t)st->tspeed;
         case PSM_ROW_FREEZE: return st->freeze;
+        case PSM_ROW_SEND: return st->send_runs;
         default: return 0;
     }
 }
@@ -861,41 +943,6 @@ static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, cons
 }
 
 /* ---- frame ------------------------------------------------------------------- */
-
-/* A row-form matrix applied to many points (p' = (x, y, z, 1) x M). On the SH-4 the matrix goes into XMTRX once, its rows
-   being the matrix's columns, so FTRV gives each column's dot with the point: that is p x M, and one point is one FTRV.
-   Between a load and its applies nothing else may use XMTRX. Plain C otherwise (SH4DER_CORE_NO_SH4ZAM). */
-typedef struct psm_xf {
-    float m[16];
-} psm_xf_t;
-
-static inline void psm_xf_load(psm_xf_t *x, const float m[16]) {
-    unsigned i;
-
-    for (i = 0; i < 16u; i++) x->m[i] = m[i];
-#ifndef SH4DER_CORE_NO_SH4ZAM
-    {
-        const shz_vec4_t r0 = shz_vec4_init(m[0], m[4], m[8], m[12]);
-        const shz_vec4_t r1 = shz_vec4_init(m[1], m[5], m[9], m[13]);
-        const shz_vec4_t r2 = shz_vec4_init(m[2], m[6], m[10], m[14]);
-        const shz_vec4_t r3 = shz_vec4_init(m[3], m[7], m[11], m[15]);
-
-        shz_xmtrx_load_rows_4x4(&r0, &r1, &r2, &r3);
-    }
-#endif
-}
-
-/* h = (p, 1) x M */
-static inline void psm_xf_apply(const psm_xf_t *x, const float p[3], float h[4]) {
-#ifndef SH4DER_CORE_NO_SH4ZAM
-    const shz_vec4_t v = shz_xmtrx_transform_vec4(shz_vec4_init(p[0], p[1], p[2], 1.0f));
-
-    (void)x;
-    h[0] = v.x; h[1] = v.y; h[2] = v.z; h[3] = v.w;
-#else
-    sh4der_psm_xform(x->m, p, 1.0f, h);
-#endif
-}
 
 typedef struct psm_frame {
     sh4der_psm_cam_t cam;
@@ -1017,7 +1064,7 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
        placement on them). */
     ix = psm_snap_(st->x); iz = psm_snap_(st->z);
     half = psm_window_half(st->pitch);
-    k0 = (int)(st->yaw / PSM_COL_STEP + 0.5f) - (int)half;
+    k0 = (int)(st->yaw * (1.0f / PSM_COL_STEP) + 0.5f) - (int)half;
     f->grows = s->rows; f->gcols = 2u * half + 1u;
     f->gvn = f->grows * f->gcols;
     f->gc[0] = (float)ix * PSM_SNAP; f->gc[1] = (float)iz * PSM_SNAP;
@@ -1249,8 +1296,8 @@ static inline int psm_place_pt_(const psm_xf_t *xf, const float p[3], float clip
     clip[0] = h[0]; clip[1] = h[1]; clip[2] = h[3];
     if (!(h[3] > PSM_NEAR)) { scr[0] = scr[1] = scr[2] = 0.0f; return 0; }
     iw = sh4der_recip_pos_(h[3]);
-    scr[0] = (h[0] * iw * 0.5f + 0.5f) * PSM_SCR_W;
-    scr[1] = (0.5f - h[1] * iw * 0.5f) * PSM_SCR_H;
+    scr[0] = sh4der_fma_(h[0] * iw, 0.5f * PSM_SCR_W, 0.5f * PSM_SCR_W);   /* the viewport: one multiply-add an axis */
+    scr[1] = sh4der_fma_(h[1] * iw, -0.5f * PSM_SCR_H, 0.5f * PSM_SCR_H);
     scr[2] = iw;
     return 1;
 }

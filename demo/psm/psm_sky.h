@@ -66,7 +66,7 @@ static inline float psm_fog_at(float dist, float d) {
     float t;
 
     if (!(dist > 0.0f)) return 0.0f;
-    t = sh4der_clamp_((d - s) / (dist - s), 0.0f, 1.0f);
+    t = sh4der_clamp_(sh4der_div_(d - s, dist - s), 0.0f, 1.0f);
     return t * t;
 }
 
@@ -79,7 +79,7 @@ static inline void psm_fog_table(float dist, float tbl[129]) {
     for (k = 0; k < 129u; k++) {
         const float t = (float)(1u << (k >> 4)) * (float)(16u + (k & 15u)) * (1.0f / 16.0f);
 
-        tbl[k] = psm_fog_at(dist, dist / t);
+        tbl[k] = psm_fog_at(dist, sh4der_div_(dist, t));
     }
 }
 
@@ -91,7 +91,7 @@ static inline float psm_fog_table_at(const float tbl[129], float dist, float d) 
 
     if (!(x >= 1.0f)) return tbl[0];
     while (e < 7u && x >= (float)(2u << e)) e++;
-    m = x / (float)(1u << e) * 16.0f - 16.0f;       /* 0 .. 16 within the octave */
+    m = x * (16.0f / (float)(1u << e)) - 16.0f;     /* 0 .. 16 within the octave (a power of two: exact) */
     k = e * 16u + (unsigned)m;
     if (k >= 128u) return tbl[128];
     f = m - (float)(unsigned)m;
@@ -100,12 +100,12 @@ static inline float psm_fog_table_at(const float tbl[129], float dist, float d) 
 
 /* ---- the rings ----------------------------------------------------------------------------------------------- */
 
-static inline float psm_sky_frac_(float x) { return x - floorf(x); }
+static inline float psm_sky_frac_(float x) { return sh4der_frac_(x); }
 
 /* a low-passed ring of PSM_SKY_BINS colours at u (0 .. 1, wraps), linearly */
 static inline void psm_sky_ring_(const float (*ring)[3], float u, float out[3]) {
     const float b = psm_sky_frac_(u) * (float)PSM_SKY_BINS - 0.5f;
-    const float fb = floorf(b), t = b - fb;
+    const float t = sh4der_frac_(b), fb = b - t;
     const unsigned i0 = ((unsigned)((int)fb + (int)PSM_SKY_BINS)) % PSM_SKY_BINS, i1 = (i0 + 1u) % PSM_SKY_BINS;
     unsigned c;
 
@@ -119,7 +119,7 @@ static inline float psm_sky_u_off(float sun_az) { return psm_sky_frac_(PSM_SKY_S
 /* the far hills' top (degrees) at bearing a: smooth, 0.5 .. 3.2 */
 static inline float psm_hill_top(float a) {
     const float r = a * 0.0174533f;
-    const float n = 0.5f + 0.30f * sinf(2.0f * r + 0.7f) + 0.12f * sinf(5.0f * r + 2.1f) + 0.06f * sinf(11.0f * r + 4.0f);   /* 0.02 .. 0.98 */
+    const float n = 0.5f + 0.30f * psm_sin_(2.0f * r + 0.7f) + 0.12f * psm_sin_(5.0f * r + 2.1f) + 0.06f * psm_sin_(11.0f * r + 4.0f);   /* 0.02 .. 0.98 */
 
     return 0.5f + 2.7f * sh4der_clamp_(n, 0.0f, 1.0f);
 }
@@ -173,14 +173,14 @@ static inline unsigned psm_sky_tri_(psm_sky_out_t *o, unsigned *n, const psm_sky
 
         if (s_in) p[k++] = *s;
         if (s_in != e_in && k < 4u) {
-            const float t = (wc - s->clip[2]) / (e->clip[2] - s->clip[2]);
+            const float t = sh4der_div_(wc - s->clip[2], e->clip[2] - s->clip[2]);
             psm_skyp_t *q = &p[k++];
             unsigned j;
 
             for (j = 0; j < 3u; j++) q->clip[j] = s->clip[j] + (e->clip[j] - s->clip[j]) * t;
             for (j = 0; j < 4u; j++) q->c[j] = s->c[j] + (e->c[j] - s->c[j]) * t;
             q->u = s->u + (e->u - s->u) * t; q->v = s->v + (e->v - s->v) * t;
-            q->scr[2] = 1.0f / q->clip[2];
+            q->scr[2] = sh4der_recip_pos_(q->clip[2]);   /* the cut is at wc > 0 */
             q->scr[0] = (q->clip[0] * q->scr[2] * 0.5f + 0.5f) * PSM_SCR_W;
             q->scr[1] = (0.5f - q->clip[1] * q->scr[2] * 0.5f) * PSM_SCR_H;
         }
@@ -271,10 +271,10 @@ static inline void psm_sky_build(psm_sky_out_t *o, const psm_frame_t *f, const p
             if (e <= 6.0f) {
                 sh4der_sincos_((a - st->az) * 0.0174533f, &sa, &ca);
                 w = ca > 0.0f ? ca * ca * ca : 0.0f;
-                if (e > 0.0f) w *= 1.0f - e / 12.0f;       /* el 6: half */
+                if (e > 0.0f) w *= 1.0f - e * (1.0f / 12.0f);   /* el 6: half */
             }
             for (c = 0; c < 3u; c++) p->c[c] = 1.0f + (psm_sky_warm[c] - 1.0f) * w;
-            p->c[3] = sh4der_clamp_(1.0f - e / 6.0f, 0.0f, 1.0f);   /* the vertex fog: 1 at and under el 0, 0 from el 6 */
+            p->c[3] = sh4der_clamp_(1.0f - e * (1.0f / 6.0f), 0.0f, 1.0f);   /* the vertex fog: 1 at and under el 0, 0 from el 6 */
         }
     psm_sky_grid_(o, &n, g, PSM_SKY_ROWS, PSM_SKY_SEGS + 1u);
     o->n_band = n;

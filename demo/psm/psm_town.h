@@ -42,12 +42,16 @@ static const unsigned short psm_time_speed[PSM_TIME_SPEEDS] = { 0u, 1u, 8u, 60u 
    latitude, declination); no refraction, no equation of time, as TOWN_STORY.md's table. */
 static inline void psm_sun_at(float hour, float *az, float *el) {
     const float d2r = 0.01745329f, lat = PSM_TOWN_LAT * d2r, dec = PSM_TOWN_DEC * d2r, h = (hour - 12.0f) * 15.0f * d2r;
-    const float se = sinf(lat) * sinf(dec) + cosf(lat) * cosf(dec) * cosf(h);
-    float a = atan2f(sinf(h), cosf(h) * sinf(lat) - tanf(dec) * cosf(lat)) * 57.29578f + 180.0f;
+    float sl, cl, sd, cd, sh, ch, se, a;
 
+    sh4der_sincos_(lat, &sl, &cl);
+    sh4der_sincos_(dec, &sd, &cd);
+    sh4der_sincos_(h, &sh, &ch);
+    se = sl * sd + cl * cd * ch;
+    a = psm_atan2_(sh, ch * sl - psm_tan_(dec) * cl) * 57.29578f + 180.0f;
     if (a >= 360.0f) a -= 360.0f;
     *az = a;
-    *el = asinf(sh4der_clamp_(se, -1.0f, 1.0f)) * 57.29578f;
+    *el = psm_asin_(sh4der_clamp_(se, -1.0f, 1.0f)) * 57.29578f;
 }
 
 /* ---- the cast: placeholders on the story's routes, from the clock alone ---------------------------------------- */
@@ -107,7 +111,7 @@ static inline void psm_cast_at(unsigned who, float t, float *x, float *z, float 
     float ax, az, bx, bz, leg;
     unsigned k;
 
-    t -= (float)(int)(t / period) * period;
+    t -= (float)(int)sh4der_div_(t, period) * period;
     if (t < 0.0f) t += period;
     for (k = 0; k < n; k++) {
         const float stand = psm_cast_wp[f + k].pause;
@@ -117,8 +121,8 @@ static inline void psm_cast_at(unsigned who, float t, float *x, float *z, float 
             float px, pz, qx, qz;
 
             *x = ax; *z = az;
-            if (leg <= 0.0f && k > 0u) { psm_cast_leg_(who, k - 1u, &px, &pz, &qx, &qz); *bearing = atan2f(qx - px, qz - pz); }
-            else *bearing = atan2f(bx - ax, bz - az);
+            if (leg <= 0.0f && k > 0u) { psm_cast_leg_(who, k - 1u, &px, &pz, &qx, &qz); *bearing = psm_atan2_(qx - px, qz - pz); }
+            else *bearing = psm_atan2_(bx - ax, bz - az);
             return;
         }
         t -= stand;
@@ -126,7 +130,7 @@ static inline void psm_cast_at(unsigned who, float t, float *x, float *z, float 
             const float u = t * sh4der_recip_pos_(leg);
 
             *x = ax + (bx - ax) * u; *z = az + (bz - az) * u;
-            *bearing = atan2f(bx - ax, bz - az);
+            *bearing = psm_atan2_(bx - ax, bz - az);
             return;
         }
         t -= leg;
@@ -158,12 +162,12 @@ static inline void psm_hen_step(psm_mover_t *m, float dt, const float (*near)[2]
     }
     if (best < PSM_HEN_FLEE * PSM_HEN_FLEE && m->mode != 2) {           /* off, away from the nearest walker */
         m->mode = 2; m->t = 0.6f;
-        m->bearing = (fx * fx + fz * fz > 1e-6f) ? atan2f(fx, fz) : m->bearing + pi;
+        m->bearing = (fx * fx + fz * fz > 1e-6f) ? psm_atan2_(fx, fz) : m->bearing + pi;
     }
     m->t -= dt;
     switch (m->mode) {
         case 0:                                                          /* peck: the body tips forward and back, 0.4 s */
-            m->tilt = 0.7f * sinf(pi * sh4der_clamp_(1.0f - m->t * 2.5f, 0.0f, 1.0f));
+            m->tilt = 0.7f * psm_sin_(pi * sh4der_clamp_(1.0f - m->t * 2.5f, 0.0f, 1.0f));
             if (m->t <= 0.0f) { m->mode = 1; m->t = 0.4f; m->tilt = 0.0f; m->bearing += (psm_rand_(&m->rng) - 0.5f) * 2.0f; }
             break;
         case 1: case 2:                                                  /* a step of 0.2 m, or a run */

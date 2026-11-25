@@ -105,15 +105,41 @@ static uint32_t est_now;                  /* this frame's parameter bytes, estim
 
 /* ---- what is sent (psm_send.h walks it; the host test walks the same) ------- */
 
+/* TA SEND (a menu row). Runs: each header and vertex is one 32-byte record in ta_run, its cache line taken with MOVCA (no
+   read of RAM), and a full run (or the list's end, ta_flush) goes to the TA as one store-queue copy (pvr_prim: sq_fast_cpy
+   to the TA input). The lines are then invalidated, so the written records are never written back to RAM. Off: one
+   pvr_dr store-queue write a vertex, as before. The measured rates (demo/psm/bench/NOTES.md h1): 144 ns a vertex in one
+   store-queue run, about 258 ns a vertex one at a time. */
+#define TA_RUN 256u                        /* records a run: 8 KB, half the operand cache */
+static uint32_t ta_run[TA_RUN][8] __attribute__((aligned(32)));
+static unsigned ta_run_n;
+static int ta_runs;                        /* state.send_runs for this frame's lists */
+
+static void ta_flush(void) {
+    if (!ta_run_n) return;
+    pvr_prim(ta_run, ta_run_n * 32u);
+    dcache_inval_range((uintptr_t)ta_run, ta_run_n * 32u);   /* sent: drop the dirty lines, no write-back */
+    ta_run_n = 0;
+}
+
+static inline uint32_t *ta_record(void) {
+    uint32_t *o;
+
+    if (ta_run_n == TA_RUN) ta_flush();
+    o = ta_run[ta_run_n++];
+    shz_dcache_alloc_line(o);              /* MOVCA: the line is ours, nothing read from RAM */
+    return o;
+}
+
 static void send_hdr_(int kind);
 #define PSM_SINK_HDR(kind) send_hdr_(kind)
 #define PSM_SINK_VTX(eol, X, Y, Z, U, V, ARGB, OARGB) do {         \
-        pvr_vertex_t *o_ = pvr_dr_target();                        \
+        pvr_vertex_t *o_ = ta_runs ? (pvr_vertex_t *)ta_record() : (pvr_vertex_t *)pvr_dr_target(); \
         o_->flags = (eol) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;    \
         o_->x = (X); o_->y = (Y); o_->z = (Z);                     \
         o_->u = (U); o_->v = (V);                                  \
         o_->argb = (ARGB); o_->oargb = (OARGB);                    \
-        pvr_dr_commit(o_);                                         \
+        if (!ta_runs) pvr_dr_commit(o_);                           \
     } while (0)
 #include "psm_send.h"
 
@@ -123,7 +149,14 @@ static const pvr_poly_hdr_t *const hdr_tab[PSM_HK_N] = {
 };
 static psm_sink_t sink;
 
-static void send_hdr_(int kind) { pvr_prim((void *)hdr_tab[kind], sizeof(pvr_poly_hdr_t)); }
+static void send_hdr_(int kind) {
+    if (ta_runs) {
+        const uint32_t *h = (const uint32_t *)hdr_tab[kind];
+        uint32_t *o = ta_record();
+
+        o[0] = h[0]; o[1] = h[1]; o[2] = h[2]; o[3] = h[3]; o[4] = h[4]; o[5] = h[5]; o[6] = h[6]; o[7] = h[7];
+    } else pvr_prim((void *)hdr_tab[kind], sizeof(pvr_poly_hdr_t));
+}
 
 /* The headers the lists can take this frame: a header that was never compiled is "end of list" to the tile accelerator, so
    its part is not sent (psm_sink_hdr). */
@@ -258,12 +291,12 @@ static void look_update(void) {
 
     psm_look_at(&scene, state.clock, bg, fog);
     if (atmos) { memcpy(bg, sky.fog, sizeof bg); memcpy(fog, sky.fog, sizeof fog); }
-    if (fabsf(bg[0] - sky_now[0]) + fabsf(bg[1] - sky_now[1]) + fabsf(bg[2] - sky_now[2]) > 1.0f / 512.0f) {
+    if (sh4der_abs_(bg[0] - sky_now[0]) + sh4der_abs_(bg[1] - sky_now[1]) + sh4der_abs_(bg[2] - sky_now[2]) > 1.0f / 512.0f) {
         pvr_set_bg_color(bg[0], bg[1], bg[2]);
         memcpy(sky_now, bg, sizeof sky_now);
     }
     memcpy(fog_want, fog, sizeof fog_want);
-    if (fabsf(fog[0] - fog_now[0]) + fabsf(fog[1] - fog_now[1]) + fabsf(fog[2] - fog_now[2]) > 1.0f / 512.0f) look_pending = 1;
+    if (sh4der_abs_(fog[0] - fog_now[0]) + sh4der_abs_(fog[1] - fog_now[1]) + sh4der_abs_(fog[2] - fog_now[2]) > 1.0f / 512.0f) look_pending = 1;
     if (frame.dist > 0.0f && (frame.dist != fog_dist || atmos != fog_atmos)) look_pending = 1;
 }
 
@@ -401,8 +434,10 @@ static int map_pass(void) {
     hdr_ok_fill(ok);
     psm_sink_reset(&sink, 1, 0, 0u, NULL);
     memcpy(sink.hdr_ok, ok, sizeof ok);
+    ta_runs = state.send_runs;
     pvr_list_begin(PVR_LIST_OP_POLY);
     map_tris = psm_send_map(&sink, &frame, &scene, &state, target_size, out);
+    ta_flush();
     pvr_list_finish();
     pvr_scene_finish();
     ta_v += sink.verts;
@@ -604,12 +639,15 @@ int main(void) {
             psm_sink_reset(&sink, 1, 0, shed, NULL);
             memcpy(sink.hdr_ok, ok, sizeof ok);
         }
+        ta_runs = state.send_runs;
         pvr_scene_begin();
         pvr_list_begin(PVR_LIST_OP_POLY);
         psm_send_op(&sink, &frame, &scene, state.atmos && sky_mem ? &sky : NULL);
+        ta_flush();
         pvr_list_finish();
         pvr_list_begin(PVR_LIST_TR_POLY);
         layer_v = psm_send_tr(&sink, &frame, &scene, &state, a_drawn, frame_no);
+        ta_flush();
         pvr_list_finish();
         psm_fault_stage(&fault_crumbs, "finish");
         pvr_scene_finish();
