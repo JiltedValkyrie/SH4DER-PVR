@@ -1,0 +1,8 @@
+165c165,167
+<     float mv[PSM_MV_MAX][3], mn[PSM_MV_MAX][3];
+---
+>     float mv[PSM_MV_MAX][3];
+>     uint8_t pad_mn_[8192];              /* a3f: mv and mn were 147,456 B (9 x 16 KB) apart and clashed in the operand cache (TOWN-021) */
+>     float mn[PSM_MV_MAX][3];
+990a993
+>     uint8_t pad_mscr_[8192];            /* a3f: mclip and mscr were 147,456 B apart, the same clash (TOWN-022) */
