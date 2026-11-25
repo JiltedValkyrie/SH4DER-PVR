@@ -55,7 +55,7 @@ class DryRun(unittest.TestCase):
     def test_fetch_table_rows(self):
         r = dry()
         row = [ln for ln in r.stdout.splitlines() if ln.startswith("DRY_RUN 2 fetch")][0]
-        self.assertIn("6 packs", row)
+        self.assertIn("8 packs", row)
 
 
 if __name__ == "__main__":

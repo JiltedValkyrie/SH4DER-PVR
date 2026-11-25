@@ -6,8 +6,10 @@ None of this art is in the repository. `tools/fetch.py` downloads each pack (tab
 
 | Pack | Author | Source | Licence | Used for |
 | --- | --- | --- | --- | --- |
-| Car Kit | Kenney (kenney.nl) | https://kenney.nl/assets/car-kit | CC0 1.0 | the parked taxi, police car and van, cut to the triangle budget by `tools/car_lod.py` |
-| City Kit Roads | Kenney (kenney.nl) | https://kenney.nl/assets/city-kit-roads | CC0 1.0 | street lamp, pole, traffic light, cone, dumpster, cut the same way |
+| Car Kit | Kenney (kenney.nl) | https://kenney.nl/assets/car-kit | CC0 1.0 | the parked taxi, police car and van and the traffic cone, cut to the triangle budget by `tools/car_lod.py` |
+| Modular Buildings | Kenney (kenney.nl) | https://kenney.nl/assets/modular-buildings | CC0 1.0 | the new map's towers and houses near the road, cut to the triangle budget by `tools/car_lod.py` |
+| City Kit Commercial | Kenney (kenney.nl) | https://kenney.nl/assets/city-kit-commercial | CC0 1.0 | the new map's far buildings (its low-detail set), tinted per building |
+| City Kit Suburban | Kenney (kenney.nl) | https://kenney.nl/assets/city-kit-suburban | CC0 1.0 | the new map's houses on one block, cut the same way |
 | Asphalt025A | ambientCG | https://ambientcg.com/view?id=Asphalt025A | CC0 1.0 | the road texture's base, lane lines drawn by `tools/bake.py` |
 | Bricks075A | ambientCG | https://ambientcg.com/view?id=Bricks075A | CC0 1.0 | two facade textures, windows drawn by `tools/bake.py` |
 | Concrete034 | ambientCG | https://ambientcg.com/view?id=Concrete034 | CC0 1.0 | a facade texture and the sidewalk |
@@ -15,7 +17,7 @@ None of this art is in the repository. `tools/fetch.py` downloads each pack (tab
 
 ## Own work
 
-The hero car (`tools/coupe.py`, a coupe built from numbers), the street layout, the sky, the glow texture and every line of the demo's code are this repository's own work, under its `LICENSE` (Copyright (c) 2026 Jilted Valkyrie). The font is Pillow's built-in bitmap font, rendered by `tools/bake.py`.
+The hero car (`tools/coupe.py`, a coupe built from numbers), the street lamp, pole, traffic signal and dumpster (`tools/props.py`, boxes built from numbers), the overpass, footbridge, sign gantry and covered passage (`tools/structures.py`, the same), the street layout and the new map's loop (`tools/map.py`), the sky, the glow texture and every line of the demo's code are this repository's own work, under its `LICENSE` (Copyright (c) 2026 Jilted Valkyrie). The font is Pillow's built-in bitmap font, rendered by `tools/bake.py`.
 
 ## Tools and libraries the build calls (none is vendored here, none is claimed)
 

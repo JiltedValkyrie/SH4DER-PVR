@@ -32,6 +32,9 @@ SHOULDER_IN = 0.09     # and the deck's edge this far inside the side
 STRIPE_HALF = 0.22
 # the greenhouse: z, half width, y  (windscreen base, roof front, roof rear, rear window base)
 ROOF = [(0.55, 0.80, 0.93), (0.02, 0.64, 1.31), (-0.85, 0.64, 1.30), (-1.72, 0.76, 0.905)]
+ROOF_CROWN = (0.045, 0.025)   # the roof's rise at its middle: across, along (m)
+DECK_CROWN = 0.035            # the hood's and boot's rise at the stripe
+ROOF_ALONG, DECK_ACROSS = 3, 2   # grid cells: the roof along z; the hood and boot deck across, each side
 WHEEL_Z = (1.45, -1.40)
 WHEEL_R, WHEEL_W, WHEEL_X = 0.33, 0.22, 0.96      # radius, width, the outer face's |x|
 ARCH_R = 0.42
@@ -71,6 +74,19 @@ class Mesh:
                     fh.write("f %d %d %d\n" % (t[0] + 1, t[1] + 1, t[2] + 1))
 
 
+def grid(m, group, c00, c10, c11, c01, nu, nv, hint, lift):
+    """A quad c00 c10 c11 c01 as nu x nv bilinear cells, each corner raised by lift(x, z) in y: a crowned panel whose
+    vertices carry different normals (the reflection lookup is per vertex)."""
+    def at(u, v):
+        p = [(1 - u) * (1 - v) * c00[i] + u * (1 - v) * c10[i] + u * v * c11[i] + (1 - u) * v * c01[i] for i in range(3)]
+        p[1] += lift(p[0], p[2])
+        return tuple(p)
+    for j in range(nv):
+        for i in range(nu):
+            u0, u1, v0, v1 = i / nu, (i + 1) / nu, j / nv, (j + 1) / nv
+            m.add(group, [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)], hint)
+
+
 def body(m):
     paint, stripe = "body__paint__" + PAINT, "stripe__paint__" + STRIPE
     for (z0, w0, s0, d0), (z1, w1, s1, d1) in zip(STATIONS, STATIONS[1:]):
@@ -79,10 +95,14 @@ def body(m):
             m.add(paint, [(sx * w0, s0, z0), (sx * w1, s1, z1), (sx * w1, d1 - SHOULDER_DROP, z1), (sx * w0, d0 - SHOULDER_DROP, z0)], (sx, 0, 0))
             m.add(paint, [(sx * w0, d0 - SHOULDER_DROP, z0), (sx * w1, d1 - SHOULDER_DROP, z1), (sx * (w1 - SHOULDER_IN), d1, z1),
                           (sx * (w0 - SHOULDER_IN), d0, z0)], (sx, 1, 0))
-            # the deck beside the stripe
-            m.add(paint, [(sx * (w0 - SHOULDER_IN), d0, z0), (sx * (w1 - SHOULDER_IN), d1, z1), (sx * STRIPE_HALF, d1 + 0.012, z1),
-                          (sx * STRIPE_HALF, d0 + 0.012, z0)], (0, 1, 0))
-        m.add(stripe, [(-STRIPE_HALF, d0 + 0.012, z0), (STRIPE_HALF, d0 + 0.012, z0), (STRIPE_HALF, d1 + 0.012, z1), (-STRIPE_HALF, d1 + 0.012, z1)], (0, 1, 0))
+            # the deck beside the stripe: the hood and the boot crowned (cells across), the deck under the greenhouse flat
+            crown = z0 >= ROOF[0][0] or z1 <= ROOF[3][0]
+            lift = deck_lift(w0 - SHOULDER_IN, w1 - SHOULDER_IN, z0, z1) if crown else (lambda x, z: 0.0)
+            grid(m, paint, (sx * (w0 - SHOULDER_IN), d0, z0), (sx * STRIPE_HALF, d0 + 0.012, z0), (sx * STRIPE_HALF, d1 + 0.012, z1),
+                 (sx * (w1 - SHOULDER_IN), d1, z1), DECK_ACROSS if crown else 1, 1, (0, 1, 0), lift)
+        lift = deck_lift(w0 - SHOULDER_IN, w1 - SHOULDER_IN, z0, z1) if (z0 >= ROOF[0][0] or z1 <= ROOF[3][0]) else (lambda x, z: 0.0)
+        grid(m, stripe, (-STRIPE_HALF, d0 + 0.012, z0), (STRIPE_HALF, d0 + 0.012, z0), (STRIPE_HALF, d1 + 0.012, z1),
+             (-STRIPE_HALF, d1 + 0.012, z1), 1, 1, (0, 1, 0), lift)
     for (z, w, s, d), nz, part, lamp in ((STATIONS[0], -1.0, "tail", LAMP_R), (STATIONS[-1], 1.0, "nose", LAMP_F)):
         top = d - SHOULDER_DROP
         # the end panel: a dark grille or tail panel between the lamps, the lamps at the corners, paint above
@@ -101,20 +121,33 @@ def body(m):
             m.add(ch, [(sx * wb, y0, zb), (sx * wb, y1, zb), (sx * wb, y1, z - nz * 0.25), (sx * wb, y0, z - nz * 0.25)], (sx, 0, 0))
 
 
+def deck_lift(wa, wb, za, zb):
+    """The hood's and boot's crown: DECK_CROWN at x = 0, none at the deck's edge (half width wa at za, wb at zb)."""
+    def lift(x, z):
+        w = wa + (wb - wa) * (z - za) / (zb - za)
+        return DECK_CROWN * max(0.0, 1.0 - (x / w) ** 2)
+    return lift
+
+
 def greenhouse(m):
     paint, stripe, glass = "roof__paint__" + PAINT, "stripe__paint__" + STRIPE, "glass__glass__" + GLASS
     (z0, w0, y0), (z1, w1, y1), (z2, w2, y2), (z3, w3, y3) = ROOF
     m.add(glass, [(-w0, y0, z0), (w0, y0, z0), (w1, y1, z1), (-w1, y1, z1)], (0, 1, 1))            # the windscreen
     m.add(glass, [(-w2, y2, z2), (w2, y2, z2), (w3, y3, z3), (-w3, y3, z3)], (0, 1, -1))           # the fastback rear window
+    def roof_lift(x, z):                                                                             # none at the roof's edges
+        t = (z - z2) / (z1 - z2)
+        return ROOF_CROWN[0] * max(0.0, 1.0 - (x / w1) ** 2) + ROOF_CROWN[1] * 4.0 * t * (1.0 - t)
     for sx in (-1.0, 1.0):
-        m.add(paint, [(sx * w1, y1, z1), (sx * w2, y2, z2), (sx * STRIPE_HALF, y2 + 0.008, z2), (sx * STRIPE_HALF, y1 + 0.008, z1)], (0, 1, 0))
+        grid(m, paint, (sx * w2, y2, z2), (sx * STRIPE_HALF, y2 + 0.008, z2), (sx * STRIPE_HALF, y1 + 0.008, z1), (sx * w1, y1, z1),
+             2, ROOF_ALONG, (0, 1, 0), roof_lift)
         # the side: the door glass under the roof, a solid sail panel behind it
         zq = z2 + 0.12                                                                               # where the door glass ends
         yq = y0 + (y3 - y0) * (zq - z0) / (z3 - z0)                                                  # the belt line there
         wq = w0 + (w3 - w0) * (zq - z0) / (z3 - z0)
         m.add(glass, [(sx * w0, y0, z0), (sx * w1, y1, z1), (sx * w2, y2, zq), (sx * wq, yq, zq)], (sx, 0.4, 0))
         m.add(paint, [(sx * wq, yq, zq), (sx * w2, y2, zq), (sx * w2, y2, z2), (sx * w3, y3, z3)], (sx, 0.4, 0))
-    m.add(stripe, [(-STRIPE_HALF, y1 + 0.008, z1), (STRIPE_HALF, y1 + 0.008, z1), (STRIPE_HALF, y2 + 0.008, z2), (-STRIPE_HALF, y2 + 0.008, z2)], (0, 1, 0))
+    grid(m, stripe, (-STRIPE_HALF, y2 + 0.008, z2), (STRIPE_HALF, y2 + 0.008, z2), (STRIPE_HALF, y1 + 0.008, z1),
+         (-STRIPE_HALF, y1 + 0.008, z1), 1, ROOF_ALONG, (0, 1, 0), roof_lift)
 
 
 def wheels(m):

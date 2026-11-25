@@ -10,8 +10,9 @@ when it fails:
 
   1 credits   tools/check_credits.py: the fetch table and CREDITS.md agree
   2 fetch     tools/fetch.py: the CC0 packs into assets/ (sha256 checked; --pin accepts an unpinned pack once)
-  3 coupe     tools/coupe.py: the hero car from numbers -> build/gen/coupe.obj
-  4 lod       tools/car_lod.py in Blender, headless: traffic cars and props cut to the triangle budget -> build/lod/
+  3 coupe     tools/coupe.py: the hero car from numbers -> build/gen/coupe.obj; tools/props.py: the street furniture
+              from numbers -> build/gen/props.obj
+  4 lod       tools/car_lod.py in Blender, headless: traffic cars and the cone cut to the triangle budget -> build/lod/
   5 bake      tools/bake.py: models and textures -> build/gen/assets_gen.c, assets_gen.h
   6 make      the Dreamcast program -> build/pl4nar-demo.elf
   7 image     mkdcdisc -> <out>/pl4nar-demo-b<N>.cdi, N one more than the highest there (an image is never overwritten)
@@ -32,9 +33,7 @@ GEN = os.path.join(ROOT, "build", "gen")
 LOD = os.path.join(ROOT, "build", "lod")
 # source OBJ (under assets/), body budget, wheel budget: the triangle budget of a late 1990s console street
 LODS = [("kenney_car-kit/taxi.obj", 186, 16), ("kenney_car-kit/police.obj", 186, 16), ("kenney_car-kit/van.obj", 186, 16),
-        ("kenney_city-kit-roads/light-square.obj", 36, 36), ("kenney_city-kit-roads/electricity-pole-single.obj", 24, 24),
-        ("kenney_city-kit-roads/traffic-light.obj", 60, 60), ("kenney_city-kit-roads/construction-cone.obj", 16, 16),
-        ("kenney_city-kit-roads/dumpster.obj", 36, 36)]
+        ("kenney_car-kit/cone.obj", 16, 16)]
 
 
 def run(step, argv, cwd=ROOT):
@@ -105,6 +104,8 @@ def main():
     run("fetch", [py, os.path.join("tools", "fetch.py")] + (["--pin"] if a.pin else []))
     if fresh(os.path.join(GEN, "coupe.obj")):
         run("coupe", [py, os.path.join("tools", "coupe.py"), os.path.join(GEN, "coupe.obj")])
+    if fresh(os.path.join(GEN, "props.obj")):
+        run("props", [py, os.path.join("tools", "props.py"), os.path.join(GEN, "props.obj")])
     todo = [(s, b, w) for s, b, w in LODS if fresh(os.path.join(LOD, os.path.basename(s)))]
     if todo and not shutil.which(a.blender):
         raise SystemExit("Blender not found (--blender <exe> or BLENDER): the lod step cuts %d models with it" % len(todo))

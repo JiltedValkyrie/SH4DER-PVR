@@ -1,5 +1,5 @@
 {
-  "note": "Third-party art the demo is baked from. Nothing here is in the repository: tools/fetch.py downloads each pack into assets/_dl, checks its sha256 and unpacks the listed files. A pack with sha256 null is NOT pinned yet: fetch.py refuses it unless run with --pin, which prints the hash to put here. A pack with url null has no stable direct link: download it from its page by hand into assets/_dl under the name in 'file'. Every pack has a row in CREDITS.md (tools/check_credits.py checks both ways).",
+  "note": "Third-party art the demo is baked from. Nothing here is in the repository: tools/fetch.py downloads each pack into assets/_dl, checks its sha256 and unpacks the listed files. A pack with sha256 null is NOT pinned yet: fetch.py refuses it unless run with --pin, which prints the hash to put here. A pack with url null has no stable direct link: download it from its page by hand into assets/_dl under the name in 'file'. The four ambientCG hashes (Asphalt025A, Bricks075A, Concrete034, PaintedPlaster017) were pinned on first fetch from ambientCG's direct links (CC0) on 2026-11-25, not checked against a published hash. Car Kit 3.1, Modular Buildings, City Kit Commercial 2.1 and City Kit Suburban 2.0 were pinned on 2026-11-25 from the owner's downloads off their pages (Kenney publishes no hash). Every pack has a row in CREDITS.md (tools/check_credits.py checks both ways).",
   "packs": [
     {
       "name": "Car Kit",
@@ -7,21 +7,10 @@
       "page": "https://kenney.nl/assets/car-kit",
       "licence": "CC0 1.0",
       "url": null,
-      "file": "kenney_car-kit.zip",
-      "sha256": null,
+      "file": "kenney_car-kit_3.1.zip",
+      "sha256": "fac7dacac5c7874348cf19729af3ef205f3d366493edaf0a827d93f4fdf3d0c4",
       "into": "kenney_car-kit",
-      "take": ["Models/OBJ format/taxi.obj", "Models/OBJ format/police.obj", "Models/OBJ format/van.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
-    },
-    {
-      "name": "City Kit Roads",
-      "author": "Kenney",
-      "page": "https://kenney.nl/assets/city-kit-roads",
-      "licence": "CC0 1.0",
-      "url": null,
-      "file": "kenney_city-kit-roads.zip",
-      "sha256": null,
-      "into": "kenney_city-kit-roads",
-      "take": ["Models/OBJ format/light-square.obj", "Models/OBJ format/electricity-pole-single.obj", "Models/OBJ format/traffic-light.obj", "Models/OBJ format/construction-cone.obj", "Models/OBJ format/dumpster.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
+      "take": ["Models/OBJ format/taxi.obj", "Models/OBJ format/police.obj", "Models/OBJ format/van.obj", "Models/OBJ format/cone.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
     },
     {
       "name": "Asphalt025A",
@@ -30,7 +19,7 @@
       "licence": "CC0 1.0",
       "url": "https://ambientcg.com/get?file=Asphalt025A_1K-JPG.zip",
       "file": "Asphalt025A_1K-JPG.zip",
-      "sha256": null,
+      "sha256": "a007d81975030430efdfbb404cb66d211b946f5eccd1c5d08dcfe1b50511ba82",
       "into": "ambientcg",
       "take": ["Asphalt025A_1K-JPG_Color.jpg"]
     },
@@ -41,7 +30,7 @@
       "licence": "CC0 1.0",
       "url": "https://ambientcg.com/get?file=Bricks075A_1K-JPG.zip",
       "file": "Bricks075A_1K-JPG.zip",
-      "sha256": null,
+      "sha256": "ebbffc63ae79060d68378cddafd7d6b659bc3e062120785d5927773c51a33214",
       "into": "ambientcg",
       "take": ["Bricks075A_1K-JPG_Color.jpg"]
     },
@@ -52,7 +41,7 @@
       "licence": "CC0 1.0",
       "url": "https://ambientcg.com/get?file=Concrete034_1K-JPG.zip",
       "file": "Concrete034_1K-JPG.zip",
-      "sha256": null,
+      "sha256": "5839d284d94ffb8d2a56df742ec522b13dd311c52dbd42b8fd33f0409ceedb81",
       "into": "ambientcg",
       "take": ["Concrete034_1K-JPG_Color.jpg"]
     },
@@ -63,9 +52,42 @@
       "licence": "CC0 1.0",
       "url": "https://ambientcg.com/get?file=PaintedPlaster017_1K-JPG.zip",
       "file": "PaintedPlaster017_1K-JPG.zip",
-      "sha256": null,
+      "sha256": "bae0380d82b6ccac8943b4980417cb3c9de5c896218339c108056f1dfb8e886c",
       "into": "ambientcg",
       "take": ["PaintedPlaster017_1K-JPG_Color.jpg"]
+    },
+    {
+      "name": "Modular Buildings",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/modular-buildings",
+      "licence": "CC0 1.0",
+      "url": null,
+      "file": "kenney_modular-buildings.zip",
+      "sha256": "47e1614686b4c0fe55190e88b22ff2b8b10935edf61f37f478a9b6a99477edc6",
+      "into": "kenney_modular-buildings",
+      "take": ["Models/OBJ format/building-sample-tower-a.obj", "Models/OBJ format/building-sample-tower-b.obj", "Models/OBJ format/building-sample-tower-c.obj", "Models/OBJ format/building-sample-tower-d.obj", "Models/OBJ format/building-sample-house-a.obj", "Models/OBJ format/building-sample-house-b.obj", "Models/OBJ format/building-sample-house-c.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
+    },
+    {
+      "name": "City Kit Commercial",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/city-kit-commercial",
+      "licence": "CC0 1.0",
+      "url": null,
+      "file": "kenney_city-kit-commercial_2.1.zip",
+      "sha256": "f8b09b081c2bb88bcc126e2dec1cb40fd0dad7e7e591b6c26aaefe96fb35276b",
+      "into": "kenney_city-kit-commercial",
+      "take": ["Models/OBJ format/low-detail-building-a.obj", "Models/OBJ format/low-detail-building-b.obj", "Models/OBJ format/low-detail-building-c.obj", "Models/OBJ format/low-detail-building-d.obj", "Models/OBJ format/low-detail-building-e.obj", "Models/OBJ format/low-detail-building-g.obj", "Models/OBJ format/low-detail-building-j.obj", "Models/OBJ format/low-detail-building-k.obj", "Models/OBJ format/low-detail-building-l.obj", "Models/OBJ format/low-detail-building-m.obj", "Models/OBJ format/low-detail-building-wide-a.obj", "Models/OBJ format/low-detail-building-wide-b.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
+    },
+    {
+      "name": "City Kit Suburban",
+      "author": "Kenney",
+      "page": "https://kenney.nl/assets/city-kit-suburban",
+      "licence": "CC0 1.0",
+      "url": null,
+      "file": "kenney_city-kit-suburban_2.0.zip",
+      "sha256": "5869c35cf30b1c87bdb2d197b6d325eebadd2ef08ea27f04797e8e08d77a9a39",
+      "into": "kenney_city-kit-suburban",
+      "take": ["Models/OBJ format/building-type-h.obj", "Models/OBJ format/building-type-i.obj", "Models/OBJ format/building-type-k.obj", "Models/OBJ format/building-type-r.obj", "Models/OBJ format/Textures/colormap.png", "License.txt"]
     }
   ]
 }

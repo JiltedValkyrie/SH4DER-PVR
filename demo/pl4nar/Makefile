@@ -1,7 +1,9 @@
 # SH4DER-PVR: the street driving demo (planar reflection, light pools, halos). Run through build.py, or by hand:
 #
-#   make SH4ZAM=<checkout> [RTT=1] [DEMO_BUILD=<n>]      build/pl4nar-demo.elf   (KallistiOS environment sourced)
+#   make SH4ZAM=<checkout> [RTT=1] [DEMO_BUILD=<n>] [MAP=1 GEN=<folder>]   build/pl4nar-demo.elf   (KallistiOS environment sourced)
 #
+# MAP=1 builds the new map (src/map.c, PL4NAR_MAP) in place of the street: GEN is the folder that holds assets_gen.c
+# and tools/map.py's map_gen.c (default $(BUILD)/gen).
 # RTT=1 compiles ../../src/sh4der_pl4nar.c with SH4DER_PL4NAR_HAVE_RTT, for a KallistiOS that has pvr_scene_begin_rtt
 # (a 256 x 128 target costs 64 KB). Without it the target is 1024 pixels wide (256 KB). The baked assets
 # (build/gen/assets_gen.c, assets_gen.h) come from tools/bake.py: build.py runs it first.
@@ -21,13 +23,21 @@ SH4ZAM_LIB  = $(SH4ZAM)/build/libsh4zam.a
 DEMO_BUILD ?= 0
 RTT        ?= 0
 BUILD      ?= build
+MAP        ?= 0
+GEN        ?= $(BUILD)/gen
 MATHFLAGS   = -isystem $(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-CFLAGS_ALL  = -O2 -std=gnu11 -Wall -Wextra -Wcast-align=strict $(MATHFLAGS) -Isrc -I$(BUILD)/gen -I$(LIB)/include -I$(SH4DOW)/include -DDEMO_BUILD=$(DEMO_BUILD) -MD -MP
+CFLAGS_ALL  = -O2 -std=gnu11 -Wall -Wextra -Wcast-align=strict $(MATHFLAGS) -Isrc -I$(GEN) -I$(LIB)/include -I$(SH4DOW)/include -DDEMO_BUILD=$(DEMO_BUILD) -MD -MP
 ifeq ($(RTT),1)
 CFLAGS_ALL += -DSH4DER_PL4NAR_HAVE_RTT
 endif
+ifeq ($(MAP),1)
+CFLAGS_ALL += -DPL4NAR_MAP
+endif
 TARGET = $(BUILD)/pl4nar-demo.elf
 OBJS   = $(BUILD)/main.o $(BUILD)/demo.o $(BUILD)/gfx.o $(BUILD)/gfx_pvr.o $(BUILD)/hud.o $(BUILD)/sh4der_pl4nar.o $(BUILD)/assets_gen.o
+ifeq ($(MAP),1)
+OBJS  += $(BUILD)/map.o $(BUILD)/map_gen.o
+endif
 all: $(TARGET)
 $(BUILD)/%.o: src/%.c
 	@mkdir -p $(BUILD)
@@ -35,7 +45,10 @@ $(BUILD)/%.o: src/%.c
 $(BUILD)/sh4der_pl4nar.o: $(LIB)/src/sh4der_pl4nar.c
 	@mkdir -p $(BUILD)
 	kos-cc $(CFLAGS_ALL) -c $< -o $@
-$(BUILD)/assets_gen.o: $(BUILD)/gen/assets_gen.c
+$(BUILD)/assets_gen.o: $(GEN)/assets_gen.c
+	@mkdir -p $(BUILD)
+	kos-cc $(CFLAGS_ALL) -c $< -o $@
+$(BUILD)/map_gen.o: $(GEN)/map_gen.c
 	@mkdir -p $(BUILD)
 	kos-cc $(CFLAGS_ALL) -c $< -o $@
 # main.o carries the build number: it is rebuilt when the number changes
