@@ -1,0 +1,16 @@
+{
+ "note": "The demos the owner has approved for the one demos disc (python demo/demos_disc.py; make demos-disc). Only an approved demo is added here. Fields: demo/demos_disc.py's head. The test suite's lists are apart: demo/psm/suite/suite_*.json.",
+ "demos": [
+  {
+   "name": "ao4",
+   "file": "AO4.BIN",
+   "elf": "build/psm_ao/psm-ao4-demo.elf",
+   "build": ["python", "demo/psm/ao/build.py", "--spike", "ao4", "--tag", "demo", "--elf-only", "--demo"],
+   "order": 1,
+   "what": "AO split: baked, lightmap, PVR map; room + hens",
+   "read": "L/R scene, X split, Y swap, A x2, B look; START the pages",
+   "credits": "demo/psm/ao/CREDITS.md",
+   "note": "The AO split demo, permanent. Its --demo build (the hardware tests' stages left out) is made after suite s7 is cut; until then this ELF does not exist."
+  }
+ ]
+}

@@ -192,3 +192,68 @@ s3 is s2 plus four tests, with the menu's RUN ALL order changed. The seven binar
 |---|---|
 | The console's Holly and system-bus revisions | OPEN until a photo of the s3 menu |
 | The menu with the revision line starts and lists 11 tests | built; not run |
+
+## Suite s4: built, not run
+
+A short menu after the owner's runs 2 and 3.
+
+| Item | Value |
+|---|---|
+| Image | `demo/psm/out/cdi/psm-suite-s4.cdi` |
+| sha256 | 817962592b47567066f3d07ab8b4f542768bf84e2eb9f3487d43fc1b94a8451d |
+| Size | 5,929,737 bytes |
+| Build | `python demo/psm/suite/build.py --tag s4 --list demo/psm/suite/suite_s4.json` |
+
+| Entry | What it is | RUN ALL |
+|---|---|---|
+| ao4 | the split-screen AO demo on simple scenes (`ao/NOTES.md`) | yes, alone |
+| hud1c-1, hud1c-2, hud1c-3 | Junior's bisect of hud1b's hang at frame 1, each with the heartbeat lines | no: one of them may hang by design |
+| ao1 | the town's AO demo, the same bytes as on s3 | no |
+
+Dropped from s3: c4g, r3-d, qr-q2 and ao0 (their results are in), a3e-auto, a3f-auto, bake1-auto and hud1b-auto (town v1; hud1b is replaced by hud1c), a3e-t2 and a3e-poll.
+
+**s4b and s4c (same day).** s4b: s4 with s3's ao1 replaced by Junior's ao1c and ao1c-live (the town with a CLAY view). s4c: s4b with ao4-b in place of ao4-a (a dummy polygon before each change of user clip, CORE 18). **s4c is the one to run:** `demo/psm/out/cdi/psm-suite-s4c.cdi`, sha256 36ab1fad1eaf58af80f6ddf535416508a1a1c8cadac0ef92b72884491b8367f4, 6,829,097 bytes, list `suite_s4c.json`. Menu: ao4 (RUN ALL runs it alone), ao1c, ao1c-live, hud1c-1, hud1c-2, hud1c-3. s4 and s4b are superseded.
+
+---
+
+# s5 (built, not run)
+
+`demo/psm/out/cdi/psm-suite-s5.cdi`, sha256 c90eca50eb792d06e0caab7f6b587a341623ef88f996016f07daa9e6b02d0d8d, 7,438,793 bytes. List: `suite_s5.json`. Built 2026-11-25 by Senior. Supersedes s4c (which was never run): the same entries, with ao4-c in place of ao4-b and hero1 added.
+
+| Entry | ELF sha256 | What | Read |
+|---|---|---|---|
+| ao4 (RUN ALL 1) | 340e0b83…29ec | AO side by side: spheres, a corner, the living room with the hens. About 70 s by itself | photo every page and the graph; START = live; L / R scene, X split, d-pad down in scene C = hens |
+| hero1 (RUN ALL 2) | b444cf82…79c3 (Junior, h1b) | a skinned hero, pass costs, the placeholder room and the hens. About 50 s | photo every page; START = live |
+| ao1c, ao1c-live | as s4c | the town's AO with a CLAY view | as s4c |
+| hud1c-1, -2, -3 | as s4c | the bisect of hud1b's hang | photo the bottom two lines |
+
+hero1 h1b was built with the placeholder room; the living room's data is ready for it (`build.py --room-only --room demo/psm/ao/room --out <dir>`).
+
+---
+
+# s5b and s6 (built, not run)
+
+- `psm-suite-s5b.cdi`, sha256 e524323ed3a414f363d8fc7018f7787f8fe150c64bc34c82ea9e1cf5c894d16c, 7,483,177 bytes: s5 with Junior's hero1 h1c (the living room; ELF sha 732b6943…658a) in place of h1b. List `suite_s5b.json`.
+- **`psm-suite-s6.cdi`, sha256 c255e2346e7c352dd047bc8e0ab9e14e6d6a31b35b196040d6e2777739b7a493, 7,483,177 bytes: s5b with ao4-d (ELF sha 5c29e3ce…476a) in place of ao4-c.** List `suite_s6.json`. It supersedes s5 and s5b if neither has run.
+
+| Entry | What | Read |
+|---|---|---|
+| ao4 (RUN ALL 1) | as s5, and scene C's mode 3+M (a tile a hen) with the splits 3 \| 3+M, 3+M \| 2, 3+M \| 3+M. About 90 s by itself | photo every page and the graph; START = live; L / R scene, X split, d-pad down in scene C = hens |
+| hero1 (RUN ALL 2) | Junior's h1c: the skinned hero, the living room, the hens | photo every page; START = live |
+| ao1c, ao1c-live, hud1c-1/2/3 | as s4c | as s4c |
+
+---
+
+# s6b (built, not run)
+
+`psm-suite-s6b.cdi`, sha256 38bf0f23c8c1239f61d63825b539943a38aa72c1933f21e8947ecea6ddaee7ac, 7,936,361 bytes. List `suite_s6b.json`. s6 with one entry added: **hens-eyes** (RUN ALL 3; ELF `build/psm_ao/psm-hen-a.elf`, sha df0b5076…2d16): rays against a collision sweep for the same hens in the room, about 50 s by itself; photo every page and the graph; START = live (X mode, Y hens, A rays drawn, B tick, up / down fan). It supersedes s5, s5b and s6 if none has run. Notes: `ao/NOTES.md` "hens-eyes".
+
+---
+
+# s7: ready, NOT BUILT (one disc at a time)
+
+`suite_s7.json` is ready: s6b with ao4-e in place of ao4-d and the entry pvr-dma added (RUN ALL: ao4, hero1, hens-eyes, pvr-dma). One command when lead says: `python demo/psm/suite/build.py --tag s7 --list demo/psm/suite/suite_s7.json --mkdcdisc <mkdcdisc>` (here: `sh /d/tmp/psmbuild/suite_img.sh '' s7`). ELFs: ao4-e 1ad24f15…7924, pd-a 98c7ff38…b711, hen-a df0b5076…2d16, hero1 h1c 732b6943…658a.
+
+The current disc is **s6b**, the only suite disc in `out/cdi`. s5, s5b and s6 were superseded, never run, and recycled by lead. From 2026-11-25 lead builds the discs: Senior delivers ELFs, their sha256 and the suite's list.
+
+**s7's list as of 2026-11-25 (still not built):** ao4-e2 (sha e002381d…8a08), hero1 h1d (Junior, sha 131647dd…5053), hens-eyes hen-b (sha bc71fa68…f3c2), pvr-dma pd-a (sha 98c7ff38…b711), then ao1c, ao1c-live, hud1c-1/2/3 as on s6b. All three room programs are on the room data with the trim lit by its wall's normal.

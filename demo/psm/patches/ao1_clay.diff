@@ -1,0 +1,152 @@
+diff -ru ao1_src/demo/psm/psm_dc.c ao1c_src/demo/psm/psm_dc.c
+--- ao1_src/demo/psm/psm_dc.c	2026-11-25 11:12:49.917006600 -0500
++++ ao1c_src/demo/psm/psm_dc.c	2026-11-25 11:53:35.711278300 -0500
+@@ -93,6 +93,9 @@
+ static pvr_ptr_t target_mem, text_mem, inset_mem, checker_mem, sky_mem;
+ static unsigned target_size;              /* 0: no target (never made, or no video memory) */
+ static pvr_poly_hdr_t hdr_sky, hdr_skycol, hdr_ground, hdr_model, hdr_ground_fog, hdr_model_fog, hdr_flat, hdr_layer, hdr_text, hdr_dim, hdr_inset_a, hdr_inset_b;
++#ifdef PSM_AO_DEMO
++static pvr_poly_hdr_t hdr_ground_clay, hdr_ground_fog_clay;   /* CLAY VIEW: the ground untextured, the same vertices */
++#endif
+ static int hdr_target_ok;                 /* hdr_layer and hdr_inset_a are compiled for the current target */
+ static unsigned ta_v;                     /* vertices sent this frame (the map pass and the scene), counted where they are sent */
+ static unsigned map_tris, layer_v;        /* route A: triangles into the target, vertices of the ground layer */
+@@ -170,6 +173,8 @@
+ static const pvr_poly_hdr_t *hdr_of_(int kind) {
+ #ifdef PSM_AO_DEMO
+     if (kind == PSM_HK_AO) return ao2_ok ? &psm_ao2_hdr[psm_ao2_unite] : &hdr_none_;   /* method 2: plain or the depth union */
++    if (state.clay && kind == PSM_HK_GROUND) return &hdr_ground_clay;
++    if (state.clay && kind == PSM_HK_GROUND_FOG) return &hdr_ground_fog_clay;
+ #endif
+     return hdr_tab[kind];
+ }
+@@ -208,6 +213,12 @@
+     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);
+     c.gen.culling = PVR_CULLING_NONE;
+     c.gen.shading = PVR_SHADE_GOURAUD;
++#ifdef PSM_AO_DEMO
++    pvr_poly_compile(&hdr_ground_clay, &c);                  /* CLAY VIEW: the vertex colour alone (u, v ignored) */
++    c.gen.fog_type = PVR_FOG_TABLE;
++    pvr_poly_compile(&hdr_ground_fog_clay, &c);
++    c.gen.fog_type = PVR_FOG_DISABLE;
++#endif
+     pvr_poly_compile(&hdr_model, &c);
+     c.gen.fog_type = PVR_FOG_TABLE;
+     pvr_poly_compile(&hdr_model_fog, &c);
+@@ -825,6 +836,7 @@
+         }
+ #ifdef PSM_AO_DEMO
+         psm_ao_set(state.ao);                /* the AO demo: method 1 in the colours when AO is 1 */
++        psm_clay_set(state.clay);            /* CLAY VIEW: one grey albedo */
+ #endif
+         psm_colour(&frame, &scene);          /* the colours: this frame's, after the lit and the lookup */
+         look_update();
+diff -ru ao1_src/demo/psm/psm_scene.h ao1c_src/demo/psm/psm_scene.h
+--- ao1_src/demo/psm/psm_scene.h	2026-11-25 11:01:48.418047600 -0500
++++ ao1c_src/demo/psm/psm_scene.h	2026-11-25 11:53:35.711278300 -0500
+@@ -678,6 +678,7 @@
+                             default, and the slot the LOOK row will set (LAUNCH 0, LATE 1) */
+ #ifdef PSM_AO_DEMO
+     int ao;              /* the AO demo: 0 off, 1 baked (method 1), 2 the PVR map (method 2); X cycles it */
++    int clay;            /* the AO demo: 1 every town surface one light grey, untextured (CLAY VIEW); Y toggles it */
+ #endif
+ } psm_state_t;
+ 
+@@ -940,14 +941,17 @@
+         if (down & PSM_BTN_DOWN) st->warp = !st->warp;
+         for (k = 0; k < nr; k++) { if (st->scene) psm_clock_step_(st, PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az + 5.0f); }
+         for (k = 0; k < nl; k++) { if (st->scene) psm_clock_step_(st, -PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az - 5.0f); }
+-        if (held & PSM_BTN_Y) fwd += 1.0f;
+-        if (held & PSM_BTN_A) fwd -= 1.0f;
+ #ifdef PSM_AO_DEMO
+-        if (down & PSM_BTN_X) st->ao = (st->ao + 1) % 3;       /* the AO demo: X cycles OFF, 1 baked, 2 the PVR map (no strafe left) */
++        if (down & PSM_BTN_X) st->ao = (st->ao + 1) % 3;       /* the AO demo: X cycles OFF, 1 baked, 2 the PVR map */
++        if (down & PSM_BTN_Y) st->clay = !st->clay;            /* CLAY VIEW; B walks forward, A back, no strafe */
++        if (held & PSM_BTN_B) fwd += 1.0f;
++        if (held & PSM_BTN_A) fwd -= 1.0f;
+ #else
++        if (held & PSM_BTN_Y) fwd += 1.0f;
++        if (held & PSM_BTN_A) fwd -= 1.0f;
+         if (held & PSM_BTN_X) side -= 1.0f;
+-#endif
+         if (held & PSM_BTN_B) side += 1.0f;
++#endif
+     }
+     if (lt > 0.0f || rt > 0.0f) { st->el = psm_step_(st->el, (rt - lt) * PSM_SUN_SPEED * dt, 5.0f, 85.0f); st->sun_free = 1; }
+     psm_walk(&st->x, &st->z, &st->yaw, &st->pitch, psm_axis_(pad->sx), psm_axis_(pad->sy), st->invert_y, fwd, side, dt, lim);
+@@ -1387,6 +1391,11 @@
+ static int psm_ao_now_;                  /* the AO state psm_colour uses (psm_ao_set, from psm_state_t.ao each frame) */
+ static inline void psm_ao_set(int ao) { psm_ao_now_ = ao; }
+ 
++/* CLAY VIEW: one grey albedo for the walls and the ground (the ground's light table carries it, its texture is off) */
++#define PSM_CLAY_GREY 0.72f
++static int psm_clay_now_, psm_clay_built_ = -1;
++static inline void psm_clay_set(int c) { psm_clay_now_ = c; }
++
+ /* method 1: each ground vertex's AO from the baked grid (tools/ao_bake.c), bilinear; outside it, open */
+ static inline void psm_ao_ground_(psm_frame_t *f) {
+     unsigned i;
+@@ -1412,11 +1421,19 @@
+    table. The light by channel (the field's is grey). */
+ static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
+     unsigned i, r;
++#if defined(PSM_AO_DEMO) && defined(PSM_HAVE_TOWN)
++    static const float clay_alb[3] = { PSM_CLAY_GREY, PSM_CLAY_GREY, PSM_CLAY_GREY };
++    const float gk = psm_clay_now_ ? PSM_CLAY_GREY : 1.0f;   /* the ground: grey x light, no texture under it */
++
++    if (psm_clay_built_ != psm_clay_now_) { f->glut_ao_ok = 0; psm_clay_built_ = psm_clay_now_; }
++#else
++    const float gk = 1.0f;
++#endif
+ 
+     for (r = 0; r < 256u; r++) {
+         const float d = f->sun[1] * (float)r * (1.0f / 255.0f);
+ 
+-        f->glut[r] = psm_pack_rgb(psm_light_c(s, 0u, d), psm_light_c(s, 1u, d), psm_light_c(s, 2u, d));
++        f->glut[r] = psm_pack_rgb(gk * psm_light_c(s, 0u, d), gk * psm_light_c(s, 1u, d), gk * psm_light_c(s, 2u, d));
+     }
+ #if defined(PSM_AO_DEMO) && defined(PSM_HAVE_TOWN)
+     if (psm_ao_now_ == 1 && s->ao_v) {                           /* method 1: ambient x ao + sun x lit */
+@@ -1430,7 +1447,8 @@
+                 for (r = 0; r < 256u; r++) {
+                     const float d = f->sun[1] * (float)r * (1.0f / 255.0f);
+ 
+-                    f->glut_ao[q][r] = psm_pack_rgb(s->amb[0] * a + s->sunc[0] * d, s->amb[1] * a + s->sunc[1] * d, s->amb[2] * a + s->sunc[2] * d);
++                    f->glut_ao[q][r] = psm_pack_rgb(gk * (s->amb[0] * a + s->sunc[0] * d), gk * (s->amb[1] * a + s->sunc[1] * d),
++                                                    gk * (s->amb[2] * a + s->sunc[2] * d));
+                 }
+             }
+             f->glut_ao_sun = f->sun[1]; f->glut_ao_ok = 1;
+@@ -1438,7 +1456,7 @@
+         for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut_ao[f->gao[i] >> 4][f->glit[i]];
+         for (i = 0; i < s->mvn; i++) {
+             const float d = (float)f->mlit[i] * (1.0f / 255.0f), a = i < s->mdyn0 ? (float)s->ao_v[i] * (1.0f / 255.0f) : 1.0f;
+-            const float *alb = s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
++            const float *alb = psm_clay_now_ ? clay_alb : s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
+ 
+             f->mcol[i] = psm_pack_rgb(alb[0] * (s->amb[0] * a + s->sunc[0] * d), alb[1] * (s->amb[1] * a + s->sunc[1] * d),
+                                       alb[2] * (s->amb[2] * a + s->sunc[2] * d));
+@@ -1449,7 +1467,11 @@
+     for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut[f->glit[i]];
+     for (i = 0; i < s->mvn; i++) {
+         const float d = (float)f->mlit[i] * (1.0f / 255.0f);
++#if defined(PSM_AO_DEMO) && defined(PSM_HAVE_TOWN)
++        const float *alb = psm_clay_now_ ? clay_alb : s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
++#else
+         const float *alb = s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
++#endif
+ 
+         f->mcol[i] = psm_pack_rgb(alb[0] * psm_light_c(s, 0u, d), alb[1] * psm_light_c(s, 1u, d), alb[2] * psm_light_c(s, 2u, d));
+     }
+@@ -1583,9 +1605,9 @@
+ 
+     memset(ln, 0, PSM_HUD_LINES * (PSM_HUD_COLS + 1u));
+ #ifdef PSM_AO_DEMO
+-    PSM_LINE_(0, "%s  MAP %s  AO %s", st->route == PSM_ROUTE_A ? "ROUTE A" : "ROUTE B",
++    PSM_LINE_(0, "%s  MAP %s  AO %s  %s", st->route == PSM_ROUTE_A ? "ROUTE A" : "ROUTE B",
+              !f->built ? "NONE" : !st->warp ? "UNIFORM" : "PSM",
+-             st->ao == 1 ? "1 BAKED (walls+ground)" : st->ao == 2 ? "2 PVR MAP (ground only)" : "OFF   (X: next)");
++             st->ao == 1 ? "1 BAKED" : st->ao == 2 ? "2 PVR MAP" : "OFF (X)", st->clay ? "CLAY (Y)" : "TEXTURED (Y)");
+ #else
+     PSM_LINE_(0, "%s   MAP %s%s%s", st->route == PSM_ROUTE_A ? "ROUTE A  PVR DRAWS THE MAP" : "ROUTE B  SH-4 DEPTH",
+              !f->built ? "NONE" : !st->warp ? "UNIFORM" : f->head_on ? "PSM -> UNIFORM" : "PSM", f->head_on ? "  [HEAD-ON]" : "", st->scene ? "  TOWN" : "");

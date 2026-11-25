@@ -1,0 +1,61 @@
+{
+  "note": "The suite disc psm-suite-s5: demo/psm/suite/build.py --tag s5 --list demo/psm/suite/suite_s5.json. s4c with ao4-c in place of ao4-b (scene C added: the living room, vertex AO against lightmap AO against the PVR map, the town's four hens walking in it) and Junior's hero1 h1b (a skinned hero in a clay set or the placeholder room, with the hens). RUN ALL runs ao4 then hero1: a hud1c build may hang by design. Times are ESTIMATE, not measured. Nothing on this disc has run on a console.",
+  "tests": [
+    {
+      "name": "ao4",
+      "file": "AO4.BIN",
+      "elf": "build/psm_ao/psm-ao4-c.elf",
+      "order": 1,
+      "what": "AO side by side: spheres, corner, room+hens. 70 s",
+      "read": "photo every page; START = live; L/R scene, X split"
+    },
+    {
+      "name": "hero1",
+      "file": "HERO1.BIN",
+      "elf": "D:/tmp/junior_build_hero1_h1b/sh4der-psm-hero1-h1b.elf",
+      "order": 2,
+      "what": "skinned hero, pass costs, room + hens. ~50 s",
+      "read": "photo every page; START = live (keys on the last page)"
+    },
+    {
+      "name": "ao1c",
+      "file": "AO1C.BIN",
+      "elf": "D:/tmp/junior_build_ao1c_clay/psm_dc/sh4der-psm-town-ao1c.elf",
+      "order": 0,
+      "what": "town AO autorun as s3, then Y = CLAY view. ~1 min",
+      "read": "pages as on s3; then live: Y CLAY, X AO OFF/1/2"
+    },
+    {
+      "name": "ao1c-live",
+      "file": "AO1CLIVE.BIN",
+      "elf": "D:/tmp/junior_build_ao1c-live_clay/psm_dc/sh4der-psm-town-ao1c-live.elf",
+      "order": 0,
+      "what": "town free walk: X AO OFF/1/2, Y CLAY/TEXTURED",
+      "read": "photo pairs at one spot: CLAY, AO OFF/1/2; then TEXTURED"
+    },
+    {
+      "name": "hud1c-1",
+      "file": "HUD1C1.BIN",
+      "elf": "D:/tmp/junior_build_hud1c-1_hb/psm_dc/sh4der-psm-town-hud1c-1-hb.elf",
+      "order": 0,
+      "what": "hud1b with the ASIC error events off",
+      "read": "photo the bottom two lines; ABXY or START 3 s leaves"
+    },
+    {
+      "name": "hud1c-2",
+      "file": "HUD1C2.BIN",
+      "elf": "D:/tmp/junior_build_hud1c-2_hb/psm_dc/sh4der-psm-town-hud1c-2-hb.elf",
+      "order": 0,
+      "what": "hud1b with no DIAG box in the opaque list",
+      "read": "photo the bottom two lines; ABXY or START 3 s leaves"
+    },
+    {
+      "name": "hud1c-3",
+      "file": "HUD1C3.BIN",
+      "elf": "D:/tmp/junior_build_hud1c-3_hb/psm_dc/sh4der-psm-town-hud1c-3-hb.elf",
+      "order": 0,
+      "what": "hud1b with no 64 KB DIAG texture",
+      "read": "photo the bottom two lines; ABXY or START 3 s leaves"
+    }
+  ]
+}

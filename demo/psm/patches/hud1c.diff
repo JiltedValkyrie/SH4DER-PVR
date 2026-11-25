@@ -1,0 +1,317 @@
+diff -ru hud1b_auto_src/demo/psm/psm_dc.c hud1c_src/demo/psm/psm_dc.c
+--- hud1b_auto_src/demo/psm/psm_dc.c	2026-11-25 10:47:21.431748700 -0500
++++ hud1c_src/demo/psm/psm_dc.c	2026-11-25 11:49:33.770135200 -0500
+@@ -104,6 +104,31 @@
+ 
+ static unsigned frame_no;                 /* frames sent since boot: the heartbeat */
+ static psm_fault_crumbs_t fault_crumbs;   /* psm_fault.h: what the frame was doing, on the report if it faults or hangs */
++
++#ifdef HUD1C_VARIANT
++/* hud1c: each sub-step of frames 1-3 on the screen in plain text, so a photo of a hang says where it stood. The line goes
++   into the frame buffer shown (vram_s: KallistiOS's front buffer after pvr_init), row 440; it is pixels only, the TA's
++   buffers are elsewhere. Also on the serial line. */
++static volatile unsigned step_n, main_beat;   /* main side: steps in frames 1-3, and frames ended */
++static void hud1c_step(const char *name) {
++    char ln[72];
++
++    if (frame_no > 3u) return;
++    step_n++;
++    main_beat++;
++    snprintf(ln, sizeof ln, "hud1c-%d F%u STEP %u %s   (stuck: hold ABXY/START 3 s)", HUD1C_VARIANT, frame_no, step_n, name);
++    printf("psm: %s\n", ln);
++    if (vram_s) {
++        uint16_t *row = vram_s + 440u * 640u;
++
++        memset(row, 0, 640u * 16u * sizeof *row);
++        minifont_draw_str(row + 32u, 640u, ln);
++    }
++}
++#define STEP(n) hud1c_step(n)
++#else
++#define STEP(n) ((void)0)
++#endif
+ static uint32_t vbuf_used, vbuf_max;      /* KallistiOS's vertex buffer bytes: the last frame registered, the largest */
+ static int look_pending;                  /* the fog colour or table changed: written once the PVR is idle (look_apply) */
+ static unsigned shed_now;                 /* SHED this frame (psm_send_plan): 0 everything sent */
+@@ -151,6 +176,11 @@
+ static void diag_hook(void) {
+     unsigned i;
+ 
++#if defined(HUD1C_VARIANT) && HUD1C_VARIANT == 1
++    printf("psm: hud1c-1: diag_hook off (no ASIC error events)\n");
++    return;
++#endif
++
+     for (i = 0; i < DIAG_EVT_N; i++) {
+         diag_evt_prev[i] = asic_evt_set_handler((uint16_t)(ASIC_EVT_PVR_ISP_OUTOFMEM + i), diag_evt_hnd, NULL);
+         asic_evt_enable((uint16_t)(ASIC_EVT_PVR_ISP_OUTOFMEM + i), ASIC_IRQ_DEFAULT);
+@@ -210,6 +240,8 @@
+ static void diag_upload(void) {
+     unsigned i, k;
+ 
++    if (!diag_mem) return;                   /* hud1c: no texture (variant 3, or no video memory): nothing to load */
++
+     for (i = 0; i < DIAG_LINES; i++) {
+         uint16_t *row = diag_px + i * 16u * DIAG_W;
+ 
+@@ -274,7 +306,14 @@
+     static const float xs[4] = { 0.0f, (float)DIAG_W, 0.0f, (float)DIAG_W }, ys[4] = { 0.0f, 0.0f, (float)DIAG_H, (float)DIAG_H };
+     unsigned i;
+ 
++#if defined(HUD1C_VARIANT) && HUD1C_VARIANT == 2
++    return;                                  /* hud1c-2: no DIAG box in the opaque list */
++#endif
++#if defined(HUD1C_VARIANT) && HUD1C_VARIANT == 3
++    if (!sh4der_poly_hdr_ok((const uint32_t *)&hdr_diag)) return;   /* hud1c-3: untextured, no texture needed */
++#else
+     if (!diag_mem || !sh4der_poly_hdr_ok((const uint32_t *)&hdr_diag)) return;
++#endif
+     if (ta_runs) {
+         const uint32_t *h = (const uint32_t *)&hdr_diag;
+         uint32_t *o = ta_record();
+@@ -363,10 +402,16 @@
+     pvr_poly_compile(&hdr_inset_b, &c);
+ 
+     /* hud1: the DIAG box, first in the opaque list (an overflow loses what is sent last), drawn over everything after it */
++#if defined(HUD1C_VARIANT) && HUD1C_VARIANT == 3
++    pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);  /* hud1c-3: the same box, untextured (no 64 KB texture) */
++    c.gen.culling = PVR_CULLING_NONE;
++    c.gen.shading = PVR_SHADE_FLAT;
++#else
+     pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_ARGB1555 | PVR_TXRFMT_NONTWIDDLED, DIAG_W, DIAG_H, diag_mem, PVR_FILTER_NEAREST);
+     c.gen.culling = PVR_CULLING_NONE;
+     c.gen.shading = PVR_SHADE_FLAT;
+     c.txr.env = PVR_TXRENV_REPLACE;
++#endif
+     c.depth.comparison = PVR_DEPTHCMP_ALWAYS;
+     c.depth.write = PVR_DEPTHWRITE_ENABLE;
+     pvr_poly_compile(&hdr_diag, &c);
+@@ -485,7 +530,11 @@
+     inset_mem = pvr_mem_malloc(sizeof inset_px);
+     checker_mem = pvr_mem_malloc(sizeof checker_px);
+     if (!text_mem || !inset_mem || !checker_mem) return 0;
++#if defined(HUD1C_VARIANT) && HUD1C_VARIANT == 3
++    diag_mem = NULL;                                        /* hud1c-3: no 64 KB DIAG texture */
++#else
+     diag_mem = pvr_mem_malloc(sizeof diag_px);              /* hud1: 64 KB; none: no box (the image still runs) */
++#endif
+     if (diag_mem) { memset(diag_px, 0, sizeof diag_px); pvr_txr_load(diag_px, diag_mem, sizeof diag_px); }
+     else printf("psm: hud1: no video memory for the DIAG box\n");
+     sky_mem = pvr_mem_malloc(PSM_SKY_W * PSM_SKY_H * 2u);  /* 256 KB; none: the town draws without the air */
+@@ -587,6 +636,7 @@
+     map_tris = 0;
+     if (!target_mem || !hdr_target_ok) return 0;
+     psm_frame_a_casters(&frame, &scene);     /* the casters' map transform, before the scene opens (XMTRX, not the store queue) */
++    STEP("map rtt begin");
+     if (pvr_scene_begin_rtt(target_mem, target_size, target_size, target_size) < 0) {
+         if (!rtt_refused_shown) { rtt_refused_shown = 1; printf("psm: pvr_scene_begin_rtt refused a %u target\n", target_size); }
+         return 0;
+@@ -595,11 +645,16 @@
+     psm_sink_reset(&sink, 1, 0, 0u, NULL);
+     memcpy(sink.hdr_ok, ok, sizeof ok);
+     ta_runs = state.send_runs;
++    STEP("map list begin");
+     pvr_list_begin(PVR_LIST_OP_POLY);
++    STEP("map send");
+     map_tris = psm_send_map(&sink, &frame, &scene, &state, target_size, out);
+     ta_flush();
++    STEP("map list end");
+     pvr_list_finish();
++    STEP("map scene finish");
+     pvr_scene_finish();
++    STEP("map done");
+     ta_v += sink.verts;
+     return 1;
+ }
+@@ -668,8 +723,11 @@
+ static uint64_t render_wait(void) {
+     pvr_stats_t stats;
+ 
++    STEP("render wait: ready");
+     pvr_wait_ready();
++    STEP("render wait: done");
+     pvr_wait_render_done();
++    STEP("render wait: ok");
+     if (pvr_get_stats(&stats) < 0) return 0;
+     return stats.rnd_last_time;
+ }
+@@ -685,6 +743,73 @@
+ static volatile unsigned boot_grace;
+ static int boot_pvr;                        /* 1 once pvr_init is done */
+ 
++#ifdef HUD1C_VARIANT
++/* hud1c: hold A+B+X+Y or START for 3 s: back to the suite menu (or a reboot to the BIOS on a disc of its own). Read
++   from KallistiOS's controller state in the vertical blank. It needs interrupts: if they are dead it cannot run, and
++   that is itself the answer (a photo of the step line and no way out = interrupts off). */
++static unsigned esc_held, vbl_beat;
++
++static char *hud1c_u_(char *o, unsigned v) {   /* decimal, by hand: safe in the interrupt */
++    char t[12];
++    int n = 0;
++
++    do t[n++] = (char)('0' + v % 10u); while ((v /= 10u) && n < 11);
++    while (n) *o++ = t[--n];
++    return o;
++}
++
++static void hud1c_beat_line_(unsigned b) {   /* row 458: "VBL n  MAIN n  STEP n  F n  PAD xxxx" */
++    static const char hx[] = "0123456789ABCDEF";
++    char ln[80], *o = ln;
++    const char *k;
++    int i;
++
++    for (k = "VBL "; *k; ) *o++ = *k++;
++    o = hud1c_u_(o, vbl_beat);
++    for (k = "  MAIN "; *k; ) *o++ = *k++;
++    o = hud1c_u_(o, main_beat);
++    for (k = "  STEP "; *k; ) *o++ = *k++;
++    o = hud1c_u_(o, step_n);
++    for (k = "  F "; *k; ) *o++ = *k++;
++    o = hud1c_u_(o, frame_no);
++    for (k = "  PAD "; *k; ) *o++ = *k++;
++    for (i = 12; i >= 0; i -= 4) *o++ = hx[(b >> i) & 15u];
++    for (k = "  HELD "; *k; ) *o++ = *k++;
++    o = hud1c_u_(o, esc_held);
++    *o = 0;
++    if (vram_s) {
++        uint16_t *row = vram_s + 458u * 640u;
++        unsigned j;
++
++        for (j = 0; j < 640u * 16u; j++) row[j] = 0;
++        minifont_draw_str(row + 32u, 640u, ln);
++    }
++}
++static void hud1c_esc_vbl(uint32_t code, void *data) {
++    maple_device_t *dev;
++    cont_state_t *st;
++    unsigned b;
++
++    (void)code; (void)data;
++    dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
++    st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
++    b = st ? st->buttons : 0u;
++    vbl_beat++;
++    if (!(vbl_beat & 7u)) hud1c_beat_line_(b);   /* every 8th blank: the vblank side is alive while this moves */
++    if ((b & SUITE_KEYS_ALL) == SUITE_KEYS_ALL || (b & CONT_START)) esc_held++;
++    else esc_held = 0;
++    if (esc_held < 180u) return;
++    irq_disable();
++    if (suite_present()) {
++        suite_menu_mail->chain = 0u;
++        suite_menu_mail->index = suite_mail.index;
++        suite_menu_mail->status = SUITE_KEYS;
++        arch_exec(suite_menu_image, (uint32_t)suite_menu_size);
++    }
++    arch_reboot();
++}
++#endif
++
+ static void boot_vbl(uint32_t code, void *data) {
+     (void)code; (void)data;
+     if (boot_grace) { boot_grace--; fault_crumbs.beat++; }
+@@ -772,7 +897,8 @@
+ #ifndef PSM_AUTO_IMG
+ #define PSM_AUTO_IMG 0
+ #endif
+-static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto", "hud1b-auto" };
++static const char *const auto_img_name[] = { "town-auto", "a3e-auto", "a3f-auto", "bake1-auto", "hud1-auto", "hud1b-auto",
++                                              "hud1c-1", "hud1c-2", "hud1c-3" };
+ static psm_auto_t autos;
+ static volatile uint32_t auto_evt[PSM_AUTO_EVT_N];
+ static asic_evt_handler_entry_t auto_evt_prev[PSM_AUTO_EVT_N];
+@@ -793,6 +919,11 @@
+ static void auto_hook(int on) {
+     unsigned i;
+ 
++#if defined(HUD1C_VARIANT) && HUD1C_VARIANT == 1
++    (void)on; (void)i;
++    return;                                  /* hud1c-1: no ASIC error events; the counters stay 0 */
++#endif
++
+     for (i = 0; i < PSM_AUTO_EVT_N; i++) {
+         const uint16_t code = (uint16_t)(ASIC_EVT_PVR_ISP_OUTOFMEM + i);
+ 
+@@ -842,7 +973,7 @@
+     pvr_shutdown();
+     vid_set_mode(DM_640x480, PM_RGB565);
+     pg_init();
+-    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 6u], psm_auto_counted_frames());
++    pg_say("TOWN AUTORUN %s: %u frames counted, sim step 1/30 s", auto_img_name[PSM_AUTO_IMG % 9u], psm_auto_counted_frames());
+     pg_say("vertex buffer %u KB x2; one console; per segment min/mean/max", (unsigned)(auto_vbuf_bytes / 1024u));
+     pg_say("ms unless said. SH-4 = setup+map+casters+compare. PVR = last done render");
+     for (g = 0; g < PSM_AUTO_SEGS; g++) {
+@@ -915,6 +1046,9 @@
+ #ifdef PSM_BOOT_STAGES
+     psm_fault_init(&fault_crumbs);           /* hud1b: the report from the first step, not from after pvr_init */
+     vblank_handler_add(boot_vbl, NULL);
++#ifdef HUD1C_VARIANT
++    vblank_handler_add(hud1c_esc_vbl, NULL);   /* hud1c: the 3 s escape, from the first step */
++#endif
+     BOOT_STAGE("fault on", 0);
+     BOOT_STAGE("suite_init", 10);
+ #endif
+@@ -1055,6 +1189,7 @@
+         }
+ 
+         psm_fault_stage(&fault_crumbs, "text");
++        STEP("text: wait ready");
+         pvr_wait_ready();
+         if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text, the inset and the fog registers: written when they changed, after the last render */
+             hud_tick = 0;
+@@ -1062,9 +1197,13 @@
+             want_text |= diag_pending() << 1;            /* hud1: bit 1 the DIAG box */
+             want_inset = state.inset && state.route != PSM_ROUTE_A && b_ok;
+             if (want_text || want_inset || look_pending) {
++                STEP("text: wait done");
+                 pvr_wait_render_done();
++                STEP("text: look");
+                 look_apply();
++                STEP("text: upload");
+                 if (want_text & 1) text_upload();
++                STEP("text: DIAG upload");
+                 if (want_text & 2) diag_upload();
+                 if (want_inset) inset_update();
+             }
+@@ -1079,22 +1218,31 @@
+             memcpy(sink.hdr_ok, ok, sizeof ok);
+         }
+         ta_runs = state.send_runs;
++        STEP("scene begin");
+         pvr_scene_begin();
++        STEP("OP list begin");
+         pvr_list_begin(PVR_LIST_OP_POLY);
++        STEP("DIAG draw");
+         diag_send();                         /* hud1: first, so an overflow cannot take it */
++        STEP("OP send");
+         psm_send_op(&sink, &frame, &scene, state.atmos && sky_mem ? &sky : NULL);
+         est_op = sink.bytes;
+         ta_flush();
++        STEP("OP list end");
+         pvr_list_finish();
++        STEP("TR list begin");
+         pvr_list_begin(PVR_LIST_TR_POLY);
+         psm_send_hud_first_ = hud_first;     /* hud1: X on the chord */
+         layer_v = psm_send_tr(&sink, &frame, &scene, &state, a_drawn, frame_no);
+         est_tr = sink.bytes - est_op + PSM_TA_BKG;
+         text_v = sink.kv[PSM_HK_TEXT] + sink.kv[PSM_HK_DIM];
+         ta_flush();
++        STEP("TR list end");
+         pvr_list_finish();
+         psm_fault_stage(&fault_crumbs, "finish");
++        STEP("scene finish");
+         pvr_scene_finish();
++        STEP("scene finished");
+         ta_v += sink.verts;
+         psm_fault_counts(&fault_crumbs, sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG] + sink.kv[PSM_HK_LAYER],
+                          sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG], sink.verts - sink.kv[PSM_HK_GROUND] - sink.kv[PSM_HK_GROUND_FOG]
+@@ -1106,6 +1254,10 @@
+             diag_frame();                    /* hud1 */
+         }
+         if (sample) rnd_scr = render_wait();
++        STEP("frame end");
++#ifdef HUD1C_VARIANT
++        main_beat++;
++#endif
+         win_frames++;
+         win_rnd_ns += rnd_rtt + rnd_scr;
+ #ifdef PSM_AUTORUN

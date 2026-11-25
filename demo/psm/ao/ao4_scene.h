@@ -5,7 +5,7 @@
 
    Shared by the Dreamcast program (ao4_spike.c) and the host test and preview (test/ao4_scene_test.c).
 
-   SCENES. Simple shapes on a flat ground at y 0, 16 m square, tessellated a third of a metre so a colour a vertex can
+   SCENES. Simple shapes on a flat ground at y 0, 12 m square, tessellated a third of a metre so a colour a vertex can
    show a contact shadow:
      A  a big sphere, a small sphere beside it and a box: the classic picture
      B  two upright walls meeting at a right angle with a sphere in the corner
@@ -36,20 +36,22 @@
 #include "sh4der_core.h"
 #include "../ao_layer.h"
 
-#define AO4_SPAN      8.0f                  /* the ground: x, z in -AO4_SPAN .. AO4_SPAN */
-#define AO4_GRID      48u                   /* ground cells a side: a third of a metre */
+#define AO4_SPAN      6.0f                  /* the ground: x, z in -AO4_SPAN .. AO4_SPAN */
+#define AO4_GRID      36u                   /* ground cells a side: a third of a metre */
 #define AO4_SIZE      256u                  /* the shadow target */
-#define AO4_V_MAX     6144u
-#define AO4_IDX_MAX   16384u
-#define AO4_STRIP_MAX 1400u
-#define AO4_CV_MAX    1024u
-#define AO4_CT_MAX    2048u
+#define AO4_V_MAX     8192u
+#define AO4_IDX_MAX   24576u
+#define AO4_STRIP_MAX 8192u
+#define AO4_CV_MAX    4096u
+#define AO4_CT_MAX    4096u
 #define AO4_RAYS      64u
 #define AO4_REACH     3.0f                  /* metres a ray looks for an occluder */
 #define AO4_PUSH      0.02f                 /* a ray starts this far off its surface */
 #define AO4_SCENES    2u
+#define AO4_REACHES   4u                    /* method 2: how far a sky direction's shadow slides, as a share of ao_layer.h's */
 
-enum { AO4_OFF = 0, AO4_BAKED = 1, AO4_MAP = 2 };
+enum { AO4_OFF = 0, AO4_BAKED = 1, AO4_MAP = 2, AO4_LMAP = 3, AO4_LMAP_M = 4 };   /* LMAP: the room alone (ao4_room.h): a lightmap a flat
+                                                                                        surface; LMAP_M: that and a tile a mover (ao4_hens.h) */
 enum { AO4_CLAY = 0, AO4_COLOUR = 1, AO4_AO_ONLY = 2, AO4_LOOKS = 3 };
 
 typedef struct ao4_sph { float c[3], r; } ao4_sph_t;
@@ -63,9 +65,12 @@ typedef struct ao4_scene {
     uint16_t idx[AO4_IDX_MAX];
     uint16_t slen[AO4_STRIP_MAX];
     unsigned idxn, strips, ground_strips;   /* strips 0 .. ground_strips - 1 are the ground's */
+    unsigned surf_strips;                   /* strips 0 .. surf_strips - 1 are flat surfaces' (the ground, then the room's walls) */
+    int no_sun_shadow;                      /* 1: the sun shades by N.L but casts nothing (the room) */
     unsigned tris;                          /* triangles drawn on screen */
     float cv[AO4_CV_MAX][3];                /* the casters */
     uint16_t ct[AO4_CT_MAX][3];
+    uint8_t ct_open[AO4_CT_MAX];            /* 1: the triangle's caster is not closed: both its sides are drawn */
     unsigned cvn, ctn;
     ao4_sph_t sph[4];
     ao4_box_t box[4];
@@ -73,8 +78,12 @@ typedef struct ao4_scene {
     float sun[3];                           /* unit, toward the sun */
     float sun_slope[2];                     /* the sun's slide: (sx, sz) = (x, z) / y */
     float cam_angle, cam_swing;             /* the orbit's middle, radians; its swing each way (0: all the way round) */
+    float cam_radius, cam_height, cam_tx, cam_tz;   /* the eye's circle and what it looks at */
+    int cam_rh;                             /* 1: +x is on the right looking along -z (a right-handed model: the room); 0: mirrored, as scenes A and B were drawn */
 } ao4_scene_t;
 
+static const float ao4_reach[AO4_REACHES] = { 0.35f, 0.6f, 0.8f, 1.0f };   /* 0.6: about 71 degrees of elevation; 1: ao_layer.h's 60 */
+#define AO4_REACH_DEFAULT 1u
 static const float ao4_map[16] = { 1.0f / AO4_SPAN, 0, 0, 0,   0, 0, 0, 0,   0, 1.0f / AO4_SPAN, 0, 0,   0, 0, 0, 1 };
 
 /* ---- building ---------------------------------------------------------------------------------------------------- */
@@ -207,7 +216,7 @@ static inline void ao4_build(ao4_scene_t *s, unsigned which) {
 
     memset(s, 0, sizeof *s);
     ao4_grid(s, g0, gu, gv, AO4_GRID, AO4_GRID, up, 0u);
-    s->ground_vn = s->vn; s->ground_strips = s->strips;
+    s->ground_vn = s->vn; s->ground_strips = s->surf_strips = s->strips;
     if (which == 0u) {
         const float big[3] = { -1.0f, 2.2f, 0.4f }, small[3] = { 2.25f, 1.0f, -0.5f };
         const float lo[3] = { -4.6f, 0.0f, -3.4f }, hi[3] = { -3.2f, 1.4f, -2.0f };
@@ -218,6 +227,7 @@ static inline void ao4_build(ao4_scene_t *s, unsigned which) {
         ao4_box_faces(s, lo, hi, 4u, 3u);
         ao4_sun_(s, -0.55f, 0.75f, -0.35f);                  /* from the left and a little behind */
         s->cam_angle = -1.5708f; s->cam_swing = 0.0f;
+        s->cam_radius = 12.5f; s->cam_height = 6.5f; s->cam_tx = 0.0f; s->cam_tz = 0.0f;
     } else {
         /* the corner at x = -4, z = 4: the walls 0.3 m thick behind those planes, 5 m high */
         const float w1lo[3] = { -4.3f, 0.0f, -4.0f }, w1hi[3] = { -4.0f, 5.0f, 4.3f };
@@ -233,6 +243,7 @@ static inline void ao4_build(ao4_scene_t *s, unsigned which) {
         ao4_sphere(s, ball, 1.5f, 24u, 14u, 1u);
         ao4_sun_(s, 0.45f, 0.80f, -0.55f);                   /* into the corner, over the viewer's shoulder */
         s->cam_angle = -0.7854f; s->cam_swing = 0.55f;
+        s->cam_radius = 14.0f; s->cam_height = 6.5f; s->cam_tx = -1.5f; s->cam_tz = 1.5f;
     }
 }
 
@@ -266,7 +277,7 @@ static inline float ao4_ray(const ao4_scene_t *s, const float o[3], const float 
         int inside = 1, miss = 0;
 
         for (k = 0; k < 3u; k++) {
-            if (!(o[k] > bx->lo[k] && o[k] < bx->hi[k])) inside = 0;
+            if (!(o[k] > bx->lo[k] + 1.0e-3f && o[k] < bx->hi[k] - 1.0e-3f)) inside = 0;   /* on a face is outside */
             if (d[k] > 1.0e-6f || d[k] < -1.0e-6f) {
                 const float inv = sh4der_div_(1.0f, d[k]);
                 float a = (bx->lo[k] - o[k]) * inv, b = (bx->hi[k] - o[k]) * inv;
@@ -277,7 +288,7 @@ static inline float ao4_ray(const ao4_scene_t *s, const float o[3], const float 
             } else if (o[k] < bx->lo[k] || o[k] > bx->hi[k]) miss = 1;
         }
         if (inside) return 0.0f;
-        if (!miss && t0 <= t1 && t0 < best) best = t0;
+        if (!miss && t0 + 1.0e-4f < t1 && t0 < best) best = t0;   /* a ray that only touches a face does not hit */
     }
     return best;
 }
@@ -353,13 +364,14 @@ static inline float ao4_open(unsigned ao, int exaggerate) {
 }
 
 /* Every vertex's colour for one side of the screen. method: AO4_OFF, AO4_BAKED (the AO byte on the ambient), AO4_MAP
-   (as OFF: the target carries it, on the ground). */
+   (as OFF: the target carries it, on the ground), AO4_LMAP (as BAKED: the flat surfaces are drawn from their lightmaps
+   instead, ao4_room.h). */
 static inline void ao4_light(const ao4_scene_t *s, unsigned method, unsigned look, int exaggerate, uint32_t *argb) {
     const float amb = ao4_amb[look], sunc = ao4_sunc[look];
     unsigned i;
 
     for (i = 0; i < s->vn; i++) {
-        const float ndl = sh4der_dot3_(s->n[i], s->sun), open = method == AO4_BAKED ? ao4_open(s->ao[i], exaggerate) : 1.0f;
+        const float ndl = sh4der_dot3_(s->n[i], s->sun), open = method == AO4_BAKED || method >= AO4_LMAP ? ao4_open(s->ao[i], exaggerate) : 1.0f;
         const float l = amb * open + sunc * (ndl > 0.0f ? ndl : 0.0f);
         const float *t = ao4_tint[s->tint[i] & 3u];
         float r, g, b;
@@ -397,7 +409,7 @@ static inline void ao4_cam_make(ao4_cam_t *c, float angle, float radius, float h
     sh4der_cross_(up, c->f, c->r);
     sh4der_norm3_(c->r);
     sh4der_cross_(c->f, c->r, c->u);
-    c->focal = 560.0f;
+    c->focal = 640.0f;
 }
 
 /* A world point on a 640 x 480 screen: x, y, 1 / depth. 0 when it is not 0.5 m in front of the eye. */
@@ -416,13 +428,14 @@ static inline int ao4_cam_pt(const ao4_cam_t *c, const float p[3], float s[3]) {
 
 /* The scene's view at time t seconds, the pad's turn and lift added: the orbit, or the swing about the middle. */
 static inline void ao4_cam_at(const ao4_scene_t *s, ao4_cam_t *c, float t, float turn, float lift) {
-    float ang = s->cam_angle + turn, sn, cs, h = 6.5f + lift;
+    float ang = s->cam_angle + turn, sn, cs, h = s->cam_height + lift;
 
     if (s->cam_swing > 0.0f) { sh4der_sincos_(t * 0.35f, &sn, &cs); ang += s->cam_swing * sn; }
     else ang += t * 0.22f;
     if (h < 2.0f) h = 2.0f;
     if (h > 14.0f) h = 14.0f;
-    ao4_cam_make(c, ang, s->cam_swing > 0.0f ? 13.5f : 14.5f, h, s->cam_swing > 0.0f ? -1.5f : 0.0f, s->cam_swing > 0.0f ? 1.5f : 0.0f);
+    ao4_cam_make(c, ang, s->cam_radius, h, s->cam_tx, s->cam_tz);
+    if (s->cam_rh) { c->r[0] = -c->r[0]; c->r[1] = -c->r[1]; c->r[2] = -c->r[2]; }
 }
 
 #endif /* AO4_SCENE_H */

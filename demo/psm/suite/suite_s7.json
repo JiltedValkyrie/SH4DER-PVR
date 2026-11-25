@@ -1,0 +1,77 @@
+{
+  "note": "The suite disc psm-suite-s7 (NOT BUILT until lead says: one disc at a time): demo/psm/suite/build.py --tag s7 --list demo/psm/suite/suite_s7.json. s6b with ao4-e2 in place of ao4-d (the clip guard's two stages and switch, and LAST the tile list cut of target M's pass) and the entry pvr-dma added (the PVR-DMA download proof, a page for outsiders). hero1 is Junior's h1d, hens-eyes is hen-b. RUN ALL: ao4, hero1, hens-eyes, pvr-dma. Times are ESTIMATE. ao4-e2 and hen-b are ao4-e and hen-a with the room's trim lit by its wall's normal (room_import.py); hero1 h1d is on the same room data.",
+  "tests": [
+    {
+      "name": "ao4",
+      "file": "AO4.BIN",
+      "elf": "build/psm_ao/psm-ao4-e2.elf",
+      "order": 1,
+      "what": "AO side by side; clip guard; tile cut last. 110 s",
+      "read": "photo pages+graph; photo stages 16, 17 (CLIP GUARD label)"
+    },
+    {
+      "name": "hero1",
+      "file": "HERO1.BIN",
+      "elf": "D:/tmp/junior_build_hero1_h1d/sh4der-psm-hero1-h1d.elf",
+      "order": 2,
+      "what": "skinned hero, pass costs, room + hens. ~50 s",
+      "read": "photo every page; START = live (keys on the last page)"
+    },
+    {
+      "name": "hens-eyes",
+      "file": "HENEYES.BIN",
+      "elf": "build/psm_ao/psm-hen-b.elf",
+      "order": 3,
+      "what": "hens: rays vs collision sweep, cycles. ~50 s",
+      "read": "photo every page + graph; START = live: X mode, Y hens"
+    },
+    {
+      "name": "pvr-dma",
+      "file": "PVRDMA.BIN",
+      "elf": "build/psm_ao/psm-pd-a.elf",
+      "order": 4,
+      "what": "PVR-DMA download proof: VRAM to RAM. ~2 s",
+      "read": "PVR-DMA download proof: photo the page and the graph"
+    },
+    {
+      "name": "ao1c",
+      "file": "AO1C.BIN",
+      "elf": "D:/tmp/junior_build_ao1c_clay/psm_dc/sh4der-psm-town-ao1c.elf",
+      "order": 0,
+      "what": "town AO autorun as s3, then Y = CLAY view. ~1 min",
+      "read": "pages as on s3; then live: Y CLAY, X AO OFF/1/2"
+    },
+    {
+      "name": "ao1c-live",
+      "file": "AO1CLIVE.BIN",
+      "elf": "D:/tmp/junior_build_ao1c-live_clay/psm_dc/sh4der-psm-town-ao1c-live.elf",
+      "order": 0,
+      "what": "town free walk: X AO OFF/1/2, Y CLAY/TEXTURED",
+      "read": "photo pairs at one spot: CLAY, AO OFF/1/2; then TEXTURED"
+    },
+    {
+      "name": "hud1c-1",
+      "file": "HUD1C1.BIN",
+      "elf": "D:/tmp/junior_build_hud1c-1_hb/psm_dc/sh4der-psm-town-hud1c-1-hb.elf",
+      "order": 0,
+      "what": "hud1b with the ASIC error events off",
+      "read": "photo the bottom two lines; ABXY or START 3 s leaves"
+    },
+    {
+      "name": "hud1c-2",
+      "file": "HUD1C2.BIN",
+      "elf": "D:/tmp/junior_build_hud1c-2_hb/psm_dc/sh4der-psm-town-hud1c-2-hb.elf",
+      "order": 0,
+      "what": "hud1b with no DIAG box in the opaque list",
+      "read": "photo the bottom two lines; ABXY or START 3 s leaves"
+    },
+    {
+      "name": "hud1c-3",
+      "file": "HUD1C3.BIN",
+      "elf": "D:/tmp/junior_build_hud1c-3_hb/psm_dc/sh4der-psm-town-hud1c-3-hb.elf",
+      "order": 0,
+      "what": "hud1b with no 64 KB DIAG texture",
+      "read": "photo the bottom two lines; ABXY or START 3 s leaves"
+    }
+  ]
+}

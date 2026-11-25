@@ -1,0 +1,510 @@
+{
+ "note": "SH4DER-PVR living room for the AO scene. Own modelling, made by tools/build_room.py. Metres, Y up, right-handed, floor top at y = 0, room -3 .. 3 in x and z. Triangles counter-clockwise seen from outside. Blender (x, y, z) is (x, z, -y) here.",
+ "units": "metres",
+ "up": "Y",
+ "triangles_total": 1282,
+ "triangles_casters": 1000,
+ "tint_key": {
+  "0": "shell",
+  "1": "upholstery and rug",
+  "2": "wood and metal",
+  "3": "plants and ceramics"
+ },
+ "camera": {
+  "type": "orthographic",
+  "eye": [
+   8.0829,
+   9.4829,
+   8.0829
+  ],
+  "target": [
+   0.0,
+   1.4,
+   -0.0
+  ],
+  "ortho_scale_m": 9.2
+ },
+ "combined": "room_all.obj",
+ "objects": [
+  {
+   "name": "floor",
+   "file": "floor.obj",
+   "tris": 2,
+   "verts": 4,
+   "surface": "floor",
+   "open": true,
+   "caster": false,
+   "tint": 0,
+   "movable": false,
+   "ground_contact": true,
+   "rests_on": null,
+   "optional": false,
+   "origin": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -3.0,
+    0.0,
+    -3.0
+   ],
+   "bbox_max": [
+    3.0,
+    0.0,
+    3.0
+   ],
+   "volume_m3": null,
+   "blockout": false
+  },
+  {
+   "name": "wall_left",
+   "file": "wall_left.obj",
+   "tris": 2,
+   "verts": 4,
+   "surface": "wall",
+   "open": true,
+   "caster": false,
+   "tint": 0,
+   "movable": false,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -3.0,
+    0.0,
+    -3.0
+   ],
+   "bbox_max": [
+    -3.0,
+    2.8,
+    3.0
+   ],
+   "volume_m3": null,
+   "blockout": false
+  },
+  {
+   "name": "wall_right",
+   "file": "wall_right.obj",
+   "tris": 2,
+   "verts": 4,
+   "surface": "wall",
+   "open": true,
+   "caster": false,
+   "tint": 0,
+   "movable": false,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -3.0,
+    0.0,
+    -3.0
+   ],
+   "bbox_max": [
+    3.0,
+    2.8,
+    -3.0
+   ],
+   "volume_m3": null,
+   "blockout": false
+  },
+  {
+   "name": "room_trim",
+   "file": "room_trim.obj",
+   "tris": 232,
+   "verts": 128,
+   "surface": null,
+   "open": false,
+   "caster": false,
+   "tint": 0,
+   "movable": false,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -3.01,
+    -0.01,
+    -3.01
+   ],
+   "bbox_max": [
+    3.0,
+    2.8,
+    3.0
+   ],
+   "volume_m3": 0.20483,
+   "blockout": false
+  },
+  {
+   "name": "floor_border",
+   "file": "floor_border.obj",
+   "tris": 32,
+   "verts": 16,
+   "surface": null,
+   "open": false,
+   "caster": false,
+   "tint": 0,
+   "movable": false,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": true,
+   "origin": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -2.88,
+    -0.01,
+    -2.88
+   ],
+   "bbox_max": [
+    2.88,
+    0.006,
+    2.88
+   ],
+   "volume_m3": 0.10483,
+   "blockout": false
+  },
+  {
+   "name": "rug",
+   "file": "rug.obj",
+   "tris": 12,
+   "verts": 8,
+   "surface": null,
+   "open": false,
+   "caster": false,
+   "tint": 1,
+   "movable": false,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    0.2,
+    0.0,
+    -0.55
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -1.7,
+    -0.01,
+    -2.15
+   ],
+   "bbox_max": [
+    2.1,
+    0.012,
+    1.05
+   ],
+   "volume_m3": 0.26752,
+   "blockout": false
+  },
+  {
+   "name": "wall_frame",
+   "file": "wall_frame.obj",
+   "tris": 44,
+   "verts": 24,
+   "surface": null,
+   "open": false,
+   "caster": true,
+   "tint": 2,
+   "movable": false,
+   "ground_contact": false,
+   "rests_on": "wall_left",
+   "optional": false,
+   "origin": [
+    -3.0,
+    1.3,
+    -0.0
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -3.01,
+    1.32,
+    -0.62
+   ],
+   "bbox_max": [
+    -2.94,
+    2.28,
+    0.62
+   ],
+   "volume_m3": 0.05569,
+   "blockout": false
+  },
+  {
+   "name": "sofa",
+   "file": "sofa.obj",
+   "tris": 280,
+   "verts": 172,
+   "surface": null,
+   "open": false,
+   "caster": true,
+   "tint": 1,
+   "movable": true,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    0.2,
+    0.0,
+    -2.42
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -0.96,
+    -0.01,
+    -2.895
+   ],
+   "bbox_max": [
+    1.36,
+    0.8737,
+    -1.935
+   ],
+   "volume_m3": 1.1935,
+   "blockout": false
+  },
+  {
+   "name": "coffee_table",
+   "file": "coffee_table.obj",
+   "tris": 72,
+   "verts": 48,
+   "surface": null,
+   "open": false,
+   "caster": true,
+   "tint": 2,
+   "movable": true,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    0.2,
+    0.0,
+    -0.75
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -0.45,
+    -0.01,
+    -1.05
+   ],
+   "bbox_max": [
+    0.85,
+    0.42,
+    -0.45
+   ],
+   "volume_m3": 0.04935,
+   "blockout": false
+  },
+  {
+   "name": "vases",
+   "file": "vases.obj",
+   "tris": 196,
+   "verts": 106,
+   "surface": null,
+   "open": false,
+   "caster": true,
+   "tint": 3,
+   "movable": true,
+   "ground_contact": false,
+   "rests_on": "coffee_table",
+   "optional": false,
+   "origin": [
+    0.2,
+    0.42,
+    -0.75
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -0.26,
+    0.41,
+    -0.909
+   ],
+   "bbox_max": [
+    0.66,
+    0.72,
+    -0.6297
+   ],
+   "volume_m3": 0.0059,
+   "blockout": false
+  },
+  {
+   "name": "ottoman_a",
+   "file": "ottoman_a.obj",
+   "tris": 76,
+   "verts": 48,
+   "surface": null,
+   "open": false,
+   "caster": true,
+   "tint": 1,
+   "movable": true,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    -0.5,
+    0.0,
+    0.4
+   ],
+   "turn_y_degrees": 8.0,
+   "bbox_min": [
+    -0.8106,
+    -0.01,
+    0.0894
+   ],
+   "bbox_max": [
+    -0.1894,
+    0.42,
+    0.7106
+   ],
+   "volume_m3": 0.08858,
+   "blockout": false
+  },
+  {
+   "name": "ottoman_b",
+   "file": "ottoman_b.obj",
+   "tris": 76,
+   "verts": 48,
+   "surface": null,
+   "open": false,
+   "caster": true,
+   "tint": 1,
+   "movable": true,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    0.95,
+    0.0,
+    0.32
+   ],
+   "turn_y_degrees": -17.0,
+   "bbox_min": [
+    0.6316,
+    -0.01,
+    0.0016
+   ],
+   "bbox_max": [
+    1.2684,
+    0.42,
+    0.6384
+   ],
+   "volume_m3": 0.07614,
+   "blockout": false
+  },
+  {
+   "name": "lamp",
+   "file": "lamp.obj",
+   "tris": 112,
+   "verts": 68,
+   "surface": null,
+   "open": false,
+   "caster": true,
+   "tint": 2,
+   "movable": true,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    -2.25,
+    0.0,
+    -2.25
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -2.557,
+    -0.0146,
+    -2.6023
+   ],
+   "bbox_max": [
+    -1.943,
+    1.7,
+    -1.98
+   ],
+   "volume_m3": 0.05667,
+   "blockout": false
+  },
+  {
+   "name": "plant_a",
+   "file": "plant_a.obj",
+   "tris": 80,
+   "verts": 80,
+   "surface": null,
+   "open": true,
+   "caster": true,
+   "tint": 3,
+   "movable": true,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    2.3,
+    0.0,
+    -2.35
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    1.9426,
+    -0.01,
+    -2.7855
+   ],
+   "bbox_max": [
+    2.6875,
+    1.2496,
+    -1.9312
+   ],
+   "volume_m3": null,
+   "blockout": false
+  },
+  {
+   "name": "plant_b",
+   "file": "plant_b.obj",
+   "tris": 64,
+   "verts": 64,
+   "surface": null,
+   "open": true,
+   "caster": true,
+   "tint": 3,
+   "movable": true,
+   "ground_contact": true,
+   "rests_on": "floor",
+   "optional": false,
+   "origin": [
+    -2.45,
+    0.0,
+    0.9
+   ],
+   "turn_y_degrees": 0.0,
+   "bbox_min": [
+    -2.8244,
+    -0.01,
+    0.73
+   ],
+   "bbox_max": [
+    -2.2401,
+    1.0185,
+    1.1115
+   ],
+   "volume_m3": null,
+   "blockout": false
+  }
+ ]
+}
