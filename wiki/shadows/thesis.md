@@ -1,5 +1,5 @@
 ---
-title: The thesis: cached per-vertex sun visibility
+title: "The thesis: cached per-vertex sun visibility"
 tags: [shadows, research]
 updated: 2026-11-25
 sources: [demo/psm/THESIS_SH4_SHADOWS.md, demo/psm/GPU_GEMS_NOTES.md]

@@ -1,5 +1,5 @@
 ---
-title: Ledger: video memory and the frame
+title: "Ledger: video memory and the frame"
 tags: [hardware, ledger, video]
 updated: 2026-11-25
 sources: [README.md, demo/psm/ROUTE_AB_NOTES.md, third_party/dc-forerunner/docs/GRAPHICS.md, include/sh4der_ca.h, include/sh4der_trail.h]
@@ -32,4 +32,4 @@ Each row is one fact; the status legend is in [STRUCTURE.md](../STRUCTURE.md). T
 
 ## Open
 
-Also in [open-questions.md](../open-questions.md): VID-005 on our own console; the meaning of VID-011's "last frame" spread; why route B overflows its bins on every second frame (PVR-121, Q70). VID-004's port figure is superseded for our builds by VID-012 (different settings, so not a contradiction).
+Also in [open-questions.md](../open-questions.md): VID-005 on our own console; the meaning of VID-011's "last frame" spread; why route B counts an OPB event on every second frame (PVR-121, Q70, Q81). VID-004's port figure is superseded for our builds by VID-012 (different settings, so not a contradiction).

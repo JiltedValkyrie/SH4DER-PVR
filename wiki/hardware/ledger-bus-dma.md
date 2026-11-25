@@ -1,5 +1,5 @@
 ---
-title: Ledger: buses, DMA and the TA send
+title: "Ledger: buses, DMA and the TA send"
 tags: [hardware, ledger, bus, dma]
 updated: 2026-11-25
 sources: [demo/psm/bench/NOTES.md, demo/psm/ROUTE_AB_NOTES.md, demo/psm/OFFLOAD_PLAN.md, demo/psm/PVR_FEATURES.md]

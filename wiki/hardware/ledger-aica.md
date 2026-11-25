@@ -1,5 +1,5 @@
 ---
-title: Ledger: AICA sound chip and its ARM7DI
+title: "Ledger: AICA sound chip and its ARM7DI"
 tags: [hardware, ledger, aica]
 updated: 2026-11-25
 sources: [demo/psm/ARM7_TOOLCHAIN_NOTES.md, demo/psm/bench/NOTES.md h2, demo/psm/OFFLOAD_PLAN.md]

@@ -1,0 +1,28 @@
+TOWN AUTORUN hud1c-3: 1350 frames counted, sim step 1/30 s
+vertex buffer 1024 KB x2; one console; per segment min/mean/max
+ms unless said. SH-4 = setup+map+casters+compare. PVR = last done render
+A normal (150 fr): frame 59.0/61.9/93.3  SH-4 12.7/13.5/26.4
+  parts 2.7 6.8 4.0 0.0  PVR 3.3/3.9/12.1  TAv 30541/30613/30624
+  used KB 65/909/1024  est KB 754/754  KOS max 1024K  SHED<=0  text 92v
+  events ISP 0 strip 0 PARAM 150 OPB 150 in-err 0 in-ovf 0  OVERFLOW
+A 1ST (150 fr) 1ST: frame 59.0/61.9/96.9  SH-4 12.7/13.5/30.0
+  parts 2.7 6.8 4.0 0.0  PVR 3.3/4.0/16.6  TAv 30596/30622/30624
+  used KB 66/768/1024  est KB 754/754  KOS max 1024K  SHED<=0  text 92v
+  events ISP 0 strip 0 PARAM 150 OPB 150 in-err 0 in-ovf 0  OVERFLOW
+A S3 (150 fr) S3: frame 51.3/53.6/84.3  SH-4 12.7/13.4/27.3
+  parts 2.7 6.7 4.0 0.0  PVR 3.3/3.6/9.0  TAv 22124/22135/22136
+  used KB 600/601/601  est KB 754/754  KOS max 1024K  SHED<=3  text 92v
+  events ISP 0 strip 0 PARAM 0 OPB 150 in-err 0 in-ovf 0  OVERFLOW
+A norm trn (300 fr): frame 59.3/78.3/111.2  SH-4 12.8/31.5/43.8
+  parts 21.1 6.4 4.0 0.0  PVR 3.3/4.1/14.0  TAv 24908/29012/30640
+  used KB 50/749/1024  est KB 723/754  KOS max 1024K  SHED<=0  text 92v
+  events ISP 0 strip 0 PARAM 52 OPB 300 in-err 0 in-ovf 0  OVERFLOW
+A 1ST trn (300 fr) 1ST: frame 67.1/78.6/111.1  SH-4 28.3/31.6/44.1
+  parts 21.1 6.5 4.0 0.0  PVR 3.3/4.1/14.3  TAv 25036/29083/30645
+  used KB 54/755/1024  est KB 724/754  KOS max 1024K  SHED<=0  text 92v
+  events ISP 0 strip 0 PARAM 47 OPB 300 in-err 0 in-ovf 0  OVERFLOW
+A S3 trn (300 fr) S3: frame 59.5/69.9/101.1  SH-4 28.2/31.4/45.6
+  parts 21.1 6.3 4.0 0.0  PVR 3.3/3.7/9.0  TAv 16477/20530/22082
+  used KB 453/538/600  est KB 723/753  KOS max 1024K  SHED<=3  text 92v
+  events ISP 0 strip 0 PARAM 0 OPB 300 in-err 0 in-ovf 0  OVERFLOW
+END. OVERFLOW: the TA ran out of vertex buffer or bins.

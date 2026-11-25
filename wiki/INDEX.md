@@ -16,7 +16,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [README.md](README.md) | SH4DER-PVR wiki | start | 2026-11-25 | what this wiki holds, how to read a page, and where to start.
 - [STRUCTURE.md](STRUCTURE.md) | Wiki structure | meta | 2026-11-25 | how the wiki is laid out and kept: the tree, the page template, the ledger row, the status legend, the rules.
 - [glossary.md](glossary.md) | Glossary | glossary | 2026-11-25 | what the words on these pages mean.
-- [open-questions.md](open-questions.md) | Open questions | open | 2026-11-25 | everything this project does not know yet, in the order we would settle it, and the test that would settle each. IDs AICA-003 to VID-011 (27 rows).
+- [open-questions.md](open-questions.md) | Open questions | open | 2026-11-25 | everything this project does not know yet, in the order we would settle it, and the test that would settle each. IDs AICA-003 to VID-011 (30 rows).
 
 ## effects
 
@@ -65,14 +65,14 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [hardware/README.md](hardware/README.md) | The hardware ledger | hardware, ledger | 2026-11-25 | where each hardware fact is kept, how to read a ledger row, and how to add one after a console run.
 - [hardware/ledger-aica.md](hardware/ledger-aica.md) | Ledger: AICA sound chip and its ARM7DI | hardware, ledger, aica | 2026-11-25 | what is known about the sound chip's processor and memory, for anyone who wants to run their own code on it or use its RAM. IDs AICA-001 to AICA-031 (28 rows).
 - [hardware/ledger-bus-dma.md](hardware/ledger-bus-dma.md) | Ledger: buses, DMA and the TA send | hardware, ledger, bus, dma | 2026-11-25 | how fast data moves between main RAM, video memory, the tile accelerator and sound RAM, and how much of the SH-4 each route leaves free. IDs BUS-001 to BUS-052 (32 rows).
-- [hardware/ledger-pvr.md](hardware/ledger-pvr.md) | Ledger: PowerVR2 (PVR) | hardware, ledger, pvr | 2026-11-25 | what the graphics chip costs to fill, which per-pixel tricks work on a real console, and where Sega's documents and the console disagree. IDs PVR-001 to PVR-137 (96 rows).
-- [hardware/ledger-sh4.md](hardware/ledger-sh4.md) | Ledger: SH-4 processor | hardware, ledger, sh4 | 2026-11-25 | what our console runs measured about the SH-4's cache, transforms and copies, and which earlier numbers were withdrawn. IDs SH4-001 to SH4-075 (63 rows).
+- [hardware/ledger-pvr.md](hardware/ledger-pvr.md) | Ledger: PowerVR2 (PVR) | hardware, ledger, pvr | 2026-11-25 | what the graphics chip costs to fill, which per-pixel tricks work on a real console, and where Sega's documents and the console disagree. IDs PVR-001 to PVR-151 (110 rows).
+- [hardware/ledger-sh4.md](hardware/ledger-sh4.md) | Ledger: SH-4 processor | hardware, ledger, sh4 | 2026-11-25 | what our console runs measured about the SH-4's cache, transforms and copies, and which earlier numbers were withdrawn. IDs SH4-001 to SH4-081 (69 rows).
 - [hardware/ledger-video.md](hardware/ledger-video.md) | Ledger: video memory and the frame | hardware, ledger, video | 2026-11-25 | how much video memory a frame and its targets take, and what reading the frame back costs. IDs VID-001 to VID-015 (15 rows).
 
 ## limits
 
-- [limits/budgets.md](limits/budgets.md) | Frame budgets | limits, budget | 2026-11-25 | the measured unit costs to build a frame budget from, and how to add them up without fooling yourself. IDs AICA-021 to SH4-070 (18 rows).
-- [limits/recommended-limits.md](limits/recommended-limits.md) | Recommended limits | limits | 2026-11-25 | the limits we recommend when you use this library on a real Dreamcast, and how sure we are of each. IDs PVR-002 to VID-014 (15 rows).
+- [limits/budgets.md](limits/budgets.md) | Frame budgets | limits, budget | 2026-11-25 | the measured unit costs to build a frame budget from, and how to add them up without fooling yourself. IDs AICA-021 to SH4-077 (22 rows).
+- [limits/recommended-limits.md](limits/recommended-limits.md) | Recommended limits | limits | 2026-11-25 | the limits we recommend when you use this library on a real Dreamcast, and how sure we are of each. IDs PVR-002 to VID-014 (18 rows).
 - [limits/scenes.md](limits/scenes.md) | Test scenes and what they measured | limits, scenes, shadows | 2026-11-25 | which demo scenes exist, what each is for, and every console number read from them so far.
 
 ## methods

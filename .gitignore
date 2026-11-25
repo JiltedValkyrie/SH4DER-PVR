@@ -4,8 +4,14 @@ demo/matchlight/assets/
 demo/pl4nar/out/
 __pycache__/
 demo/psm/assets/
+demo/psm/assets/hero/
 demo/psm/out/
 third_party/sh4zam/
 HUMAN.md
 third_party/skmp/
 third_party/sega-docs/
+demo/psm/ao/room/dc_room.blend
+demo/psm/ao/room/dc_room.blend1
+demo/psm/ao/room/work/
+demo/psm/ao/preview/
+hero_model_test.bin

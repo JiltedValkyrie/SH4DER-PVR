@@ -46,6 +46,10 @@ A frame can be longer than its work. In the c4 live view most of the frame was w
 | SH-4: one sky AO direction, 1,164 caster triangles, both sides (transform, test, send) | 1,824 us (about 522 ns a vertex sent); one side about 1,278 us | SH4-071, SH4-072 |
 | PVR: one sky AO direction into a 256 × 256 target, both sides, union | 1,213 us, 68 KB of TA (one side about 753 us, 34 KB) | PVR-130 |
 | SH-4 + PVR: method 2 AO at K 4 in the town | +10.0 ms of frame (SH-4 +9.8, PVR +1.4 mean) | PVR-135, SH4-073 |
+| SH-4: an AO bake ray against exact shapes, at load | 1.85 to 2.41 us (64 rays a vertex: 254 ms for 2,142 vertices) | SH4-076 |
+| SH-4: a baked AO byte a vertex at draw | 32 to 44 ns | SH4-077 |
+| PVR: a 128 × 130 render target pass, 576 vertices | 3,268 us (the floor holds at this size) | PVR-140 |
+| PVR: a textured multiply quad on screen | about 26 ns a pixel (12,486 pixels, +324 us) | PVR-141 |
 | SH-4: copy 1 MB, store queue | 6.98 ms (150 MB/s) | SH4-030 |
 | Upload 512 KB texture, ch2 DMA | 1.05 ms | BUS-011 |
 | Video memory → RAM, 32 KB, PVR-DMA | 0.87 ms | BUS-021 |

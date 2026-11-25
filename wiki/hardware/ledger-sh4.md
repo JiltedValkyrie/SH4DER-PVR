@@ -1,5 +1,5 @@
 ---
-title: Ledger: SH-4 processor
+title: "Ledger: SH-4 processor"
 tags: [hardware, ledger, sh4]
 updated: 2026-11-25
 sources: [demo/psm/bench/NOTES.md, demo/psm/SHZ_TRIG_PROBE.md, third_party/sh4zam-dce/README.md]
@@ -130,6 +130,28 @@ The disc and photos are as in [ledger-pvr "Suite run s3"](ledger-pvr.md#suite-ru
 | SH4-074 | **c4g run 2 repeats the SH-4 rows:** `shz_dce_pvr_project` 60.0 / 61.2 / 60.8 cycles a vertex in both runs, to the tenth; the C form 74.7 / 75.2 / 77.2; the band cut 3,173 / 1,682 / 897 us (run 1: 3,183 / 1,694 / 897), within 0.7 %. | MEASURED (two runs, one console) | `suite_run2` | `demo/psm/compare/SUITE_RUN23_RESULTS_senior.md` §7 (C4G2-02, C4G2-03) | — | SH4-048, SH4-068 |
 | SH4-075 | **Spinning on the render-done event slowed route A's map part by 2.8 ms** (6.3 → 9.1 ms still; 5.9 → 8.6 turning) in a3e-poll, where route B's parts did not move. The spin reads the timer and a counter in a loop; that it slows the TA's or the PVR's bus access is an ESTIMATE. | MEASURED (one run each); the cause OPEN | a3e pages | `demo/psm/TOWN_NOTES.md` TOWN-123 | a3e-poll with a spin that reads no timer, and with only the render-done wait polled (Q79) | X27 |
 
+
+## Suite run s6b (ao4-d)
+
+The run is described in [ledger-pvr "Suite run s6b"](ledger-pvr.md#suite-run-s6b-ao4-d-ao-side-by-side).
+
+| ID | Claim | Status | Evidence | Source | Test | Used by |
+|---|---|---|---|---|---|---|
+| SH4-076 | **The AO bake at load, 64 rays a vertex against the exact shapes: A 254 ms (2,142 vertices), B 393 ms (2,544).** About 1.85 and 2.41 us a ray, 371 and 483 cycles (DERIVED). | MEASURED (one run, one console); per ray DERIVED | p1 `PXL_20261125_174555888` (CRC ef43d6bb) | `demo/psm/ao/NOTES.md` "ao4" to "ao4-d"; `demo/psm/ao/ao4_spike.c` | — | limits; budgets |
+| SH4-077 | **The AO byte a vertex costs 69 us (A) and 113 us (B) of placing:** A place 786 us, with the light off 639, with the AO byte 708; B 937, 743, 856. About 32 and 44 ns a vertex (DERIVED). | MEASURED; per vertex DERIVED | p1 `PXL_20261125_174555888` (CRC ef43d6bb) | `demo/psm/ao/NOTES.md` "ao4" to "ao4-d"; `demo/psm/ao/ao4_spike.c` | — | limits; budgets |
+| SH4-078 | **The send of sky directions runs 651 to 852 ns a vertex here:** target A, A 4,203 us for 6,456 vertices (651 ns), B 2,540 / 3,888 (653), C 5,964 / 7,002 (852); the sun's send A 1,085 / 1,614 (672), B 663 / 972 (682); the hens into target A 372 us for 576 (646), into target M 336 (583). ao0 measured 522 ns (SH4-071). The hens' walk and placing: 441 us for 4. | MEASURED; per vertex DERIVED | p1 `PXL_20261125_174555888` (CRC ef43d6bb), p2 `174558739` (CRC e8102e57) | `demo/psm/ao/NOTES.md` "ao4" to "ao4-d"; `demo/psm/ao/ao4_spike.c` | why ao4 pays about 25 % more a vertex than ao0, and C 60 % more (Q84) | SH4-071 |
+
+
+## Suite run s6b, the rest (hero1, hens-eyes)
+
+The run is described in [ledger-pvr "Suite run s6b, the rest"](ledger-pvr.md#suite-run-s6b-the-rest-hero1-hens-eyes-ao1c-hud1c).
+
+| ID | Claim | Status | Evidence | Source | Test | Used by |
+|---|---|---|---|---|---|---|
+| SH4-079 | **A skinned hero's SH-4 parts (1,465 vertices, 33 bones), ms a frame:** animation 0.07, palette 0.03, **skin 0.81** (about 553 ns a vertex, DERIVED), light 0.40 (273 ns a vertex); sends opaque 2.14, detail 1.37, visor 0.08, shadow 2.08, set 0.34. | MEASURED (one run, one console); per vertex DERIVED | hero1 p2 `PXL_20261125_175015334` (CRC 9eb3d683) | `demo/psm/hero/hero_spike.c:728-770` | the skin in asm against its C (if it is worth it) | limits |
+| SH4-080 | **Hens' senses, cycles a 1/60 s step (all hens; the page counts with the performance counter, PRFC1):** mean / worst / push and separation. 4 hens: rays ("eyes", 9 rays + 2 down on a 100 ms tick) 11,233 / 52,508 / 2,914; a grid sweep every step 49,810 / 87,070 / 3,225; **the grid sweep on the 100 ms tick 5,392 / 37,283 / 2,788**; a naive sweep 324,094 / 359,975 / 3,821. 16 hens: rays 44,130 / 118,739; grid every step 221,541 / 296,832; **grid on the tick 36,328 / 112,992**; naive 1,321,198 / 1,401,483 (the frame drops to 22.8 ms). 32 hens: rays 98,683 / 202,899 (19.8 ms frames); grid every step 444,943 / 517,117 (20.7 ms). World: 9 objects, 1,000 triangles, a 16 × 16 grid of 788 items. | MEASURED (one run, one console) | hens-eyes p1 `PXL_20261125_175141056` (CRC 0a760cfb), p2 `175143700` (CRC 4f62a4b9) | `demo/psm/ao/hen_spike.c:501-530`, `hen_eyes.h`, `hen_sweep.h`; `demo/psm/ao/HEN_EYES_REPORT.md`; `demo/psm/compare/suite_run6b_pages/make_lines.py` (the page lines retyped; every CRC agrees) | — | limits; X37 |
+| SH4-081 | **The hens' cost model is low by up to 3.8 times for the sweeps.** The page's model (the modules' cost tables on the counts, ESTIMATE) against the measured means: rays 4 hens 6,649 / 11,233 (1.7 ×), 16 hens 38,663 / 44,130 (1.1 ×), 32 hens 113,460 / 98,683 (0.87 ×); grid every step 15,716 / 49,810 (3.2 ×); grid on the tick 1,429 / 5,392 (3.8 ×); naive 93,016 / 324,094 (3.5 ×). | MEASURED (the means); the ratios DERIVED | hens-eyes p1, p2 | `demo/psm/ao/hen_spike.c:501-530` | the sweep's per-test costs timed alone (Q88) | Q88 |
+
 ## Copies, RAM to RAM
 
 | ID | Claim | Status | Evidence | Source | Test | Used by |
@@ -161,10 +183,12 @@ Also in [open-questions.md](../open-questions.md):
 - SH4-049, SH4-068: why c4b's band cut is 22 to 28 % slower than c4's; not its Q (Q64).
 - SH4-069: why a3f's pads slow route B (Q71).
 - SH4-070: what the bake's 5 ms on the receivers is (Q72); the console's own test count.
+- SH4-081: why the hens' sweep model reads 3 to 4 times low (Q88).
 - SH4-060, SH4-062: the run-to-run spread (P1.2 a / b / c up to 2.3 %; the interleaving extra 89 to 164 cycles a ray) (Q68).
 - SH4-061: why gap a is about 400 ns longer than gap b (Q67).
 - SH4-066: the triangle test on a town-sized set out of the cache (TOWN-085).
 - SH4-053, SH4-062: the stand-in receivers' mean n at 14:00 and 16:00, on the host (Q63).
 - SH4-073: why the town pays 2.4 ms a sky direction where ao0 paid 1.82 (Q80).
 - SH4-075: why polling slows route A's map part (Q79).
+- SH4-078: why ao4's send costs 651 to 852 ns a vertex where ao0's cost 522 (Q84).
 - A second console and a second run for every row.
