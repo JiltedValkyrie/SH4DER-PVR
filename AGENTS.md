@@ -16,6 +16,12 @@ This folder is the whole library, with SH4ZAM (the maths) and KallistiOS (the dr
 
 There is no game header and no game data here. The example client is `example/blade.c`: the blade effect on a glowing blade model. The holo effect is for a hologram's chest. Where the tuning lives: each header's `SH4DER_*` macros, with their default values in the tuning tables of `README.md`. Keep tuning values in the client, and change the maths here, once.
 
+## Maths and speed: standing rule for every agent
+
+- **SH4ZAM maths everywhere.** Every square root, sine, cosine, reciprocal, dot, cross, matrix and vector step goes through SH4ZAM (`shz_*`), never libm or hand-rolled C, on the Dreamcast path. Plain C stays only as the `SH4DER_CORE_NO_SH4ZAM` host path.
+- **If SH4ZAM has no call for it, write the hook.** Make a thin SH-4 asm (or inline asm) kernel in our own file, in SH4ZAM's style and naming (`shz_`-like, in a `sh4zam-dce` layer), called from C. Keep a C reference beside it and a host test that checks the two agree. Do not copy SH4ZAM's files into this folder, and keep Falco Girgis's MIT notice with SH4ZAM. Offer a hook that proves useful back to SH4ZAM.
+- **No slow code.** No float divide in a loop where a reciprocal (FSRRA / FIPR / FTRV) does it, no per-vertex libm call, no uncached read in a hot loop, no copy the store queue or DMA can do. Show a measured gain on a real console for any asm kernel (real hardware only; an emulator number is not evidence).
+
 ## Files
 
 - `include/sh4der_core.h`: the shared parts:
