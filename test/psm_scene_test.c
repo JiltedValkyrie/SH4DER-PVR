@@ -13,7 +13,9 @@
    never also a tap), the walk area and the circles round the poles and cows (no way in, no way stuck), the grid's centre
    snapped to its lattice (still inside a cell, one whole step across one, the same grid by any path), the window at every
    pitch and eye offset, both routes away from the origin, the near cut of a model triangle, the worst frame's vertices
-   under the buffer. CASTERS: all against movers only on both routes (all is the whole set, byte for byte).
+   under the buffer. CASTERS: all against movers only on both routes (all is the whole set, byte for byte). Hold to repeat (by
+   time held, not frames; a tap is one step; capped a frame) and DRAW DISTANCE (the view's cut, INFINITE as before, the map's
+   casters untouched).
 */
 
 #include <math.h>
@@ -353,6 +355,7 @@ static void menu(void) {
 
     /* every row changes both ways and reads as a line of its own */
     psm_state_default(&st);
+    st.dist_i = 5u;                                                          /* DRAW DISTANCE off its top: +1 changes it */
     psm_frame_setup(f, &scene, &st);
     for (r = 0; r < PSM_ROWS; r++) {
         psm_state_t b = st;
@@ -978,6 +981,148 @@ static void a_casters(void) {
     CHECK(bad == 0u && tris > 0u);
 }
 
+/* ---- hold to repeat, DRAW DISTANCE ---------------------------------------------------------------------------- */
+
+static unsigned hold_(psm_repeat_t *r, float secs, float dt) {
+    unsigned n = 0, i, frames = (unsigned)(secs / dt + 0.5f);
+
+    for (i = 0; i <= frames; i++) n += psm_repeat_step(r, 1, i ? dt : 0.0f);   /* the press, then a frame every dt */
+    return n;
+}
+
+static void repeat(void) {
+    psm_repeat_t r;
+    psm_state_t st;
+    unsigned a60, a20, i;
+
+    memset(&r, 0, sizeof r);
+    CHECK(psm_repeat_step(&r, 1, 0.016f) == 1u);                            /* a tap: exactly one */
+    CHECK(psm_repeat_step(&r, 0, 0.016f) == 0u);
+    for (i = 0; i < 20u; i++) CHECK(psm_repeat_step(&r, 1, 0.016f) == (i == 0u ? 1u : 0u));   /* held under the 0.4 s delay: the press only */
+    CHECK(psm_repeat_step(&r, 0, 0.016f) == 0u);                            /* a release starts it over */
+    CHECK(psm_repeat_step(&r, 1, 0.016f) == 1u);
+    psm_repeat_step(&r, 0, 0.0f);
+    a60 = hold_(&r, 1.0f, 1.0f / 60.0f);
+    psm_repeat_step(&r, 0, 0.0f);
+    a20 = hold_(&r, 1.0f, 1.0f / 20.0f);
+    psm_repeat_step(&r, 0, 0.0f);
+    printf("  repeat: 1 s held gives %u steps at 60 fps, %u at 20 fps (2 s: 31, 3 s: 61, a 10 s frame: %u)\n", a60, a20, PSM_REPEAT_CAP);
+    CHECK(a60 == 8u && a20 == 8u);                                          /* the press, then 0.6 s ramping from 8 a second: 7.3 due */
+    psm_repeat_step(&r, 0, 0.0f);
+    CHECK(hold_(&r, 2.0f, 1.0f / 60.0f) == 31u);                            /* 30.4 due by 2 s */
+    psm_repeat_step(&r, 0, 0.0f);
+    CHECK(hold_(&r, 3.0f, 1.0f / 60.0f) == 61u);                            /* then 30 a second */
+    psm_repeat_step(&r, 0, 0.0f);
+    CHECK(psm_repeat_step(&r, 1, 0.0f) == 1u);
+    CHECK(psm_repeat_step(&r, 1, 10.0f) == PSM_REPEAT_CAP);                 /* a 10 s frame: capped, the rest dropped */
+    CHECK(psm_repeat_step(&r, 1, 1.0f / 60.0f) <= 1u);
+
+    /* the menu: a value row held repeats, a toggle row changes once; closed, the sun's azimuth and START + R repeat too */
+    psm_state_default(&st);
+    st.menu = 1; st.row = PSM_ROW_AZIMUTH;
+    for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_RIGHT, 0, 0, 0, 0, i ? 1.0f / 60.0f : 0.0f);
+    CHECK(st.az == 160.0f);                                                 /* 120 + 8 x 5 */
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    for (i = 0; i <= 20u; i++) in_(&st, NULL, PSM_BTN_A, 0, 0, 0, 0, i ? 1.0f / 20.0f : 0.0f);   /* A is + in the menu, 20 fps */
+    CHECK(st.az == 200.0f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    st.row = PSM_ROW_ROUTE;
+    for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_RIGHT, 0, 0, 0, 0, i ? 1.0f / 60.0f : 0.0f);
+    CHECK(st.route == PSM_ROUTE_B);                                         /* once */
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    st.menu = 0;
+    for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_LEFT, 0, 0, 0, 0, i ? 1.0f / 60.0f : 0.0f);
+    CHECK(st.az == 160.0f && st.x == 0.0f && st.z == 0.0f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    in_(&st, NULL, PSM_BTN_START, 0, 0, 0, 0, 0.016f);
+    for (i = 0; i <= 60u; i++) in_(&st, NULL, PSM_BTN_START | PSM_BTN_R, 0, 0, 0, 1.0f, i ? 1.0f / 60.0f : 0.0f);
+    in_(&st, NULL, 0u, 0, 0, 0, 0, 0.016f);
+    CHECK(st.warp_near == 8.0f && st.warp == 0 && st.el == 35.0f);         /* 4 + 8 x 0.5, the release no tap, the sun still */
+}
+
+static void distance(void) {
+    char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u], v[48];
+    static uint16_t d_inf[256 * 256], d_cut[256 * 256];
+    psm_state_t st;
+    float rows[16];
+    unsigned i, r, c, steps = 0, sent = 0, cut = 0, bad = 0, mcut = 0;
+
+    psm_state_default(&st);
+    CHECK(st.dist_i == PSM_DIST_INF && psm_dist(&st) == 0.0f);              /* the boot: INFINITE, as before */
+    psm_row_change(&st, PSM_ROW_DIST, 1);
+    CHECK(st.dist_i == PSM_DIST_INF);                                       /* the top stays */
+    while (st.dist_i > 0u) { psm_row_change(&st, PSM_ROW_DIST, -1); steps++; }
+    CHECK(steps == PSM_DIST_STEPS && psm_dist(&st) == 5.0f);
+    psm_row_change(&st, PSM_ROW_DIST, -1);
+    CHECK(psm_dist(&st) == 5.0f);
+    for (i = 1; i < PSM_DIST_STEPS; i++) CHECK(psm_dist_m[i] > psm_dist_m[i - 1u]);
+    CHECK(psm_dist_m[PSM_DIST_STEPS - 1u] == 500u && psm_dist_m[9] == 50u && psm_dist_m[15] == 200u);
+    for (st.dist_i = 0; st.dist_i <= PSM_DIST_INF; st.dist_i++)
+        CHECK(strlen(psm_row_name[PSM_ROW_DIST]) + 2u + strlen(psm_row_value(&st, PSM_ROW_DIST, v, sizeof v)) + strlen("   (D-pad row/change, B close)") <= PSM_HUD_COLS);
+
+    /* a cut at 20 m: a cell or a model triangle wholly past it in view depth is not sent, the rest is as at INFINITE */
+    psm_state_default(&st);
+    st.yaw = 0.3f;
+    psm_frame_setup(&frame, &scene, &st);
+    psm_frame_unshadowed(&frame, &scene);
+    psm_place(&frame, &scene);
+    {
+        static uint8_t cell_inf[PSM_ROWS_MAX * PSM_COLS], mtri_inf[PSM_MT_MAX];
+
+        memcpy(cell_inf, frame.cell, sizeof cell_inf);
+        memcpy(mtri_inf, frame.mtri, sizeof mtri_inf);
+        st.dist_i = 3u;                                                     /* 20 m */
+        frame.gclip[0][0] = 12345.0f;                                       /* the same camera: the distance alone redoes the placement */
+        psm_frame_setup(&frame, &scene, &st);
+        psm_place(&frame, &scene);
+        CHECK(frame.gclip[0][0] != 12345.0f && frame.dist == 20.0f);
+        CHECK(sh4der_psm_cam_rows(&frame.cam, PSM_NEAR, rows));
+        for (r = 0; r + 1u < frame.grows; r++)
+            for (c = 0; c + 1u < frame.gcols; c++) {
+                const unsigned a = r * frame.gcols + c, b = a + 1u, d = a + frame.gcols, e = d + 1u, k = r * PSM_COLS + c;
+                const int past = frame.gclip[a][2] > 20.0f && frame.gclip[b][2] > 20.0f && frame.gclip[d][2] > 20.0f && frame.gclip[e][2] > 20.0f;
+
+                sent += frame.cell[k] != 0u;
+                cut += cell_inf[k] && !frame.cell[k];
+                bad += frame.cell[k] != (uint8_t)(past ? 0u : cell_inf[k]);
+            }
+        for (i = 0; i < scene.mtn; i++) {
+            const int past = frame.mclip[scene.mt[i][0]][2] > 20.0f && frame.mclip[scene.mt[i][1]][2] > 20.0f && frame.mclip[scene.mt[i][2]][2] > 20.0f;
+
+            mcut += mtri_inf[i] && !frame.mtri[i];
+            bad += frame.mtri[i] != (past ? 0u : mtri_inf[i]);
+        }
+        printf("  draw distance 20 m: %u cells sent, %u cut; %u model triangles cut; %u wrong\n", sent, cut, mcut, bad);
+        CHECK(bad == 0u && cut > 0u && sent > 0u && mcut > 0u);
+        st.dist_i = PSM_DIST_INF;                                           /* back to INFINITE: the same flags as before, byte for byte */
+        psm_frame_setup(&frame, &scene, &st);
+        psm_place(&frame, &scene);
+        CHECK(memcmp(cell_inf, frame.cell, sizeof cell_inf) == 0 && memcmp(mtri_inf, frame.mtri, scene.mtn) == 0);
+    }
+
+    /* the map's casters do not follow it: route B's map at 5 m is the map at INFINITE */
+    psm_state_default(&st);
+    st.route = PSM_ROUTE_B; st.warp = 1;
+    psm_frame_setup(&frame, &scene, &st);
+    CHECK(psm_frame_b_begin(&frame, &scene, d_inf));
+    psm_frame_b_casters(&frame, &scene, 0);
+    i = frame.tris;
+    st.dist_i = 0u;
+    psm_frame_setup(&frame, &scene, &st);
+    CHECK(psm_frame_b_begin(&frame, &scene, d_cut));
+    psm_frame_b_casters(&frame, &scene, 0);
+    CHECK(frame.tris == i && memcmp(d_inf, d_cut, (size_t)frame.size * frame.size * sizeof d_inf[0]) == 0);
+
+    psm_hud(&st, &frame, NULL, ln);
+    CHECK(strstr(ln[10], "DIST 5 m") && strstr(ln[10], "map casters: all"));
+    st.dist_i = PSM_DIST_INF;
+    psm_hud(&st, &frame, NULL, ln);
+    CHECK(strstr(ln[10], "DIST INF"));
+    st.dist_i = PSM_DIST_STEPS - 1u;
+    psm_hud(&st, &frame, NULL, ln);
+    CHECK(strstr(ln[10], "DIST 500 m") && strstr(ln[10], "375 m") && strstr(ln[10], "all distances"));
+}
+
 int main(void) {
     scene_counts();
     window();
@@ -997,6 +1142,8 @@ int main(void) {
     near_cut();
     budget();
     casters();
+    repeat();
+    distance();
     readout();
     if (fails) { fprintf(stderr, "psm_scene_test: %d failure(s)\n", fails); return 1; }
     printf("psm_scene_test: ok\n");

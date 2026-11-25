@@ -21,7 +21,13 @@
    bias a and b, warp near, sun azimuth and elevation, inset, readout and the SH-4's split, presets, invert Y); in it the
    face buttons do not walk, D-pad up / down pick a row, left / right and A change it, B or START close it. Quick, menu
    closed: D-pad up the route, a tap of START uniform / PSM, D-pad left / right the sun's azimuth, L / R triggers its
-   elevation, START + L / R the warp's near plane. The meaning is psm_input in psm_scene.h; this file reads the pad.
+   elevation, START + L / R the warp's near plane. A value held repeats. The meaning is psm_input in psm_scene.h; this file
+   reads the pad.
+
+   DRAW DISTANCE (a menu row): the ground cells and model triangles wholly past it in view depth are not sent (psm_place), and
+   the PVR's table fog (pvr_fog_table_linear, the sky's colour) fades the last quarter of it, on the ground and the models only
+   (not the route A layer, the text or the map pass). INFINITE sends everything through headers without fog, as before. The map's
+   casters do not follow it.
 
    The cost label reads "--" until the console has measured a second. Nothing in it comes from a host.
 
@@ -64,11 +70,12 @@ static char ln_prev[PSM_HUD_LINES][PSM_HUD_COLS + 1u];
 
 static pvr_ptr_t target_mem, text_mem, inset_mem, checker_mem;
 static unsigned target_size;              /* 0: no target (never made, or no video memory) */
-static pvr_poly_hdr_t hdr_ground, hdr_model, hdr_flat, hdr_layer, hdr_text, hdr_dim, hdr_inset_a, hdr_inset_b;
+static pvr_poly_hdr_t hdr_ground, hdr_model, hdr_ground_fog, hdr_model_fog, hdr_flat, hdr_layer, hdr_text, hdr_dim, hdr_inset_a, hdr_inset_b;
 static int hdr_target_ok;                 /* hdr_layer and hdr_inset_a are compiled for the current target */
 static unsigned ta_v;                     /* vertices sent this frame, counted where they are sent */
 static unsigned map_tris, layer_v;        /* route A: triangles into the target, vertices of the ground layer */
 static int rtt_refused_shown;
+static float fog_dist;                    /* the distance the fog table was made for (0: none yet) */
 
 /* ---- small helpers --------------------------------------------------------- */
 
@@ -109,11 +116,15 @@ static void make_headers(void) {
     c.gen.shading = PVR_SHADE_GOURAUD;
     c.txr.env = PVR_TXRENV_MODULATE;
     pvr_poly_compile(&hdr_ground, &c);
+    c.gen.fog_type = PVR_FOG_TABLE;                          /* DRAW DISTANCE: the same, faded by the fog table */
+    pvr_poly_compile(&hdr_ground_fog, &c);
 
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.shading = PVR_SHADE_GOURAUD;
     pvr_poly_compile(&hdr_model, &c);
+    c.gen.fog_type = PVR_FOG_TABLE;
+    pvr_poly_compile(&hdr_model_fog, &c);
 
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                 /* the map pass: flat, no culling (a caster is seen from either side) */
     c.gen.culling = PVR_CULLING_NONE;
@@ -240,7 +251,7 @@ static unsigned ground(int layer) {
     const unsigned before = ta_v;
     unsigned r, c;
 
-    if (!header(layer ? &hdr_layer : &hdr_ground)) return 0;
+    if (!header(layer ? &hdr_layer : frame.dist > 0.0f ? &hdr_ground_fog : &hdr_ground)) return 0;
     for (r = 0; r + 1u < frame.grows; r++) {
         c = 0;
         while (c + 1u < frame.gcols) {
@@ -269,7 +280,7 @@ static unsigned ground(int layer) {
 static void models(void) {
     unsigned i;
 
-    if (!header(&hdr_model)) return;
+    if (!header(frame.dist > 0.0f ? &hdr_model_fog : &hdr_model)) return;
     for (i = 0; i < scene.mtn; i++) {
         const unsigned a = scene.mt[i][0], b = scene.mt[i][1], c = scene.mt[i][2];
 
@@ -392,8 +403,10 @@ static void hud(int a_drawn) {
     text_line(9u, 16.0f, 42.0f);                                                /* the controls: always on */
     if (state.menu) text_line(8u, 16.0f, 64.0f);                               /* the menu's row */
     text_line(1u, 16.0f, base - (state.readout ? 5.0f * 18.0f : 18.0f));        /* texel over pixel: always on */
-    if (state.readout)
+    if (state.readout) {
         for (i = 2; i < 6u; i++) text_line(i, 16.0f, base - (float)(6u - i) * 18.0f);
+        text_line(10u, 16.0f, base - 6.0f * 18.0f);                          /* the draw distance */
+    }
     text_line(6u, 16.0f, base);
     if (state.split) text_line(7u, 16.0f, base + 18.0f);
     if (state.inset) {
@@ -475,6 +488,11 @@ int main(void) {
             win_us[1] += t3 - t2; win_us[2] += timer_us_gettime64() - t3;
         }
         psm_place(&frame, &scene);           /* the screen placement and the colours: this frame's, after the lit and the lookup */
+        if (frame.dist > 0.0f && frame.dist != fog_dist) {   /* DRAW DISTANCE: the fog table, made again only when it changes */
+            pvr_fog_table_color(1.0f, SKY[0], SKY[1], SKY[2]);
+            pvr_fog_table_linear(frame.dist * PSM_DIST_FADE, frame.dist);
+            fog_dist = frame.dist;
+        }
 
         pvr_wait_ready();
         if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text and the inset: uploaded when they changed, after the last render */

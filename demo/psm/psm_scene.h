@@ -84,8 +84,20 @@
 #define PSM_AREA_Z0      (-55.0f)
 #define PSM_AREA_Z1      8.0f
 #define PSM_OBST_MAX     16u          /* circles the eye stays out of: one a pole, two a cow */
+#define PSM_DIST_STEPS   22u          /* DRAW DISTANCE: 5 .. 50 m by 5, to 200 by 25, to 500 by 50; one step more is INFINITE */
+#define PSM_DIST_INF     PSM_DIST_STEPS
+#define PSM_DIST_FADE    0.75f        /* the fog starts at this share of the distance and is whole at it */
+
+/* hold to repeat (the menu's values, the sun's azimuth, the warp's near plane): one step on the press, then after the delay
+   8 a second, rising to 30 a second at 2 s held; by time held, not by frames */
+#define PSM_REPEAT_DELAY 0.4f
+#define PSM_REPEAT_SLOW  8.0f
+#define PSM_REPEAT_FAST  30.0f
+#define PSM_REPEAT_RAMP  1.6f         /* seconds from the slow rate to the fast one */
+#define PSM_REPEAT_CAP   4u           /* steps a frame at most: a long frame does not run a value away (the rest is dropped) */
 
 static const unsigned psm_map_sizes[PSM_MAP_SIZES] = { 64u, 128u, 256u };
+static const unsigned short psm_dist_m[PSM_DIST_STEPS] = { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500 };
 static const float psm_albedo[3][3] = { { 0.78f, 0.74f, 0.66f }, { 0.86f, 0.62f, 0.46f }, { 0.56f, 0.62f, 0.82f } };   /* pole, cow, cow */
 
 /* the pad, as bits the program fills from the controller */
@@ -292,15 +304,47 @@ static inline int psm_snap_(float v) {
     return (int)(r - sh4der_frac_(r));
 }
 
+/* ---- hold to repeat ------------------------------------------------------------ */
+
+typedef struct psm_repeat {
+    float t;             /* seconds held */
+    unsigned done;       /* repeats given since the press */
+    int on;
+} psm_repeat_t;
+
+/* The repeats due after t seconds held: the rate's integral past the delay (8 a second, rising evenly to 30 over the ramp). */
+static inline float psm_repeat_due_(float t) {
+    const float u = t - PSM_REPEAT_DELAY;
+
+    if (!(u > 0.0f)) return 0.0f;
+    if (u < PSM_REPEAT_RAMP) return PSM_REPEAT_SLOW * u + (PSM_REPEAT_FAST - PSM_REPEAT_SLOW) * u * u * (0.5f / PSM_REPEAT_RAMP);
+    return PSM_REPEAT_RAMP * 0.5f * (PSM_REPEAT_SLOW + PSM_REPEAT_FAST) + PSM_REPEAT_FAST * (u - PSM_REPEAT_RAMP);
+}
+
+/* The steps this frame for a button `held` or not, dt seconds since the last frame: 1 on the press, then the repeats due,
+   at most PSM_REPEAT_CAP a frame. A release starts it over. */
+static inline unsigned psm_repeat_step(psm_repeat_t *r, int held, float dt) {
+    unsigned due, n;
+
+    if (!held) { r->on = 0; r->t = 0.0f; r->done = 0u; return 0u; }
+    if (!r->on) { r->on = 1; r->t = 0.0f; r->done = 0u; return 1u; }
+    r->t += dt > 0.0f ? dt : 0.0f;
+    if (r->t > 3600.0f) r->t = 3600.0f;
+    due = (unsigned)psm_repeat_due_(r->t);
+    n = due > r->done ? due - r->done : 0u;
+    r->done = due;
+    return n < PSM_REPEAT_CAP ? n : PSM_REPEAT_CAP;
+}
+
 /* ---- state and pad ----------------------------------------------------------- */
 
 /* The menu's rows, as torchwalk's: one line "ROW: value", D-pad up / down picks, left / right (and A) changes. */
 enum {
-    PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_CASTERS, PSM_ROW_SIZE, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
+    PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
     PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROWS
 };
 static const char *const psm_row_name[PSM_ROWS] = {
-    "ROUTE", "MAP", "CASTERS", "MAP SIZE", "PCF", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y"
+    "ROUTE", "MAP", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "PCF", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y"
 };
 static const float psm_preset_sun[3][2] = { { 120.0f, 35.0f }, { 0.0f, 20.0f }, { 180.0f, 20.0f } };   /* default, head-on, behind */
 static const char *const psm_preset_name[3] = { "default", "head-on", "behind" };
@@ -308,6 +352,8 @@ static const char *const psm_preset_name[3] = { "default", "head-on", "behind" }
 typedef struct psm_state {
     int route, warp, inset, readout, pcf, split, invert_y, menu, row;
     int movers_only;     /* CASTERS: 0 every caster into the map, 1 only the movers' (the static casters are not drawn into it) */
+    unsigned dist_i;     /* DRAW DISTANCE: psm_dist_m[dist_i] metres, PSM_DIST_INF for no cut and no fog */
+    psm_repeat_t rep_l, rep_r, rep_wl, rep_wr;   /* the D-pad's left and right (and A in the menu), START + L and R */
     unsigned size_i, preset;
     float az, el, warp_near, bias_a, bias_b, yaw, pitch, x, z;
     unsigned last;       /* the pad a frame ago */
@@ -333,6 +379,16 @@ static inline void psm_state_default(psm_state_t *st) {
     st->warp_near = 4.0f;
     st->bias_a = 0.02f; st->bias_b = 0.0f;
     st->pitch = PSM_PITCH;
+    st->dist_i = PSM_DIST_INF;
+}
+
+/* The draw distance in metres, 0 for INFINITE. */
+static inline float psm_dist(const psm_state_t *st) { return st->dist_i < PSM_DIST_STEPS ? (float)psm_dist_m[st->dist_i] : 0.0f; }
+
+/* 1 for a row whose change is a value that steps (it repeats when held), 0 for a toggle (one change a press). */
+static inline int psm_row_repeats(int row) {
+    return row == PSM_ROW_DIST || row == PSM_ROW_SIZE || row == PSM_ROW_BIAS_A || row == PSM_ROW_BIAS_B || row == PSM_ROW_WARP_NEAR
+        || row == PSM_ROW_AZIMUTH || row == PSM_ROW_ELEVATION || row == PSM_ROW_READOUT || row == PSM_ROW_PRESET;
 }
 
 static inline float psm_step_(float x, float d, float lo, float hi) {
@@ -351,6 +407,10 @@ static inline void psm_row_change(psm_state_t *st, int row, int d) {
         case PSM_ROW_ROUTE: st->route = !st->route; break;
         case PSM_ROW_MAP: st->warp = !st->warp; break;
         case PSM_ROW_CASTERS: st->movers_only = !st->movers_only; break;
+        case PSM_ROW_DIST:                                  /* stops at 5 m and at INFINITE */
+            if (d > 0 && st->dist_i < PSM_DIST_INF) st->dist_i++;
+            if (d < 0 && st->dist_i > 0u) st->dist_i--;
+            break;
         case PSM_ROW_SIZE: st->size_i = (st->size_i + (d > 0 ? 1u : PSM_MAP_SIZES - 1u)) % PSM_MAP_SIZES; break;
         case PSM_ROW_PCF: st->pcf = !st->pcf; break;
         case PSM_ROW_BIAS_A: st->bias_a = psm_step_(st->bias_a, 0.005f * (float)d, 0.0f, 0.2f); break;
@@ -378,6 +438,10 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
         case PSM_ROW_ROUTE: return st->route == PSM_ROUTE_A ? "A  PVR draws the map" : "B  SH-4 depth map";
         case PSM_ROW_MAP: return st->warp ? "PSM (perspective)" : "uniform";
         case PSM_ROW_CASTERS: return st->movers_only ? "movers only (cows)" : "all";
+        case PSM_ROW_DIST:
+            if (st->dist_i >= PSM_DIST_INF) return "INF: no cut, no fog";
+            snprintf(buf, cap, "%u m, fog from %u", (unsigned)psm_dist_m[st->dist_i], (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
+            return buf;
         case PSM_ROW_SIZE: snprintf(buf, cap, "%u x %u", psm_map_sizes[st->size_i % PSM_MAP_SIZES], psm_map_sizes[st->size_i % PSM_MAP_SIZES]); return buf;
         case PSM_ROW_PCF: return st->pcf ? "2 x 2 (route B)" : "1 texel (route B)";
         case PSM_ROW_BIAS_A: snprintf(buf, cap, "%u mm (route B)", (unsigned)(st->bias_a * 1000.0f + 0.5f)); return buf;
@@ -396,31 +460,43 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
 /* One frame of the pad, torchwalk's single-stick scheme. The stick looks (yaw, pitch). Menu closed: Y / A held walk forward /
    back, X / B strafe left / right; D-pad down opens the menu, up flips the route, left / right turn the sun; a tap of START flips
    uniform / PSM; the triggers raise (R) and lower (L) the sun; START held is a shift: START + L / R step the warp's near plane,
-   START + up flips the casters (all / movers only), and a START used so is not a tap. Menu open: the face buttons do not walk; D-pad up / down pick a row, left / right and A
-   change it, B or START close it (that START is not a tap either). `lim` holds the walk (NULL: no limits). */
+   START + up flips the casters (all / movers only), and a START used so is not a tap. Menu open: the face buttons do not walk;
+   D-pad up / down pick a row, left / right and A change it, B or START close it (that START is not a tap either). A value held
+   repeats (psm_repeat_step): the menu's stepping rows, the sun's azimuth, the warp's near plane; a toggle changes once a press.
+   `lim` holds the walk (NULL: no limits). */
 static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, const psm_pad_t *pad, float dt) {
     const unsigned held = pad->held, down = held & ~st->last, up = st->last & ~held;
+    const unsigned nl = psm_repeat_step(&st->rep_l, (held & PSM_BTN_LEFT) != 0u, dt);
+    const unsigned nr = psm_repeat_step(&st->rep_r, (held & (st->menu ? (unsigned)(PSM_BTN_RIGHT | PSM_BTN_A) : (unsigned)PSM_BTN_RIGHT)) != 0u, dt);
+    const unsigned nwl = psm_repeat_step(&st->rep_wl, (held & PSM_BTN_START) && (held & PSM_BTN_L), dt);
+    const unsigned nwr = psm_repeat_step(&st->rep_wr, (held & PSM_BTN_START) && (held & PSM_BTN_R), dt);
     float fwd = 0.0f, side = 0.0f, lt = pad->lt > PSM_TRIG_DEAD ? pad->lt : 0.0f, rt = pad->rt > PSM_TRIG_DEAD ? pad->rt : 0.0f;
+    unsigned k;
 
     if (down & PSM_BTN_START) st->start_used = 0;
     if (st->menu) {
         if (down & PSM_BTN_UP) st->row = (st->row + PSM_ROWS - 1) % PSM_ROWS;
         if (down & PSM_BTN_DOWN) st->row = (st->row + 1) % PSM_ROWS;
-        if (down & PSM_BTN_LEFT) psm_row_change(st, st->row, -1);
-        if (down & (PSM_BTN_RIGHT | PSM_BTN_A)) psm_row_change(st, st->row, 1);
+        if (psm_row_repeats(st->row)) {
+            for (k = 0; k < nl; k++) psm_row_change(st, st->row, -1);
+            for (k = 0; k < nr; k++) psm_row_change(st, st->row, 1);
+        } else {
+            if (down & PSM_BTN_LEFT) psm_row_change(st, st->row, -1);
+            if (down & (PSM_BTN_RIGHT | PSM_BTN_A)) psm_row_change(st, st->row, 1);
+        }
         if (down & (PSM_BTN_B | PSM_BTN_START)) { st->menu = 0; if (held & PSM_BTN_START) st->start_used = 1; }
     } else if (held & PSM_BTN_START) {
         if (down & ~(unsigned)PSM_BTN_START) st->start_used = 1;
-        if (down & PSM_BTN_R) st->warp_near = psm_step_(st->warp_near, 0.5f, 1.0f, 12.0f);
-        if (down & PSM_BTN_L) st->warp_near = psm_step_(st->warp_near, -0.5f, 1.0f, 12.0f);
+        for (k = 0; k < nwr; k++) st->warp_near = psm_step_(st->warp_near, 0.5f, 1.0f, 12.0f);
+        for (k = 0; k < nwl; k++) st->warp_near = psm_step_(st->warp_near, -0.5f, 1.0f, 12.0f);
         if (down & PSM_BTN_UP) st->movers_only = !st->movers_only;
         lt = rt = 0.0f;                                         /* a trigger under START is the warp's, not the sun's */
     } else {
         if ((up & PSM_BTN_START) && !st->start_used) st->warp = !st->warp;
         if (down & PSM_BTN_DOWN) st->menu = 1;
         if (down & PSM_BTN_UP) st->route = !st->route;
-        if (down & PSM_BTN_RIGHT) st->az = psm_wrap_360_(st->az + 5.0f);
-        if (down & PSM_BTN_LEFT) st->az = psm_wrap_360_(st->az - 5.0f);
+        for (k = 0; k < nr; k++) st->az = psm_wrap_360_(st->az + 5.0f);
+        for (k = 0; k < nl; k++) st->az = psm_wrap_360_(st->az - 5.0f);
         if (held & PSM_BTN_Y) fwd += 1.0f;
         if (held & PSM_BTN_A) fwd -= 1.0f;
         if (held & PSM_BTN_X) side -= 1.0f;
@@ -497,6 +573,8 @@ typedef struct psm_frame {
     int place_ok;
     unsigned place_gen;         /* gpos_gen the placement was made for */
     float place_rows[16];       /* and the camera rows */
+    float place_dist;           /* and the draw distance */
+    float dist;                 /* DRAW DISTANCE this frame, metres of view depth; 0: INFINITE (no cut) */
     float gclip[PSM_GV_MAX][3]; /* X, Y, W */
     float gscr[PSM_GV_MAX][3];  /* x, y, 1 / W */
     uint32_t gcol[PSM_GV_MAX];
@@ -617,6 +695,7 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
         px = sh4der_psm_pixel_m(&f->cam, 480u, p, up);
         if (t < 1e29f && px > 0.0f) f->ratio[c] = sh4der_div_(t, px);
     }
+    f->dist = psm_dist(st);
     f->tris = f->drawn = 0u;
 }
 
@@ -779,7 +858,7 @@ static inline void psm_place(psm_frame_t *f, const psm_scene_t *s) {
     psm_xf_t xf;
     unsigned i, r, c;
 
-    if (!f->place_ok || f->place_gen != f->gpos_gen || memcmp(f->place_rows, f->rows, sizeof f->rows) != 0) {
+    if (!f->place_ok || f->place_gen != f->gpos_gen || memcmp(f->place_rows, f->rows, sizeof f->rows) != 0 || f->place_dist != f->dist) {
         psm_xf_load(&xf, f->rows);
         for (i = 0; i < f->gvn; i++) psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
         for (i = 0; i < s->mvn; i++) psm_place_pt_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
@@ -799,7 +878,18 @@ static inline void psm_place(psm_frame_t *f, const psm_scene_t *s) {
 
             f->mtri[i] = (uint8_t)(infront == 3u ? sh4der_tri_area_ok(f->mclip[a], f->mclip[b], f->mclip[k], PSM_NEAR, SH4DER_GUARD_MIN_AREA2) : infront ? 2 : 0);
         }
-        f->place_ok = 1; f->place_gen = f->gpos_gen; memcpy(f->place_rows, f->rows, sizeof f->rows);
+        if (f->dist > 0.0f) {                                    /* DRAW DISTANCE: what is wholly past it in view depth is not sent */
+            for (r = 0; r + 1u < f->grows; r++)
+                for (c = 0; c + 1u < f->gcols; c++) {
+                    const unsigned a = r * f->gcols + c, b = a + 1u, d = a + f->gcols, e = d + 1u;
+
+                    if (f->gclip[a][2] > f->dist && f->gclip[b][2] > f->dist && f->gclip[d][2] > f->dist && f->gclip[e][2] > f->dist)
+                        f->cell[r * PSM_COLS + c] = 0u;
+                }
+            for (i = 0; i < s->mtn; i++)
+                if (f->mclip[s->mt[i][0]][2] > f->dist && f->mclip[s->mt[i][1]][2] > f->dist && f->mclip[s->mt[i][2]][2] > f->dist) f->mtri[i] = 0u;
+        }
+        f->place_ok = 1; f->place_gen = f->gpos_gen; memcpy(f->place_rows, f->rows, sizeof f->rows); f->place_dist = f->dist;
     }
     for (r = 0; r < 256u; r++) {
         const float l = psm_light(f->sun[1] * (float)r * (1.0f / 255.0f));
@@ -883,7 +973,7 @@ static inline unsigned psm_clip_near(const psm_frame_t *f, const psm_scene_t *s,
 
 /* ---- the readout ------------------------------------------------------------- */
 
-#define PSM_HUD_LINES 10u
+#define PSM_HUD_LINES 11u
 #define PSM_HUD_COLS  64u            /* characters a line (a 512 texel line of the 8 x 16 font) */
 #define PSM_TEXT_W    512u           /* the text texture: sixteen lines of the 8 x 16 font, ten used, ARGB1555 */
 #define PSM_TEXT_H    256u
@@ -919,8 +1009,8 @@ static inline const char *psm_kind_name(int kind) {
 /* one line: written whole, then cut to the line's width */
 #define PSM_LINE_(i, ...) do { snprintf(big, sizeof big, __VA_ARGS__); memcpy(ln[i], big, PSM_HUD_COLS); ln[i][PSM_HUD_COLS] = 0; } while (0)
 
-/* The ten lines: 0 the title, 1 texel over pixel, 2 .. 5 the readout (4: the sun and the camera), 6 the cost label, 7 the split
-   of the SH-4's time, 8 the menu's row (torchwalk's line), 9 the controls. */
+/* The eleven lines: 0 the title, 1 texel over pixel, 2 .. 5 the readout (4: the sun and the camera), 6 the cost label, 7 the
+   split of the SH-4's time, 8 the menu's row (torchwalk's line), 9 the controls, 10 the draw distance (with the readout). */
 static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const psm_cost_t *c, char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u]) {
     const unsigned kb = (f->size * f->size * 2u + 1023u) / 1024u;
     char a[4][16], big[192], v[48];
@@ -963,6 +1053,9 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
         PSM_LINE_(7, "%s", st->route == PSM_ROUTE_B ? "B: build -- clear -- casters -- recv -- ms" : "A: build -- clip -- uv -- ms");
     }
     PSM_LINE_(8, "%s: %s   (D-pad row/change, B close)", psm_row_name[st->row % PSM_ROWS], psm_row_value(st, st->row % PSM_ROWS, v, sizeof v));
+    if (st->dist_i >= PSM_DIST_INF) PSM_LINE_(10, "DIST INF: no cut, no fog   map casters: all distances");
+    else PSM_LINE_(10, "DIST %u m: cut, fog from %u m   map casters: all distances", (unsigned)psm_dist_m[st->dist_i],
+                   (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
     PSM_LINE_(9, "%s", st->menu ? "D-pad row/change  A change  B/START close  stick look"
                                 : "stick look YAXB walk  Up route  START map  Dn menu  L/R sun");
 }
