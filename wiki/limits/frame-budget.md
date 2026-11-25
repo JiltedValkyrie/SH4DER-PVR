@@ -19,7 +19,7 @@ The owner's call (2026-11-25): **baked AO a vertex, plus shadows the PVR draws i
 
 1. **AO baked at load, one byte a vertex, applied on the SH-4** (ao4's method 1). Not the PVR AO map (method 2).
 2. **Shadows drawn by the PVR into a tile a caster** in one small render target, then laid on the ground as multiply quads. Route A, the PVR draws the map; not route B, the SH-4's map in RAM.
-3. **Tile size by caster:** 128 × 128 for a car or a person; 64 or 32 for a small one. **Only the nearest few casters get a tile.**
+3. **Tile size by caster:** 128 × 128 for a car or a person; 64 or 32 for a small one. **Only the nearest few casters get a tile.** Each fades out by distance (full strength to about 40 m, none by about 50 m; chosen numbers), and its tile is released only at fade 0 (section 3).
 4. **Cut the target's pass to its own tiles.** This is the cost lever.
 
 | Part | What is known | Status | Ledger |
@@ -113,12 +113,13 @@ At 60 Hz a frame is 16.7 ms; at 30 Hz, 33.3 ms. The SH-4 (transform, light, send
 | **Send in store-queue runs.** | 142 ns a vertex against 260 by `pvr_prim` | PROVEN (BUS-001, BUS-003) | ns a vertex sent | bench h1, h2 |
 | **Keep the TA's vertex buffer under full.** | The town's start view filled the 1,024 KB buffer on every frame and lost the end of the list (PARAM on 150 of 150 frames) | PROVEN that it fills (PVR-149, VID-011); the 90 % shed point is a design choice, ADVISED | The page's TA KB and peak, and PARAM events | the town (hud1c), every suite page (TA columns) |
 | **Add up video memory before you add a target.** | 8 MB in all; 4,554 KB free after `pvr_init` with two 1,024 KB vertex buffers, 4,010 KB after the town's load; the street demo 3,666 KB free with a 128 KB target. A target is pitch × height × 2 B (the street demo's is twice the mirror's width: 128 KB at 256 × 128) | PROVEN (VID-012, PVR-161, PVR-175) | `pvr_mem_available()` after load, each target size | pl4m (VRAM column), the town's boot line |
+| **Give every shadow map a maximum distance, and fade the shadow out before it.** Never an endless-range map. About 50 m, full strength to 40 m, both tunable. With a tile a caster: fade the caster's strength, and release the tile only at fade 0. With a grid round the camera: feather the map's edge. | The town's HUD ratio is the ground a map texel covers over the ground a pixel covers. At 60 m it is 0.5 to 1.6: the far ground gets texel detail at about a pixel. At 4 m it is 3.3 to 29.1: one texel smears over many pixels, on the near ground where shadows are looked at. Far casters still cost their send and their place in the map. A shorter range puts the map's texels nearer (ESTIMATE for a uniform fit) | ADVISED: the owner's design call. **40 m and 50 m are chosen, not measured.** The ratios are MEASURED (HUD, one run each: PVR-108 to PVR-113) | The same view with the range at 50 m and unlimited: the frame, the map pass's PVR time, the TA vertices sent to it, the HUD ratios at 4 and 10 m; and a drive past the fade edge for a pop | the town (route A, the TEXEL/PX line); the street demo (tiles within 50 m, `demo/pl4nar/src/demo.c:39`) |
 | **Read back by PVR-DMA, ended by its interrupt.** | 37.6 to 38.1 MB/s; polled it ran at 25.4 MB/s in one program (Q92) | PROVEN (BUS-021, BUS-053) | MB/s at your size | pvr-dma (pd), h2 |
 
 ## 4. A short checklist
 
 1. Read the frame, SH-4 and PVR of every stage (section 1) before you tune anything.
-2. Count target passes: each is about 3.2 ms until cut.
+2. Count target passes: each is about 3.2 ms until cut. Give every shadow map a maximum distance with a fade.
 3. Count vertices transformed a frame; cut far ones first.
 4. Mipmap; use trilinear and a sharper bias only where they show.
 5. Count full-screen layers and the worst tile's translucent triangles.
