@@ -56,6 +56,20 @@
 #include "psm_sky.h"
 #define PSM_FAULT_IMPL
 #include "psm_fault.h"
+#ifdef PSM_VIEWCOST                 /* the view cost test (psm_viewcost.h): a script for the pad and a timer between the frame's steps */
+#define PG_PREFIX "vc"
+#include "psm_page.h"
+#include "psm_viewcost.h"
+static vc_run_t vc_run;
+static vc_frame_t vc_f;
+static uint64_t vc_w0[4];
+static float vc_x0, vc_z0, vc_yaw0;
+#define VC_T(k) (vc_f.m[k] = timer_us_gettime64())
+#define VC_RDY1(us) (vc_f.rdy1_us = (us))
+#else
+#define VC_T(k) ((void)0)
+#define VC_RDY1(us) ((void)0)
+#endif
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -514,6 +528,73 @@ static uint64_t render_wait(void) {
     return stats.rnd_last_time;
 }
 
+#ifdef PSM_VIEWCOST
+/* ---- the view cost test (psm_viewcost.h): the pad only ends it; then the result pages ------------------------------- */
+
+/* 1 when a button or a trigger went down (the stick does not count; what is held at the start does not either) */
+static int vc_pad_hit(void) {
+    static unsigned held = ~0u;
+    maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+    cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    const unsigned now = st ? (st->buttons | (st->ltrig > 160 ? 0x10000u : 0u) | (st->rtrig > 160 ? 0x20000u : 0u)) : 0u;
+    const unsigned hit = now & ~held;
+
+    held = now;
+    return hit != 0u;
+}
+
+/* The pages: the numbers, then a graph a route. A / B turn the page; with no controller the pages turn every 20 s. */
+static void vc_pages(void) {
+    unsigned page = 0, held = ~0u, pages, r, g, k;
+    uint64_t turned;
+    char nm[16];
+
+    pvr_wait_ready();
+    pvr_wait_render_done();
+    pvr_shutdown();
+    vid_set_mode(DM_640x480, PM_RGB565);
+    pg_init();
+    vc_report(&vc_run, pg_say, pg_break, psm_map_size(&state), state.warp, state.movers_only, (unsigned)psm_time_speed[state.tspeed], state.readout);
+    for (r = 0; r < 2u; r++) {
+        pg_plot_t *p = pg_plot(r ? "route B: mean ms a stage" : "route A: mean ms a stage", "stage", "ms", 1);
+
+        for (g = 0; g < VC_STAGES; g++)
+            if (vc_script[g].route == (int)r) { snprintf(nm, sizeof nm, "%.11s", vc_script[g].name + 2); pg_cat(p, nm); }
+        pg_series(p, "frame");
+        for (g = 0, k = 0; g < VC_STAGES; g++) if (vc_script[g].route == (int)r) pg_point(p, (float)k++, vc_mean(&vc_run.st[g][VC_FRAME]) * 1.0e-3f);
+        pg_series(p, "p0..p3");
+        for (g = 0, k = 0; g < VC_STAGES; g++)
+            if (vc_script[g].route == (int)r)
+                pg_point(p, (float)k++, (vc_mean(&vc_run.st[g][VC_P0]) + vc_mean(&vc_run.st[g][VC_P1]) + vc_mean(&vc_run.st[g][VC_P2]) + vc_mean(&vc_run.st[g][VC_P3])) * 1.0e-3f);
+        pg_series(p, "col+plan+sends");
+        for (g = 0, k = 0; g < VC_STAGES; g++)
+            if (vc_script[g].route == (int)r)
+                pg_point(p, (float)k++, (vc_mean(&vc_run.st[g][VC_COLOUR]) + vc_mean(&vc_run.st[g][VC_PLAN]) + vc_mean(&vc_run.st[g][VC_OP]) + vc_mean(&vc_run.st[g][VC_TR])) * 1.0e-3f);
+        pg_series(p, "rdy+fin");
+        for (g = 0, k = 0; g < VC_STAGES; g++)
+            if (vc_script[g].route == (int)r)
+                pg_point(p, (float)k++, (vc_mean(&vc_run.st[g][VC_RDY1]) + vc_mean(&vc_run.st[g][VC_RDY2]) + vc_mean(&vc_run.st[g][VC_FIN])) * 1.0e-3f);
+    }
+    turned = timer_ms_gettime64();
+    pg_draw(page, "TOWN VIEW COST", "turn");
+    for (;;) {
+        maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+        cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+        const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
+        int redraw = 0;
+
+        psm_fault_beat(&fault_crumbs);
+        held = now;
+        pages = pg_pages();
+        if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
+        else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
+        else if (!st && timer_ms_gettime64() - turned >= 20000u) { page = (page + 1u) % pages; redraw = 1; }
+        if (redraw) { pg_draw(page, "TOWN VIEW COST", "turn"); turned = timer_ms_gettime64(); }
+        thd_sleep(20);
+    }
+}
+#endif /* PSM_VIEWCOST */
+
 /* ---- main ---------------------------------------------------------------------- */
 
 int main(void) {
@@ -533,6 +614,10 @@ int main(void) {
     psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
     vram0 = pvr_mem_available();
     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
+#ifdef PSM_VIEWCOST
+    vc_start(&vc_run);
+    vc_x0 = state.x; vc_z0 = state.z; vc_yaw0 = state.yaw;      /* every stage starts from the boot pose */
+#endif
     /* the rings' vertices are the whole ground lattice; a frame sends the window the view covers (psm_window_half) */
     printf("psm: %u rings, %u ground vertices in the rings (a frame sends its view's window), %u model vertices, %u model triangles,"
            " %u caster triangles in %u objects\n", scene.rows, scene.rows * (PSM_COLS + 1u), scene.mvn, scene.mtn, scene.ctn, scene.con);
@@ -557,11 +642,31 @@ int main(void) {
         if (dt > 0.1f) dt = 0.1f;
         frame_no++;
         psm_fault_beat(&fault_crumbs);
+#ifdef PSM_VIEWCOST
+        {                                    /* the script, not the pad: a button only ends the run */
+            const int route_before = state.route;
+            vc_view_t v;
+
+            if (vc_pad_hit()) { vc_stop(&vc_run); break; }
+            vc_apply(&vc_run, &v);
+            state.route = v.route; state.inset = v.inset; state.pitch = v.pitch; state.yaw = vc_yaw0 + v.yaw;
+            state.x = vc_x0; state.z = vc_z0; state.menu = 0;
+            if (state.route != route_before) psm_mapsrc_reset(&mapsrc);
+            dt = VC_DT;
+            pad_edge = 0;
+            (void)pad;
+            psm_fault_frame(&fault_crumbs, frame_no, 0u, (unsigned)state.scene, (unsigned)state.route);
+            memcpy(vc_w0, win_us, sizeof vc_w0);
+            vc_f.rdy1_us = 0; vc_f.rtt_waited = 0;
+        }
+#else
         pad_edge = pad(dt);
+#endif
         if (state.scene != scene.town) scene_switch();     /* the SCENE row */
         map_buffers();                                     /* MAP SIZE 512 on B / AB: its RAM while chosen */
         psm_town_update(&scene, &state, dt);               /* the town's clock, sun, people and hens (nothing in the field) */
         ta_v = 0; layer_v = 0;
+        VC_T(VC_M_TOP);
 
         /* the SH-4's work, in the label's parts. B: build, clear, casters, receivers. A: build, clip (the map pass), uv.
            A wait for the PVR is the PVR's time: it is taken between two parts, in none of them. */
@@ -600,14 +705,24 @@ int main(void) {
             if (state.filter_a != filter_a_hdr) make_target_headers();   /* A FILTER changed: the two headers again */
             pvr_wait_ready();
             t2 = timer_us_gettime64();
+            VC_RDY1(t2 - t1);
             a_drawn = map_pass();
-            if (sample && a_drawn) rnd_rtt = render_wait();      /* the map's own render, once it is done */
+            if (sample && a_drawn) {         /* the map's own render, once it is done */
+                VC_T(VC_M_RTT0);
+                rnd_rtt = render_wait();
+                VC_T(VC_M_RTT1);
+#ifdef PSM_VIEWCOST
+                vc_f.rtt_waited = 1;
+#endif
+            }
             t3 = timer_us_gettime64();
             psm_frame_unshadowed(&frame, &scene);
             psm_frame_a_ground(&frame);
             win_us[1] += t3 - t2; win_us[2] += timer_us_gettime64() - t3;
         }
+        VC_T(VC_M_PARTS);
         psm_colour(&frame, &scene);          /* the colours: this frame's, after the lit and the lookup */
+        VC_T(VC_M_COLOUR);
         look_update();
         {                                    /* SHED: the frame counted before it is sent; far parts dropped past 90 % */
             uint8_t ok[PSM_HK_N];
@@ -617,8 +732,10 @@ int main(void) {
             est_now = sink.bytes + PSM_TA_BKG;
         }
 
+        VC_T(VC_M_PLAN);
         psm_fault_stage(&fault_crumbs, "text");
         pvr_wait_ready();
+        VC_T(VC_M_RDY);
         if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text, the inset and the fog registers: written when they changed, after the last render */
             hud_tick = 0;
             want_text = text_pending();
@@ -630,6 +747,7 @@ int main(void) {
                 if (want_inset) inset_update();
             }
         }
+        VC_T(VC_M_HUD);
         psm_fault_stage(&fault_crumbs, "world");
         {
             const unsigned shed = shed_now;
@@ -645,12 +763,15 @@ int main(void) {
         psm_send_op(&sink, &frame, &scene, state.atmos && sky_mem ? &sky : NULL);
         ta_flush();
         pvr_list_finish();
+        VC_T(VC_M_OP);
         pvr_list_begin(PVR_LIST_TR_POLY);
         layer_v = psm_send_tr(&sink, &frame, &scene, &state, a_drawn, frame_no);
         ta_flush();
         pvr_list_finish();
+        VC_T(VC_M_TR);
         psm_fault_stage(&fault_crumbs, "finish");
         pvr_scene_finish();
+        VC_T(VC_M_FIN);
         ta_v += sink.verts;
         psm_fault_counts(&fault_crumbs, sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG] + sink.kv[PSM_HK_LAYER],
                          sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG], sink.verts - sink.kv[PSM_HK_GROUND] - sink.kv[PSM_HK_GROUND_FOG]
@@ -660,9 +781,31 @@ int main(void) {
 
             if (pvr_get_stats(&vs) == 0) { vbuf_used = (uint32_t)vs.vtx_buffer_used; vbuf_max = (uint32_t)vs.vtx_buffer_used_max; }
         }
+        VC_T(VC_M_SCR0);
         if (sample) rnd_scr = render_wait();
+        VC_T(VC_M_SCR1);
         win_frames++;
         win_rnd_ns += rnd_rtt + rnd_scr;
+#ifdef PSM_VIEWCOST
+        {                                    /* this frame's numbers into the script (the counts of marked vertices on sampled frames only) */
+            static uint64_t last_end;
+            unsigned i;
+
+            for (i = 0; i < 4u; i++) vc_f.part[i] = win_us[i] - vc_w0[i];
+            vc_f.sampled = sample;
+            vc_f.rnd_rtt_ns = rnd_rtt; vc_f.rnd_scr_ns = rnd_scr;
+            vc_f.v_all = ta_v; vc_f.v_map = ta_v - sink.verts;
+            vc_f.v_ground = sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG];
+            vc_f.v_layer = sink.kv[PSM_HK_LAYER];
+            vc_f.v_model = sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG];
+            vc_f.vbuf_bytes = vbuf_used;
+            vc_f.gvn = frame.gvn; vc_f.mvis = 0u;
+            if (sample) for (i = 0; i < scene.mvn; i++) vc_f.mvis += frame.mvis[i];
+            vc_f.last_end = last_end;
+            vc_f.end = last_end = timer_us_gettime64();
+            vc_record(&vc_run, &vc_f);
+        }
+#endif
 
         if (timer_us_gettime64() - win_t0 >= 1000000u) {      /* one second: the label's numbers */
             const float fr = (float)win_frames, secs = (float)(timer_us_gettime64() - win_t0) * 1.0e-6f;
@@ -680,7 +823,13 @@ int main(void) {
             win_us[0] = win_us[1] = win_us[2] = win_us[3] = 0; win_rnd_ns = 0; win_frames = 0;
             win_t0 = timer_us_gettime64();
         }
+#ifdef PSM_VIEWCOST
+        if (vc_run.done) break;
+#endif
     }
+#ifdef PSM_VIEWCOST
+    vc_pages();
+#endif
     return 0;
 }
 
