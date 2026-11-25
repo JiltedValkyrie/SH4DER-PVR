@@ -44,13 +44,15 @@ typedef struct demo_counts {
     float    night;                    /* 0 day .. 1 night */
     int      refl_ok;                  /* the layer was drawn */
     float    draw_back, draw_fwd;      /* the drawn range behind and ahead of the camera, m */
+    int      ao;                       /* the baked occlusion was on */
     uint32_t tiles;                    /* car shadow tiles drawn (the new map, by day with the reflection on); 0 elsewhere */
 } demo_counts_t;
 int   demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit);   /* size 0 256x128, 1 128x64, 2 512x256; tod 1 DAY, 2 NIGHT; -1: no video memory */
 float demo_speed(void);
 void  demo_auto_place(float z, float x, float v);   /* the car at z along the street (s on the loop), x across, speed v */
 void  demo_counts(demo_counts_t *c);
-void  demo_auto_tiles(int on);                     /* the new map: car shadow tiles on (default) or blobs only */
+void  demo_auto_tiles(int on);
+void  demo_auto_ao(int on);                        /* the new map: baked occlusion on (default) or off */                     /* the new map: car shadow tiles on (default) or blobs only */
 
 /* Platform: microseconds since start. */
 uint64_t plat_us(void);

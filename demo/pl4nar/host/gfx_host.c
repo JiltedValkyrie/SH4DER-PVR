@@ -158,7 +158,7 @@ void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
     const tex_t *tx = s_tex[s_mat].rgba ? &s_tex[s_mat] : NULL;
     const float area = edge(a->x, a->y, b->x, b->y, c->x, c->y);
     const int refl = s_mat == GFX_MAT_REFLECT || s_mat == GFX_MAT_REFLECT_ADD || s_mat == GFX_MAT_SHADOW;
-    const int mul = s_mat == GFX_MAT_SHADOW;          /* DESTCOLOR x ZERO: the frame times texel x colour */
+    const int mul = s_mat == GFX_MAT_SHADOW || s_mat == GFX_MAT_MUL;   /* DESTCOLOR x ZERO: the frame times texel x colour */
     const int added = s_mat == GFX_MAT_REFLECT_ADD || s_mat == GFX_MAT_ADD || s_mat == GFX_MAT_GLOW;
     int x0, x1, y0, y1, x, y, k;
     float mnx = fminf(a->x, fminf(b->x, c->x)), mxx = fmaxf(a->x, fmaxf(b->x, c->x));

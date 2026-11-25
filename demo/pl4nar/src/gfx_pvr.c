@@ -170,7 +170,12 @@ void gfx_be_init(void) {
         c.depth.write = PVR_DEPTHWRITE_DISABLE;
         pvr_poly_compile(&s_hdr[GFX_MAT_GLOW], &c);
     }
-    /* GFX_MAT_REFLECT / _ADD are compiled by gfx_be_reflect_resize (they name the target) */
+    pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                  /* baked occlusion: vertex colour x the frame */
+    c.gen.culling = PVR_CULLING_NONE;
+    c.blend.src = PVR_BLEND_DESTCOLOR; c.blend.dst = PVR_BLEND_ZERO;
+    c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&s_hdr[GFX_MAT_MUL], &c);
+    /* GFX_MAT_REFLECT / _ADD / _SHADOW are compiled by gfx_be_reflect_resize (they name the target) */
 }
 
 void gfx_be_shutdown(void) {

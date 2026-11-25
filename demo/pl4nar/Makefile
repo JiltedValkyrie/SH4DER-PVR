@@ -3,7 +3,7 @@
 #   make SH4ZAM=<checkout> [RTT=1] [DEMO_BUILD=<n>] [MAP=1 GEN=<folder>]   build/pl4nar-demo.elf   (KallistiOS environment sourced)
 #
 # MAP=1 builds the new map (src/map.c, PL4NAR_MAP) in place of the street: GEN is the folder that holds assets_gen.c
-# and tools/map.py's map_gen.c (default $(BUILD)/gen).
+# and tools/map.py's map_gen.c (default $(BUILD)/gen), and tools/map_ao.c's map_ao_gen.c (the baked occlusion).
 # RTT=1 compiles ../../src/sh4der_pl4nar.c with SH4DER_PL4NAR_HAVE_RTT, for a KallistiOS that has pvr_scene_begin_rtt
 # (a 256 x 128 target costs 64 KB). Without it the target is 1024 pixels wide (256 KB). The baked assets
 # (build/gen/assets_gen.c, assets_gen.h) come from tools/bake.py: build.py runs it first.
@@ -49,7 +49,7 @@ endif
 TARGET = $(BUILD)/pl4nar-demo.elf
 OBJS   = $(BUILD)/main.o $(BUILD)/demo.o $(BUILD)/gfx.o $(BUILD)/gfx_pvr.o $(BUILD)/hud.o $(BUILD)/sh4der_pl4nar.o $(BUILD)/assets_gen.o
 ifeq ($(MAP),1)
-OBJS  += $(BUILD)/map.o $(BUILD)/map_gen.o
+OBJS  += $(BUILD)/map.o $(BUILD)/map_gen.o $(BUILD)/map_ao_gen.o
 endif
 all: $(TARGET)
 $(BUILD)/%.o: src/%.c
@@ -62,6 +62,9 @@ $(BUILD)/assets_gen.o: $(GEN)/assets_gen.c
 	@mkdir -p $(BUILD)
 	kos-cc $(CFLAGS_ALL) -c $< -o $@
 $(BUILD)/map_gen.o: $(GEN)/map_gen.c
+	@mkdir -p $(BUILD)
+	kos-cc $(CFLAGS_ALL) -c $< -o $@
+$(BUILD)/map_ao_gen.o: $(GEN)/map_ao_gen.c
 	@mkdir -p $(BUILD)
 	kos-cc $(CFLAGS_ALL) -c $< -o $@
 # main.o carries the build number: it is rebuilt when the number changes

@@ -1,7 +1,8 @@
 /* Host preview of the new map (PL4NAR_MAP, DEMO_HOST): the same demo code over the software back end.
  *   map_host <out dir>
  * Part 1, a lap: the car driven round the loop by its own steering (it holds lane -2), its offset printed; a car that
- * leaves the road fails. Part 2, shots: NN_on.ppm, NN_off.ppm, NN_target.ppm; shots.txt names them.
+ * leaves the road fails. Part 2, shots: NN_on.ppm, NN_off.ppm, NN_target.ppm, NN_noao.ppm (on, the baked occlusion
+ * off); shots.txt names them.
  * Cameras: 0 the demo's chase camera; 2 low behind (6.5 m back at 2 m, 12 m ahead at 2.6 m); 3 low in front, off to the
  * side, at the hood; 4 low behind along the roof. */
 #include <math.h>
@@ -79,6 +80,9 @@ int main(int argc, char **argv) {
         { "c in the open, day, low camera in front, at the hood", { MAP_SHOT_OPEN_SL }, 0.0f, 0.15f, 3 },
         { "c in the open, dusk, the chase camera turned to the side", { MAP_SHOT_OPEN_SL }, 1.6f, 0.45f, 0 },
         { "d a corner, day, the chase camera (the loop's curve)", { 200.0f, -2.0f }, 0.0f, 0.15f, 0 },
+        { "a under the overpass, day, the demo's chase camera", { MAP_SHOT_OVERPASS_SL }, 0.0f, 0.15f, 0 },
+        { "b in the covered passage, day, the demo's chase camera", { MAP_SHOT_PASSAGE_SL }, 0.0f, 0.15f, 0 },
+        { "a before the overpass, day, the chase camera 20 m back", { 97.0f, 2.0f }, 0.0f, 0.15f, 0 },
     };
     demo_stats_t st = { 0, 0, 0, 0, 0, 0 };
     char p[512];
@@ -99,6 +103,11 @@ int main(int argc, char **argv) {
         set(s, 0);
         demo_draw(&st);
         snprintf(p, sizeof p, "%s/%02u_off.ppm", dir, k); gfx_host_save(p, 0);
+        set(s, 1);
+        demo_auto_ao(0);
+        demo_draw(&st);
+        demo_auto_ao(1);
+        snprintf(p, sizeof p, "%s/%02u_noao.ppm", dir, k); gfx_host_save(p, 0);
         if (f) fprintf(f, "%02u %s\n", k, s->name);
     }
     if (f) fclose(f);

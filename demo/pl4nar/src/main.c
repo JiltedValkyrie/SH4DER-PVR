@@ -83,19 +83,20 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
-typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs; } stage_t;   /* blobs: no shadow tiles */
+typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao; } stage_t;   /* blobs: no shadow tiles; noao: no baked occlusion */
 #ifdef PL4NAR_MAP
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1 }, { "off day",          0, 0, 1, 0, 0 },
-    { "on 256x128 night", 1, 0, 2, 0, 0 }, { "off night",        0, 0, 2, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0 },
-    { "on 512x256 night", 1, 2, 2, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0 }, { "on 256 nite orbit", 1, 0, 2, 1, 0 }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0 }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1 },
+    { "off day",          0, 0, 1, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0 }, { "off night",        0, 0, 2, 0, 0, 0 },
+    { "on 128x64 night",  1, 1, 2, 0, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0 },
+    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0 }
 };
 #else
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0 }, { "on 128x64 day",    1, 1, 1, 0 }, { "on 512x256 day",   1, 2, 1, 0 },
-    { "off day",          0, 0, 1, 0 }, { "on 256x128 night", 1, 0, 2, 0 }, { "on 128x64 night",  1, 1, 2, 0 },
-    { "on 512x256 night", 1, 2, 2, 0 }, { "off night",        0, 0, 2, 0 }, { "on 256 day orbit", 1, 0, 1, 1 },
-    { "on 256 nite orbit", 1, 0, 2, 1 }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0 }, { "on 128x64 day",    1, 1, 1, 0, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0 },
+    { "off day",          0, 0, 1, 0, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0 },
+    { "on 512x256 night", 1, 2, 2, 0, 0, 0 }, { "off night",        0, 0, 2, 0, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0 },
+    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0 }
 };
 #endif
 #define STAGES (sizeof stages / sizeof stages[0])
@@ -193,6 +194,7 @@ int main(int argc, char **argv) {
     acc[0].resize_fail = demo_auto_set(stages[0].reflect, stages[0].size, stages[0].tod, stages[0].orbit) != 0;
 #ifdef PL4NAR_MAP
     demo_auto_tiles(!stages[0].blobs);
+    demo_auto_ao(!stages[0].noao);
 #endif
     demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
     psm_fault_stage(&crumbs, stages[0].name);
@@ -268,6 +270,7 @@ int main(int argc, char **argv) {
             acc[stage].resize_fail = demo_auto_set(stages[stage].reflect, stages[stage].size, stages[stage].tod, stages[stage].orbit) != 0;
 #ifdef PL4NAR_MAP
             demo_auto_tiles(!stages[stage].blobs);
+            demo_auto_ao(!stages[stage].noao);
 #endif
             demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
             psm_fault_stage(&crumbs, stages[stage].name);

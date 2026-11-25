@@ -16,6 +16,7 @@
 #ifdef PL4NAR_MAP                                  /* the new map (tools/map.py, src/map.c): a closed loop in place of the street */
 #include "map.h"
 #include "map_gen.h"
+#include "map_ao_gen.h"                            /* tools/map_ao.c: a byte a model vertex, the road's patches */
 #define MAP_DRAW     300.0f        /* drawn round the camera, m */
 #define MAP_MIRROR   140.0f        /* mirrored round the camera */
 #define MAP_CAP_NIGHT 0.50f        /* the layer's alpha at night at most: the strips over the paint keep its colour */
@@ -146,6 +147,9 @@ static shz_vec4_t s_vp[4];                         /* rows of screen x projectio
 static float s_vw, s_vh, s_focal, s_camz, s_camx;
 #ifdef PL4NAR_MAP
 static uint32_t s_tint = 0xffffffffu;              /* draw_model: this instance's tint */
+static const uint8_t *s_mao;                       /* draw_model: this model's baked occlusion, a byte a vertex (NULL none) */
+static int s_ao = 1;                               /* the baked occlusion on (the autorun's "no AO" stage) */
+void demo_auto_ao(int on) { s_ao = on; }
 #endif
 static unsigned s_haze_max = (unsigned)(HAZE_MAX * 256.0f);   /* this pass: the reflection pass keeps more contrast (less haze) */
 static sh4der_pl4nar_view_t s_pv;
@@ -186,7 +190,9 @@ void demo_counts(demo_counts_t *c) {
     c->night = s_night; c->refl_ok = s_pv_ok; c->draw_back = DRAW_BACK; c->draw_fwd = DRAW_FWD;
 #ifdef PL4NAR_MAP
     c->tiles = s_tile_n;
+    c->ao = s_ao;
 #else
+    c->ao = 0;
     c->tiles = 0u;
 #endif
 }
@@ -587,7 +593,12 @@ static void draw_model(const mdl_t *m, float x, float z, float yaw) {
     for (i = 0; i < m->nv; i++) {
         const mdl_vert_t *s = &m->v[i];
         gfx_vert_t *o = &s_scr[i];
+#ifdef PL4NAR_MAP                                  /* the ambient x the vertex's baked byte: light = ambient x ao + sun */
+        const float amb = s_mao ? AMBIENT * (float)s_mao[i] * (1.0f / 255.0f) : AMBIENT;     /* hand: two scalar products */
+        const float k = shz_fmaf(DIFFUSE, shz_fmaxf(0.0f, sh4der_dot3_(s->n, lm)), amb);
+#else
         const float k = shz_fmaf(DIFFUSE, shz_fmaxf(0.0f, sh4der_dot3_(s->n, lm)), AMBIENT);
+#endif
         gfx_xform(o, shz_vec3_init(s->p[0], s->p[1], s->p[2]));
 #ifdef PL4NAR_MAP
         o->argb = lit(gfx_scale(gfx_mod(0xff000000u | s->rgb, s_tint), (unsigned)(shz_fminf(k, 1.0f) * 256.0f)));
@@ -615,6 +626,7 @@ static void draw_props(int reflect_pass) {
         if (reflect_pass && m->radius < 4.0f && d2 > 60.0f * 60.0f) continue;          /* small far things are not worth mirroring */
         if (!sphere_seen(p->x, m->radius * 0.5f, p->z, m->radius)) continue;
         s_tint = 0xff000000u | p->tint;
+        s_mao = s_ao ? map_model_ao[p->model] : NULL;
         draw_model(m, p->x, p->z, p->yaw);
         s_tint = 0xffffffffu;
     }
@@ -624,8 +636,36 @@ static void draw_props(int reflect_pass) {
         const float dx = q.x - s_camx, dz = q.z - s_camz, d2 = dx * dx + dz * dz;
         if (d2 > (reflect_pass ? 60.0f * 60.0f : 220.0f * 220.0f)) continue;
         if (!sphere_seen(q.x, body->radius * 0.5f, q.z, body->radius)) continue;
+        s_mao = s_ao ? map_model_ao[map_car[i].body] : NULL;
         draw_model(body, q.x, q.z, q.yaw);
+        s_mao = NULL;
         if (!reflect_pass && d2 < 110.0f * 110.0f) draw_model(map_models[map_car[i].wheels], q.x, q.z, q.yaw);
+    }
+    s_mao = NULL;
+}
+
+/* The road's baked occlusion: the kept rows of tools/map_ao.c's 2 m grid, multiplied over the road (GFX_MAT_MUL) at
+   1 cm. A patch is a run of joined rows; a quad is drawn when its first corner is within MAP_DRAW. XMTRX = s_vp. */
+static void draw_road_ao(void) {
+    static gfx_vert_t row[2][MAP_AOG_COLS];
+    unsigned r, c, cur = 0;
+    int prev = 0;                                      /* the row before is near and in row[cur ^ 1] */
+    if (!s_ao) return;
+    gfx_bind(GFX_MAT_MUL);
+    for (r = 0; r < MAP_AOG_ROWS; r++) {
+        const float dx = map_aog[r][0][0] - s_camx, dz = map_aog[r][0][1] - s_camz;
+        if (dx * dx + dz * dz > MAP_DRAW * MAP_DRAW) { prev = 0; continue; }     /* hand: scalar products */
+        cur ^= 1u;
+        for (c = 0; c < MAP_AOG_COLS; c++) {
+            const unsigned g = (unsigned)(map_aog[r][c][2] * 255.0f);
+            gfx_xform(&row[cur][c], shz_vec3_init(map_aog[r][c][0], 0.01f, map_aog[r][c][1]));
+            row[cur][c].argb = gfx_rgb(255u, g, g, g); row[cur][c].oargb = 0u; row[cur][c].u = row[cur][c].v = 0.0f;
+        }
+        if (!prev || !map_aog_join[r]) { prev = 1; continue; }
+        for (c = 0; c + 1u < MAP_AOG_COLS; c++) {
+            gfx_tri(&row[cur ^ 1u][c], &row[cur ^ 1u][c + 1u], &row[cur][c + 1u]);
+            gfx_tri(&row[cur ^ 1u][c], &row[cur][c + 1u], &row[cur][c]);
+        }
     }
 }
 #else
@@ -1001,6 +1041,7 @@ static void draw_shadows(void) {
         if (dx * dx + dz * dz < 80.0f * 80.0f && !tiled((int)i)) blob(q.x, q.z, q.yaw, alpha);    /* hand: scalar products */
     }
     draw_tile_quads();
+    draw_road_ao();
     return;
 #else
     blob(s_car.wx, s_car.wz, s_car.wh, alpha);
