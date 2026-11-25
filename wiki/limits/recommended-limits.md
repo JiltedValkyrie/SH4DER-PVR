@@ -51,7 +51,7 @@ These are faults the console showed and an emulator hid. Break them and the cons
 | Turn dither off for a target that holds codes, and back on after. | PROVEN | PVR-022 |
 | Keep a target at most 480 rows under KOS. | PROVEN | PVR-026 |
 | Keep a 16-bit depth code under 16,384 (14 bits) for exact codes. | PROVEN | PVR-024 |
-| Budget a render target pass at least 3.2 ms of PVR time, whatever its size, when it renders through the screen's whole tile list. | PROVEN (320 × 240 in c1; 128 × 128 map in c4: 3,312 us) | PVR-004, PVR-092 |
+| Budget a render target pass at least 3.2 ms of PVR time, whatever its size, when it renders through the screen's whole tile list. | PROVEN (320 × 240 in c1; 128 × 128 map in c4: 3,312 us, and 3,311 to 3,314 us in four more c4 lines) | PVR-004, PVR-092, PVR-100 |
 | Render a small target through a tile list cut to the tiles it covers: the 128 × 128 map fell from 3,312 to 375 us, the 320 × 240 mask from 6,130 to 3,760 us, with the same picture. | PROVEN (one run); not yet in the library's own passes (Q54) | PVR-092 |
 | Start pl4nar's target at 256 × 128 and go down before anything else. | ADVISED | Test: pl4nar cost table at 128 × 64, 256 × 128, 512 × 256 (`demo/pl4nar/AGENT_WORKFLOW.md:60-71`) |
 

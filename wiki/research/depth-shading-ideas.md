@@ -83,7 +83,7 @@ Each row: what the PVR does today, what this library already does per vertex (he
 
 ### Opacity
 
-- **Today:** translucent list, vertex alpha, punch-through (alpha ≥ reference, PVR-060), the 1555 mask.
+- **Today:** translucent list, vertex alpha, punch-through (texture alpha × vertex alpha ≥ reference, PVR-060, PVR-064), the 1555 mask.
 - **Library:** `sh4der_warp.h` (ordered dither as a screen door), `sh4der_mist.h` (fog sheets that fade near the eye).
 - **Depth fills:** the biggest gap. Depth fade, soft particles, contact edges and foam all need "how far is the scene behind me". Ideas D1, D2.
 
@@ -128,8 +128,8 @@ Each row: what the PVR does today, what this library already does per vertex (he
 | C2 | **Depth-edge outlines** | Lines wherever depth jumps between neighbours | neighbour depths | Either the c1 blend chain on two shifted copies of the camera depth map (about 11 layers at 0.77 ms, PVR-004, PVR-040), or a bump pass with shifted coordinates against a banded Q. | yes | Chain: about 8.5 ms at 320 × 240 (ESTIMATE). | **OPEN**: neighbour compares |
 | C3 | **Screen-space contact darkening** | Corners and contacts darken softly | neighbour depths | Several shifted compares, averaged, like the shelved soft shadows (T1). | yes | One mask pass measured 6.1-10.2 ms (PVR-090, PVR-091); several are too dear unless tile lists cut it. | OPEN; likely too costly |
 | C4 | **Distance desaturation** | Far things lose colour and contrast | scene depth per pixel | A camera depth map compare against a "far" Q makes a 1555 mask. A grey layer is drawn through it. A cyclic window, so pick the range with care. | yes | Map pass, plus mask, plus one layer (PVR-004). | ESTIMATE |
-| C5 | **Fur shells** | Fur from stacked cut-out copies of the mesh | none | N shells pushed out along the normals on the SH-4, drawn punch-through with a noise texture's alpha against the reference (PVR-060). | no | N × the mesh's vertices (BUS-003), N × its fill. | ESTIMATE; per-shell cut-off OPEN (one reference register) |
-| C6 | **Dithered fade by distance** | Objects dissolve by a screen pattern instead of blending | own depth only (the SH-4 knows it) | A Bayer pattern texture's alpha against the punch-through reference. One reference for the whole list, so a per-object fade needs the pattern's alpha scaled by vertex alpha, which c3b 5b did not show working (PVR-061). | no | Punch-through fill (PVR-006 line). | **OPEN** (Q16) |
+| C5 | **Fur shells** | Fur from stacked cut-out copies of the mesh | none | N shells pushed out along the normals on the SH-4, drawn punch-through with a noise texture's alpha against the reference (PVR-060). One reference register, but the tested alpha is texture × vertex (PVR-064), so each shell's vertex alpha can set its own cut-off. | no | N × the mesh's vertices (BUS-003), N × its fill. | ESTIMATE (the per-shell cut-off rests on one measured line, PVR-064) |
+| C6 | **Dithered fade by distance** | Objects dissolve by a screen pattern instead of blending | own depth only (the SH-4 knows it) | A Bayer pattern texture's alpha against the punch-through reference. One reference for the whole list, so a per-object fade needs the pattern's alpha scaled by vertex alpha. c4 test 6 showed that it is: vertex alpha 128 cut a ramp to its top sixteenth (PVR-064). c3b 5b's "every pixel" was the ONE/ZERO blend (PVR-061). | no | Punch-through fill (PVR-006 line). | ESTIMATE (the mechanism measured in one line; the fade not built; the rounding OPEN, Q16) |
 
 ## What to test first
 

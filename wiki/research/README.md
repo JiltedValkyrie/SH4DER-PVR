@@ -14,7 +14,7 @@ The notes stay where they are; this page indexes them. Measured numbers from the
 | Note | Date | What it settled |
 |---|---|---|
 | `demo/psm/bench/NOTES.md` | 2026-11-25 | Chip benches h1 and h2: cache, transforms, copies, TA send, uploads, PVR fill, DMA, G2. h2 corrects h1's buffer placing. |
-| `demo/psm/compare/NOTES.md` | 2026-11-25 | Spikes c1 and c3b on a console; the c4 design (built, not run). |
+| `demo/psm/compare/NOTES.md` | 2026-11-25 | Spikes c1, c3b and c4 on a console: the c4 design, its two runs (live view and tile stage; all six result pages) and what the console said against the model. |
 | `demo/psm/ROUTE_AB_NOTES.md` | 2026-11-24 | Route AB feasibility: PVR-DMA download, exact codes, held pixels, dither. |
 | `demo/psm/PVR_FEATURES.md` | — | Index of per-pixel PVR operations, ranked compare ideas, Sega's bug list, KOS issues. |
 | `demo/psm/POLLY2_NOTES.md` | 2026-11-25 | Rules read from skmp's PowerVR2 model and console tests (cited, nothing copied); c4 checked against them. |

@@ -265,7 +265,7 @@ changes; no c4b image exists.
 | The tile list can be ended early for a small target: the map pass renders in 375 us with a 20-tile list against 3,312 us with the whole list (3,311 again after), the picture the same all three times. | MEASURED 2026-11-25, 1 console, 1 run | `..074650392` | c4 TILES map line |
 | The mask pass: 3,760 us with an 80-tile list against 6,130 us whole (6,140 again), the picture the same all three times. | MEASURED 2026-11-25, 1 console, 1 run | `..074650392` | c4 TILES mask line |
 | The two tile tables (at 0f8448 and 4f8448, 1,806 words each) read back as saved after the test: 0 words differ. | MEASURED 2026-11-25, 1 console, 1 run | `..074650392` | c4 TILES restore line |
-| Pages 0 to 5 of c4 (ramp, window, bias, scene counts, cost, punch-through) have no photo yet. | OPEN | - | the c4 image's pages 0 to 5, photographed |
+| (was OPEN here: "pages 0 to 5 have no photo".) Closed the same day by a second run: the section "Hardware result c4: the result pages" below. | - | - | - |
 | c4b rules (bias = b0 + half a band + a WHOLE texel of slope, b0 3.0; faces whose bias leaves under 4 codes of window are not compared: drawn lit, kept in the map ungrown): 0 acne on a face's own pixels and 0 on a face behind over 360 suns x 3 elevations, where c4's rules gave 170 and 44 at the worst sun. | ESTIMATE: host model `c4_model.h`, 320 x 240 mask against a ray to the sun | - | `test/c4_model_test.c` `kinds()`; on the console: c4b page 3 and page 4 |
 | The same rules, false shadow from a nearer face at five suns (150, 177, 174, 93, 96 deg at 26.5): 513, 220, 161, 277, 435 pixels, where c4's gave 634, 925, 733, 1,623, 1,247. | ESTIMATE: host model `c4_model.h`, 320 x 240 mask against a ray to the sun | - | `test/c4_model_test.c` `chain()` |
 | Their price: real shadow missed 13, 11, 1, 21, 22 pixels (c4: 4, 2, 1, 367, 129), and at suns 93 and 96 about 864 and 868 pixels of shadow cast ON a grazed wall are not drawn. | ESTIMATE: host model `c4_model.h`, 320 x 240 mask against a ray to the sun | - | the same |
@@ -282,3 +282,100 @@ a mean over frames of two and of three pictures would give it. The work, PVR and
 The tile lines are the first sign that a small target need not pay for the whole screen's tile list: the 128 x 128
 map is 16 tiles and rendered in 375 us with a list of 20. The mask (320 x 240, 80 tiles of 32 x 32 hold 320 x 256)
 did not gain as much: 3,760 us. Nothing was changed for good: the tables read back as saved.
+
+## Hardware result c4: the result pages (second run, all six pages)
+
+The same image, the same console, 2026-11-25, a second run. Photos in `logs/benchmarks/c4_c4/`: p1 `PXL_20261125_082205102`,
+p2 `..082208017`, p3 `..082215888`, p4 `..082218488`, p5 `..082221222`, p6 `..082337928` (taken after the live view,
+so it carries the LIVE line). Five more photos of that folder (`..082228971` to `..082329488`) are not transcribed
+here. The pages are numbered 1 to 6 and the tests 0 to 7: page 1 opens with test 0, so nothing is missing. One
+line a fact; the host model's numbers are not in this table (they are in "What the host model says" above and in
+the comparison below it).
+
+The scene and bias tests of this image use c4's rules as built: b0 1.5 in the scenes, and a bias of b0 + half a
+band + HALF a texel of slope. A count there is a number of pixels of the 320 x 240 mask (its border row and the
+sky left out).
+
+| Claim | Status | Photo | Test |
+|---|---|---|---|
+| The lookup by depth works: a ramp texture read at u = 1 / (2 z) gives each pixel the code of its own depth. With the plain 1,024-texel ramp 2,303 of 16,384 pixels are wrong, none by more than 1 code; with 8 sub-steps through v, 348, none by more than 1 code. No pixel holds anything but a code. | MEASURED 2026-11-25, 1 console, 1 run | p1 | c4 test 0, the two ramp lines |
+| A map of whole codes (row y holds 2y on the left, 2y + 1 on the right) reads back with 0 of 16,384 pixels wrong. | MEASURED 2026-11-25, 1 console, 1 run | p1 | c4 test 0, "whole codes" |
+| A PVR-DMA fetch of the 32,768-byte map equals 256 words read straight from video memory. | MEASURED 2026-11-25, 1 console, 1 run | p1 | c4 test 0, "fetch" |
+| The bump compare into a 1555 target, every code against 160 Q values (40,960 pairs), disagrees with the cosine level table at: window 16 (threshold 10) 784 pairs, 320 of them within 2 levels of the threshold; window 32 (threshold 38) 443, 320 within 2 levels; window 64 (threshold 128) 240, all 240 within 2 levels. | MEASURED 2026-11-25, 1 console, 1 run | p1, p2 | c4 test 1, the three w lines |
+| A second pass at equal depth with the test "equal or nearer" draws every pixel: holes 0 in the window test and 0 inside faces and 0 at outlines in both scenes. | MEASURED 2026-11-25, 1 console, 1 run | p1, p2, p3 | c4 tests 1 and 4, "holes" |
+| Ground alone at sun 150 / 26.5, window 32, c4's bias rule (b0 + half a band + half a texel of slope); shadow pixels of 34,928, all of them acne. Bands 1 code wide, b0 0 / 0.5 / 1 / 1.5 / 2 / 3: 31,493 / 16,867 / 16,867 / 2,774 / 2,774 / 0. Bands 4 wide: 15,959 / 1,485 / 1,485 / 1,364 / 1,364 / 0. | MEASURED 2026-11-25, 1 console, 1 run | p2 | c4 test 3 |
+| Scene at sun 150 / 26, window 32, bands 2 wide, grow 0.75, b0 1.5: the console's map equals the model's in 16,115 of 16,384 pixels, is 1 code off in 269, more in 0. | MEASURED 2026-11-25, 1 console, 1 run | p2 | c4 test 4, "map vs model" |
+| The same scene, 322 bands, 1,288 vertices. Mask against the model run on the console's own map: 2,832 pixels differ inside a face, 193 at an outline. Mask against a ray to the sun: 36,418 lit pixels and 1,378 shadowed; of the lit, 2,687 are shown shadowed by their own face (acne), 971 by a nearer face (edge), 0 by a face behind (rim); of the shadowed, 2 are shown lit inside the bias and 0 elsewhere. | MEASURED 2026-11-25, 1 console, 1 run | p2 | c4 test 4, first scene |
+| Scene at sun 100 / 13, the same settings: map equal in 16,226, 1 code off in 158, more in 0; 337 bands, 1,348 vertices; mask against the model 2,564 inside a face, 137 at an outline; against the ray 34,889 lit and 2,907 shadowed; acne 2,502, edge 1,906, rim 0; lit in error 0 inside the bias, 1 elsewhere. | MEASURED 2026-11-25, 1 console, 1 run | p2, p3 | c4 test 4, second scene |
+| Cost at sun 150 / 26, bands 1 / 2 / 4 codes wide: 616 / 322 / 173 bands, 2,464 / 1,288 / 692 vertices; light fit 54 / 53 / 53 us; band cut 2,483 / 1,332 / 744 us; sending the mask's two passes 820 / 440 / 251 us; the map's 68 vertices 13 to 15 us. | MEASURED 2026-11-25, 1 console, 1 run | p3, p4 | c4 test 5, the fit, cut and send lines |
+| PVR render time at the same three widths: map pass 3,312 / 3,311 / 3,311 us; mask pass 9,054 / 6,132 / 5,015 us. Screen pass: the scene alone 3,161 us, with the shadow layer 9,646 us. | MEASURED 2026-11-25, 1 console, 1 run | p3, p4 | c4 test 5, the PVR lines |
+| `shz_dce_pvr_project` in this spike: 132.5 / 132.3 / 115.7 cycles a vertex against 138.8 / 138.3 / 137.5 for its C form, the bytes the same. | MEASURED 2026-11-25, 1 console, 1 run | p3, p4 | c4 test 5, "project" |
+| In the c4 program the projection's source array is at 8c205220 and its output at 8c1c5220: exactly 256 KB apart, a multiple of the 16 KB operand cache, so every source line and its output line share a cache entry. | FACT: the symbol table of `build/psm_cmp/psm-c4-c4.elf` (`sh-elf-nm`) | - | bench h2 timed the same routine on a clean placing: 21.15 cycles in the cache, 58.09 out of it |
+| Punch-through, reference 128, a 4444 texture whose alpha is a ramp, 32,768 pixels: KallistiOS's own header draws 16,384 (the half with alpha at or over the reference); with depth write off 16,384; with depth "always" 16,384. | MEASURED 2026-11-25, 1 console, 1 run | p4 | c4 test 6, first three lines |
+| The same with blend ONE / ZERO draws all 32,768: the pixels that fail the test are written too. | MEASURED 2026-11-25, 1 console, 1 run | p5 | c4 test 6, "blend ONE/ZERO" |
+| The same with vertex alpha 128 draws 2,048: only the top sixteenth of the ramp. The tested alpha is the texture's times the vertex's. | MEASURED 2026-11-25, 1 console, 1 run | p5 | c4 test 6, "vertex alpha 128" |
+| The bump level can be the alpha the punch-through test reads: 10,200 pixels drawn of 20,480 at reference 128, where the cosine level table gives 10,320; 120 pixels differ. | MEASURED 2026-11-25, 1 console, 1 run | p5 | c4 test 6, "bump level as the tested alpha" |
+| PVR-DMA of 128 KB from video memory: 4,009 us with its end polled each 1 ms, 3,526 us polled each 250 us, 3,630 us by interrupt. Of 512 KB: 14,028 us, 13,852 us, and by interrupt 14,516 us (14,510 in the first run). Every copy right. A polled time is rounded up to the next poll. | MEASURED 2026-11-25, 1 console, 2 runs for the last figure, 1 run for the others | p5, p6; first run `c4e/..074541020` | c4 test 7 |
+| Live frame at sun 182 / 26, b0 8.0, bands 4 wide, layer on: 676 vertices; SH-4 fit + cut + faces 811 us, projection 422 us; PVR map 3,301 us, mask 4,792 us, screen 9,951 us; frame 39,929 us. | MEASURED 2026-11-25, 1 console, 1 run | p6 | c4 page 6, LIVE line |
+| The frame takes 39.9 ms at 676 and at 1,288 vertices and 49.9 ms at 2,192, while the work in it (the measured SH-4 and PVR lines added) is 19.3, 21.7 and 27.1 ms. Why the frame is one of two values 10.0 ms apart is not known. | OPEN | p6; `c4e/..074645426` | c4b: count the pictures (vblanks) in each frame and time each wait apart |
+
+### What was predicted, and what the console said
+
+"Model" is the host model of this file (ESTIMATE); "third party" is the reading of a third party's hardware rules in
+`../POLLY2_NOTES.md` (REPORTED); "thesis" is `../THESIS_SH4_SHADOWS.md`.
+
+| Prediction | From | Console | Verdict |
+|---|---|---|---|
+| The lookup by depth works; the plain ramp is one code off in about a quarter of the pixels near the light | model | works; 2,303 of 16,384 wrong with the plain ramp (14 % of the whole map), 348 with 8 sub-steps, never by more than 1 code | right in kind; the 8 sub-steps are worth having |
+| The ramp's perspective error is minor | third party | worst 1 code | right |
+| The target holds only codes | model | 0 pixels not a code | right |
+| A second pass at equal depth leaves no holes | third party; "not verified" here | holes 0 everywhere | right |
+| The bump level follows the cosine table, so the window's edges are where Q puts them | model | 784 / 443 / 240 of 40,960 pairs disagree at window 16 / 32 / 64: 4.9 / 2.8 / 1.5 codes a Q value | WRONG |
+| The real table makes the windows a few codes narrower: 1 to 3 at window 32, 5 at window 16 | third party | 2.8 and 4.9 codes a Q value (the page counts disagreements; it does not say on which side) | right in size |
+| b0 1.5 gives no acne | model | ground alone: 2,774 pixels of acne at 1.5 (1,364 with bands 4 wide), 0 at 3.0; scenes at 1.5: 2,687 and 2,502 | WRONG |
+| Rim 0 with the faces grown 0.75 texel | model | 0 and 0 | right |
+| Edge (false shadow from a nearer face): 634 at 150 / 26.5, 1,716 at 100 / 13 | model | 971 and 1,906 | low by 337 and 190 pixels |
+| Real shadow shown lit: 4 inside the bias and 0 elsewhere; 0 and 5 | model | 2 and 0; 0 and 1 | right in size |
+| The map is the model's map | model | 98.4 % and 99.0 % of the pixels equal, the rest 1 code off | right within the ramp's 1 code |
+| The projection costs 19.5 cycles a vertex against 39 for its C form | pipeline model | 132.5 against 138.8 in this program | WRONG for this program: its two arrays are 256 KB apart and thrash the cache (the FACT row). On a clean placing bench h2 measured 21.15 against 43.19 |
+| An alpha under the reference fails, at or over it passes | third party | 16,384 of 32,768 drawn | right |
+| A failing pixel is still written when the blend is ONE / ZERO | third party | 32,768 drawn | right: this is the one setting that made c3b's punch-through "draw everything" |
+| Inside the punch-through list the depth mode and the depth write bit do nothing | third party | 16,384 with either changed | not contradicted (the count cannot tell "ignored" from "harmless here") |
+| The punch-through test does not threshold vertex alpha (P7) | thesis | 2,048 drawn with vertex alpha 128 | WRONG: P7 named this run as what would overturn it, and it did. The tested alpha is texture x vertex |
+| Texel 255 x vertex 255 gives 254 (read here as a plain product shifted by 8) | third party | the top step of the ramp (alpha nibble 15) x vertex 128 passes a reference of 128; the step under it does not | does not fit as read: (255 x 128) >> 8 is 127 and would have drawn 0, if nibble 15 becomes 255. Either the product is not a plain shift or the reading of the rule is wrong; not settled by one line |
+| Whether the bump level is tested by punch-through | open on page 6 | 10,200 drawn against the table's 10,320 | yes; and it differs from the cosine table at the same rate as the 1555 route at threshold 128 (120 of 20,480 against 240 of 40,960) |
+| PVR-DMA is held down by polling its status (bench h1) | reading of h1, withdrawn by h2 | 512 KB: 14,028 us polled each 1 ms, 13,852 each 250 us, 14,516 by interrupt | withdrawn stands: the interrupt route was the slowest of the three here |
+
+### Readings
+
+- **The acne has one cause, and it is measured twice.** The console's map is the model's map to within one code,
+  and no pass leaves a hole; but the console's compare differs from the cosine table in 443 of 40,960 pairs at
+  window 32, and in the scenes the mask differs from the model in 2,832 and 2,564 pixels inside faces, about the
+  number that are acne (2,687 and 2,502). The level table is what is wrong in the model. The chip is not wrong; the
+  cosine is not its table.
+- **What the acne counts are.** Pixels of the 320 x 240 mask that a ray says are lit, that the mask shows shadowed,
+  and whose map texel holds their own face: self-shadow. 7.4 % and 7.2 % of the lit pixels, at b0 1.5, bands 2 wide.
+- **b0 3.0.** The ground alone shows 0 acne at b0 3.0 with bands 1 and 4 wide at sun 150 / 26.5 under c4's rule. c4b's
+  rule adds a whole texel of slope where c4 added half, so on that ground at that sun c4b's default 3.0 has more
+  bias than what measured 0. That is support for the default at one sun, on the ground, and no more: bands 2 wide
+  were not in the test, no wall was, no other sun was, and in the live view the owner went to 5.25 at sun 91 / 34
+  and to 8.0 at sun 182 / 26. b0 0.5 and 1 give the same count, and 1.5 and 2: Q is a whole code, so b0 acts in
+  whole codes.
+- **The cure stays the one planned.** Measure the window's two edges for the threshold in use at boot, from strips
+  of known codes (test 1's own picture), and make Q from those, not from the cosine. A larger b0 hides the error at
+  the price of shadow that starts further from its caster.
+- **The projection's 132 cycles are this program's doing.** `bsrc` and `bscr` are static arrays of 256 KB one after
+  the other. The same routine measured 21.15 cycles in bench h2. c4b must place them so that a source line and its
+  output line do not share a cache entry, and the routine's comment should say so. Until then the projection (857 us
+  at 1,288 vertices in the live view) costs 2.3 times what bench h2 measured for arrays that are not in the cache
+  (58.09 cycles a vertex) and 6.3 times what it measured for arrays that are (21.15).
+- **Punch-through is usable as the threshold.** It tests texture alpha x vertex alpha (KallistiOS's header for that
+  list asks for the product: its texture mode there is "modulate alpha") and it tests the bump level;
+  c3b's failure was the ONE / ZERO blend, which writes the failing pixels as well. A mask made by punch-through
+  with KallistiOS's blend would need no 1555 threshold. Not built.
+- **The frame time.** 39.9, 39.9 and 49.9 ms for 19.3, 21.7 and 27.1 ms of work: the frame is set by waiting, not
+  by work. Each of the three passes waits for the PVR twice (`pvr_wait_ready`) and for its render. The two values
+  are 10.0 ms apart and both 70 us short of a multiple of 10 ms; three pictures at 60 a second are 50.05 ms and two
+  are 33.4, so the lower value is not a whole number of pictures. A wait that wakes on a 10 ms clock would give
+  these numbers (4 and 5 periods; the mask pass crosses 10 ms between 1,288 and 2,192 vertices: 6.1 and 10.2 ms).
+  That is a guess from three numbers. OPEN, with its test in the table.

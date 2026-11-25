@@ -24,7 +24,7 @@ The PVR has no way to write its depth buffer to memory (PVR-083). So a depth [sh
 | Method | Idea | Status | Page |
 |---|---|---|---|
 | PSM, routes A, B and AB | A shadow map for a directional light, uniform or perspective-warped. A: the PVR draws a silhouette. B: the SH-4 draws depth. AB: the PVR draws depth as a colour code, PVR-DMA copies it back. | Headers host tested; town demo on a console (one view) | [PSM routes](psm-routes.md) |
-| Bump compare chain | Use the PVR's bump unit as a per-pixel subtract, to compare depth on the PVR | c1, c3b run; c4 built, not run | [Bump compare chain](bump-compare-chain.md) |
+| Bump compare chain | Use the PVR's bump unit as a per-pixel subtract, to compare depth on the PVR | c1, c3b, c4 run (one console) | [Bump compare chain](bump-compare-chain.md) |
 | Cached sun visibility | One byte of sun visibility per static vertex, baked at load and re-sliced as the sun moves | Design document only | [The thesis](thesis.md) |
 
 ## Prior art, in safe words

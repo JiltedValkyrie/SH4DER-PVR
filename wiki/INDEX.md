@@ -64,9 +64,9 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 
 - [hardware/README.md](hardware/README.md) | The hardware ledger | hardware, ledger | 2026-11-25 | where each hardware fact is kept, how to read a ledger row, and how to add one after a console run.
 - [hardware/ledger-aica.md](hardware/ledger-aica.md) | Ledger: AICA sound chip and its ARM7DI | hardware, ledger, aica | 2026-11-25 | what is known about the sound chip's processor and memory, for anyone who wants to run their own code on it or use its RAM. IDs AICA-001 to AICA-025 (22 rows).
-- [hardware/ledger-bus-dma.md](hardware/ledger-bus-dma.md) | Ledger: buses, DMA and the TA send | hardware, ledger, bus, dma | 2026-11-25 | how fast data moves between main RAM, video memory, the tile accelerator and sound RAM, and how much of the SH-4 each route leaves free. IDs BUS-001 to BUS-050 (30 rows).
-- [hardware/ledger-pvr.md](hardware/ledger-pvr.md) | Ledger: PowerVR2 (PVR) | hardware, ledger, pvr | 2026-11-25 | what the graphics chip costs to fill, which per-pixel tricks work on a real console, and where Sega's documents and the console disagree. IDs PVR-001 to PVR-094 (51 rows).
-- [hardware/ledger-sh4.md](hardware/ledger-sh4.md) | Ledger: SH-4 processor | hardware, ledger, sh4 | 2026-11-25 | what our console runs measured about the SH-4's cache, transforms and copies, and which earlier numbers were withdrawn. IDs SH4-001 to SH4-044 (32 rows).
+- [hardware/ledger-bus-dma.md](hardware/ledger-bus-dma.md) | Ledger: buses, DMA and the TA send | hardware, ledger, bus, dma | 2026-11-25 | how fast data moves between main RAM, video memory, the tile accelerator and sound RAM, and how much of the SH-4 each route leaves free. IDs BUS-001 to BUS-051 (31 rows).
+- [hardware/ledger-pvr.md](hardware/ledger-pvr.md) | Ledger: PowerVR2 (PVR) | hardware, ledger, pvr | 2026-11-25 | what the graphics chip costs to fill, which per-pixel tricks work on a real console, and where Sega's documents and the console disagree. IDs PVR-001 to PVR-101 (60 rows).
+- [hardware/ledger-sh4.md](hardware/ledger-sh4.md) | Ledger: SH-4 processor | hardware, ledger, sh4 | 2026-11-25 | what our console runs measured about the SH-4's cache, transforms and copies, and which earlier numbers were withdrawn. IDs SH4-001 to SH4-046 (34 rows).
 - [hardware/ledger-video.md](hardware/ledger-video.md) | Ledger: video memory and the frame | hardware, ledger, video | 2026-11-25 | how much video memory a frame and its targets take, and what reading the frame back costs. IDs VID-001 to VID-013 (13 rows).
 
 ## limits
@@ -85,7 +85,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 ## research
 
 - [research/README.md](research/README.md) | Research notes | research | 2026-11-25 | what each research note in `demo/psm/` is for and what it settled, so you can find the right one.
-- [research/depth-fog-ideas.md](research/depth-fog-ideas.md) | Depth fog and glow ideas | research, pvr, fog, depth | 2026-11-25 | which film and TV fog and light effects depend on depth, what the PVR's own table fog already gives, and whether fog could fill the space between c4's depth bands more cheaply than the shadow mask. IDs PVR-002 to PVR-092 (5 rows).
+- [research/depth-fog-ideas.md](research/depth-fog-ideas.md) | Depth fog and glow ideas | research, pvr, fog, depth | 2026-11-25 | which film and TV fog and light effects depend on depth, what the PVR's own table fog already gives, and whether fog could fill the space between c4's depth bands more cheaply than the shadow mask. IDs PVR-002 to PVR-100 (6 rows).
 - [research/depth-shading-ideas.md](research/depth-shading-ideas.md) | Depth shading ideas: material inputs on the PVR | research, pvr, shading, depth | 2026-11-25 | how the inputs of a modern material map onto what the PVR already does, where a depth compare on the PVR could fill a gap, and which ideas are worth a spike. IDs PVR-028 to PVR-044 (2 rows).
 - [research/outside-sources.md](research/outside-sources.md) | Outside sources (skmp's repositories) | research, license, pvr | 2026-11-25 | what the three outside repositories in `third_party/skmp` are, what we may do with them, and how their results are tagged here.
 

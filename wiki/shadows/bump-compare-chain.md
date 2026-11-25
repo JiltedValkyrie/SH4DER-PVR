@@ -20,7 +20,7 @@ Saturating adds, an invert and doublings in a mask target (`compare/NOTES.md:15-
 - The compare works: 254 of 256 rows found, one clean edge a row. But every edge is **one level off** (PVR-040). The doublings lose a difference of exactly 1 (PVR-041).
 - It needs about 11 translucent layers: at 320 × 240, about 0.77 ms each (PVR-004).
 - A PVR-drawn 565 map gives only about 6 bits (PVR-042).
-- Punch-through as the threshold drew every pixel (explained later: PVR-061).
+- Punch-through as the threshold drew every pixel. c4 found the cause: the blend was ONE/ZERO, which writes failing pixels too (PVR-061).
 - A palette as the threshold is one value a scene (PVR-043).
 - A modifier volume was exact and its cost did not show (PVR-044).
 
@@ -40,32 +40,89 @@ Saturating adds, an invert and doublings in a mask target (`compare/NOTES.md:15-
 
 skmp's PowerVR2 model gives the bump unit's exact form, the punch-through rule, the fog index and the blend rounding (REPORTED, their console; `demo/psm/POLLY2_NOTES.md`). Six of seven c3b levels match it. The +1 of c1 is predicted by its blend rule. See [outside sources](../research/outside-sources.md). No table of theirs is copied.
 
-## c4: the whole chain (pages 6 and 7 run)
+## c4: the whole chain (MEASURED, one console, two runs)
 
-Program `demo/psm/compare/c4_spike.c`; image `demo/psm/out/cdi/psm-c4-c4.cdi`; design in `compare/NOTES.md:180-246`:
+Program `demo/psm/compare/c4_spike.c`; image `demo/psm/out/cdi/psm-c4-c4.cdi`; design in `compare/NOTES.md:180-244`:
 
 1. The PVR draws the map through a depth-lookup ramp into a 128 × 128 target.
-2. A 320 × 240 mask pass uses the map as a bump texture. Receiver faces are cut into bands of equal depth; bias 1.5 codes; the 1555 threshold makes the mask bit.
+2. A 320 × 240 mask pass uses the map as a bump texture. Receiver faces are cut into bands of equal depth; bias b0 + half a band + half a map texel of slope, b0 1.5; the 1555 threshold makes the mask bit.
 3. A screen layer applies the mask.
 
-**Status:** pages 6 and 7 have run on one console (2026-11-25, three photos, `logs/benchmarks/c4e/PXL_20261125_074541020.jpg`, `074645426`, `074650392`). Pages 0 to 5 have no photo with text, so the chain's correctness on the console is still unwritten. The host model gave acne 0 in all six cases (ESTIMATE).
+**Status:** run twice on one console, 2026-11-25. First run: the live view and the tile stage (`logs/benchmarks/c4e/`, write-up `compare/NOTES.md:246-284`). Second run: all six result pages, tests 0 to 7 (`logs/benchmarks/c4_c4/`, write-up `compare/NOTES.md:286-381`). The pages are numbered 1 to 6; page 1 opens with test 0, so nothing is missing.
 
-What the console showed (MEASURED, one run):
+**What works (MEASURED, one run each):**
+
+- The lookup by depth: each map pixel gets its own depth code, never more than 1 code off; 8 sub-steps cut the wrong pixels from 2,303 to 348 of 16,384 (PVR-095).
+- A second pass at equal depth with "equal or nearer" leaves 0 holes (PVR-097).
+- The console's map equals the host model's to within 1 code (98.4 % and 99.0 % of pixels equal, PVR-099).
+- Rim 0 with the faces grown 0.75 texel (PVR-099).
+
+**What the model got wrong (MEASURED):**
+
+- **The bump level is not the cosine table** the Q values were made from: 784 / 443 / 240 of 40,960 pairs disagree at window 16 / 32 / 64 (PVR-096). That is the acne: 2,687 and 2,502 pixels at b0 1.5 in the two scenes, where the model said 0 (PVR-099).
+- **Bias:** on the ground alone at one sun, b0 3 gives 0 acne with bands 1 and 4 wide; 1.5 gives 2,774 and 1,364. b0 acts in whole codes (PVR-098). Bands 2, walls and other suns are untested; the owner used 5.25 and 8.0 in the live view (Q57).
+- Edge (false shadow from a nearer face): 971 and 1,906 pixels against the model's 634 and 1,716.
+
+The planned cure: measure each window's two edges at boot from strips of known codes and make Q from them, not from the cosine (Q56). A larger b0 hides the error at the price of shadow that starts further from its caster.
+
+**Costs by band width** (sun 150°/26°, MEASURED; PVR-100, SH4-045):
+
+| Bands | Vertices | SH-4 fit | SH-4 cut | SH-4 send (mask) | PVR map | PVR mask |
+|---|---|---|---|---|---|---|
+| 1 code wide (616) | 2,464 | 54 us | 2,483 us | 820 us | 3,312 us | 9,054 us |
+| 2 wide (322) | 1,288 | 53 us | 1,332 us | 440 us | 3,311 us | 6,132 us |
+| 4 wide (173) | 692 | 53 us | 744 us | 251 us | 3,311 us | 5,015 us |
+
+Screen pass: 3,161 us for the scene alone, 9,646 us with the shadow layer.
+
+The projection's c4 cycle counts (132.5 against 138.8 a vertex) are a cache-placing case, its two arrays exactly 256 KB apart; they are not the routine's cost (SH4-046; the routine is SH4-023).
+
+**Live view** (MEASURED, one run each):
 
 | View | Vertices | SH-4 (fit, cut, faces + project) | PVR map | PVR mask | PVR screen | Frame |
 |---|---|---|---|---|---|---|
-| Sun 150°/26°, b0 × 100 = 175, bands 2 wide | 1,288 | 1,404 + 857 us | 3,314 us | 6,137 us | 9,941 us | 39,933 us |
-| Sun 91°/34°, b0 × 100 = 525, bands 1 wide | 2,192 | 2,272 + 1,459 us | 3,236 us | 10,171 us | 9,947 us | 49,929 us |
+| Sun 150°/26°, b0 1.75, bands 2 wide | 1,288 | 1,404 + 857 us | 3,314 us | 6,137 us | 9,941 us | 39,933 us |
+| Sun 91°/34°, b0 5.25, bands 1 wide | 2,192 | 2,272 + 1,459 us | 3,236 us | 10,171 us | 9,947 us | 49,929 us |
+| Sun 182°/26°, b0 8.0, bands 4 wide | 676 | 811 + 422 us | 3,301 us | 4,792 us | 9,951 us | 39,929 us |
 
-- **The PVR side of the chain is about 19-23 ms**; the map is the cheapest part. The mask grows with band count.
-- **The frame is 18.3 and 22.8 ms above the listed parts.** The page says the frame "waits for the picture's turn". The rest is OPEN (PVR-094).
+- **The frame is set by waiting, not by work:** 39.9, 39.9 and 49.9 ms for 19.3, 21.7 and 27.1 ms of work. Why the frame is one of two values 10.0 ms apart is OPEN (PVR-094, Q53).
 - **Tile stage:** rendering only the tiles a target covers took the map from 3,312 to 375 us, and the mask from 6,130 to 3,760 us, with the picture unchanged (PVR-092). That points at the old 3.2 ms target floor (PVR-004).
-- PVR-DMA of 512 KB by its interrupt: 14,510 us, 36.1 MB/s (BUS-050).
 
-Before the console run, the design was: Checked against skmp's rules and found consistent (`POLLY2_NOTES.md`, "Spike c4 checked"). Two risks from that check:
+**Punch-through** (c4 test 6, MEASURED, one run): KallistiOS's header thresholds at alpha ≥ reference; ONE/ZERO writes every pixel (c3b's failure); the tested alpha is texture × vertex (PVR-060, PVR-061, PVR-064). A bump polygon in the punch-through list is thresholded on its level: 10,200 of 20,480 drawn against the cosine table's 10,320 (PVR-065). So a mask could be made with no 1555 target. Not built (ESTIMATE).
 
-- Their level windows are 1-3 codes narrower at window 32.
+PVR-DMA: 36.1 to 37.8 MB/s at 128 KB and 512 KB (BUS-050, BUS-051).
+
+Before the console run, the design was checked against skmp's rules (`POLLY2_NOTES.md`, "Spike c4 checked"). Two risks from that check:
+
+- Their level windows are 1-3 codes narrower at window 32. The console agrees in size (PVR-096).
 - A band with three equal corners can fill whole tile rows (PVR-082).
+
+## Idea: a cached static map plus small mover maps (T4, ESTIMATE / OPEN)
+
+The owner's idea, not built. Everything here is ESTIMATE or OPEN.
+
+With a sun that does not move:
+
+- **Static casters:** draw their sun map once and keep it. Bake static-on-static shadows at load into vertex colours or a lightmap.
+- **Movers:** each frame, give the movers their own small map, cut to the tiles they cover. Measured tile cuts: the map pass in 375 us with 20 tiles against 3.3 ms whole; the mask pass in 3.76 ms with 80 tiles against 6.13 ms (PVR-092).
+- **A pixel is in shadow where either map says so.**
+
+The four cases:
+
+| Caster on receiver | How |
+|---|---|
+| static on static | Baked at load. |
+| static on mover | The mover's bands cut each frame, compared against the cached static map. |
+| mover on static | The static receivers' bands cut once at load, compared against the mover map each frame. |
+| mover on mover, and self | The mover map against the mover's own bands, each frame. |
+
+The catches:
+
+- **The PVR's depth buffer cannot be preloaded from a cached map** (it stays on chip per tile, PVR-083). So the static casters cannot simply be merged into one map with the movers without drawing them again. Two maps mean two compares.
+- **Each extra pass adds waits.** The c4 frame is 40 ms for 19-22 ms of measured work (PVR-094).
+- **The break-even number of movers is unknown.**
+
+**Test that would settle it:** after c4b works (Q56) and the wait test is done (Q53), time one static map plus one mover map against the single full map, by `pvr_get_stats` and the frame time.
 
 ### c4 live-view pictures
 
@@ -79,10 +136,11 @@ Which c4 page or setting each photo shows is not recorded, so these photos are *
 
 ## Open
 
-- c4 pages 0 to 5 on a console, written up page by page (Q7).
-- The c4 frame gap (PVR-094, Q53).
+- c4b: the window edges measured at boot, Q made from them (Q56); the bias at more suns, bands 2 and walls (Q57).
+- The c4 frame time (PVR-094, Q53).
 - Tile lists cut to a target in the library's own passes (Q54).
-- PVR-061: rerun c3b test 5b with SRC_ALPHA / INV_SRC_ALPHA.
+- A cached static map plus mover maps (T4).
+- Punch-through: blended with alpha 0 or not drawn; the texture × vertex rounding; the depth mode with an occluder (Q16, Q21).
 - PVR-046: why equal depths are undecided.
 - c3b's level 28 where the rules say 32 (`POLLY2_NOTES.md:276`).
 - c2 (modifier volumes at town scale): built, not run.

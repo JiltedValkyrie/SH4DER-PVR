@@ -37,7 +37,7 @@ Do not draw the sun's shadow again every frame. Most of a scene does not move, a
 | P4 | The interval variant matches a fresh ray cast | host, then console | none |
 | P5 | It agrees with route B's `lit_plane` | host | none |
 | P6 | A step-texture overlay draws an edge at half lit | console | none |
-| P7 | Punch-through does not threshold vertex alpha | console | **supported** by spike c1 (and explained by PVR-061) |
+| P7 | Punch-through does not threshold vertex alpha | console | **overturned** by spike c4 test 6 (one run): vertex alpha 128 drew 2,048 of 32,768, so the tested alpha is texture × vertex (PVR-064). c1's "every pixel drawn" was the ONE/ZERO blend (PVR-061), not a sign about vertex alpha |
 | P8 | Culling unseen groups saves time in proportion to their share | host, console | none |
 | P9 | Proxies for 8 people and 4 hens cost less than one slice | bench | none |
 | P10 | The frame model explains the town HUD's frame rate | console | none |
@@ -46,6 +46,7 @@ Do not draw the sun's shadow again every frame. Most of a scene does not move, a
 
 - Line 498 says chip bench h1 "has not run". It has, and h2 too ([SH-4 ledger](../hardware/ledger-sh4.md)). Their cache numbers bear on P1, P2 and P9.
 - F20 and F21 say c3 and c2 are "built, not run". c3b has run ([bump compare chain](bump-compare-chain.md)); c2 has not.
+- P7 named the run that would overturn it, and c4 test 6 did (PVR-064). The thesis text still says "supported".
 - Its town figure (25 fps, 28,699 TA vertices) has no filed photo (errata O5). The filed photos are in [scenes](../limits/scenes.md).
 
 ## Its own warnings (lines 517-533)

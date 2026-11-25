@@ -21,10 +21,11 @@ Each item names the page it comes from. When a test settles one, move the answer
 | Q4 | How far must casters and draw distance be cut for 30 fps in the town? | Sweep CASTERS and DRAW DISTANCE; log SH-4, PVR, fps | [recommended limits](limits/recommended-limits.md) |
 | Q5 | The PVR render time of a caster pass into a render target | `pvr_get_stats` around a caster-only target pass, at 128 and 256 | [PSM routes](shadows/psm-routes.md) |
 | Q6 | Route B split: raster time against compare time | Cycle counter around each, town view | [PSM routes](shadows/psm-routes.md) |
-| Q7 | Spike c4 pages 0 to 5 on a console (pages 6 and 7 are in: PVR-090 to PVR-094, BUS-050) | Run `psm-c4-c4.cdi`, photograph each page | [bump compare chain](shadows/bump-compare-chain.md) |
-| Q8 | The ten c4e picture-only photos: which page and settings each shows | Rerun with the page name on screen | [bump compare chain](shadows/bump-compare-chain.md) |
+| Q8 | The c4 picture-only photos (ten in `c4e`, `070703610` to `071118010`; five in `c4_c4`, `082228971` to `082329488`): which settings each shows. `compare/NOTES.md:256-261` describes six of the `c4e` ones as seen | Rerun with the settings on screen | [bump compare chain](shadows/bump-compare-chain.md) |
 | Q9 | Warp mesh: why it loses by store-queue runs (973 against 914 ns a vertex) when the pixelate pass gains (241 against 366). The source now defaults the mesh to `pvr_prim` | Vary the block size and alignment in bench h2's test 7 | BUS-004, [warp](effects/warp.md) |
-| Q53 | c4 live view: the frame is 18.3 ms and 22.8 ms above its listed parts ("it waits for the picture's turn") | Log `pvr_get_stats` and each wait apart | PVR-094 |
+| Q53 | c4 live view: the frame is 39.9 or 49.9 ms, two values 10.0 ms apart, for 19.3 to 27.1 ms of work ("it waits for the picture's turn"); a 10 ms wake clock is a guess | Count the pictures (vblanks) in each frame and time each wait apart | PVR-094 |
+| Q56 | c4b: the bump window's real edges, and which side of the cosine they move (PVR-096); a Q made from them should end the acne | Measure each window's two edges at boot from strips of known codes, make Q from them, rerun tests 3 and 4 | PVR-096, PVR-099 |
+| Q57 | c4 bias: b0 3 gave 0 acne on the ground at one sun with bands 1 and 4 wide; bands 2, walls and other suns are untested, and the owner went to 5.25 and 8.0 in the live view | c4b test 3 at several suns, bands 1, 2, 4, with a wall | PVR-098 |
 | Q54 | Use a tile list cut to a target's covered tiles in the library's target passes (saves 2.9 ms on a 128 × 128 map in c4) | Build it into a target pass and time it | PVR-092, PVR-093 |
 | Q55 | Town TOWN-001 (a3 HUD): the photo's file name | Owner gives it; until then it is MEASURED by relay | errata O5 |
 | Q10 | Town TA line: why KOS's "last frame" reads 56 K to 966 K for the same view | Log `pvr_get_stats` beside the estimate each frame | VID-011 |
@@ -38,12 +39,12 @@ Each item names the page it comes from. When a test settles one, move the answer
 | Q13 | Translucent sorting off against on | Bench line | PVR-012 |
 | Q14 | Why 16-bit ramp codes from 32,768 are one under | Sweep codes 16,384-32,768 finely | PVR-024 |
 | Q15 | Why equal depths (M = Q) are undecided in the bump compare | Texel choice test at M = Q | PVR-046 |
-| Q16 | Punch-through with SRC_ALPHA blend thresholds as skmp says | Rerun c3b test 5b with SRC_ALPHA / INV_SRC_ALPHA | PVR-061 |
+| Q16 | Answered in part (c4 test 6, one run): KallistiOS's header (SRC_ALPHA / INV_SRC_ALPHA) thresholds at ≥ reference; ONE/ZERO writes every pixel; the tested alpha is texture × vertex (PVR-060, PVR-061, PVR-064). Still open: whether a failing pixel is blended with alpha 0 or not drawn; how texture × vertex rounds; a second run | A ONE / ONE punch-through pass; a vertex-alpha sweep around the reference | PVR-061, PVR-064 |
 | Q17 | c3b's level 28 where the outside rule gives 32 | Bump levels at a = 101, 102 | bump compare chain |
 | Q18 | A 129-row target: is one extra row enough? | s3's held-pixel test at 129 | PVR-021 |
 | Q19 | Modifier volumes at town scale (spike c2) | Run `psm-vol-c2.cdi` | bump compare chain |
 | Q20 | A Gouraud base under a bump polygon | Console test | errata E4 |
-| Q21 | Punch-through depth mode | Console test | errata E2 |
+| Q21 | Punch-through depth mode. Answered in part (c4 test 6, one run): depth write off and depth ALWAYS drew the same as KallistiOS's header on an empty screen, so skmp's "does nothing" is not contradicted. Still open: "ignored" against "harmless here"; a second run | The punch-through quad behind an opaque quad with depth ALWAYS | PVR-062, errata E2 |
 
 ## 3. SH-4, buses and DMA
 
@@ -82,9 +83,10 @@ Each item names the page it comes from. When a test settles one, move the answer
 
 | # | Item | Tag | Status |
 |---|---|---|---|
-| T1 | Soft shadows: several offset compares of the c4 mask, averaged. | SHELVED | The owner stopped it: each mask pass measured 6.1-10.2 ms (PVR-090, PVR-091), so several are too dear. Reopen if a cut tile list brings a mask pass under about 2 ms (PVR-092 measured 3.76 ms for 80 tiles), or if one pass can give a soft edge. |
+| T1 | Soft shadows: several offset compares of the c4 mask, averaged. | SHELVED | The owner stopped it: each mask pass measured 6.1-10.2 ms (PVR-090, PVR-091), so several are too dear. Reopen if a cut tile list brings a mask pass under about 2 ms (PVR-092 measured 3.76 ms for 80 tiles; the cheapest whole-list mask so far is 4.79-5.02 ms with bands 4 wide, PVR-100, PVR-101), or if one pass can give a soft edge. |
 | T2 | Material functions on the PVR: depth tests from popular engine material functions (outlines, cel, depth fade, soft intersections, contact edges, shells, rim, darkening, dither, depth colour) mapped to PVR mechanisms, with costs from the ledger. | RESEARCH TASK | Draft written, awaiting review: [depth shading ideas](research/depth-shading-ideas.md). Every idea is ESTIMATE or OPEN; first test is a camera-view depth map. |
 | T3 | Depth fog and glow: film and TV effects that use depth fog or light; can fog fill the space between c4's bands, and is it cheaper than the mask pass? | RESEARCH TASK | Draft written, awaiting review: [depth fog ideas](research/depth-fog-ideas.md). Answer: fog on surfaces reuses the mask; fog in the air adds about one mask pass per 8 slices (ESTIMATE). |
+| T4 | Static sun: cache the static casters' map and bake static-on-static at load; give movers their own small map each frame, cut to their tiles; shadow where either map says so. | TODO | ESTIMATE / OPEN; written up in [bump compare chain](shadows/bump-compare-chain.md#idea-a-cached-static-map-plus-small-mover-maps-t4-estimate--open). Catches: the depth buffer cannot be preloaded (PVR-083), extra passes add waits (PVR-094), the break-even in movers is unknown. Test: after c4b works (Q56) and the wait test (Q53), time one static map plus one mover map against the single full map. |
 
 ## 7. From the effect pages
 

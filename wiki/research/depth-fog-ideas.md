@@ -90,6 +90,7 @@ First, what the bands are. c4's bands lie **on the receiving surfaces** (ground 
 |---|---|---|
 | c4 mask pass, bands 2 wide, 1,288 vertices | 6,137 us | PVR-090 |
 | c4 mask pass, bands 1 wide, 2,192 vertices | 10,171 us | PVR-091 |
+| c4 mask pass, bands 4 wide, 692 vertices | 5,015 us | PVR-100 |
 | Mask pass, whole tile list vs cut to its 80 tiles | 6,130 vs 3,760 us | PVR-092 |
 | Map pass, whole list vs cut to its 20 tiles | 3,312 vs 375 us | PVR-092 |
 | Full-screen translucent layer, 640 × 480 | about 3,112 us | PVR-002 |
@@ -101,7 +102,7 @@ First, what the bands are. c4's bands lie **on the receiving surfaces** (ground 
 - **(a2) is not cheaper than the mask; it adds to it.**
   - At 320 × 240 each slice is at least a translucent layer, about 0.77 ms (PVR-004). Eight slices add about 6.2 ms of fill.
   - The slices also add band vertices.
-  - That puts eight slices at about the cost of one more mask pass (6.1-10.2 ms, PVR-090, PVR-091).
+  - That puts eight slices at about the cost of one more mask pass (4.8-10.2 ms, PVR-090, PVR-091, PVR-100, PVR-101).
   - Cutting the tile list (PVR-092, PVR-093) lowers the floor, not the per-slice fill.
 - **If shafts are the goal and shadow accuracy is not**, the radial-copy method (F3, already in `sh4der_glow.h`) needs no mask and no depth. It should be tried and timed before (a2).
 
