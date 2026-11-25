@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">Console result page: cost against n</title>
+<desc id="dsc">A mockup of a 640 x 480 console screen with no data: a header, a chart of cost against n with square points, a fit line and a dashed prediction outline, a table of n and cycles beside it, the fit constants and a reference check below, and a footer with legend slots and a CRC. Numbered notes on the right explain each part.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="700" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">A console result page: cost against n, with a fit</text>
+<rect x="30" y="48" width="1140" height="30" rx="4" fill="#fbf1e2" stroke="#a86a00"/>
+<text x="42" y="68" class="b"><tspan class="k e">MOCKUP, NO DATA.</tspan> A layout for a page like P1 (cycles a ray against cells walked). Points, line and #### are placeholders, not results.</text>
+<text x="30" y="100" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<text x="30" y="134" class="s">The screen at 1:1, 640 x 480; one character of the console font is 12 x 24 px.</text>
+<rect x="18" y="138" width="664" height="504" rx="14" fill="#2a2d33"/>
+<rect x="30" y="150" width="640" height="480" fill="#000"/>
+<rect x="62" y="174" width="576" height="432" fill="none" stroke="#5a5a5a" stroke-width="1" stroke-dasharray="6 4"/>
+<rect x="94" y="198" width="512" height="384" fill="none" stroke="#8a8a8a" stroke-width="1" stroke-dasharray="2 3"/>
+<text x="94" y="218" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">RAY1  P10/24  P1.4  CYC/RAY</text>
+<path d="M94 230 L606 230" stroke="#888" stroke-width="2"/>
+<path d="M142 462 L430 462" stroke="#888" stroke-width="2"/>
+<path d="M142 462 L142 250" stroke="#888" stroke-width="2"/>
+<text x="136" y="264" text-anchor="end" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">####</text>
+<text x="136" y="462" text-anchor="end" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">0</text>
+<path d="M142.0 462 L142.0 468" stroke="#888" stroke-width="2"/>
+<text x="142.0" y="488" text-anchor="middle" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">0</text>
+<path d="M286.0 462 L286.0 468" stroke="#888" stroke-width="2"/>
+<text x="286.0" y="488" text-anchor="middle" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">50</text>
+<path d="M430.0 462 L430.0 468" stroke="#888" stroke-width="2"/>
+<text x="430.0" y="488" text-anchor="middle" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">100</text>
+<text x="454" y="488" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">N</text>
+<polygon points="142,458 430,345 430,309" fill="none" stroke="#f0a030" stroke-width="2" stroke-dasharray="8 5"/>
+<path d="M142.0 453.52 L430.0 254.24" stroke="#fff" stroke-width="2"/>
+<rect x="140.88" y="447.5272" width="8" height="8" fill="#3cd070"/>
+<rect x="143.76" y="445.5344" width="8" height="8" fill="#3cd070"/>
+<rect x="149.51999999999998" y="441.5488" width="8" height="8" fill="#3cd070"/>
+<rect x="161.04" y="433.5776" width="8" height="8" fill="#3cd070"/>
+<rect x="172.56" y="425.6064" width="8" height="8" fill="#3cd070"/>
+<rect x="184.07999999999998" y="417.6352" width="8" height="8" fill="#3cd070"/>
+<rect x="207.12" y="401.69280000000003" width="8" height="8" fill="#3cd070"/>
+<rect x="230.16" y="385.7504" width="8" height="8" fill="#3cd070"/>
+<rect x="276.24" y="353.8656" width="8" height="8" fill="#3cd070"/>
+<rect x="322.32" y="321.98080000000004" width="8" height="8" fill="#3cd070"/>
+<rect x="414.48" y="258.21119999999996" width="8" height="8" fill="#3cd070"/>
+<text x="288.24" y="349.86560000000003" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ff5050" xml:space="preserve">!</text>
+<text x="462" y="256" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">  N    CYC</text>
+<text x="462" y="280" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">  1 ####.#</text>
+<text x="462" y="302" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">  2 ####.#</text>
+<text x="462" y="324" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">  4 ####.#</text>
+<text x="462" y="346" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">  8 ####.#</text>
+<text x="462" y="368" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve"> 12 ####.#</text>
+<text x="462" y="390" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve"> 16 ####.#</text>
+<text x="462" y="412" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve"> 24 ####.#</text>
+<text x="462" y="434" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve"> 32 ####.#</text>
+<text x="462" y="456" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve"> 48 ####.#!</text>
+<text x="462" y="478" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve"> 64 ####.#</text>
+<text x="94" y="518" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">STEP ##.##   SETUP ###.##   ROWS ##</text>
+<text x="94" y="542" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#ccc" xml:space="preserve">REF BYTES SAME    ! = CLOCKS DIFFER</text>
+<rect x="94" y="562" width="12" height="16" fill="#3cd070"/>
+<text x="110" y="578" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">MEAS</text>
+<rect x="170" y="562" width="12" height="16" fill="#f0a030"/>
+<text x="186" y="578" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">EST</text>
+<path d="M238 570 L262 570" stroke="#fff" stroke-width="2"/>
+<text x="268" y="578" text-anchor="start" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">FIT</text>
+<text x="606" y="578" text-anchor="end" style="font-family:&quot;DejaVu Sans Mono&quot;,Consolas,monospace;font-size:20px;fill:#fff" xml:space="preserve">CRC ########</text>
+<circle cx="78" cy="212" r="10" fill="#d9534f"/><text x="78" y="216" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:12px;font-weight:700;fill:#fff">1</text>
+<circle cx="78" cy="350" r="10" fill="#d9534f"/><text x="78" y="354" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:12px;font-weight:700;fill:#fff">2</text>
+<circle cx="630" cy="290" r="10" fill="#d9534f"/><text x="630" y="294" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:12px;font-weight:700;fill:#fff">3</text>
+<circle cx="78" cy="512" r="10" fill="#d9534f"/><text x="78" y="516" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:12px;font-weight:700;fill:#fff">4</text>
+<circle cx="78" cy="572" r="10" fill="#d9534f"/><text x="78" y="576" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:12px;font-weight:700;fill:#fff">5</text>
+<path d="M30 660 L60 660" stroke="#5a5a5a" stroke-dasharray="6 4"/>
+<text x="68" y="664" class="s">action-safe, 32 / 24 px in (90 %)</text>
+<path d="M330 660 L360 660" stroke="#8a8a8a" stroke-dasharray="2 3"/>
+<text x="368" y="664" class="s">title-safe, 64 / 48 px in (80 %)</text>
+<text x="30" y="684" class="s"><tspan class="k">REPORTED</tspan>: the usual SD overscan margins; every word and digit sits inside title-safe.</text>
+<text x="700" y="134" class="h">What each part is for</text>
+<circle cx="709" cy="154" r="9" fill="#d9534f"/><text x="709" y="158" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:11px;font-weight:700;fill:#fff">1</text>
+<text x="726" y="158" class="s">Header: image, page n / N, the test, the unit plotted.</text>
+<circle cx="709" cy="180" r="9" fill="#d9534f"/><text x="709" y="184" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:11px;font-weight:700;fill:#fff">2</text>
+<text x="726" y="184" class="s">Points as 8 x 8 squares, one a row (MEASURED slot); the</text>
+<text x="726" y="201" class="s">fit as a 2 px line; the prediction as a dashed outline</text>
+<text x="726" y="218" class="s">(ESTIMATE slot), never filled, so points stay visible.</text>
+<text x="726" y="235" class="s">Axis ends carry numbers, not just ticks.</text>
+<circle cx="709" cy="257" r="9" fill="#d9534f"/><text x="709" y="261" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:11px;font-weight:700;fill:#fff">3</text>
+<text x="726" y="261" class="s">The plotted values as a table, n and cycles: the photo</text>
+<text x="726" y="278" class="s">carries every exact number. 10 rows fit beside the chart;</text>
+<text x="726" y="295" class="s">a longer series goes on the next page.</text>
+<circle cx="709" cy="317" r="9" fill="#d9534f"/><text x="709" y="321" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:11px;font-weight:700;fill:#fff">4</text>
+<text x="726" y="321" class="s">Fit constants and the row count; the reference check;</text>
+<text x="726" y="338" class="s">a row whose two clocks disagree gets a ! in both places.</text>
+<circle cx="709" cy="360" r="9" fill="#d9534f"/><text x="709" y="364" text-anchor="middle" style="font-family:Verdana,Arial,sans-serif;font-size:11px;font-weight:700;fill:#fff">5</text>
+<text x="726" y="364" class="s">Legend slots and a CRC32 of the page&#39;s numbers.</text>
+<text x="700" y="400" class="h">Rules for every page</text>
+<text x="700" y="422" class="s">· Same font, margins and line widths as the bench page</text>
+<text x="710" y="439" class="s">(console-page-bench).</text>
+<text x="700" y="461" class="s">· Y scale picked per page from the largest value, printed at</text>
+<text x="710" y="478" class="s">the top of the axis; the x scale fixed per test.</text>
+<text x="700" y="500" class="s">· A line is drawn as 2 px steps between rows (no anti-</text>
+<text x="710" y="517" class="s">aliasing on the framebuffer) <tspan class="k e">[ESTIMATE]</tspan>.</text>
+<text x="700" y="539" class="s">· Fit computed on the console and printed; the photo of the</text>
+<text x="710" y="556" class="s">table lets it be redone by hand.</text>
+<text x="700" y="578" class="s">· Phone photo reads every digit at 1.5 m? <tspan class="k o">[OPEN: not tried]</tspan></text>
+</svg>

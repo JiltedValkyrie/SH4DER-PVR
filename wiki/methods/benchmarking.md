@@ -31,6 +31,27 @@ The ray bench, laid out test by test as it was planned. It ran once on 2026-11-2
 
 ![The ray bench, run on one console on 2026-11-25 (image psm-bench-ray1, one run, MEASURED; photos in bench/RAY1_RESULTS_cortana.md and _junior.md): a ray walking the 4 KB height grid costs 22.07 to 22.21 cycles a step and 70.88 to 74.09 to set up (the page's fit, P1.1 to P1.4), against the thesis ESTIMATE of 12 to 16 and about 30, so P1 is overturned; the slice of 1,024 stand-in rays costs 563.36 / 548.78 cycles a ray cold and 554.19 / 539.68 warm (14:00 / 16:00) batched, interleaving with the vertex transform adds 117 / 89 cycles a ray (DERIVED; 27.7 to 40.3 cycles a miss, SH4-047, so the miss count is an ESTIMATE), and the grid in OC-RAM makes the interleaved slice slower overall (P2); the movers' proxy pass takes 312 us, under a 2 ms slice, so P9 stands. OPEN: CLOCK.2's cycles a ns, the P1.4 n 48 ns gap, why 16:00 costs less than 14:00 with these stand-ins.](../images/ray-bench-plan.svg)
 
+## Result pages: fewer photos
+
+A bench prints its results as text pages on the console's screen, and the owner photographs each page. A 24-page run is 24 photos and more, and every number is typed in again from a photo. The owner wants smaller text and fewer photos. Designer drew three page layouts for that. They are **mockups with no data: ESTIMATE / OPEN** until a phone-photo test passes.
+
+**Today's pages (FACT, our code).** Every bench and spike draws its page at x 20, y 16, in KallistiOS's 12 × 24 font: 50 columns and 17 rows a page, a row every 24 px (`bench/bench_ray.c:58-59, 104-106`; the same in `bench_h1.c:70-72`, `bench_h2.c:95-97`, `compare/cmp_spike.c:66-68`, `sub_spike.c`, `vol_spike.c`). So the text runs from x 20 to 620 and from y 16 to 472. It starts outside title-safe (64 / 48 px in) and outside action-safe (32 / 24 px in), and it ends past both on the right and at the bottom. The two margins are the usual SD overscan margins (REPORTED, a broadcast convention). On a television that overscans, the first and last columns and the last rows can be lost, and no photo shows it.
+
+**The proposed pages:**
+
+- **A graph carries the shape; a few exact numbers carry the values.** Bars, a strip of frame times or a cost-against-n chart show steps and outliers at a glance. The figures that go into the ledger are printed as text beside the graph.
+- **A CRC32 line** over the page's numbers, so a number typed in from a photo can be checked.
+- **Everything inside title-safe**, in the same 12 × 24 font, so nothing is lost to overscan.
+- **QR codes as an extra**, never instead: a page of codes repeats a text page, with an index and a CRC32 over all of them. The module size, the version, the payload format and the encoder are OPEN.
+
+![Mockup, no data: a 640 x 480 console result page for a bench (here a frame-wait test): a header with image, page and test, a bar a pass with the render and the wait past it on one millisecond scale and the exact values beside, a strip of 60 frame times with lines at 16.7, 33.3 and 50 ms, a histogram of vblanks a frame with counts, key numbers as text, MEASURED / ESTIMATE legend slots and a CRC32 line; all inside the title-safe frame (64 / 48 px in) in the 12 x 24 console font; whether a phone photo reads every digit is OPEN.](../images/console-page-bench.svg)
+
+![Mockup, no data: a 640 x 480 console result page for a cost against n (like ray1 P1): measured points as 8 x 8 squares, the fit as a 2 px line and the prediction as a dashed outline only, the plotted values as a table beside the chart, the fit constants and the reference-bytes check as text, a ! on any row whose two clocks disagree, MEASURED / ESTIMATE legend slots and a CRC32 line; all inside the title-safe frame in the 12 x 24 console font; whether a phone photo reads every digit is OPEN.](../images/console-page-curve.svg)
+
+![Mockup, no data: a 640 x 480 console result page of QR codes: a header with image, page and part of the set, six codes dark on a white panel (drawn as version 3, 29 x 29 modules at 4 px, each with a 4-module quiet zone), a text index of which code holds which bytes, the version, error correction and byte counts, and a CRC32 over all payloads in order; the codes are placeholder patterns, the module size, version, payload format and encoder are OPEN, and the page is an extra beside the text page it repeats.](../images/console-page-qr.svg)
+
+**The test that would settle the layouts:** draw one page of each kind with known numbers on the console. Photograph each with the phone as the owner does today, on the owner's television. Then check three things: every digit reads; the CRC32 of the typed-in numbers matches the screen's; and a phone app decodes every QR code. Until then, a layout is not a rule.
+
 ## Traps that have given wrong numbers here
 
 1. **Two buffers a multiple of 16 KB apart.** The SH-4's data cache is 16 KB and direct-mapped. h1's source and destination were exactly 1 MB apart, so every line fought for the same cache entry. Its memcpy and transform lines measured the placing, not the routines. h2 moved the destination 8 KB off: memcpy of 4 KB in the cache went from 46.6 to 398.0 MB/s, and `mat_transform` from 38.67 to 13.16 cycles a vertex (MEASURED, one console, 2026-11-25; NOTES.md h1 correction and h2). Put copy and transform buffers half a cache apart, or at an offset that shares no entry.
