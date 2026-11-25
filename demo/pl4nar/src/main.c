@@ -10,6 +10,7 @@
 #include <dc/maple/controller.h>
 #include <dc/pvr.h>
 #include "demo.h"
+#include "controls.h"
 #include "gfx.h"
 #include "gfx_pvr.h"
 #include "version.h"
@@ -39,11 +40,12 @@ static uint32_t ram_free_kb(void) {
     return (uint32_t)(((uint32_t)mi.fordblks + (heap_top > heap_end ? heap_top - heap_end : 0u)) / 1024u);
 }
 
-/* The pad, the live view's keys; the autorun reads the same keys (its driver keeps the gas, the brake and the wheel). */
+/* The pad, the live view's keys (controls.h, the one table); the autorun reads the same keys (its driver keeps the
+   gas, the brake and the wheel). */
 static void read_pad(demo_input_t *in, uint32_t *held) {
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
-    uint32_t now = 0u;
+    uint32_t pad = 0u;
     memset(in, 0, sizeof *in);
     if (!st) { *held = 0u; return; }
     in->steer = (float)st->joyx * (1.0f / 127.0f);
@@ -58,16 +60,20 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
         in->steer = 0.0f;
         in->split_l = st->ltrig > 128; in->split_r = st->rtrig > 128; in->gas = in->brake = 0.0f;
     }
-    if (st->buttons & CONT_X)         now |= (st->buttons & CONT_B) ? DEMO_BTN_SPLIT : DEMO_BTN_REFLECT;
-    if (st->buttons & CONT_Y)         now |= (st->buttons & CONT_B) ? DEMO_BTN_TILES : DEMO_BTN_TOD;
-    if (st->buttons & CONT_A)         now |= (st->buttons & CONT_B) ? DEMO_BTN_SIZE : DEMO_BTN_LOOK;
-    if (st->buttons & CONT_DPAD_UP)   now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_UP : DEMO_BTN_MORE;
-    if (st->buttons & CONT_DPAD_DOWN) now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_DN : DEMO_BTN_LESS;
-    if ((st->buttons & CONT_DPAD_LEFT) && (st->buttons & CONT_B)) now |= DEMO_BTN_AO;
-    if ((st->buttons & CONT_DPAD_RIGHT) && (st->buttons & CONT_B)) now |= DEMO_BTN_SUN;
-    if (st->buttons & CONT_START)     now |= (st->buttons & CONT_B) ? DEMO_BTN_FX : DEMO_BTN_INFO;
-    in->pressed = now & ~*held;
-    *held = now;
+    if (st->buttons & CONT_A) pad |= CTL_A;
+    if (st->buttons & CONT_B) pad |= CTL_B;
+    if (st->buttons & CONT_X) pad |= CTL_X;
+    if (st->buttons & CONT_Y) pad |= CTL_Y;
+    if (st->buttons & CONT_START) pad |= CTL_START;
+    if (st->buttons & CONT_DPAD_UP) pad |= CTL_UP;
+    if (st->buttons & CONT_DPAD_DOWN) pad |= CTL_DOWN;
+    if (st->buttons & CONT_DPAD_LEFT) pad |= CTL_LEFT;
+    if (st->buttons & CONT_DPAD_RIGHT) pad |= CTL_RIGHT;
+    {
+        const uint32_t now = ctl_map(pad);
+        in->pressed = now & ~*held;
+        *held = now;
+    }
 }
 
 #ifdef PL4NAR_AUTORUN
@@ -202,7 +208,8 @@ static void report(void) {
     }
 #endif
     pg_say("TA bytes include headers; PVR = rnd_last_time of the scene");
-    pg_say("keys as live; B+stick, B+LT/RT free; any other key: TOUCHED");
+    pg_say("keys act as live but steer, gas, brake (the driver's); B+stick,");
+    pg_say("B+LT/RT change no work; any other key: TOUCHED. No key ends it");
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
     pg_say("effect labels OFF in every stage (fill); hills on, no split");

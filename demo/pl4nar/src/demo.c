@@ -8,6 +8,7 @@
 #include "demo.h"
 #include "gfx.h"
 #include "hud.h"
+#include "controls.h"
 #include "assets.h"
 #include "assets_gen.h"
 #include "sh4der_pl4nar.h"
@@ -1848,8 +1849,10 @@ static void overlay(const demo_stats_t *st) {
         snprintf(t, sizeof t, "%s  TIME %s  SUN %s  clock %u.%02u  lamps %u%%  night gain %u.%02u", s_low ? "LOOK 64x64 16col" : "LOOK full", s_tod_name[s_tod_mode], s_sun_name[s_sun_mode],
                  (unsigned)s_tod, (unsigned)(s_tod * 100.0f) % 100u, (unsigned)(s_lamp * 100.0f), (unsigned)s_lamp_gain, (unsigned)(s_lamp_gain * 100.0f + 0.5f) % 100u);
         hud_text(24.0f, y, 1.0f, 0xffffe0a0u, t); y += 16.0f;
-        hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "RT gas  LT brake  stick steer  B+stick camera  B+UP/DOWN night gain"); y += 16.0f;
-        hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "X reflect  Y time  B+RIGHT sun  A look  B+A size  UP / DOWN F0  START info");
+        {   /* the keys, from controls.h: what read_pad does, no other text */
+            unsigned from = 0u;
+            while (ctl_hud_line(t, 76u, &from)) { hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, t); y += 16.0f; }
+        }
         if (s_reflect) {                                  /* the target itself, top centre: what the mirrored camera sees */
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS

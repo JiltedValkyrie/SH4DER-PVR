@@ -4,12 +4,12 @@
 #include <stdint.h>
 
 enum {
-    DEMO_BTN_REFLECT = 1u << 0,    /* reflection on / off (the A / B switch) */
+    DEMO_BTN_REFLECT = 1u << 0,    /* reflection on / off (X; the keys of every action: controls.h) */
     DEMO_BTN_SIZE    = 1u << 1,    /* next reflection target size */
     DEMO_BTN_MORE    = 1u << 2,    /* F0 up */
     DEMO_BTN_LESS    = 1u << 3,    /* F0 down */
     DEMO_BTN_INFO    = 1u << 4,    /* debug overlay + target thumbnail on / off */
-    DEMO_BTN_AUTO    = 1u << 5,    /* slow camera orbit on / off */
+    DEMO_BTN_AUTO    = 1u << 5,    /* slow camera orbit on / off: no key (the autorun's orbit stages set it, demo_auto_set) */
     DEMO_BTN_TOD     = 1u << 6,    /* time of day: AUTO -> DAY -> NIGHT -> PAUSE */
     DEMO_BTN_LAMP_UP = 1u << 7,    /* night gain of the reflection up */
     DEMO_BTN_LAMP_DN = 1u << 8,    /* and down */

@@ -53,7 +53,32 @@ To put these effects into another engine, follow `AGENT_WORKFLOW.md`. See `CREDI
 
 ## Controls
 
-Stick or D-pad left / right: steer. **Right trigger** engine, **left trigger** brake (then reverse). **X** reflection on / off. **Y** time of day: AUTO (a 45 second day) / DAY / NIGHT / PAUSE. **A** the look: low (64 x 64, 16 colours) or full. **B** + **A** target size (256 x 128, 128 x 64, 512 x 256). D-pad up / down: F0, the reflection's strength. **B** held: the stick turns the camera round the car, D-pad up / down sets the reflection's night gain. **START**: the overlay (frames a second, the PVR's time, the lookup's time, triangles, memory) and the target as a thumbnail, turned right side up.
+The table is `src/controls.h`, the table the pad is read through and the HUD's key lines come from; `python tools/check_controls.py` fails when this one differs from it. Builds: street (`--street`), map (the default), hills (the map built with `PL4NAR_HILLS`).
+
+| Keys | Action | Builds |
+|---|---|---|
+| **stick or D-pad left / right** | steer | all |
+| **RT** | engine | all |
+| **LT** | brake, then reverse | all |
+| **X** | reflection on / off | all |
+| **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | all |
+| **A** | textures: low (64 x 64, 16 colours, the start) or full | all |
+| **D-pad up** | F0 (the reflection's strength) up | all |
+| **D-pad down** | F0 down | all |
+| **START** | the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills | all |
+| **B + stick** | the camera round the car | all |
+| **B + LT / RT** | move the split's divider (with the split on) | all |
+| **B + X** | the split: the reflection on the left of a divider only | all |
+| **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | all |
+| **B + D-pad up** | the reflection's night gain up | all |
+| **B + D-pad down** | the night gain down | all |
+| **B + D-pad right** | the sun: FIXED, SWEEP (to DAY unless NIGHT), HOLD | all |
+| **B + D-pad left** | baked occlusion on / off | map, hills |
+| **B + Y** | car shadow tiles on / off (off: blob discs) | map |
+| **B + Y** | car shadow: on the ground mesh, one flat quad, off (blob discs) in turn | hills |
+| **B + START** | the effect labels shown / hidden | map, hills |
+
+In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick and B + LT / RT change no work and mark nothing). No key ends the autorun. The tile cut and the small tile set have no key: they are autorun stages only.
 
 ## Cost
 
