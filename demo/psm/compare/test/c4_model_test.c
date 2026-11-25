@@ -9,10 +9,12 @@
 
      - the tables: every level is the cosine in real arithmetic rounded to a byte, every threshold its whole part
      - the window: lit exactly while the map's code is inside it, for every pair of codes
-     - the bands: they tile each face (areas add up), every corner's code is inside its band, and a corner two bands
-       share has the same bits in both (no crack between them)
+     - the bands: they tile each face (areas add up), every corner's code is inside its band, a corner two bands
+       share is the same point in both (no crack between them), and no triangle of a band's strip has three equal
+       corners, in the world or on the mask's screen
      - the camera's matrix: a point through it lands on the pixel whose ray found it
-     - the chain against a ray to the sun, for every pixel of the 320 x 240 mask, at three suns and three band widths:
+     - the chain against a ray to the sun, for every pixel of the 320 x 240 mask, at five suns (two of them 3 degrees
+       off a box's faces, where the first console run showed the most errors) and three band widths:
          acne     the chain says shadow, the ray says lit, and the map pixel read holds the pixel's OWN face
          edge     the same, but the map pixel holds another face nearer the light: the map's pixel edge
          rim      the same, but the map pixel holds a face far BEHIND (its centre is off the edge of the pixel's
@@ -20,7 +22,11 @@
          in bias  the chain says lit, the ray says shadow, and the caster is nearer than bias + 2 codes
          other    the same, farther: the map's pixel edge, or the wrap
          wrap     shadowed pixels whose caster is so much nearer the light that the cyclic compare reads lit
-       acne must be 0 with the bias rule as it stands. The faces are grown in the map pass by 0 and by 0.75 pixel.
+         steep    pixels of faces too steep to the light to compare (drawn lit): how many, and how many of them a ray
+                  says are in shadow
+       acne must be 0 with the bias rule as it stands, and rim must be 0 where the faces are grown. The faces are
+       grown in the map pass by 0 and by 0.75 pixel.
+     - the same two counts at every sun: azimuth 0 to 357 by 3 degrees at elevations 13, 26.5 and 45
 */
 
 #include <math.h>
@@ -49,7 +55,7 @@ static void window(void) {
         c4_set_t st;
         unsigned lit = 0;
 
-        c4_set_init(&st, ws[i], 0u, 1.5f, 0.0f);
+        c4_set_init(&st, ws[i], 0u, C4_B0, 0.0f);
         for (r = 0; r < 256u; r++) {
             const unsigned q = c4_q((float)r, st.w, 2.0f);
 
@@ -82,10 +88,32 @@ static float area(const c4_corner_t *p, unsigned n) {
     return 0.5f * sqrtf(c4_dot(a, a));
 }
 
-static void bands(const c4_light_t *L, unsigned gs) {
-    c4_face_t f[C4_FACES];
-    unsigned i, k, j, nb = 0, nc = 0, lit_faces = 0, shared = 0, cracked = 0;
+/* 1 when the three corners are one point: the same place in the world, or the same pixel position through m. */
+static int equal3(const c4_corner_t *a, const c4_corner_t *b, const c4_corner_t *c, const float m[16]) {
+    const c4_corner_t *v[3] = { a, b, c };
+    float sx[3], sy[3];
+    unsigned k;
 
+    if (a->p[0] == b->p[0] && a->p[1] == b->p[1] && a->p[2] == b->p[2] && a->p[0] == c->p[0] && a->p[1] == c->p[1] && a->p[2] == c->p[2]) return 1;
+    for (k = 0; k < 3u; k++) {
+        const float *p = v[k]->p, w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15];
+
+        sx[k] = (m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12]) / w;
+        sy[k] = (m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13]) / w;
+    }
+    return sx[0] == sx[1] && sx[0] == sx[2] && sy[0] == sy[1] && sy[0] == sy[2];
+}
+
+/* The bands of every face that is compared. quiet: no line printed. Returns the triangles with three equal corners. */
+static unsigned bands(const c4_light_t *L, const c4_set_t *st, int quiet) {
+    const unsigned gs = st->gs;
+    c4_face_t f[C4_FACES];
+    c4_cam_t cam;
+    float cm[16];
+    unsigned i, k, j, nb = 0, nc = 0, lit_faces = 0, shared = 0, cracked = 0, equal = 0;
+
+    c4_camera(&cam, C4_MASK_W, C4_MASK_H);
+    c4_cam_matrix(&cam, cm);
     c4_faces(f, 0.0f);
     for (i = 0; i < C4_FACES; i++) {
         c4_corner_t face[4], out[C4_BAND_MAX], before[C4_BAND_MAX];
@@ -93,7 +121,7 @@ static void bands(const c4_light_t *L, unsigned gs) {
         unsigned nbefore = 0;
         int b;
 
-        if (c4_dot(f[i].n, L->s) <= C4_FACING) continue;
+        if (c4_face_kind(L, f[i].n, st) != C4_FACE_COMPARE) continue;
         lit_faces++;
         c4_face_corners(L, &f[i], face, inv);
         for (k = 0; k < 4u; k++) { if (face[k].m[2] < lo) lo = face[k].m[2]; if (face[k].m[2] > hi) hi = face[k].m[2]; }
@@ -106,7 +134,7 @@ static void bands(const c4_light_t *L, unsigned gs) {
 
                 if (before[k].m[2] != edge) continue;
                 shared++;
-                for (j = 0; j < n; j++) found |= !memcmp(&before[k], &out[j], sizeof out[j]);
+                for (j = 0; j < n; j++) found |= !memcmp(before[k].p, out[j].p, sizeof out[j].p);
                 cracked += !found && n != 0u;
             }
             nbefore = n; memcpy(before, out, sizeof before);
@@ -114,13 +142,22 @@ static void bands(const c4_light_t *L, unsigned gs) {
             nb++; nc += n;
             sum += area(out, n);
             for (k = 0; k < n; k++) CHECK(out[k].m[2] >= edge - 0.001f && out[k].m[2] <= edge + (float)(1 << gs) + 0.001f);
+            for (k = 0; k + 2u < n; k++) {                       /* the strip's triangles, in the order the spike sends the corners */
+                const c4_corner_t *t[3];
+
+                for (j = 0; j < 3u; j++) { const unsigned q = k + j; t[j] = &out[(q & 1u) ? (q + 1u) / 2u : q ? n - q / 2u : 0u]; }
+                equal += (unsigned)equal3(t[0], t[1], t[2], cm);
+            }
         }
         CHECK(fabsf(sum - area(face, 4u)) < 1e-2f * area(face, 4u) + 1e-3f);
     }
-    printf("    bands %u codes wide: %u faces toward the sun cut into %u bands, %u corners; %u corners shared by two bands, %u not the same bits\n",
-           1u << gs, lit_faces, nb, nc, shared, cracked);
+    if (!quiet)
+        printf("    bands %u codes wide: %u faces compared, cut into %u bands, %u corners; %u corners shared by two bands, %u not the same point; %u triangles of three equal corners\n",
+               1u << gs, lit_faces, nb, nc, shared, cracked, equal);
     CHECK(cracked == 0);
-    CHECK(shared > nb / 2u);
+    CHECK(equal == 0);
+    if (!quiet) CHECK(shared > nb / 2u);
+    return equal;
 }
 
 static void camera(const c4_light_t *L) {
@@ -132,7 +169,7 @@ static void camera(const c4_light_t *L) {
 
     c4_camera(&cam, C4_MASK_W, C4_MASK_H);
     c4_cam_matrix(&cam, m);
-    c4_set_init(&st, 32u, 1u, 1.5f, 0.0f);
+    c4_set_init(&st, 32u, 1u, C4_B0, 0.0f);
     memset(map, 255, sizeof map);
     for (y = 3; y < C4_MASK_H; y += 7u) {
         for (x = 2; x < C4_MASK_W; x += 9u) {
@@ -157,46 +194,101 @@ static void camera(const c4_light_t *L) {
     (void)L;
 }
 
-static void chain(float az, float el, unsigned w, float grow) {
+typedef struct tally {
+    unsigned lit, sh, acne, edge, rim, inbias, other, wrap, steep, steep_sh;
+} tally_t;
+
+/* Every pixel of the mask through the model, for the light and the settings given. */
+static void tally(const c4_light_t *L, const c4_set_t *st, tally_t *t) {
     static uint8_t map[C4_MAP * C4_MAP], ids[C4_MAP * C4_MAP];
-    c4_light_t L;
+    static const float up[3] = { 0.0f, 1.0f, 0.0f };
+    const float b = c4_bias(L, up, st->b0, st->gs);                /* the ground's, as the yardstick */
     c4_cam_t cam;
-    unsigned gs, x, y;
+    unsigned x, y;
+
+    memset(t, 0, sizeof *t);
+    c4_camera(&cam, C4_MASK_W, C4_MASK_H);
+    c4_model_map(L, st, map, ids);
+    for (y = 0; y < C4_MASK_H; y++) {
+        for (x = 0; x < C4_MASK_W; x++) {
+            c4_pixel_t px;
+            const int m = c4_model_pixel(L, &cam, map, st, x, y, &px);
+
+            if (m == C4_SKY) continue;
+            if (px.kind == C4_FACE_STEEP) { t->steep++; t->steep_sh += px.truth == C4_SHADOW; }
+            if (px.truth == C4_LIT) {
+                t->lit++;
+                if (m == C4_SHADOW && px.kind == C4_FACE_COMPARE) { if (ids[px.my * C4_MAP + px.mx] == px.face) t->acne++; else if (px.sep > 0.0f) t->edge++; else t->rim++; }
+            } else {
+                t->sh++;
+                if (m == C4_LIT && px.kind == C4_FACE_COMPARE) { if (px.sep < b + 2.0f) t->inbias++; else t->other++; }
+                if (px.sep > 256.0f - 2.0f * (float)st->w + b) t->wrap++;
+            }
+        }
+    }
+}
+
+static void chain(float az, float el, unsigned w, float grow) {
+    static const float up[3] = { 0.0f, 1.0f, 0.0f };
+    c4_light_t L;
+    unsigned gs;
 
     c4_light_fit(&L, az, el);
-    c4_camera(&cam, C4_MASK_W, C4_MASK_H);
-    c4_model_map(&L, grow, map, ids);
     printf("  MODEL sun azimuth %.0f elevation %.1f, window %u, faces grown %.2f: a code is %.1f cm of depth, a map pixel %.1f x %.1f cm\n", (double)az, (double)el, w, (double)grow,
            100.0 / (double)L.sd, 100.0 * (double)L.iu, 100.0 * (double)L.iv);
     for (gs = 0; gs < 3u; gs++) {
-        static const float up[3] = { 0.0f, 1.0f, 0.0f };
-        unsigned lit = 0, sh = 0, acne = 0, edge = 0, rim = 0, inbias = 0, other = 0, wrap = 0;
         c4_set_t st;
+        tally_t t;
 
-        c4_set_init(&st, w, gs, 1.5f, grow);
-        bands(&L, gs);
-        for (y = 0; y < C4_MASK_H; y++) {
-            for (x = 0; x < C4_MASK_W; x++) {
-                c4_pixel_t px;
-                const int m = c4_model_pixel(&L, &cam, map, &st, x, y, &px);
-                const float b = c4_bias(&L, up, st.b0, st.gs);   /* the ground's, as the yardstick */
-
-                if (m == C4_SKY) continue;
-                if (px.truth == C4_LIT) {
-                    lit++;
-                    if (m == C4_SHADOW) { if (ids[px.my * C4_MAP + px.mx] == px.face) acne++; else if (px.sep > 0.0f) edge++; else rim++; }
-                } else {
-                    sh++;
-                    if (m == C4_LIT) { if (px.sep < b + 2.0f) inbias++; else other++; }
-                    if (px.sep > 256.0f - 2.0f * (float)w + b) wrap++;
-                }
-            }
-        }
-        printf("      ground bias %.1f codes; pixels lit %u, shadow %u; acne %u, edge %u, rim %u; lit in error: in bias %u, other %u; wrap %u\n",
-               (double)c4_bias(&L, up, st.b0, st.gs), lit, sh, acne, edge, rim, inbias, other, wrap);
-        CHECK(acne == 0);
-        CHECK(lit > 10000u && sh > 500u);
+        c4_set_init(&st, w, gs, C4_B0, grow);
+        bands(&L, &st, 0);
+        tally(&L, &st, &t);
+        printf("      ground bias %.1f codes; pixels lit %u, shadow %u; acne %u, edge %u, rim %u; lit in error: in bias %u, other %u; wrap %u; steep %u (%u of them in shadow)\n",
+               (double)c4_bias(&L, up, st.b0, st.gs), t.lit, t.sh, t.acne, t.edge, t.rim, t.inbias, t.other, t.wrap, t.steep, t.steep_sh);
+        CHECK(t.acne == 0);
+        if (grow > 0.5f) CHECK(t.rim == 0);
+        CHECK(t.lit > 10000u && t.sh > 500u);
     }
+}
+
+/* The face kinds: the ground is compared at every sun the spike allows; a wall 3 degrees off the sun is steep; a
+   wall turned from it is away. And the two counts that must be 0, at every sun. */
+static void kinds(void) {
+    static const float up[3] = { 0.0f, 1.0f, 0.0f }, front[3] = { 0.0f, 0.0f, -1.0f }, right[3] = { 1.0f, 0.0f, 0.0f }, left[3] = { -1.0f, 0.0f, 0.0f };
+    static const float els[3] = { 13.0f, 26.5f, 45.0f };
+    unsigned e, a, worst_edge = 0, worst_steep = 0, worst_steep_sh = 0, acne = 0, rim = 0, equal = 0, suns = 0;
+    c4_light_t L;
+    c4_set_t st;
+
+    c4_set_init(&st, 32u, 1u, C4_B0, 0.75f);
+    for (e = 0; e < 2u; e++) {
+        c4_light_fit(&L, 93.0f, e ? 80.0f : 8.0f);
+        CHECK(c4_face_kind(&L, up, &st) == C4_FACE_COMPARE);
+    }
+    c4_light_fit(&L, 93.0f, 26.5f);
+    CHECK(c4_face_kind(&L, front, &st) == C4_FACE_STEEP);
+    CHECK(c4_face_kind(&L, right, &st) == C4_FACE_COMPARE);
+    CHECK(c4_face_kind(&L, left, &st) == C4_FACE_AWAY);
+    CHECK(c4_bias(&L, front, st.b0, st.gs) > (float)st.w - C4_FIT);
+    for (e = 0; e < 3u; e++) {
+        for (a = 0; a < 360u; a += 3u, suns++) {
+            unsigned gs;
+            tally_t t;
+
+            c4_light_fit(&L, (float)a, els[e]);
+            for (gs = 0; gs < 3u; gs++) { c4_set_t sb; c4_set_init(&sb, 32u, gs, C4_B0, 0.75f); equal += bands(&L, &sb, 1); }
+            tally(&L, &st, &t);
+            acne += t.acne; rim += t.rim;
+            if (t.edge > worst_edge) worst_edge = t.edge;
+            if (t.steep > worst_steep) worst_steep = t.steep;
+            if (t.steep_sh > worst_steep_sh) worst_steep_sh = t.steep_sh;
+        }
+    }
+    printf("  MODEL %u suns (azimuth by 3 degrees, elevations 13, 26.5, 45), window 32, bands 2 wide, grown 0.75: acne %u, rim %u in all;\n"
+           "      the worst sun: edge %u; steep faces %u pixels, %u of them in shadow; triangles of three equal corners %u\n", suns, acne, rim, worst_edge, worst_steep, worst_steep_sh, equal);
+    CHECK(acne == 0);
+    CHECK(rim == 0);
+    CHECK(equal == 0);
 }
 
 int main(void) {
@@ -210,9 +302,12 @@ int main(void) {
     chain(150.0f, 26.5f, 32u, 0.75f);
     chain(150.0f, 26.5f, 64u, 0.75f);
     chain(210.0f, 45.0f, 32u, 0.75f);
+    chain(177.0f, 26.5f, 32u, 0.75f);
+    chain(93.0f, 26.5f, 32u, 0.75f);
     chain(100.0f, 13.0f, 32u, 0.0f);
     chain(100.0f, 13.0f, 32u, 0.75f);
     chain(100.0f, 13.0f, 64u, 0.75f);
+    kinds();
     printf(fails ? "c4_model_test: %d FAILED\n" : "c4_model_test: ok\n", fails);
     return fails != 0;
 }

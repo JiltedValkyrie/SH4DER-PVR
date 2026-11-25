@@ -392,14 +392,14 @@ static int map_end(void) {
 }
 
 /* The scene's map: every face toward the sun, grown. Faces [first, last). */
-static int map_scene(const c4_light_t *L, float grow, unsigned first, unsigned last) {
+static int map_scene(const c4_light_t *L, const c4_set_t *st, unsigned first, unsigned last) {
     c4_face_t f[C4_FACES];
     float q[4][3];
     unsigned i;
 
     c4_faces(f, C4_SKIRT);
     map_begin();
-    for (i = first; i < last; i++) if (c4_map_quad(L, &f[i], grow, q)) map_quad(q);
+    for (i = first; i < last; i++) if (c4_map_quad(L, &f[i], st, q)) map_quad(q);
     return map_end();
 }
 
@@ -418,6 +418,7 @@ static int map_synthetic(void) {
 
 #define KQ(q) ((C4_K1 << 24) | (C4_K3 << 8) | ((q) & 255u))      /* K1, K2 = 0, K3, Q */
 #define K_SHADOW (255u << 24)                                    /* K1 = 255, K3 = 0: the level is 255 whatever the map holds */
+#define K_LIT 0u                                                 /* K1 = 0, K3 = 0: the level is 0 whatever the map holds */
 
 /* A convex polygon as one strip: corners 0, 1, n - 1, 2, n - 2 .. */
 static void band_strip(const c4_corner_t *c, unsigned n, uint32_t oargb) {
@@ -448,8 +449,13 @@ static void bands_build(const c4_light_t *L, const c4_set_t *st, unsigned first,
         float inv[4], lo, hi, bias;
         int b, b1;
 
+        const int kind = c4_face_kind(L, f[i].n, st);
+
         c4_face_corners(L, &f[i], face, inv);
-        if (c4_dot(f[i].n, L->s) <= C4_FACING) { band_strip(face, 4u, K_SHADOW); continue; }
+        if (kind != C4_FACE_COMPARE) {     /* no compare: one polygon, shadow or lit whatever the map holds */
+            band_strip(face, 4u, kind == C4_FACE_AWAY || st->steep_shadow ? K_SHADOW : K_LIT);
+            continue;
+        }
         lo = hi = face[0].m[2];
         for (k = 1; k < 4u; k++) { if (face[k].m[2] < lo) lo = face[k].m[2]; if (face[k].m[2] > hi) hi = face[k].m[2]; }
         bias = c4_bias(L, f[i].n, st->b0, st->gs);
@@ -656,7 +662,8 @@ static void t_bias(void) {
     say("3 BIAS ground alone: every shadow px is acne");
     c4_light_fit(&L, 150.0f, 26.5f);
     step("3 map");
-    if (!map_scene(&L, 0.75f, 0u, 1u)) { say("3 map: NO RENDER END"); return; }
+    c4_set_init(&st, 32u, 0u, C4_B0, 0.75f);
+    if (!map_scene(&L, &st, 0u, 1u)) { say("3 map: NO RENDER END"); return; }
     for (gs = 0; gs < 3u; gs += 2u) {
         for (k = 0; k < 6u; k++) {
             step("3 bias");
@@ -683,12 +690,12 @@ static void t_scene_at(float az, float el, unsigned w, unsigned gs) {
     float ground_bias;
 
     c4_light_fit(&L, az, el);
-    c4_set_init(&st, w, gs, 1.5f, 0.75f);
+    c4_set_init(&st, w, gs, C4_B0, 0.75f);
     ground_bias = c4_bias(&L, up, st.b0, st.gs);
     say("4 SCENE sun %u/%u w %u bands %u wide grow .75", (unsigned)az, (unsigned)el, w, 1u << gs);
     step("4 map");
-    if (!map_scene(&L, st.grow, 0u, C4_FACES)) { say("4 map: NO RENDER END"); return; }
-    c4_model_map(&L, st.grow, model_map, model_ids);
+    if (!map_scene(&L, &st, 0u, C4_FACES)) { say("4 map: NO RENDER END"); return; }
+    c4_model_map(&L, &st, model_map, model_ids);
     for (i = 0; i < C4_MAP * C4_MAP; i++) {
         const int d = (int)map_px[i] - (int)model_map[i];
 
@@ -765,7 +772,7 @@ static void t_cost(void) {
         int same;
 
         step("5 cost");
-        c4_set_init(&st, 32u, gs, 1.5f, 0.75f);
+        c4_set_init(&st, 32u, gs, C4_B0, 0.75f);
         for (r = 0; r < REPEAT; r++) {
             t0 = ns(); c4_light_fit(&L, 150.0f, 26.5f); fit += ns() - t0;
             t0 = ns(); bands_build(&L, &st, 0u, C4_FACES); cut += ns() - t0;
@@ -774,7 +781,7 @@ static void t_cost(void) {
             c0 = cyc(); shz_dce_pvr_project_c(bref, bsrc, nbv); projc += cyc() - c0;
         }
         same = !memcmp(bscr, bref, nbv * sizeof bscr[0]);
-        if (!map_scene(&L, st.grow, 0u, C4_FACES)) { say("5 map: NO RENDER END"); return; }
+        if (!map_scene(&L, &st, 0u, C4_FACES)) { say("5 map: NO RENDER END"); return; }
         map_us = us_of(last_render_ns);
         if (!mask_pass(bscr, nbv, st.thr)) { say("5 mask: NO RENDER END"); return; }
         mask_us = us_of(last_render_ns);
@@ -948,7 +955,7 @@ static void run(void) {
 /* ---- the live view ---------------------------------------------------------------------------------------- */
 
 static void live(void) {
-    float az = 150.0f, el = 26.5f, b0 = 1.5f;
+    float az = 150.0f, el = 26.5f, b0 = C4_B0;
     unsigned gs = 1u, over = 1u, held = ~0u, frames = 0;
     uint64_t cut = 0, proj = 0, pm = 0, pk = 0, ps = 0, frame = 0, t0, tf;
     c4_light_t L;
@@ -984,7 +991,7 @@ static void live(void) {
         bands_build(&L, &st, 0u, C4_FACES);
         faces_build(&L);
         cut = ns() - t0;
-        if (!map_scene(&L, st.grow, 0u, C4_FACES)) { say("live: map NO RENDER END"); break; }
+        if (!map_scene(&L, &st, 0u, C4_FACES)) { say("live: map NO RENDER END"); break; }
         pm = last_render_ns;
         t0 = ns();
         bands_project();
@@ -1087,14 +1094,14 @@ static void tiles(void) {
     say("TILES a tile list that ends after the target's tiles");
     if (!start()) return;
     c4_light_fit(&L, 150.0f, 26.5f);
-    c4_set_init(&st, 32u, 1u, 1.5f, 0.75f);
+    c4_set_init(&st, 32u, 1u, C4_B0, 0.75f);
     bands_build(&L, &st, 0u, C4_FACES);
     bands_project();
     for (tm_n = 0, r = 0; r < 4u; r++) {   /* find the tables: KallistiOS alternates two */
         uint32_t a;
 
         step("tiles find");
-        if (!map_scene(&L, st.grow, 0u, C4_FACES)) { say("TILES: NO RENDER END before any write"); stop("tiles end"); return; }
+        if (!map_scene(&L, &st, 0u, C4_FACES)) { say("TILES: NO RENDER END before any write"); stop("tiles end"); return; }
         a = PVR_GET(PVR_ISP_TILEMAT_ADDR) & 0x00fffffcu;
         for (k = 0; k < tm_n; k++) if (tm_addr[k] == a) break;
         if (k == tm_n && tm_n < 2u) tm_addr[tm_n++] = a;
@@ -1107,7 +1114,7 @@ static void tiles(void) {
     for (r = 0; r < 3u && !bad; r++) {     /* 0 the whole list, 1 the short list, 2 the whole list again */
         step(r == 1u ? "tiles short" : "tiles whole");
         if (r == 1u) tm_short(4u, 5u);     /* 128 x 130 pixels */
-        k = (unsigned)map_scene(&L, st.grow, 0u, C4_FACES);
+        k = (unsigned)map_scene(&L, &st, 0u, C4_FACES);
         if (r == 1u) bad = tm_restore();
         if (!k) { say("TILES map run %u: NO RENDER END; words not restored %u", r, bad); break; }
         us[0][r] = us_of(last_render_ns); sum[0][r] = sum16(map_ram, C4_MAP * C4_MAP);

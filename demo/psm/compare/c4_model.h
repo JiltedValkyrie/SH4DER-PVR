@@ -19,9 +19,18 @@
             circle. The target write keeps one bit: alpha >= threshold = shadow.
      BANDS  Q is one value a polygon, so a receiver is cut along lines of equal depth into bands 1, 2, 4 .. codes
             wide; each band has one R.
-     BIAS   b = b0 + half a band + what half a map texel is worth in depth on that surface, in codes.
+     BIAS   b = b0 + half a band + what a whole map texel is worth in depth on that surface, in codes.
+     STEEP  a face toward the sun whose bias does not fit the window (it is nearly edge-on to the light) takes no
+            part in the compare: it is drawn lit, or as shadow if the settings say so, and the map pass draws it as
+            it is, not grown (grown in its own plane it hangs out past its box as a sliver nearer the light than
+            its neighbours).
 
    The compare is cyclic: a caster more than 256 - 2 w + b codes nearer the light than the receiver reads lit again.
+
+   After the first console run (image c4, live view, read from photos): the chain works; at b0 1.5 with half a
+   texel in the bias the ground was covered in a grid of false shadow dots, and with the sun square to the boxes thin
+   false shadows ran from the faces nearly edge-on to it. The second is this model's own (the growing); the first
+   needs about two codes of error this model does not have. Hence the whole texel, C4_B0 and STEEP.
 
    Maths: every root, reciprocal, sine, dot and cross goes through sh4der_core.h's helpers: SH4ZAM on the Dreamcast,
    plain C with SH4DER_CORE_NO_SH4ZAM (the host test). No libm call and no divide instruction is written here.
@@ -46,6 +55,9 @@
 #define C4_K1 128u                         /* the bump unit's constant and its gain: level = K1 + K3 cos */
 #define C4_K3 127u
 #define C4_FACING 0.02f                    /* a face whose normal . sun is not over this is drawn as shadow, with no compare */
+#define C4_B0 3.0f                         /* the constant part of the bias the spike starts with, codes */
+#define C4_FIT 4.0f                        /* a bias is used only while it is this many codes under the window's half-width */
+#define C4_SNAP 1e-3f                      /* a band's level this near a face corner's code passes through the corner, codes */
 
 /* A house, a wall with an eave over it, a hen, a post. Metres: lo then hi. */
 static const float c4_box[C4_BOXES][6] = {
@@ -189,11 +201,13 @@ typedef struct c4_set {
     float b0;                              /* the constant part of the bias, codes */
     float grow;                            /* map pixels each face is made larger by in the map pass */
     unsigned thr;                          /* the write threshold for w */
+    int steep_shadow;                      /* a face too steep to the light to compare: 0 drawn lit, 1 drawn as shadow */
 } c4_set_t;
 
 static inline void c4_set_init(c4_set_t *st, unsigned w, unsigned gs, float b0, float grow) {
     st->w = w > 128u ? 128u : w; st->gs = gs; st->b0 = b0; st->grow = grow;
     st->thr = c4_threshold[st->w];
+    st->steep_shadow = 0;
 }
 
 /* The Q byte of a receiver whose depth code is r, for a window of half-width w that starts b codes under r. */
@@ -211,13 +225,27 @@ static inline int c4_band(float code, unsigned gs) {
 
 static inline float c4_band_code(int band, unsigned gs) { return (float)(band * (1 << gs)) + 0.5f * (float)((1 << gs) - 1); }
 
-/* The bias for a face of normal n, codes: b0, half a band, and half a map texel's worth of depth on that face. */
+/* The bias for a face of normal n, codes: b0, half a band, and a whole map texel's worth of depth on that face (half
+   a texel is what a lookup at the texel's centre needs; the other half is for a lookup that lands half a texel from
+   where this file puts it, which the first console run could not rule out). */
 static inline float c4_bias(const c4_light_t *L, const float n[3], float b0, unsigned gs) {
     const float nd = c4_dot(n, L->ld), flat = b0 + 0.5f * (float)(1 << gs);
 
     if (nd > -1e-4f) return flat;                                /* edge-on or facing away: the caller treats it as shadow */
     /* metres of depth across one texel, as codes */
-    return flat + 0.5f * (sh4der_abs_(c4_dot(n, L->lx)) * L->iu + sh4der_abs_(c4_dot(n, L->ly)) * L->iv) * sh4der_recip_pos_(-nd) * L->sd;
+    return flat + (sh4der_abs_(c4_dot(n, L->lx)) * L->iu + sh4der_abs_(c4_dot(n, L->ly)) * L->iv) * sh4der_recip_pos_(-nd) * L->sd;
+}
+
+/* What the chain does with a face of normal n.
+     AWAY     turned from the sun or edge-on to it: drawn as shadow with no compare, not in the map.
+     STEEP    toward the sun, but its depth changes so much across one map texel that its bias does not fit the
+              window: no compare (drawn lit, or as shadow if st->steep_shadow); in the map as it is, not grown.
+     COMPARE  the rest: in the map, grown; cut into bands and compared. */
+enum { C4_FACE_COMPARE = 0, C4_FACE_AWAY = 1, C4_FACE_STEEP = 2 };
+
+static inline int c4_face_kind(const c4_light_t *L, const float n[3], const c4_set_t *st) {
+    if (c4_dot(n, L->s) <= C4_FACING) return C4_FACE_AWAY;
+    return c4_bias(L, n, st->b0, st->gs) > (float)st->w - C4_FIT ? C4_FACE_STEEP : C4_FACE_COMPARE;
 }
 
 /* One corner of a polygon being cut: where it is, and where that is in the map (pixel x, y and the depth code). */
@@ -251,10 +279,14 @@ static inline void c4_cross_edge(const c4_corner_t *a, const c4_corner_t *b, flo
 }
 
 /* The part of a face (c4_face_corners) that lies in band `band`: its corners in order round it. Returns how many,
-   0 if the band misses the face. */
+   0 if the band misses the face. A level within C4_SNAP codes of a face's corner is taken to pass through it, and no
+   two corners next to each other are the same point. Without that a level that passes a corner within rounding
+   leaves a band of three points a fraction of a micrometre apart, which land on one screen position: a triangle of
+   three equal corners, which the PVR is reported to fill whole rows of a tile for (skmp's polly2-rtl notes; not seen
+   here). It is not rare: the light's fit puts the ground's nearest corner 7.5 codes in, on a level, at most suns. */
 static inline unsigned c4_band_poly(const c4_corner_t face[4], const float inv[4], int band, unsigned gs, c4_corner_t *out) {
     const float lo = (float)(band * (1 << gs)) - 0.5f, hi = lo + (float)(1 << gs);
-    unsigned i, k, m = 0;
+    unsigned i, k, m = 0, n = 0;
 
     for (i = 0; i < 4u; i++) {
         const c4_corner_t *a = &face[i], *b = &face[(i + 1u) & 3u];
@@ -265,10 +297,15 @@ static inline unsigned c4_band_poly(const c4_corner_t face[4], const float inv[4
         for (k = 0; k < 2u; k++) {
             const float v = level[k];
 
-            if (((ca < v && v < cb) || (cb < v && v < ca)) && m < C4_BAND_MAX) c4_cross_edge(a, b, inv[i], v, &out[m++]);
+            if (!((ca < v && v < cb) || (cb < v && v < ca)) || m >= C4_BAND_MAX) continue;
+            if (sh4der_abs_(v - ca) < C4_SNAP) out[m++] = *a;    /* the level passes through a corner: the corner itself, in every band */
+            else if (sh4der_abs_(v - cb) < C4_SNAP) out[m++] = *b;
+            else c4_cross_edge(a, b, inv[i], v, &out[m++]);
         }
     }
-    return m >= 3u ? m : 0u;
+    for (i = 0; i < m; i++) if (!n || memcmp(out[i].p, out[n - 1u].p, sizeof out[i].p)) out[n++] = out[i];
+    while (n > 1u && !memcmp(out[n - 1u].p, out[0].p, sizeof out[0].p)) n--;
+    return n >= 3u ? n : 0u;
 }
 
 /* ---- the camera ---------------------------------------------------------------------- */
@@ -373,14 +410,16 @@ static inline int c4_truth(const c4_light_t *L, const float p[3], const float n[
     return 0;
 }
 
-/* A face as the map pass draws it: its four corners in the map (x, y in pixels, the depth code), the face made
-   `grow` pixels larger all round in its own plane. 0 when the face is turned from the light or nearly edge-on to it
-   (it is then not drawn). */
-static inline int c4_map_quad(const c4_light_t *L, const c4_face_t *f, float grow, float out[4][3]) {
+/* A face as the map pass draws it: its four corners in the map (x, y in pixels, the depth code). A face that is
+   compared is made st->grow pixels larger all round in its own plane; a STEEP face is drawn as it is. 0 when the face
+   is turned from the light or edge-on to it, or has no area in the map (it is then not drawn). */
+static inline int c4_map_quad(const c4_light_t *L, const c4_face_t *f, const c4_set_t *st, float out[4][3]) {
+    const int kind = c4_face_kind(L, f->n, st);
+    const float grow = kind == C4_FACE_COMPARE ? st->grow : 0.0f;
     float c[3], e1[3], e2[3], m[4][3], l1, l2, cr, k1, k2, icr;
     unsigned i, k;
 
-    if (c4_dot(f->n, L->s) <= C4_FACING) return 0;
+    if (kind == C4_FACE_AWAY) return 0;
     for (i = 0; i < 4u; i++) c4_to_map(L, f->p[i], m[i]);
     for (k = 0; k < 3u; k++) {
         c[k] = 0.25f * (m[0][k] + m[1][k] + m[2][k] + m[3][k]);
@@ -404,7 +443,7 @@ static inline int c4_map_quad(const c4_light_t *L, const c4_face_t *f, float gro
 /* The model of the map pass: each face that c4_map_quad gives, filled where a map pixel's centre is inside it; a
    pixel keeps the nearest face's code, rounded; 255 where there is none. `ids` (may be NULL) gets the face's index,
    C4_FACES where there is none. */
-static inline void c4_model_map(const c4_light_t *L, float grow, uint8_t *map, uint8_t *ids) {
+static inline void c4_model_map(const c4_light_t *L, const c4_set_t *st, uint8_t *map, uint8_t *ids) {
     static float best[C4_MAP * C4_MAP];
     c4_face_t f[C4_FACES];
     unsigned i, k, x, y;
@@ -414,7 +453,7 @@ static inline void c4_model_map(const c4_light_t *L, float grow, uint8_t *map, u
     for (i = 0; i < C4_FACES; i++) {
         float q[4][3], ex[3], ey[3], idet;
 
-        if (!c4_map_quad(L, &f[i], grow, q)) continue;
+        if (!c4_map_quad(L, &f[i], st, q)) continue;
         for (k = 0; k < 3u; k++) { ex[k] = q[1][k] - q[0][k]; ey[k] = q[3][k] - q[0][k]; }
         idet = sh4der_div_(1.0f, ex[0] * ey[1] - ex[1] * ey[0]);
         for (y = 0; y < C4_MAP; y++) {
@@ -442,6 +481,7 @@ enum { C4_SKY = 0, C4_LIT = 1, C4_SHADOW = 2 };
 typedef struct c4_pixel {
     int truth;                             /* what a ray to the sun says: C4_SKY, C4_LIT, C4_SHADOW */
     unsigned face;                         /* the face the camera sees there */
+    int kind;                              /* what the chain does with that face: C4_FACE_COMPARE, _AWAY, _STEEP */
     unsigned mx, my;                       /* the map pixel it reads */
     float sep;                             /* how many codes nearer the light the map's surface is than the pixel */
 } c4_pixel_t;
@@ -461,7 +501,9 @@ static inline int c4_model_pixel(const c4_light_t *L, const c4_cam_t *cam, const
     if (!c4_ray(cam->eye, d, 0.0f, &t, n, &out->face)) { out->truth = C4_SKY; return C4_SKY; }
     p[0] = cam->eye[0] + t * d[0]; p[1] = cam->eye[1] + t * d[1]; p[2] = cam->eye[2] + t * d[2];
     out->truth = c4_truth(L, p, n) ? C4_SHADOW : C4_LIT;
-    if (c4_dot(n, L->s) <= C4_FACING) return C4_SHADOW;          /* turned from the sun: drawn as shadow, no compare */
+    out->kind = c4_face_kind(L, n, st);
+    if (out->kind == C4_FACE_AWAY) return C4_SHADOW;             /* turned from the sun: drawn as shadow, no compare */
+    if (out->kind == C4_FACE_STEEP) return st->steep_shadow ? C4_SHADOW : C4_LIT;   /* nearly edge-on to it: no compare either */
     c4_to_map(L, p, m);
     mx = c4_ifloor(m[0]); my = c4_ifloor(m[1]);
     mx = mx < 0 ? 0 : mx >= (int)C4_MAP ? (int)C4_MAP - 1 : mx; my = my < 0 ? 0 : my >= (int)C4_MAP ? (int)C4_MAP - 1 : my;

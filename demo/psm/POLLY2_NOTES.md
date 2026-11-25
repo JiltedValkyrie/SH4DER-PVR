@@ -200,3 +200,122 @@ Nothing found contradicts our MEASURED results.
 - refsw3 source (`nulldc3`, public) was **not read**. Every refsw3 rule above comes through polly2's transcription.
 - Read in part only: `docs/timing.md`, `ARCHITECTURE.md`, `PLAN.md`, the RTL itself, and dreamcast-tests' test sources and `PIPELINE_SHAPE.md`.
 - Their results are from their console(s). dreamcast-tests lists "everything on more than one console" as not covered (`T:3602-3606`).
+
+## Spike c4 checked against skmp's rules (2026-11-25)
+
+**What was read.**
+
+- The local read-only copies `third_party/skmp/polly2-rtl` (`53a62f5`) and `third_party/skmp/dreamcast-tests` (`a932980`). `P` and `T` mean the same files as above.
+- `compare/c4_spike.c` and `compare/c4_model.h`, for what c4 assumes.
+- No c4 console page is in the repository, so this checks c4's **design** against the rules.
+- Senior's own diagnosis text was not seen. The five candidates are as lead stated them.
+- Nothing was copied. The level numbers below were computed here from polly's stated rule, in a scratch script outside this tree.
+
+### (a) Where a pixel samples, and map pass against mask pass
+
+- **KallistiOS writes HALF_OFFSET = 7** (FACT, `KOS/kernel/arch/dreamcast/hardware/pvr/pvr_init_shutdown.c:165`). The three bits do this:
+  - bit 0: the ISP samples coverage and depth at **pixel centres** (REPORTED, `P/isp.md:138, 651, 986-988`);
+  - bit 1: the TSP samples at pixel (x, y) **+ half a pixel** (REPORTED, `P/tsp.md:89, 439`);
+  - bit 2: half a texel is taken off, **for bilinear only** (REPORTED, `P/tsp.md:659`).
+  - dreamcast-tests `halfofs` pins all eight register values on a console (REPORTED, `T:450-465`).
+- **Point sampling.** The texel is floor(u × size), from a coordinate held in 1/256 texel and rounded toward minus infinity. There is no half-texel shift (REPORTED, `P/tsp.md:650, 659, 687`).
+- **c4 is consistent: no shift between the passes** (FACT for our code, INF for the conclusion).
+  - The map pass draws map pixel (i, j) from its centre (i + ½, j + ½).
+  - The mask pass gives each vertex u = m / 128, with m the unrounded map position (`compare/c4_spike.c:433`, `c4_model.h:142-146`).
+  - So a pixel at map position m reads texel floor(m), whose value was sampled at floor(m) + ½. The error is −½ .. +½ map pixel, **unbiased**.
+- **One known bias.** The divider gives 1/1.0 = 0.FFFF, so "a coordinate on a texel boundary shows the texel before it" (REPORTED, `P/tsp.md:498`). This is a pull of about 2⁻¹⁶ toward lower texels, at boundaries only.
+- **The screen layer** reads the mask bilinear, with the half texel taken off (bit 2). Its texel centres line up with the target's pixel centres. FACT on c4's flags, `c4_spike.c:212`.
+
+### (b) The ramp lookup with perspective (u = 1/(2z), then the code by u·z)
+
+All of these are REPORTED.
+
+- **Planes.** u enters as a plane of u/w, which is divided per pixel by the TSP's own 1/w plane (`P/tsp.md:181`).
+- **Plane values.** Both plane values come out with a **16-bit mantissa**, the lost bits dropped toward minus infinity (`P/tsp.md:472`). They sit on a per-tile grid 22 bits under the tile's largest exponent (`P/tsp.md:432`).
+- **Divider.** A 16-bit reciprocal from a table, then a product floored at 17 bits (`P/tsp.md:489-534`).
+- **Texture coordinate.** floor(q × 2^(10+8)) for 1024 texels (`P/tsp.md:650`).
+
+**What that does to c4** (INF, not measured):
+
+- u is good to a few units of 2⁻¹⁶ relative, with a small low bias. Near the light (u ≈ 1, one code a texel) that is about 0.02 to 0.05 of a texel.
+- A pixel reads the wrong code only when its true depth lies that close to a texel edge.
+- c4 puts each code at the middle of its texel (`c4_spike.c:154-155, 173`), which is the right design against this.
+- No rule found gives a **systematic** whole-code error. The model's "a quarter of the pixels near the light one code off" comes from the ramp's own quantisation; polly2's divider adds only a little to it.
+- The map's colour path is exact, so codes survive the round trip.
+  - The map pass is decal (REPLACE), point sampled, with no fog (`c4_spike.c:194-195`).
+  - 565 widens by bit replication and packs by truncation, which gives the same bits back (REPORTED, `P/tsp.md:774`, `P/tsp.md:990-1010`).
+  - Our c3b 1d MEASURED 0 wrong codes of 65,536.
+
+### (c) Bump levels near c4's operating point (K1 128, K3 127, S 0)
+
+Computed from polly2's rule and tables (REPORTED rule `P/tsp.md:846-861`, Appendix B; FACT arithmetic).
+
+- **The texel is byte 0.** R = the map code, and S = 0 for a 565 target whose high byte is 0. So K2 does nothing; c4 sets K2 to 0 anyway.
+
+| a = \|R − Q\| | 64 | 92 | 96 | 97 | 98 | 100 | 102 | 128 |
+|---|---|---|---|---|---|---|---|---|
+| polly2 | 125 | 47 | 40 | 38 | 35 | 32 | 28 | **3** |
+| c4_level (our cosine) | 128 | 47 | 38 | 36 | 34 | 30 | 26 | **1** |
+
+- **Slope at the w = 32 threshold (38).** polly2 falls about 2.5 levels a code, our cosine about 2.
+- **Lowest level.** polly2's is 3, not 1: (127 × 255) >> 8 = 126, then (126 × 255) >> 8 = 125, and 128 − 125 = 3. `c4_threshold[16] = 10` therefore sits on a flatter, higher floor.
+- **The lit window** (level under the threshold), FACT:
+
+  | Half-width w | Threshold | polly2 window | c4 model window |
+  |---|---|---|---|
+  | 16 | 10 | a = 116 .. 139 (24 codes) | 114 .. 142 (29 codes) |
+  | 32 | 38 | 98 .. 157 (60 codes) | 97 .. 159 (63 codes) |
+  | 64 | 128 | 64 .. 191 (128 codes) | 65 .. 191 (127 codes) |
+
+  So under polly2's rule the window is **1 to 3 codes narrower at w = 32** and **5 narrower at w = 16**.
+- **polly2 takes |R − Q| as plain integers, not (R − Q) mod 256.** I(a) and I(256 − a) differ by one table step, 2 to 3 levels near the threshold. For example I(97) = 38 and I(159) = 40.
+  - c4's Q = R + (w − b) + 128 wraps past 255 for large R.
+  - So one edge of the window moves by about one code depending on whether Q wrapped (INF).
+- **c3b's two odd readings.**
+  - "109 where the cosine says 116" is a = 68. polly2 gives 111, which is the console's 6-bit 108 .. 111: **explained**.
+  - "28 where the cosine says 30" is a = 100. polly2 gives 32, while the console read 28 .. 31: **not explained**. It needs a = 101 .. 102. In c3b 1b, M was one value along the row, so a texel shift cannot supply it.
+- **Our level table.** c4's table is a cosine (`c4_model.h:150-170`). polly2's tables must not be copied in (no licence). c4 page 1 measures the level against our table at the three thresholds: that is the place to replace it with our own console numbers.
+
+### (d) Nearly edge-on triangles
+
+All REPORTED.
+
+- **Coverage** (`P/isp.md:739-772, 897-931`).
+  - A pixel is drawn when its **centre** is inside all edges, with a tie zone of about 2⁻¹⁴ pixel. A tie pixel goes in on a left or top edge and out on a right or bottom edge.
+  - Rows run from min floor(y) to max floor(y + ½), with a "row 31" quirk.
+  - A sliver narrower than a pixel draws only the pixels whose centres it holds. It can have gaps, and **draw nothing** in many rows.
+  - A repeated corner or three collinear corners draw nothing.
+  - **Three equal corners fill whole 32-pixel tile rows** (`P/isp.md:772`). c4's band cutter drops polygons of fewer than 3 corners (`c4_model.h:254-270`). An all-equal band is unlikely but not excluded: a check to add.
+- **FPU_PERP_VAL**, where polly2 flattens planes when |det| ≤ this register.
+  - KallistiOS writes 0 at 0x084, which it names TEXTURE_CLIP (FACT, `pvr_init_shutdown.c:159`).
+  - With 0, only a determinant of exactly 0 is flattened (`P/isp.md:594-607`, `P/tsp.md:356-394`).
+  - Its coverage is unchanged, and a zero-area triangle draws nothing anyway.
+  - So a near-edge-on face keeps its real, very steep planes.
+- **"Equal or nearer" on the second pass.**
+  - c4 sends **the same vertex array** to the opaque depth pass and the bump pass (`c4_spike.c:487-492`).
+  - The translucent list is **pre-sorted** (`c4_spike.c:916`), so the polygon's GEQUAL is used (`P/isp.md:1407-1410`; `P/isp.md:1603-1612`).
+  - polly2's stored depth is a function of the corners and the tile only: 24-bit setup, then 19 bits stored (`P/isp.md:934-958, 1254-1368`).
+  - So both passes store the **same key**, and new ≥ old passes at every pixel the first pass kept (INF on REPORTED rules).
+  - **No holes are expected from depth.** They would come only from coverage, and coverage is the same rule on the same edges.
+  - An edge shared by two bands that leans less than a tie zone a pixel can be drawn by both (`P/isp.md:766-768`). With ONE/ZERO the later band wins those pixels: at most one band's Q, harmless.
+- **The other lists, for contrast.** Autosort would ignore the depth mode and peel above the opaque key (`P/isp.md:1614-1648`), and inside the punch-through list the mode does nothing (`P/isp.md:1394-1417`). c4 uses neither.
+
+### (e) Render targets read back as textures
+
+- **Their tests do not cover render to texture at all** (FACT, `third_party/skmp/dreamcast-tests/TODO.md:93`, "C7 … not covered"; `T:3602-3606`). Our c3b 1d is the only console evidence: a PVR-drawn target as a bump texture, 0 wrong of 65,536.
+- **Byte order.** A bump texel is the raw 16 bits, byte 0 = R and byte 1 = S (REPORTED, `P/tsp.md:781, 848-849`). So a 565 target holding code 0 .. 255 gives R = code, S = 0. That agrees with c3b 1d.
+- **Non-twiddled bump with point sampling does not hang.** The hang needs bilinear filtering (section 6 above). c4's bump read is NEAREST (`c4_spike.c:206`).
+- **Raster stride.** A raster texture is read with stride 8 << TexU texels (`P/tsp.md:709`), and a target is written at base + line × FB_W_LINESTRIDE × 8 (`P/tsp.md:983-984`).
+  - c4's 320-wide mask is read as a **512-wide** texture (`c4_spike.c:130`), and c4 already passes a stride of 512 to `pvr_scene_begin_rtt` (FACT, `c4_spike.c:258`). The map passes 128 (`c4_spike.c:257`).
+  - KallistiOS documents that argument as the "backing texture pitch (in pixels)" (`KOS/include/dc/pvr.h:922-931`).
+  - So the stride matches, if KallistiOS writes it to FB_W_LINESTRIDE as documented. That was not checked in its source.
+
+### Summary
+
+| Candidate (as lead gave it) | skmp's rule | Verdict |
+|---|---|---|
+| Half-texel shift between map and mask | HALF_OFFSET 7 under KallistiOS: centres for coverage and shading, no shift with point sampling; c4's u = m/128 | **Killed** (error ±½ map pixel, unbiased) |
+| Ramp off by a code through the perspective divide | 16-bit plane values, 16-bit reciprocal, 17-bit floor, coordinate floored | **Minor**: a few-percent edge effect near the light, no systematic code error |
+| Bump levels against our cosine | Measured piecewise tables, truncated products, lowest level 3, \|R − Q\| not mod 256 | **Supported**: windows 1-3 codes (w 32) and 5 codes (w 16) narrower; explains c3b's 109, **not** its 28 |
+| Slivers and "equal or nearer" holes | Same vertices, pre-sorted GEQUAL, depth a function of corners only; coverage by pixel centre | **Holes killed** for the mask pass. Slivers do miss centres in the **map** pass: that is c4's rim, which grow handles |
+| Render-target reads (twiddle, 565 low byte) | R = byte 0, S = byte 1; non-twiddled point bump fine; render to texture untested by them | **Supported** (c3b 1d is the evidence). Stride already matched (512 and 128) |
