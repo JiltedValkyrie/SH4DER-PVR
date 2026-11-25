@@ -4,7 +4,7 @@
    Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
    RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
-   Start with: every render target pass, cut to its own tiles (cw x ch from the target's size); TILE_CUT_TRIES = 3
+   Start with: one target pass cut to its own tiles (cw x ch), timed cut and uncut; TILE_CUT_TRIES = 3
    Cost:       PVR: 3,256 -> 344 us (ao4-h), 3,312 -> 375 us (c4), 5,111 -> 1,442 us (d1-c): MEASURED
                (PVR-156, PVR-092, PVR-192). SH-4: tile_cut_begin +3,930 us a frame in d1-c, and the frame
                903 us slower: MEASURED (PVR-192)
