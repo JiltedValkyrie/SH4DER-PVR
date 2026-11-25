@@ -10,21 +10,46 @@ The hour costs no layer: its tint goes into the vertex colours the frame compute
 
 The world's textures come in two sets, switched live with **A**: the low look (the default: the road and four facades at 64 x 64, 16 colours each in a PVR palette bank, point sampled, no mipmaps, 2,048 B a texture) and the full one (128 x 128 and 256 x 256, filtered, with mipmaps).
 
-Status, plainly. **Proven:** it compiles for the host and for the Dreamcast on this library's headers with no warning, and its host preview (a software rasteriser over the same code) draws the same picture as the version that ran on an emulator before it moved into this folder: every mirror target identical, the screens apart only by two renamed labels. **Not proven:** `build.py` end to end (its steps were run by hand, on art copied in, not fetched); the fetch table's links and hashes (never run against the network, nothing pinned); the build without `--rtt` (compiled as a library file, never run); any boot of an image built from this folder, on an emulator or a console; the order of the two texels in a byte of the 16-colour textures (the host preview assumes the same order as the bake, so only a boot tells). No time below is measured on a console.
+Status, plainly. **Proven:** it compiles for the host and for the Dreamcast on this library's headers with no warning, and its host preview (a software rasteriser over the same code) draws the same picture as the version that ran on an emulator before it moved into this folder: every mirror target identical, the screens apart only by two renamed labels. **Not proven:** `build.py` end to end (the map build was run from the credits check to the compile on one machine on 2026-11-25, with the image step skipped on purpose; no image from it has booted; the street build's steps were run by hand); the fetch table's links and hashes (never run against the network, nothing pinned); the build without `--rtt` (compiled as a library file, never run); any boot of an image built from this folder, on an emulator or a console; the order of the two texels in a byte of the 16-colour textures (the host preview assumes the same order as the bake, so only a boot tells). No time below is measured on a console.
 
 ## Build
 
 ```sh
-python demo/pl4nar/build.py --sh4zam /path/to/sh4zam --rtt      # in a shell with the KallistiOS environment sourced
+python demo/pl4nar/build.py --sh4zam /path/to/sh4zam --rtt              # the map (the default)
+python demo/pl4nar/build.py --sh4zam /path/to/sh4zam --rtt --street     # the first street layout
 ```
 
-One script from a clean checkout to `demo/pl4nar/out/pl4nar-demo-b<N>.cdi`: it checks the credits table, fetches the CC0 art (`fetch_table.json`; nothing third-party is in this repository), builds the coupe from numbers, cuts the stock models to the budget in Blender (headless), bakes, compiles and writes the image. An image is never overwritten. Leave `--rtt` out on a KallistiOS without `pvr_scene_begin_rtt` (the target then costs 256 KB of video memory, not 64 KB; that path is compiled, not yet run). From the library's root, `make pl4nar-demo SH4ZAM=...` runs the same script.
+Run it in a shell with the KallistiOS environment sourced. One command goes from a clean checkout to a disc image. It:
+
+- checks the credits table;
+- fetches the CC0 art (`fetch_table.json`; nothing third-party is in this repository);
+- builds the coupe, the street furniture and the overhead structures from numbers;
+- cuts the stock models to the budget in Blender (headless);
+- bakes the models and textures;
+- lays out the loop (`tools/map.py`) and bakes its ambient occlusion (`tools/map_ao.c`);
+- compiles, and writes the image.
+
+The two builds never share a folder:
+
+| | generated | objects and ELF | image |
+|---|---|---|---|
+| map (default) | `build/gen_map` | `build/map` | `out/pl4nar-map-b<N>.cdi` |
+| `--street` | `build/gen` | `build/` | `out/pl4nar-demo-b<N>.cdi` |
+
+An image is never overwritten. A generated `.obj` that is already there is kept. Leave `--rtt` out on a KallistiOS without `pvr_scene_begin_rtt`: the target is then 1024 pixels wide (that path is compiled, not yet run). From the library's root, `make pl4nar-demo SH4ZAM=... PL4NAR_ARGS="--rtt"` runs the same script (add `--street` there for the old layout).
+
+Needs:
+
+- KallistiOS and its toolchain, SH4ZAM, Blender (only while a model still has to be cut) and mkdcdisc;
+- **a Python 3 with Pillow**: the bake reads the textures with it. Run `build.py` with that Python; on Windows the msys Python usually has no Pillow;
+- **for the map, a host C compiler**: `HOST_CC`, else `gcc`, `cc` or `clang` on the PATH. `tools/map_ao.c` runs on your machine at build time, so `kos-cc` will not do. Without one, the map build refuses before it does anything; `--street` does not need it;
+- the map's occlusion step also builds SH4ZAM's software matrix code (`source/sw/shz_xmtrx_sw.c` in the `--sh4zam` checkout) for the host.
+
+Before the first real run, `python demo/pl4nar/build.py --dry-run [--street] [--rtt]` prints the steps (ten for the map, seven for `--street`), which tools it can and cannot find (the host compiler included), the credits check and the state of the fetch table. It fetches, writes and builds nothing (`tools/test_build_dry.py` checks this for both builds).
 
 The fetch table is not pinned yet: the first run needs `--pin`, which prints each pack's sha256 to put in `fetch_table.json`. The two Kenney packs have no stable direct link: the script says where to download them by hand.
 
-Before the first real run, `python demo/pl4nar/build.py --dry-run [--rtt]` prints the seven steps, which tools it can and cannot find, the credits check and the state of the fetch table; it fetches, writes and builds nothing (`tools/test_build_dry.py` checks that). To put these effects into another engine, follow `AGENT_WORKFLOW.md`.
-
-Needs: KallistiOS and its toolchain, SH4ZAM, Blender, mkdcdisc, Python 3 with Pillow. See `CREDITS.md` for every licence.
+To put these effects into another engine, follow `AGENT_WORKFLOW.md`. See `CREDITS.md` for every licence.
 
 ## Controls
 
