@@ -28,7 +28,18 @@
 #include <stdint.h>
 #include <string.h>
 
-#define VC_TAG        "vc-a"
+#ifndef VC_PART
+#define VC_PART       0                 /* 0 the whole script; 1 all but route A's two turns over the town; 2 those two alone */
+#endif
+#if VC_PART == 1
+#define VC_TAG        "vc-b1"
+#elif VC_PART == 2
+#define VC_TAG        "vc-b2"
+#else
+#define VC_TAG        "vc-b"
+#endif
+#define VC_VBUF       (1536u * 1024u)   /* this test's vertex buffer, bytes a frame: with the town's 1,024 KB route A's boot view fills it */
+#define VC_EVT_N      6u                /* the TA's error events: ISP, strip, PARAM, OPB, input error, input overflow */
 #define VC_DT         (1.0f / 30.0f)    /* the simulation's step a frame, seconds */
 #define VC_TURN       1.5707963f        /* a turning stage's yaw, radians, over its counted and skipped frames */
 #define VC_SKIP       20u               /* frames at a stage's start that are not counted (the route's first map, the caches) */
@@ -58,13 +69,8 @@ typedef struct vc_stage {
 } vc_stage_t;
 
 static const vc_stage_t vc_script[] = {
-    { "A sky still",  0, VC_PITCH_SKY,  0, 0 },
-    { "A boot still", 0, VC_PITCH_BOOT, 0, 0 },
-    { "A down still", 0, VC_PITCH_DOWN, 0, 0 },
-    { "A boot inset", 0, VC_PITCH_BOOT, 0, 1 },
-    { "A sky turn",   0, VC_PITCH_SKY,  1, 0 },
-    { "A boot turn",  0, VC_PITCH_BOOT, 1, 0 },
-    { "A down turn",  0, VC_PITCH_DOWN, 1, 0 },
+    /* route B first, and route A's two turns over the town last: vc-a froze in "A boot turn" (the run's video, 2026-11-25) */
+#if VC_PART != 2
     { "B sky still",  1, VC_PITCH_SKY,  0, 0 },
     { "B boot still", 1, VC_PITCH_BOOT, 0, 0 },
     { "B down still", 1, VC_PITCH_DOWN, 0, 0 },
@@ -72,6 +78,16 @@ static const vc_stage_t vc_script[] = {
     { "B sky turn",   1, VC_PITCH_SKY,  1, 0 },
     { "B boot turn",  1, VC_PITCH_BOOT, 1, 0 },
     { "B down turn",  1, VC_PITCH_DOWN, 1, 0 },
+    { "A sky still",  0, VC_PITCH_SKY,  0, 0 },
+    { "A boot still", 0, VC_PITCH_BOOT, 0, 0 },
+    { "A down still", 0, VC_PITCH_DOWN, 0, 0 },
+    { "A boot inset", 0, VC_PITCH_BOOT, 0, 1 },
+    { "A sky turn",   0, VC_PITCH_SKY,  1, 0 },
+#endif
+#if VC_PART != 1
+    { "A boot turn",  0, VC_PITCH_BOOT, 1, 0 },
+    { "A down turn",  0, VC_PITCH_DOWN, 1, 0 },
+#endif
 };
 #define VC_STAGES ((unsigned)(sizeof vc_script / sizeof vc_script[0]))
 
@@ -86,6 +102,8 @@ typedef struct vc_run {
     int done, stopped;              /* the script ended; a button ended it */
     unsigned stop_stage, stop_frame;
     vc_stat_t st[VC_STAGES][VC_METRICS];
+    uint32_t evt0[VC_EVT_N];        /* the TA's event counts when the stage's counted frames began */
+    uint32_t evt[VC_STAGES][VC_EVT_N];   /* and how many came in them */
 } vc_run_t;
 
 /* this frame's view: what psm_dc.c puts in its state before the frame is made */
@@ -103,6 +121,7 @@ typedef struct vc_frame {
     int sampled, rtt_waited;
     uint64_t rnd_rtt_ns, rnd_scr_ns;
     unsigned v_all, v_ground, v_layer, v_model, v_map, vbuf_bytes, gvn, mvis;
+    uint32_t evt[VC_EVT_N];         /* the TA's event counts so far */
 } vc_frame_t;
 
 static inline unsigned vc_stage_frames(unsigned s) { return VC_SKIP + (vc_script[s < VC_STAGES ? s : 0u].turn ? VC_TURNING : VC_STILL); }
@@ -133,7 +152,11 @@ static inline float vc_us_(uint64_t a, uint64_t b) { return a > b ? (float)(a - 
 
 /* One frame's numbers, after it was sent. Moves the script on; 1 when it is done. route as vc_view_t's. */
 static inline int vc_record(vc_run_t *r, const vc_frame_t *f) {
+    unsigned e;
+
     if (r->done) return 1;
+    if (r->frame + 1u == VC_SKIP) memcpy(r->evt0, f->evt, sizeof r->evt0);          /* the events of the frames not counted are left out */
+    if (r->frame >= VC_SKIP) for (e = 0; e < VC_EVT_N; e++) r->evt[r->stage][e] = f->evt[e] - r->evt0[e];
     if (r->frame >= VC_SKIP && f->last_end) {
         vc_stat_t *st = r->st[r->stage];
         const int a = vc_script[r->stage].route == 0;
@@ -188,7 +211,7 @@ static inline void vc_stop(vc_run_t *r) {
 /* The result pages' text through `say` (psm_page.h's pg_say), `brk` a page break (pg_break; may be NULL). Numbers only:
    milliseconds are means, the frame also min .. max. map_size, warp, movers_only, tspeed, readout: the state the run had. */
 static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...), void (*brk)(void),
-                             unsigned map_size, int warp, int movers_only, unsigned tspeed, int readout) {
+                             unsigned map_size, int warp, int movers_only, unsigned tspeed, int readout, unsigned vbuf_kb) {
     unsigned s;
 
     say("TOWN VIEW COST " VC_TAG ": where the frame goes, by view");
@@ -196,7 +219,7 @@ static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...
     say(" still, then a 90 deg turn; INSET on at boot. Step 1/30 s,");
     say(" %u + %u (still) or %u (turn) frames a stage, the first", VC_SKIP, VC_STILL, VC_TURNING);
     say(" %u not counted. State: map %u %s, casters %s, time x%u,", VC_SKIP, map_size, warp ? "PSM" : "UNIFORM", movers_only ? "MOVERS" : "ALL", tspeed);
-    say(" readout %d. One console, one run.", readout);
+    say(" readout %d, vertex buffer %u KB x2. One console, one run.", readout, vbuf_kb);
     say("ms, means. frame: frames with no sampled render wait");
     say(" (min..max). In frame order: top = pad, town; p0 build;");
     say(" A: p1 map pass, p2 uv. B: p1 clear, p2 casters, p3 compare;");
@@ -209,6 +232,8 @@ static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...
     say("v all, g ground, l layer, m models, map = vertices sent;");
     say(" KB = KallistiOS's buffer reading; gvn = ground window");
     say(" vertices, mvis = model vertices marked sent (sampled).");
+    say("TA events in the counted frames: PARAM = vertex buffer full,");
+    say(" OPB = tile bins; other = ISP, strip, input error, overflow.");
     if (r->stopped) say("RUN STOPPED BY THE PAD at stage %u frame %u: n shows what ran", r->stop_stage + 1u, r->stop_frame);
     else say("the run was not stopped: every stage ran whole");
     if (brk) brk();
@@ -227,6 +252,8 @@ static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...
             (double)vc_mean(&t[VC_V_ALL]), (double)vc_mean(&t[VC_V_GROUND]), (double)vc_mean(&t[VC_V_LAYER]), (double)vc_mean(&t[VC_V_MODEL]));
         say("   map v %5.0f KB %4.0f gvn %5.0f mvis %5.0f", (double)vc_mean(&t[VC_V_MAP]), (double)vc_mean(&t[VC_KB]),
             (double)vc_mean(&t[VC_S_GVN]), (double)vc_mean(&t[VC_S_MVIS]));
+        say("   TA events PARAM %lu OPB %lu other %lu", (unsigned long)r->evt[s][2], (unsigned long)r->evt[s][3],
+            (unsigned long)(r->evt[s][0] + r->evt[s][1] + r->evt[s][4] + r->evt[s][5]));
         if (brk && s % 3u == 2u) brk();
     }
 }

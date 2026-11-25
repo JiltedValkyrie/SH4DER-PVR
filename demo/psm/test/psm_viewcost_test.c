@@ -52,6 +52,7 @@ static void fake(vc_frame_t *f, uint64_t *clock, int route_a, int sampled) {
     f->rnd_rtt_ns = 3900000u; f->rnd_scr_ns = 12000000u;
     f->v_all = 30000u; f->v_ground = 8000u; f->v_layer = route_a ? 8000u : 0u; f->v_model = 10000u; f->v_map = 3000u;
     f->vbuf_bytes = 700u * 1024u; f->gvn = 5141u; f->mvis = 8815u;
+    f->evt[2] += route_a ? 1u : 0u; f->evt[3] += 1u;                /* a PARAM event a route A frame, an OPB event a frame */
     *clock = t;
 }
 
@@ -100,24 +101,26 @@ int main(void) {
         CHECK(fabsf(vc_mean(&t[VC_OTHER]) - 250.0f) < 2.0f);
         CHECK(t[VC_S_RTT].n == (a ? t[VC_S_FRAME].n : 0u) && fabsf(vc_mean(&t[VC_S_SCR]) - 12000.0f) < 1.0f);
         CHECK(vc_mean(&t[VC_V_ALL]) == 30000.0f && vc_mean(&t[VC_KB]) == 700.0f && vc_mean(&t[VC_S_MVIS]) == 8815.0f);
+        CHECK(r.evt[s][3] == counted && r.evt[s][2] == (a ? counted : 0u) && r.evt[s][0] == 0u);   /* the counted frames' events only */
+        CHECK(s < 7u ? !a : a);                                              /* route B first */
     }
     show = 1;
-    vc_report(&r, say, brk, 256u, 0, 0, 1u, 1);
+    vc_report(&r, say, brk, 256u, 0, 0, 1u, 1, VC_VBUF / 1024u);
     show = 0;
     CHECK(widest <= 64u);                       /* psm_page.h's PG_COLS: no line is wrapped */
-    CHECK(lines == 19u + 6u * VC_STAGES && breaks == 1u + VC_STAGES / 3u);
+    CHECK(lines == 21u + 7u * VC_STAGES && breaks == 1u + VC_STAGES / 3u);
     printf("pages: %u lines, widest %u, %u breaks\n", lines, widest, breaks);
 
     /* a run a button ends: what ran is kept, the rest has no frames, and the page says where */
     vc_start(&r);
     clock = 1000u;
-    for (k = 0; k < VC_SKIP + 30u; k++) { fake(&f, &clock, 1, 0); vc_record(&r, &f); }
+    for (k = 0; k < VC_SKIP + 30u; k++) { fake(&f, &clock, 0, 0); vc_record(&r, &f); }
     vc_stop(&r);
     CHECK(r.done && r.stopped && r.stop_stage == 0u && r.stop_frame == VC_SKIP + 30u && r.st[0][VC_FRAME].n == 30u && r.st[1][VC_FRAME].n == 0u);
     CHECK(vc_record(&r, &f) == 1 && r.st[0][VC_FRAME].n == 30u);
     lines = widest = breaks = 0;
-    vc_report(&r, say, NULL, 512u, 1, 1, 60u, 2);
-    CHECK(widest <= 64u && lines == 19u + 6u * VC_STAGES);
+    vc_report(&r, say, NULL, 512u, 1, 1, 60u, 2, 1024u);
+    CHECK(widest <= 64u && lines == 21u + 7u * VC_STAGES);
 
     printf(failed ? "psm_viewcost_test: %d FAILED\n" : "psm_viewcost_test: ok\n", failed);
     return failed != 0;

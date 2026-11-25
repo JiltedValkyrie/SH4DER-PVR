@@ -64,6 +64,8 @@ static vc_run_t vc_run;
 static vc_frame_t vc_f;
 static uint64_t vc_w0[4];
 static float vc_x0, vc_z0, vc_yaw0;
+static volatile uint32_t vc_evt[VC_EVT_N];
+static asic_evt_handler_entry_t vc_evt_prev[VC_EVT_N];
 #define VC_T(k) (vc_f.m[k] = timer_us_gettime64())
 #define VC_RDY1(us) (vc_f.rdy1_us = (us))
 #else
@@ -531,6 +533,29 @@ static uint64_t render_wait(void) {
 #ifdef PSM_VIEWCOST
 /* ---- the view cost test (psm_viewcost.h): the pad only ends it; then the result pages ------------------------------- */
 
+/* The TA's error events counted (KallistiOS hooks none in a normal build): the handler counts, then calls what was there.
+   The form the town's autorun images ran with (patches/auto.diff). */
+static void vc_evt_hnd(uint32_t code, void *data) {
+    const unsigned i = (unsigned)(code - ASIC_EVT_PVR_ISP_OUTOFMEM);
+
+    (void)data;
+    if (i < VC_EVT_N) {
+        vc_evt[i]++;
+        if (vc_evt_prev[i].hdl) vc_evt_prev[i].hdl(code, vc_evt_prev[i].data);
+    }
+}
+
+static void vc_hook(int on) {
+    unsigned i;
+
+    for (i = 0; i < VC_EVT_N; i++) {
+        const uint16_t code = (uint16_t)(ASIC_EVT_PVR_ISP_OUTOFMEM + i);
+
+        if (on) { vc_evt_prev[i] = asic_evt_set_handler(code, vc_evt_hnd, NULL); asic_evt_enable(code, ASIC_IRQ_DEFAULT); }
+        else asic_evt_set_handler(code, vc_evt_prev[i].hdl, vc_evt_prev[i].data);
+    }
+}
+
 /* 1 when a button or a trigger went down (the stick does not count; what is held at the start does not either) */
 static int vc_pad_hit(void) {
     static unsigned held = ~0u;
@@ -547,17 +572,22 @@ static int vc_pad_hit(void) {
 static void vc_pages(void) {
     unsigned page = 0, held = ~0u, pages, r, g, k;
     uint64_t turned;
-    char nm[16];
+    char nm[12];
 
     pvr_wait_ready();
     pvr_wait_render_done();
+    vc_hook(0);
     pvr_shutdown();
     vid_set_mode(DM_640x480, PM_RGB565);
     pg_init();
-    vc_report(&vc_run, pg_say, pg_break, psm_map_size(&state), state.warp, state.movers_only, (unsigned)psm_time_speed[state.tspeed], state.readout);
+    vc_report(&vc_run, pg_say, pg_break, psm_map_size(&state), state.warp, state.movers_only, (unsigned)psm_time_speed[state.tspeed], state.readout,
+              VC_VBUF / 1024u);
     for (r = 0; r < 2u; r++) {
-        pg_plot_t *p = pg_plot(r ? "route B: mean ms a stage" : "route A: mean ms a stage", "stage", "ms", 1);
+        pg_plot_t *p;
 
+        for (g = 0, k = 0; g < VC_STAGES; g++) k += vc_script[g].route == (int)r;
+        if (!k) continue;                    /* no stage of this route in this part of the script */
+        p = pg_plot(r ? "route B: mean ms a stage" : "route A: mean ms a stage", "stage", "ms", 1);
         for (g = 0; g < VC_STAGES; g++)
             if (vc_script[g].route == (int)r) { snprintf(nm, sizeof nm, "%.11s", vc_script[g].name + 2); pg_cat(p, nm); }
         pg_series(p, "frame");
@@ -608,6 +638,9 @@ int main(void) {
        (one a frame, pvr_buffers.c) and puts the background polygon after the last vertex. The tile bins: KallistiOS's
        default 16-word blocks for the two lists, PSM_OPB_EXTRA times that again as the overflow pool */
     init.vertex_buf_size = PSM_TA_VBUF;
+#ifdef PSM_VIEWCOST
+    init.vertex_buf_size = VC_VBUF;          /* this test only: room for route A's boot view, so no frame is measured short of its last vertices */
+#endif
     init.opb_overflow_count = PSM_OPB_EXTRA;
     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
@@ -616,6 +649,7 @@ int main(void) {
     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
 #ifdef PSM_VIEWCOST
     vc_start(&vc_run);
+    vc_hook(1);
     vc_x0 = state.x; vc_z0 = state.z; vc_yaw0 = state.yaw;      /* every stage starts from the boot pose */
 #endif
     /* the rings' vertices are the whole ground lattice; a frame sends the window the view covers (psm_window_half) */
@@ -801,6 +835,7 @@ int main(void) {
             vc_f.vbuf_bytes = vbuf_used;
             vc_f.gvn = frame.gvn; vc_f.mvis = 0u;
             if (sample) for (i = 0; i < scene.mvn; i++) vc_f.mvis += frame.mvis[i];
+            for (i = 0; i < VC_EVT_N; i++) vc_f.evt[i] = vc_evt[i];
             vc_f.last_end = last_end;
             vc_f.end = last_end = timer_us_gettime64();
             vc_record(&vc_run, &vc_f);
