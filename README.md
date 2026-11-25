@@ -1264,7 +1264,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 1. Write `include/sh4der_<name>.h` and `src/sh4der_<name>.c` (or, as the look effect, the header alone with inline calls). Include `sh4der_core.h`, prefix every name `sh4der_<name>_` / `SH4DER_<NAME>_`, and use the shared steps: the feather, the shapes, the SH4ZAM helpers. Do not copy SH4DOW-DC or SH4ZAM code in.
 2. Write `test/<name>_test.c`: the default numbers, the bad params, both paths.
 3. Add the source to `SRC` and `HDR` in the Makefile, and the test to `TESTS`.
-4. Add a row to the effect table above and a tuning table: a test checks that every tuning macro of every header is in a table with the same value.
+4. Add a row to the effect table above and a tuning table with the headers' macro values. No test checks the tables against the headers yet (the sentence that said one did was wrong): keep them equal by hand until `tools/check_tuning.py` exists.
 
 ## Build and test
 

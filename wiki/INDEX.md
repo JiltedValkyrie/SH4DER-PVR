@@ -73,6 +73,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 
 - [limits/budgets.md](limits/budgets.md) | Frame budgets | limits, budget | 2026-11-25 | the measured unit costs to build a frame budget from, and how to add them up without fooling yourself. IDs AICA-021 to SH4-077 (22 rows).
 - [limits/frame-budget.md](limits/frame-budget.md) | Frame budget: practices that keep the frame rate | limits, budget, practice | 2026-11-25 | how to tell whether the SH-4 or the PVR is holding a frame back, what each measured feature costs, and the practices that follow, each with the test that measures it on your own console. IDs PVR-002 to PVR-180 (8 rows).
+- [limits/header-recommended.md](limits/header-recommended.md) | Header RECOMMENDED block: the template | limits, practice, headers, agents | 2026-11-25 | the short block of starting settings that sits at the top of each public header, what goes in each line, and the rules for its numbers.
 - [limits/recommended-limits.md](limits/recommended-limits.md) | Recommended limits | limits | 2026-11-25 | the limits we recommend when you use this library on a real Dreamcast, and how sure we are of each. IDs PVR-002 to VID-014 (19 rows).
 - [limits/scenes.md](limits/scenes.md) | Test scenes and what they measured | limits, scenes, shadows | 2026-11-25 | which demo scenes exist, what each is for, and every console number read from them so far.
 
