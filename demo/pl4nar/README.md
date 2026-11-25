@@ -64,7 +64,7 @@ Stick or D-pad left / right: steer. **Right trigger** engine, **left trigger** b
 | World textures, low look | 5 x 64 x 64 at 4 bits a texel: 10 KB, and 80 palette entries (exact) |
 | World textures, full look | 4 facades 128 x 128 and the road 256 x 256, RGB565 with mipmaps: 381 KB (exact); both sets stay loaded for the switch |
 | Resident in video memory, all at once | full textures 381 KB + low textures 10 KB + glow 2 KB + font 32 KB + target 64 KB = 489 KB (exact, with `--rtt`) |
-| Lookup | 320 looked-up vertices (364 in the body, the player car only): the page's column read 0.92 to 0.97 ms on a console, one run (PVR-160); its averaging runs low by about 1/7, so ESTIMATE about 1.07 to 1.13 ms. (Earlier: 0.43 ms for 1,623 vertices on an emulator, an older, heavier car.) |
+| Lookup | 320 looked-up vertices (364 in the body, the player car only): the page's column read 0.92 to 0.97 ms on a console, one run (PVR-160), about 2.9 to 3.0 us a vertex (DERIVED). (Earlier: 0.43 ms for 1,623 vertices on an emulator, an older, heavier car.) |
 | Mirror pass, PVR | not measured (see the library README: a timer round the pass reads the PVR's queue) |
 | Pools, halos, shadows | about 100 triangles on the translucent list at night: fill not measured |
 
