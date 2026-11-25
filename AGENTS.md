@@ -83,7 +83,7 @@ There is no game header and no game data here. The example client is `example/bl
 - `README.md` is the explanation:
   - the effect table
   - how to add an effect
-  - the tuning tables (kept equal to every header's macros by hand: no test checks them yet)
+  - the tuning tables (`make test` runs `tools/check_tuning.py`: a row that differs from its header's macro fails; a macro with no row is a warning)
 - `LICENSE` is the license.
 
 On the Dreamcast, the square roots, sines and cosines are FSRRA and FSCA inside [SH4ZAM](https://github.com/gyrovorbis/sh4zam) (0.10 or later). Compile without `SH4DER_CORE_NO_SH4ZAM` and link SH4ZAM. Use SH4ZAM as a library; do not copy its files into this folder. SH4DOW-DC stays whole in `sh4dow-dc`; do not copy its code into the effect files. Keep Falco Girgis's MIT notice with SH4ZAM.

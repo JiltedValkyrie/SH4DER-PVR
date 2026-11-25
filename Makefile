@@ -30,12 +30,18 @@ SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
 TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test psm_fault_test bolt_test motes_test deform_test mist_test rise_test film_test cloudvolume_test matchlight_scene_test
 
-.PHONY: test test-shz dc test-dc demo clean pl4nar-demo psm-demo check-sh4zam
+.PHONY: test test-shz dc test-dc demo clean pl4nar-demo psm-demo check-sh4zam check-tuning
 
 # Fails, with the git clone line, when SH4ZAM is missing or older than 0.10; also runs the script's own self-test.
 check-sh4zam:
 	$(PYTHON) tools/check_sh4zam.py --self-test
 	$(PYTHON) tools/check_sh4zam.py $(SH4ZAM)
+
+# Fails when a README tuning table row is not its header's SH4DER_* value, names nothing, or is not a number; a macro with no
+# row is a warning (--strict makes it fail). Also runs the script's own self-test. Standard library python only.
+check-tuning:
+	$(PYTHON) tools/check_tuning.py --self-test
+	$(PYTHON) tools/check_tuning.py
 
 # The street driving demo (demo/pl4nar): planar reflection, light pools and halos. One script from a clean checkout to an image:
 # it fetches CC0 art, cuts it in Blender, bakes, compiles and runs mkdcdisc. PL4NAR_ARGS: e.g. --rtt --pin (see demo/pl4nar/README.md).
@@ -55,7 +61,7 @@ $(BUILD)/psm_demo: demo/psm/psm_demo.c include/sh4der_psm.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include $< src/sh4der_core.c -lm -o $@
 
-test: $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
+test: check-tuning $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/core_test
 	$(BUILD)/blade_test
 	$(BUILD)/holo_test
