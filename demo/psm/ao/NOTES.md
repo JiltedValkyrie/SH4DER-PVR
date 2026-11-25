@@ -303,3 +303,65 @@ By the model **no pass of ao4 comes near the pool**: the worst is under a fifth 
 KallistiOS has two TA buffers and uses them in turn. So the event comes with one of the two buffers, not with a full bin. A cause that fits: when the TA's registers are moved to the other buffer (`pvr_sync_reg_buffer`), the limit of the low buffer is written while the TA's own position still holds the high buffer's, so the "past the limit" interrupt fires once at each switch from the high buffer to the low one. Not proven.
 - **If that is right, PVR-121, PVR-132 and PVR-143 are not overflows**, the pictures were whole, and the town's garbled HUD line (PVR-122) needs another cause (the parameter overflow of the same run is real: it has its own counter).
 - **The test that proves it** (for the tests-off ao4 after s7, a line on the page): the events counted against the scenes begun, and the TA's own position and limit registers read inside the handler at the first few events (the position above the limit, in the other buffer's range, with nothing sent yet).
+
+---
+
+# Effect labels, the movable divider, ao4-h, hen-d, pd-c (built, not run; on s7)
+
+Written 2026-11-25 by Senior. **Nothing here has run on a console.**
+
+**Effect labels** (`../psm_effects.h`, host test `../test/psm_effects_test.c`; the tables of these programs are in `ao_fx.h`). A line says what a view shows, who does the work each frame and when: `Name (detail): WHO When`, WHO one of SH4, PVR, SH4+PVR; When one of Baked, Texture, Realtime (written `Realtime<<`, in yellow). Rules, as lead ruled them:
+- WHO is who works each frame. The PVR counts only for work the effect itself needs (a render target pass, a texture that carries the effect, an alpha test), not for drawing the triangles.
+- "Shadow Mapping" only where a depth compare is done; otherwise "Projected Shadow". "Bloom" only for `sh4der_glow.h`; a glow mesh is "Soft Halo".
+- The lines are OFF in the measured autorun stages (a blended line is fill the stage would count) and ON in the live view and on the result pages. The page's label rows are outside the page CRC.
+- Each program names its own hide chord: ao4 and ao-lamp d-pad up + B, hens-eyes d-pad left + B, hero1 d-pad right, d1 d-pad up + Y.
+- A page with the labels takes one or two rows under the title: `PG_TOP` in `../psm_page.h` (0 by default, so older programs are unchanged).
+
+**The movable divider** (`../psm_split.h`, host test `../test/psm_split_test.c`). The line between the two halves moves by tile columns (32 pixels), 0 .. 20, with LT / RT (a press, then a step every 6 frames). A half the divider hides is not lit and not sent. The halves are user clip rectangles, as the fixed split's were.
+
+**ao4-h** (`build/psm_ao/psm-ao4-h.elf`, sha256 a77eb2ede031e373b3b982eae0d3e88e5103a12cb641f7ae51109a86065758de): ao4-e2 with the labels and, in the live view only, the divider. Keys changed: LT / RT move the divider; BOTH triggers together are the next scene (was: either trigger). The measured stages keep the divider at the middle, tiles 0 .. 9 and 10 .. 19 as before. OPEN on a console: a user clip that moves between frames (the fixed one ran on s6b).
+
+**hen-d** (sha256 6ea63a33b790f0f0f3f2defca502ada6ed4abd39167ee73f6201b8c3bd243744) and **pd-c** (sha256 a902ad6f821f2c17aacef8962c0af5cc94d6c7c9964c17a3b50222d2dc048575): hen-b and pd-a with the labels, no other change. hens-eyes names its modes "Ray Casting (steering)" and "Collision Detection (swept)" (Cortana's correction: the entry passes no viewer, so "line of sight" was untrue); its page says the push and the separation run in both modes. pvr-dma's page says "No effect: a hardware transfer test".
+
+---
+
+# ao-lamp, entry lamp-c: the lamp look (built, not run; on s7)
+
+Written 2026-11-25 by Senior. **Not run on a console.** Program `lamp_spike.c`, the look's maths `ao4_lamp.h`, host test `test/ao4_lamp_test.c` (it also renders the previews `preview/lamp_sheet_{room,front,side,below}.png` and `lamp_crop_slots.png` with a software renderer: host pictures, not the PVR's). ELF `build/psm_ao/psm-lamp-c.elf`, sha256 c41122d85e351ad6f498a2a742cffc9a97ef81ff423410c16b39a26400179c87.
+
+**What it draws.** The room's own lamp, found in the room data by name: the shade is rebuilt as a lathe of 65 vertices and 96 triangles and lit as paper with the bulb inside it.
+- The shade: `sh4der_sss_rgb` per vertex (absorption 0.2 / 0.3 / 0.5, wrap 0.4, distortion 0.1, a warm tint), plus an emission term, into the vertex's base and offset colours. Label: "Emission" is the lampshade (the owner's wording), "Subsurface Scattering" the paper.
+- Slots: a 32 x 32 punch-through pattern (16 % cut) on the shade, through the punch-through list.
+- The halo: `sh4der_bloom_rings`, 8 rings of 16, 129 vertices and 240 triangles, at the bulb (0 m toward the eye: moving it toward the eye flattened the paper's look on the host pictures).
+- ROOM LIGHT: the room's vertices lit by the bulb as a point light (its own toggle), over the room dimmed to 0.38.
+- A near camera (the room's eye, a long lens aimed at the bulb) on A.
+
+**Stages** (4 s each, labels off): 0 lamp off on a PVR started without the punch-through bin; 1 the same with it (the cost of an opened third list); 2 OFF | ON; 3 slots; 4 room light; 5 OFF | ON near; 6 ON alone; 7 OFF alone. The punch-through list, where the PVR has its bin, is opened every frame and never left empty (an off-screen triangle first).
+
+**OPEN on a console:** every cost on its page; the look of the sss through the PVR's vertex interpolation at 12 segments; whether the halo's aura reads round the shade's outline (on the host it is hidden behind the near paper and shows as a wash through the slots and the top); the plane fade (`ao4_lamp_fade`), which this room rarely shows.
+
+---
+
+# d1, entry d1-a: a halo that fades at the scene (built, not run; on s7)
+
+Written 2026-11-25 by Senior. **Not run on a console. The design is an ESTIMATE until T1 and T3 have run.** Program `d1_spike.c`, the arithmetic `d1_model.h`, host test `test/d1_model_test.c`. ELF `build/psm_ao/psm-d1-a.elf`, sha256 046e692e82ad851856d2f75867a0bcb7343ed34cd5d3d260d2a0fce64460907a. It is in this folder, not in `compare/`, because this folder's build makes the room's data.
+
+**The design.** The room is drawn once more from the camera into a 320 x 240 target through a 256-texel ramp that repeats: vertex z = 1 / depth and u = depth / 1.2 m, so the PVR's perspective-correct lookup gives each pixel a code linear in its own depth, 256 codes a turn of 1.2 m. That target is read as a BUMP texture; the bump unit gives K1 + K3 cos(2 pi (M - Q) / 256) for the map's code M and the polygon's Q. With K1 0, K3 255 and Q = the halo's code + 64 the level is 0 where the scene is at the halo's depth and full 0.3 m behind it. Four quads in the translucent list, sent in order (autosort off):
+1. CLEAR: colour (1, 1, 1, 0), ZERO x DESTCOLOR: destination alpha to 0, colour kept.
+2. FADE: the bump quad on a black base, ONE x ONE, depth test on: (0, 0, 0, level) added.
+3. FAR: (0, 0, 0, 255) from a quad 0.3 m behind the halo, depth test on: everything further is full.
+4. HALO: the glow, DESTALPHA x ONE.
+
+| Claim | Status |
+|---|---|
+| Destination alpha is kept during a render; CLEAR by ZERO x DESTCOLOR; an alpha-only ONE x ONE add; DESTALPHA as a source factor; autosort must be off | MEASURED by c1 (wiki PVR-040; `compare/cmp_spike.c`) |
+| The bump level as a compare, a cosine of M - Q | MEASURED by c4 (wiki PVR-045) as a colour; as an alpha-only add on a black base: OPEN, T1 |
+| Which texture environment carries the level into alpha (MODULATE or MODULATEALPHA) | OPEN, T1 bands 0 and 2 |
+| K1 0 / K3 255: a negative level reads as 0 | OPEN, T1 |
+| The repeating ramp gives a code linear in depth | ESTIMATE (the PVR's interpolation rule); T2 |
+| The level alone is not a fade (it comes round every turn); the FAR quad is needed | ESTIMATE, a design claim; T3 stage 4 shows it or refutes it |
+| A half-size map looked up in screen space is good enough at a silhouette | OPEN, T3 (a fringe of a map pixel is expected) |
+
+**The run** (about 45 s): T1 five bands read back (PVR-DMA, checked against direct reads at first use), a picture held 5 s; T2a a flat and a tilted quad, T2b the room's codes at the floor's vertices, a picture each; T3 five stages of 5 s (no glow; plain | plain; plain | alpha as grey; plain | fade; plain | fade without FAR), costs and a graph. T3 takes its FADE from whichever of T1's bands 0 and 2 read as the model says; with neither it draws the plain glow and its page says so. Each test has its own page.
+
+**What to photograph:** the three held pictures, each T3 stage, every page and the graph. PASS for the look: right of the divider the glow's edge at the wall is soft and the rest of the glow is as on the left.
