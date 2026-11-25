@@ -1,0 +1,208 @@
+--- a/demo/psm/psm_bake.h
++++ b/demo/psm/psm_bake.h
+@@ -11,7 +11,9 @@
+      the ground: its compare x the map, bilinear;
+      a mover's vertex: its compare x the map at the point where its sun ray meets the ground (an approximation: an
+      occluder between the ground and the vertex also shades it).
+-   The maths is sh4der_core.h's (SH4ZAM on the console). The bake is timed with the caller's clock (psm_bake_t.us). */
++   The maths is sh4der_core.h's (SH4ZAM on the console). The bake is timed with the caller's clock (psm_bake_t.us).
++   bake2: every ray has the sun's direction, so each static caster triangle is prepared once a bake (64 B, one divide
++   then; ray bench page RT, form 3: 33.16 cycles a test against 62.49 for any direction, MEASURED 2026-11-25). */
+ #ifndef PSM_BAKE_H
+ #define PSM_BAKE_H
+ 
+@@ -28,8 +30,19 @@
+ #define PSM_BAKE_GROUND_Y 0.02f
+ #define PSM_BAKE_SUN_DOT  0.99999f          /* a sun within about 0.26 degrees of the baked one keeps the bake */
+ 
++/* A caster triangle prepared for the bake's sun d: h = (d x e2) / det, dq = d / det, e2q = e2 / det, with
++   det = e1 . (d x e2). ok = 0 for a triangle edge-on to the sun. 64 bytes, two cache lines. */
++typedef struct psm_bake_tri {
++    float a[3], e1[3], h[3], e2q[3];
++    float dq[3];
++    float ok;
++} psm_bake_tri_t;
++
+ typedef struct psm_bake {
+     int ok;
++    psm_bake_tri_t *tri;                     /* every caster triangle by its index, prepared for sun (32 B aligned;
++                                                sized once: the town's caster count is fixed after load) */
++    void *tri_mem;
+     float sun[3];                           /* the sun it was baked for (unit, toward the sun) */
+     float lx[3], ly[3], bu0, bv0, ibsz;     /* the bins: the plane across the sun, its corner, 1 / bin size */
+     uint16_t *bin[PSM_BAKE_BINS * PSM_BAKE_BINS];
+@@ -45,22 +58,33 @@
+     o[0] = a[1] * b[2] - a[2] * b[1]; o[1] = a[2] * b[0] - a[0] * b[2]; o[2] = a[0] * b[1] - a[1] * b[0];
+ }
+ 
+-/* 1 when the ray o + t d (t > 1 mm) crosses triangle a b c (Moller-Trumbore, one divide) */
+-static inline int psm_bake_ray_tri_(const float o[3], const float d[3], const float *a, const float *b, const float *c) {
++/* Triangle a b c prepared for sun d (the divide is here, once a triangle a bake) */
++static inline void psm_bake_tri_init_(psm_bake_tri_t *p, const float d[3], const float *a, const float *b, const float *c) {
+     const float e1[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, e2[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
+-    float h[3], s[3], q[3], det, inv, u, v;
++    float h[3], det, inv;
++    unsigned k;
+ 
+     psm_bake_cross_(d, e2, h);
+     det = sh4der_dot3_(e1, h);
+-    if (det > -1e-9f && det < 1e-9f) return 0;
+-    inv = sh4der_div_(1.0f, det);
+-    s[0] = o[0] - a[0]; s[1] = o[1] - a[1]; s[2] = o[2] - a[2];
+-    u = sh4der_dot3_(s, h) * inv;
+-    if (u < 0.0f || u > 1.0f) return 0;
+-    psm_bake_cross_(s, e1, q);
+-    v = sh4der_dot3_(d, q) * inv;
++    p->ok = (det > -1e-9f && det < 1e-9f) ? 0.0f : 1.0f;
++    inv = p->ok != 0.0f ? sh4der_div_(1.0f, det) : 0.0f;
++    for (k = 0; k < 3u; k++) {
++        p->a[k] = a[k]; p->e1[k] = e1[k]; p->h[k] = h[k] * inv; p->e2q[k] = e2[k] * inv; p->dq[k] = d[k] * inv;
++    }
++}
++
++/* 1 when the ray from o toward the sun (t > 1 mm) crosses prepared triangle p: one subtraction, one cross product,
++   three dot products at the most, no divide */
++static inline int psm_bake_ray_tri_(const psm_bake_tri_t *p, const float o[3]) {
++    const float s[3] = { o[0] - p->a[0], o[1] - p->a[1], o[2] - p->a[2] };
++    const float u = sh4der_dot3_(s, p->h);
++    float q[3], v;
++
++    if (p->ok == 0.0f || u < 0.0f || u > 1.0f) return 0;
++    psm_bake_cross_(s, p->e1, q);
++    v = sh4der_dot3_(p->dq, q);
+     if (v < 0.0f || u + v > 1.0f) return 0;
+-    return sh4der_dot3_(e2, q) * inv > 1e-3f;
++    return sh4der_dot3_(p->e2q, q) > 1e-3f;
+ }
+ 
+ static inline int psm_bake_bin_of_(const psm_bake_t *b, const float p[3], unsigned *k) {
+@@ -72,7 +96,7 @@
+ }
+ 
+ /* 1 when p sees the sun past the static casters */
+-static inline int psm_bake_sees_(psm_bake_t *b, const psm_scene_t *s, const float p[3]) {
++static inline int psm_bake_sees_(psm_bake_t *b, const float p[3]) {
+     unsigned k, j;
+ 
+     if (!psm_bake_bin_of_(b, p, &k)) return 1;
+@@ -80,7 +104,7 @@
+         const unsigned t = b->bin[k][j];
+ 
+         b->tests++;
+-        if (psm_bake_ray_tri_(p, b->sun, s->cv[s->ct[t][0]], s->cv[s->ct[t][1]], s->cv[s->ct[t][2]])) return 0;
++        if (psm_bake_ray_tri_(&b->tri[t], p)) return 0;
+     }
+     return 1;
+ }
+@@ -114,6 +138,13 @@
+     b->bu0 = lo[0]; b->bv0 = lo[1];
+     b->ibsz = sh4der_div_((float)PSM_BAKE_BINS, side);
+     free(b->pool); b->pool = NULL;
++    if (!b->tri_mem) {
++        b->tri_mem = malloc(s->ctn * sizeof(psm_bake_tri_t) + 31u);
++        if (!b->tri_mem) return 0;
++        b->tri = (psm_bake_tri_t *)(((uintptr_t)b->tri_mem + 31u) & ~(uintptr_t)31u);
++    }
++    for (t = 0; t < s->ctn; t++)
++        if (!s->ctmov[t]) psm_bake_tri_init_(&b->tri[t], b->sun, s->cv[s->ct[t][0]], s->cv[s->ct[t][1]], s->cv[s->ct[t][2]]);
+     for (pass = 0; pass < 2u; pass++) {
+         if (pass) {
+             b->pool = (uint16_t *)malloc((total ? total : 1u) * sizeof(uint16_t));
+@@ -160,13 +191,13 @@
+         p[0] = s->mv[i][0] + s->mn[i][0] * PSM_BAKE_PUSH;
+         p[1] = s->mv[i][1] + s->mn[i][1] * PSM_BAKE_PUSH;
+         p[2] = s->mv[i][2] + s->mn[i][2] * PSM_BAKE_PUSH;
+-        if (psm_bake_sees_(b, s, p)) b->vbake[i] = (uint8_t)(sh4der_min1_(ndl) * 255.0f + 0.5f);
++        if (psm_bake_sees_(b, p)) b->vbake[i] = (uint8_t)(sh4der_min1_(ndl) * 255.0f + 0.5f);
+         else { b->vbake[i] = 0u; b->shadowed_v++; }
+     }
+     for (j = 0; j < PSM_BAKE_SIDE; j++)
+         for (i = 0; i < PSM_BAKE_SIDE; i++) {
+             const float p[3] = { PSM_BAKE_X0 + ((float)i + 0.5f) * cell, PSM_BAKE_GROUND_Y, PSM_BAKE_Z0 + ((float)j + 0.5f) * cell };
+-            const int lit = psm_bake_sees_(b, s, p);
++            const int lit = psm_bake_sees_(b, p);
+ 
+             b->gmap[j * PSM_BAKE_SIDE + i] = lit ? 255u : 0u;
+             b->shadowed_g += !lit;
+--- a/test/bake_check.c
++++ b/test/bake_check.c
+@@ -14,6 +14,71 @@
+ 
+ static double now_ms(void) { return (double)clock() * 1000.0 / CLOCKS_PER_SEC; }
+ 
++/* bake1's test (Moller-Trumbore, one divide a test), the reference for the prepared form */
++static int ref_ray_tri(const float o[3], const float d[3], const float *a, const float *b, const float *c) {
++    const float e1[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, e2[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
++    float h[3], s[3], q[3], det, inv, u, v;
++
++    psm_bake_cross_(d, e2, h);
++    det = sh4der_dot3_(e1, h);
++    if (det > -1e-9f && det < 1e-9f) return 0;
++    inv = 1.0f / det;
++    s[0] = o[0] - a[0]; s[1] = o[1] - a[1]; s[2] = o[2] - a[2];
++    u = sh4der_dot3_(s, h) * inv;
++    if (u < 0.0f || u > 1.0f) return 0;
++    psm_bake_cross_(s, e1, q);
++    v = sh4der_dot3_(d, q) * inv;
++    if (v < 0.0f || u + v > 1.0f) return 0;
++    return sh4der_dot3_(e2, q) * inv > 1e-3f;
++}
++
++static unsigned long ref_tests;
++
++static int ref_sees(const psm_bake_t *b, const psm_scene_t *s, const float p[3]) {
++    unsigned k, j;
++
++    if (!psm_bake_bin_of_(b, p, &k)) return 1;
++    for (j = 0; j < b->binn[k]; j++) {
++        const unsigned t = b->bin[k][j];
++
++        ref_tests++;
++        if (ref_ray_tri(p, b->sun, s->cv[s->ct[t][0]], s->cv[s->ct[t][1]], s->cv[s->ct[t][2]])) return 0;
++    }
++    return 1;
++}
++
++/* bake1's bytes for the same bins: how many vertices and texels the prepared form changes */
++static void ref_compare(const psm_bake_t *b, const psm_scene_t *s) {
++    const float cell = PSM_BAKE_SPAN / (float)PSM_BAKE_SIDE;
++    unsigned i, j, dv = 0, dg = 0;
++    unsigned long sv = 0, sg = 0;
++
++    ref_tests = 0;
++    for (i = 0; i < s->mdyn0; i++) {
++        const float ndl = sh4der_dot3_(s->mn[i], b->sun);
++        float p[3];
++        unsigned byte;
++
++        if (!(ndl > 0.0f)) continue;
++        p[0] = s->mv[i][0] + s->mn[i][0] * PSM_BAKE_PUSH;
++        p[1] = s->mv[i][1] + s->mn[i][1] * PSM_BAKE_PUSH;
++        p[2] = s->mv[i][2] + s->mn[i][2] * PSM_BAKE_PUSH;
++        if (ref_sees(b, s, p)) byte = (unsigned)(sh4der_min1_(ndl) * 255.0f + 0.5f);
++        else { byte = 0u; sv++; }
++        dv += byte != b->vbake[i];
++    }
++    for (j = 0; j < PSM_BAKE_SIDE; j++)
++        for (i = 0; i < PSM_BAKE_SIDE; i++) {
++            const float p[3] = { PSM_BAKE_X0 + ((float)i + 0.5f) * cell, PSM_BAKE_GROUND_Y, PSM_BAKE_Z0 + ((float)j + 0.5f) * cell };
++            const unsigned lit = ref_sees(b, s, p) ? 255u : 0u;
++
++            sg += !lit;
++            dg += lit != b->gmap[j * PSM_BAKE_SIDE + i];
++        }
++    printf("bake1 reference (Moller-Trumbore, a divide a test): %lu tests, shadowed v %lu g %lu; prepared differs in %u vertices, %u texels\n",
++           ref_tests, sv, sg, dv, dg);
++}
++
+ static void route_b(const psm_state_t *st, int movers_only) {
+     if (!psm_frame_b_begin(&frame, &scene, depth)) { psm_frame_unshadowed(&frame, &scene); return; }
+     psm_frame_b_casters(&frame, &scene, movers_only);
+@@ -42,6 +107,7 @@
+     t = now_ms(); if (!psm_bake_run(&bake, &scene, frame.sun)) { printf("FAIL bake\n"); return 1; } t_bake = now_ms() - t;
+     printf("bake: %lu ray-triangle tests, static vertices shadowed %lu, ground texels shadowed %lu of %u (%.1f %%); host %.1f ms\n",
+            bake.tests, bake.shadowed_v, bake.shadowed_g, PSM_BAKE_SIDE * PSM_BAKE_SIDE, 100.0 * bake.shadowed_g / (PSM_BAKE_SIDE * PSM_BAKE_SIDE), t_bake);
++    ref_compare(&bake, &scene);
+     fails += !psm_bake_valid(&bake, frame.sun);
+     fails += !psm_bake_movers_only(&bake, frame.sun, 0);
+ 
