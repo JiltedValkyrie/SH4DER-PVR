@@ -7,9 +7,12 @@
    half of the screen one way and the right half another (the PVR's user tile clip), to show the lamp look of
    ao4_lamp.h and to read its cost off the screen:
 
-     LAMP OFF | LAMP ON       the room as ao4 shows it | dimmed, the shade lit from inside (emission + sss), slotted
-                              (punch-through), a glow at the bulb
-     SLOTS OFF | SLOTS ON     the lamp on in both: a whole shade | a slotted one
+     LAMP OFF | LAMP ON       the room as ao4 shows it | dimmed, the shade lit from inside (emission + sss), a whole
+                              shade, a glow at the bulb
+     SLOTS OFF | SLOTS ON     the lamp on in both: a whole shade | a slotted one (punch-through). The slots are in
+                              this comparison alone: on the console (suite s7, lamp-c) a slot showed the dark room
+                              through the far slot and the open bottom, and read as a hole. D-pad down draws a lit
+                              inside behind the slits (a second, smaller shade in the opaque list): off in the run.
      LIGHT OFF | LIGHT ON     the lamp on in both, a whole shade: the room as dimmed | the bulb's light on the room's
                               vertices (a point light a vertex: no shadow, the shade does not block it)
      LAMP OFF | LAMP OFF      the same picture twice: the base the others are read against
@@ -22,9 +25,11 @@
    one started with it, the same picture (the list then holds one triangle off the screen: it is never sent empty).
 
    It runs by itself first (LAMP_AUTO_S seconds a stage), then the result pages and a graph. START on the pages: the
-   live view.
+   live view. ANY BUTTON OR TRIGGER DURING THE RUN ends the run there and opens the live view at once, in that
+   stage's comparison (the pages after it say where the run stopped; nothing is measured while keys act).
      X  the comparison     Y  swap the halves     A  the camera near the lamp / the room's     B  the hens on / off
      LT / RT  the divider  d-pad up held + B  the effect labels on / off     stick  the camera     START  the pages
+     d-pad down  the lit inside behind the slits on / off
 
    WHAT IS TIMED: the SH-4's parts with its cycle counter (PRFC1), the PVR's render from pvr_get_stats, a frame from
    its first line to its render's end. The effect labels (../psm_effects.h) are OFF in the measured stages.
@@ -114,6 +119,8 @@ static uint8_t halo_tri[AO4_LAMP_HALO_T][3];
 static float scr[AO4_V_MAX][3], shade_scr[AO4_LAMP_V][3], halo_xyz[AO4_LAMP_HALO_V][3], halo_scr[AO4_LAMP_HALO_V][3];
 static uint32_t lit[AO4_V_MAX], dimmed[2][AO4_V_MAX];   /* the room's colours: as ao4's; dimmed for the lamp, [1] with the bulb's light */
 static uint32_t shade_base[AO4_LAMP_V], shade_off[AO4_LAMP_V], halo_col[AO4_LAMP_HALO_V];
+static float liner_scr[AO4_LAMP_V][3];      /* the lit inside: the shade's rings at LINER of their radius */
+#define LINER 0.9f
 
 static void flush(void) {
     if (!run_n) return;
@@ -292,6 +299,7 @@ static int scene_close(void) {
 typedef struct view {
     unsigned mode, div;
     int swap, close, hens;
+    int liner;                              /* a lit inside behind the slits of a slotted shade */
     float turn, lift, t;
 } view_t;
 
@@ -300,7 +308,7 @@ typedef struct side { int lamp, slots, light; } side_t;
 #define MODES 4u
 #define MODE_BASE 3u
 static const side_t mode_side[MODES][2] = {
-    { { 0, 0, 0 }, { 1, 1, 0 } },           /* LAMP OFF | LAMP ON */
+    { { 0, 0, 0 }, { 1, 0, 0 } },           /* LAMP OFF | LAMP ON: a whole shade */
     { { 1, 0, 0 }, { 1, 1, 0 } },           /* SLOTS OFF | SLOTS ON */
     { { 1, 0, 0 }, { 1, 0, 1 } },           /* LIGHT OFF | LIGHT ON */
     { { 0, 0, 0 }, { 0, 0, 0 } },           /* LAMP OFF | LAMP OFF */
@@ -401,6 +409,12 @@ static int frame(const view_t *v, cost_t *c) {
         t0 = cyc();
         ao4_lamp_shade(&lamp, cam.e, AO4_CLAY_GREY, shade_base, shade_off);
         for (i = 0; i < AO4_LAMP_V; i++) ao4_cam_pt(&cam, lamp.p[i], shade_scr[i]);
+        if (v->liner)
+            for (i = 0; i < AO4_LAMP_V; i++) {
+                const float q[3] = { lamp.cx + (lamp.p[i][0] - lamp.cx) * LINER, lamp.p[i][1], lamp.cz + (lamp.p[i][2] - lamp.cz) * LINER };
+
+                ao4_cam_pt(&cam, q, liner_scr[i]);
+            }
         c->shade = cyc() - t0;
         t0 = cyc();
         ao4_lamp_halo(&lamp, cam.e, 0.0f, planes, ROOM_SURFS, halo_xyz, halo_col);
@@ -427,6 +441,17 @@ static int frame(const view_t *v, cost_t *c) {
                 const unsigned x = room.idx[k + i];
 
                 put(i + 1u == room.slen[st], scr[x][0], scr[x][1], scr[x][2], 0.0f, 0.0f, col[x]);
+            }
+        }
+        if (skip && side[sd].slots && v->liner) {           /* the lit inside: what a slit shows, in place of the room behind */
+            const unsigned lr = (unsigned)(255.0f * lamp.inside * lamp.warm[0]), lg = (unsigned)(255.0f * lamp.inside * lamp.warm[1]), lb = (unsigned)(255.0f * lamp.inside * lamp.warm[2]);
+            const uint32_t lc = 0xff000000u | ((lr > 255u ? 255u : lr) << 16) | ((lg > 255u ? 255u : lg) << 8) | (lb > 255u ? 255u : lb);
+
+            for (i = 0; i < AO4_LAMP_T; i++) {
+                const uint16_t *t = lamp.tri[i];
+
+                if (!tri_ok(liner_scr[t[0]], liner_scr[t[1]], liner_scr[t[2]])) continue;
+                for (k = 0; k < 3u; k++) put(k == 2u, liner_scr[t[k]][0], liner_scr[t[k]][1], liner_scr[t[k]][2], 0.0f, 0.0f, lc);
             }
         }
         flush();
@@ -515,6 +540,26 @@ static void sums_mean(const sums_t *s, cost_t *m) {
     m->light /= n; m->frame /= n; m->pvr /= n; m->dim /= nl; m->shade /= nl; m->halo /= nl; m->pl /= np;
 }
 
+#define RUN_STAGES 8
+static int run_stage = -1;                  /* the run's stage in hand; -1: the live view */
+static int pad_stop;                        /* a button during the run: the run ends there and the live view opens */
+static int pad_from = -1;                   /* the stage the live view then starts as */
+
+/* The pad during the run: 1 at a button or a trigger newly pressed (the stick does not count). The first call takes
+   what is held as old, so the menu's A does not count. */
+static int pad_hit(void) {
+    static unsigned held = ~0u;
+    static int trig = 1;
+    maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+    cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    const unsigned now = st ? st->buttons : 0u;
+    const int tr = st && (st->ltrig > 128 || st->rtrig > 128);
+    const int hit = (now & ~held) != 0u || (tr && !trig);
+
+    held = now; trig = tr;
+    return hit;
+}
+
 /* The text of this view and these costs (a mean the caller keeps). */
 static void labels(const view_t *v, const cost_t *c) {
     const side_t sl = mode_side[v->mode][v->swap ? 1 : 0], sr = mode_side[v->mode][v->swap ? 0 : 1];
@@ -531,7 +576,8 @@ static void labels(const view_t *v, const cost_t *c) {
     else text_set(1u, "SH4 us: the room's light %u; the lamp is off", us_of(c->light));
     text_set(2u, "frame %u.%u ms PVR %u us %u v TA %uK%s%s", us_of(c->frame) / 1000u, us_of(c->frame) % 1000u / 100u, (unsigned)(c->pvr / 1000u), c->verts,
              (unsigned)((c->vbuf + 512u) / 1024u), hl.hidden || hr.hidden ? " HALF HIDDEN: NOT SENT" : "", lamp_ok ? "" : " NO LAMP IN THE ROOM");
-    text_set(3u, "X compare Y swap A camera B hens LT/RT divider START pages");
+    if (run_stage >= 0) text_set(3u, "MEASURING stage %u of %u: any button = live view now", (unsigned)run_stage + 1u, (unsigned)RUN_STAGES);
+    else text_set(3u, "X compare Y swap A cam B hens LT/RT div dn inside%s START pg", v->liner ? " ON" : "");
     fx_format_merged(&fx_now, e, lamp_fx_live(lamp_on, slots, light, e));
     text_set(4u, "%s", fx_now.line[0]);
     text_set(5u, "%s", fx_now.line[1]);
@@ -582,17 +628,17 @@ static void stop(const char *stage) {
 
 /* the run that counts, a stage: the comparison, the divider, the camera near, the PVR it runs on (0: no
    punch-through list). */
-typedef struct stage { uint8_t mode, div, close, pt; const char *name; } stage_t;
+typedef struct stage { uint8_t mode, div, close, pt, swap; const char *name; } stage_t;
 #define AUTO_STAGES 8u
 static const stage_t auto_stage[AUTO_STAGES] = {
-    { MODE_BASE, 10, 0, 0, "off, 2 lists" },                    /* the same picture on a PVR without the third list .. */
-    { MODE_BASE, 10, 0, 1, "off, 3 lists" },                    /* .. and with it, one triangle off the screen in it */
-    { 0, 10, 0, 1, "OFF | ON" },
-    { 1, 10, 0, 1, "SLOTS" },
-    { 2, 10, 0, 1, "ROOM LIGHT" },
-    { 0, 10, 1, 1, "OFF | ON near" },
-    { 0, 0, 0, 1, "ON alone" },                                 /* the divider at the left end: the left half is not sent */
-    { 0, 20, 0, 1, "OFF alone" },                               /* and at the right end */
+    { MODE_BASE, 10, 0, 0, 0, "off, 2 lists" },                    /* the same picture on a PVR without the third list .. */
+    { MODE_BASE, 10, 0, 1, 0, "off, 3 lists" },                    /* .. and with it, one triangle off the screen in it */
+    { 0, 10, 0, 1, 1, "ON | OFF" },                             /* swapped: the lamp stands left of the middle from the room's eye */
+    { 1, 10, 0, 1, 0, "SLOTS" },
+    { 2, 10, 0, 1, 0, "ROOM LIGHT" },
+    { 0, 10, 1, 1, 0, "OFF | ON near" },
+    { 0, 0, 0, 1, 0, "ON alone" },                                 /* the divider at the left end: the left half is not sent */
+    { 0, 20, 0, 1, 0, "OFF alone" },                               /* and at the right end */
 };
 static sums_t auto_sum[AUTO_STAGES];
 static unsigned auto_done;
@@ -613,7 +659,10 @@ static void loop(int auto_run, unsigned first, unsigned last) {
     memset(&win, 0, sizeof win);
     memset(&shown, 0, sizeof shown);
     ao4_hens_reset(&hens);
-    if (auto_run) { v.mode = auto_stage[stage].mode; v.div = auto_stage[stage].div; v.close = auto_stage[stage].close; }
+    if (!auto_run && pad_from >= 0) stage = (unsigned)pad_from;      /* the live view a button opened: as the stage it stopped */
+    if (auto_run || pad_from >= 0) { v.mode = auto_stage[stage].mode; v.div = auto_stage[stage].div; v.close = auto_stage[stage].close; v.swap = auto_stage[stage].swap; }
+    pad_from = -1;
+    run_stage = auto_run ? (int)stage : -1;
     labels(&v, &shown);
     text_upload();
     for (;;) {
@@ -628,10 +677,12 @@ static void loop(int auto_run, unsigned first, unsigned last) {
         t_prev = t_now; held = now;
         v.t += dt < 0.1f ? dt : 0.1f;
         if (auto_run) {
+            if (pad_hit()) { pad_stop = 1; pad_from = (int)stage; break; }   /* the stage in hand is not counted as done */
             if (t_now - t_stage > (uint64_t)LAMP_AUTO_S * 1000000000ull) {
                 t_stage = t_now; auto_done = stage + 1u; stage++; changed = 1;
                 if (stage > last) break;
-                v.mode = auto_stage[stage].mode; v.div = auto_stage[stage].div; v.close = auto_stage[stage].close;
+                v.mode = auto_stage[stage].mode; v.div = auto_stage[stage].div; v.close = auto_stage[stage].close; v.swap = auto_stage[stage].swap;
+                run_stage = (int)stage;
             }
         } else {
             const unsigned d = st ? split_step(&trig, v.div, SPLIT_COLS, st->ltrig > 128, st->rtrig > 128) : v.div;
@@ -649,6 +700,7 @@ static void loop(int auto_run, unsigned first, unsigned last) {
             if (hit & CONT_X) { v.mode = (v.mode + 1u) % MODES; changed = 1; }
             if (hit & CONT_Y) { v.swap = !v.swap; changed = 1; }
             if (hit & CONT_A) { v.close = !v.close; changed = 1; }
+            if (hit & CONT_DPAD_DOWN) { v.liner = !v.liner; changed = 1; }
             if ((hit & CONT_B) && (now & CONT_DPAD_UP)) fx_hide_chord(1, 1, &fx_hidden);          /* up held, then B: the effect labels */
             else if (hit & CONT_B) { v.hens = !v.hens; changed = 1; }
         }
@@ -666,6 +718,7 @@ static void loop(int auto_run, unsigned first, unsigned last) {
             text_upload();                  /* the render is done (scene_close): nothing reads the texture now */
         }
     }
+    run_stage = -1;
 }
 
 /* ---- the run ---------------------------------------------------------------------- */
@@ -685,7 +738,8 @@ static void report(void) {
     say("Effect labels: off in the measured stages, on in the live");
     say(" view (d-pad up held + B hides them).");
     if (!lamp_ok) say("NO LAMP FOUND IN THE ROOM'S MODEL: every stage is the plain room");
-    if (auto_done < AUTO_STAGES) say("THE RUN DID NOT FINISH: %u of %u stages", auto_done, AUTO_STAGES);
+    if (auto_done < AUTO_STAGES && pad_stop) say("RUN STOPPED BY THE PAD AT STAGE %u: stages %u.. not measured", auto_done, auto_done);
+    else if (auto_done < AUTO_STAGES) say("THE RUN DID NOT FINISH: %u of %u stages", auto_done, AUTO_STAGES);
     say("stage           frame PVR   verts  TA K  frames");
     for (i = 0; i < auto_done; i++)
         say("%u %-13s %5u %5u %6u %4u %6u", i, auto_stage[i].name, us_of(m[i].frame), (unsigned)(m[i].pvr / 1000u), m[i].verts, (unsigned)((m[i].vbuf + 512u) / 1024u), auto_sum[i].n);
@@ -703,10 +757,11 @@ static void report(void) {
         say("DERIVED the lamp at full width: frame %+d, PVR %+d (6 - 7)", (int)us_of(m[6].frame) - (int)us_of(m[7].frame), (int)(m[6].pvr / 1000u) - (int)(m[7].pvr / 1000u));
         say("A half hidden is not sent: 6 and 7 send one half each.");
     }
+    say("LAMP ON is a whole shade; the slots are in stage 3 alone.");
     say("One run, one console. The picture is not on this page:");
     say(" photograph the live view (X: the three comparisons).");
     g = pg_plot("ao-lamp: a frame, us", "stage", "us", 1);
-    pg_cat(g, "2 lists"); pg_cat(g, "3 lists"); pg_cat(g, "OFF|ON"); pg_cat(g, "SLOTS"); pg_cat(g, "LIGHT"); pg_cat(g, "near"); pg_cat(g, "ON"); pg_cat(g, "OFF");
+    pg_cat(g, "2 lists"); pg_cat(g, "3 lists"); pg_cat(g, "ON|OFF"); pg_cat(g, "SLOTS"); pg_cat(g, "LIGHT"); pg_cat(g, "near"); pg_cat(g, "ON"); pg_cat(g, "OFF");
     pg_series(g, "frame"); for (i = 0; i < AUTO_STAGES; i++) pg_point(g, (float)i, i < auto_done ? (float)us_of(m[i].frame) : 0.0f);
     pg_series(g, "PVR"); for (i = 0; i < AUTO_STAGES; i++) pg_point(g, (float)i, i < auto_done ? (float)(m[i].pvr / 1000u) : 0.0f);
 }
@@ -747,9 +802,13 @@ int main(void) {
         loop(1, 0u, 0u);
         stop("auto 2 lists");
     }
-    if (auto_done == 1u && start(1)) {      /* the rest: with it */
+    if (!pad_stop && auto_done == 1u && start(1)) {      /* the rest: with it */
         loop(1, 1u, AUTO_STAGES - 1u);
+        if (pad_stop) loop(0, 0u, 0u);      /* a button during the run: the live view at once, the pages after it */
         stop("auto end");
+    } else if (pad_stop && start(1)) {      /* a button in the first stage: the live view on a PVR with the third list */
+        loop(0, 0u, 0u);
+        stop("live end");
     }
     report();
     vid_set_mode(DM_640x480, PM_RGB565);

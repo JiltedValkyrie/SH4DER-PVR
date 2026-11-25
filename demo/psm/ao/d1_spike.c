@@ -19,7 +19,10 @@
          CLEAR is (1,1,1,0) with ZERO x DESTCOLOR (alpha to 0, colour kept); FADE adds (0,0,0,level) with ONE x ONE;
          SHOW is white with DESTALPHA x ZERO (alpha as grey). c1 ran CLEAR, an alpha-only add and DESTALPHA on a
          console (wiki PVR-040); what is NEW here is the bump level as that add, and K1 0 / K3 255.
-         T3 uses the first of bands 0 and 2 that reads as the model says; with neither, T3's fade is not run.
+         T3 uses the first of bands 0 and 2 that has the SHAPE the fade needs (full at code 64, rising to it, falling
+         after it, nothing from code 128 on); with neither, T3's fade is not run. d1-a asked for a cosine to within 4
+         and found none: on the console (suite s7, 2026-11-25) both bands read 252 at code 64, 172 at 96 (a cosine:
+         180) and 0 from 128, so the layer was there and the rule was wrong. The page now prints band 0's curve.
      T2  the depth map. (a) A quad at one depth and a tilted quad through the ramp: every pixel's code against the
          depth the SH-4 computes for it. (b) The room from the camera: the codes at the floor's vertices.
      T3  the fade. One glow quad 0.2 m from a wall, the screen cut in two: left the plain additive glow (the hard
@@ -27,7 +30,8 @@
          255 from a quad D1_FADE behind, depth test on: without it the level comes round every D1_TURN), HALO
          (DESTALPHA x ONE). Stages: no glow; plain; the fade's alpha shown as grey; the fade; the fade without FAR.
 
-   Then the pages. START on the pages: T3 live.
+   Then the pages. START on the pages: T3 live. ANY BUTTON OR TRIGGER DURING THE RUN ends the run there and opens
+   the live view at once (the pages after it say where the run stopped; nothing is measured while keys act).
      X  right half: the fade / its alpha as grey     A  the glow's distance from the wall: 0.1, 0.2, 0.4, 0.8 m
      B  the FAR quad on / off     LT / RT  the divider     d-pad up held + Y  the effect labels     stick  the camera
 
@@ -406,15 +410,34 @@ static void fetch(uint32_t bytes) {
 #define AT(x, y) tgt_ram[(y) * TW + (x)]
 #define G8(p) ((((p) >> 5) & 63u) << 2)     /* a 565 pixel's green as 0 .. 252: what a grey level reads back as, to 4 */
 
+/* The pad during the run: 1 at a button or a trigger newly pressed (the stick does not count). The first call
+   takes what is held as old, so the menu's A does not count. */
+static int pad_stop;                        /* the pad ended the run: what is left of it is skipped and the live view opens */
+
+static int pad_hit(void) {
+    static unsigned held = ~0u;
+    static int trig = 1;
+    maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+    cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    const unsigned now = st ? st->buttons : 0u;
+    const int tr = st && (st->ltrig > 128 || st->rtrig > 128);
+    const int hit = (now & ~held) != 0u || (tr && !trig);
+
+    held = now; trig = tr;
+    return hit;
+}
+
 /* The target held on the screen for D1_AUTO_S seconds with a line of text: the picture to photograph. */
 static void show_target(const char *caption) {
     const uint64_t t0 = ns();
 
     text_set(0u, "%s", caption);
-    text_set(1u, ""); text_set(2u, ""); text_set(3u, ""); text_set(4u, ""); text_set(5u, "");
+    text_set(1u, "MEASURING: any button = live view now");
+    text_set(2u, ""); text_set(3u, ""); text_set(4u, ""); text_set(5u, "");
     text_upload();
     while (ns() - t0 < (uint64_t)D1_AUTO_S * 1000000000ull) {
         step("d1 show   ");
+        if (pad_hit()) { pad_stop = 1; return; }
         if (!scene_open(0)) return;
         sent = 0;
         pvr_list_begin(PVR_LIST_OP_POLY);
@@ -422,6 +445,7 @@ static void show_target(const char *caption) {
         pvr_list_finish();
         pvr_list_begin(PVR_LIST_TR_POLY);
         text_put(0u, 64.0f, 52.0f);
+        text_put(1u, 64.0f, 412.0f);
         flush();
         pvr_list_finish();
         if (!scene_close()) return;
@@ -440,8 +464,11 @@ static int fade_env = -1;                   /* the FADE that reads as the model 
 static void t1(void) {
     static const char *const name[T1_BANDS] = { "MODULATE K 0/255", "MODULATE K 128/127", "MODALPHA K 0/255", "REPLACE as colour", "no SHOW: backdrop" };
     static const uint8_t k1[T1_BANDS] = { 0, 128, 0, 0, 0 }, k3[T1_BANDS] = { 255, 127, 255, 255, 255 };
-    unsigned b, i, match[T1_BANDS];
+    unsigned b, i, match[T1_BANDS], curve[32];
+    int shape[T1_BANDS];
+    char line[80];
 
+    memset(curve, 0, sizeof curve);
     say("T1 DESTINATION ALPHA, no depth map: 256 codes, Q %u, 5 bands", T1_Q);
     say(" CLEAR (1,1,1,0) ZEROxDESTCOLOR; FADE bump (0,0,0,level)");
     say(" ONExONE; SHOW white DESTALPHAxZERO. Model: K1+K3 cos, >= 0.");
@@ -464,10 +491,11 @@ static void t1(void) {
     if (!scene_close()) { say("T1: NO RENDER END"); return; }
     fetch(FETCH_BYTES);
     for (b = 0; b < T1_BANDS; b++) {
-        unsigned lo = 255u, hi = 0u, kept = 0;
+        unsigned lo = 255u, hi = 0u, kept = 0, prev = 0;
         const unsigned y = T1_Y(b) + 16u;
 
         match[b] = 0;
+        shape[b] = G8(AT(T1_X0 + T1_Q, y)) >= 240u;         /* the shape the fade needs: full at the peak, */
         for (i = 0; i < 256u; i++) {
             const unsigned g = G8(AT(T1_X0 + i, y)), e = d1_level(k1[b], k3[b], (i - T1_Q) & 255u) & ~3u;
 
@@ -475,15 +503,24 @@ static void t1(void) {
             if (g > hi) hi = g;
             match[b] += g + 4u >= e && g <= e + 4u;
             kept += AT(T1_X0 + i, y) == AT(4u, y);          /* the backdrop beside the strip */
+            if (i >= 128u && g > 8u) shape[b] = 0;          /* nothing over the half turn behind it, */
+            if (i && i <= T1_Q && g + 8u < prev) shape[b] = 0;               /* rising to the peak, */
+            if (i > T1_Q && i <= 128u && g > prev + 8u) shape[b] = 0;        /* falling after it (a step of the 565 target's green allowed) */
+            prev = g;
+            if (b == 0u && (i & 7u) == 0u) curve[i >> 3] = g;
         }
         if (b == 4u) say("T1 %u %-18s backdrop kept on %u of 256 px", b, name[b], kept);
-        else say("T1 %u %-18s as model %u/256, read %u..%u", b, name[b], match[b], lo, hi);
-        if (b == 0u || b == 2u)
-            say("   codes 64 96 128 160 192 0 read %u %u %u %u %u %u", G8(AT(T1_X0 + 64u, y)), G8(AT(T1_X0 + 96u, y)), G8(AT(T1_X0 + 128u, y)), G8(AT(T1_X0 + 160u, y)),
-                G8(AT(T1_X0 + 192u, y)), G8(AT(T1_X0, y)));
+        else say("T1 %u %-18s model %u/256 %u..%u%s", b, name[b], match[b], lo, hi, b == 0u || b == 2u ? shape[b] ? " SHAPE OK" : " SHAPE NO" : "");
     }
-    say("   (model at those codes, K 0/255: 252 180 0 0 0 0)");
-    fade_env = match[0] >= 240u ? 0 : match[2] >= 240u ? 1 : -1;
+    say("T1 band 0 as read, codes 0, 8 .. 248 (a cosine: 0 at 0, 252 at");
+    say(" 64, 180 at 96, 0 from 128; the console's curve is its own):");
+    for (b = 0; b < 2u; b++) {
+        unsigned n = 0;
+
+        for (i = 0; i < 16u; i++) n += (unsigned)snprintf(line + n, sizeof line - n, "%s%u", i ? " " : " ", curve[b * 16u + i]);
+        say("%s", line);
+    }
+    fade_env = shape[0] ? 0 : shape[2] ? 1 : -1;
     say("T1 RESULT: the FADE for T3 is %s", fade_env == 0 ? "band 0, MODULATE" : fade_env == 1 ? "band 2, MODULATEALPHA" : "NONE: T3's fade is not run");
     show_target("T1: bands 0..4 top to bottom. PASS: 0 and 2 a black-white wave");
 }
@@ -528,6 +565,7 @@ static void t2(void) {
     say("T2a tilted 3..6 m (about 4 codes a px): off by 0: %u, 1: %u,", bins[0], bins[1]);
     say("    2-3: %u, more: %u of 160; worst %+d", bins[2], bins[3], worst);
     show_target("T2a: left one grey-blue; right fine stripes, even across");
+    if (pad_stop) { say("T2b: not run (the pad ended the run)"); return; }
 
     step("d1 t2b    ");
     ao4_cam_at(&room, &cam, 0.0f, 0.0f, 0.0f);
@@ -708,7 +746,8 @@ static void labels(const view_t *v, const sums_t *s) {
              v->far_on ? "" : "  FAR OFF");
     text_set(1u, "frame %u us  PVR screen %u  map %u us  map send %u us", us_of(s->c.frame / n), (unsigned)(s->c.pvr_scr / n / 1000u), (unsigned)(s->c.pvr_map / nm / 1000u),
              us_of(s->c.map_send / nm));
-    text_set(2u, "X fade/alpha A wall B FAR LT/RT divider START pages");
+    if (fx_live) text_set(2u, "X fade/alpha A wall B FAR LT/RT divider START pages");
+    else text_set(2u, "MEASURING stage %u of %u: any button = live view now", v->stage + 1u, (unsigned)T3_STAGES);
     fx_format(&fx_now, d1_fx, fade ? 2u : 1u);
     text_set(4u, "%s", fx_now.line[0]);
     text_set(5u, "%s", fx_now.line[1]);
@@ -740,6 +779,7 @@ static void loop(int auto_run) {
         step("d1 t3     ");
         t_prev = t_now; held = now;
         if (auto_run) {
+            if (pad_hit()) { pad_stop = 1; break; }         /* the stage in hand is not counted as done */
             if (t_now - t_stage > (uint64_t)D1_AUTO_S * 1000000000ull) {
                 t_stage = t_now; auto_done = v.stage + 1u; v.stage++; changed = 1;
                 if (v.stage >= T3_STAGES) break;
@@ -784,7 +824,8 @@ static void t3_report(void) {
     say("T3 THE FADE: one glow %u cm from a wall, left plain, right faded", (unsigned)(wall_m[1] * 100.0f + 0.5f));
     say(" fade %u cm (a quarter turn), a turn %u cm, map %u x %u", (unsigned)(D1_FADE * 100.0f + 0.5f), (unsigned)(D1_TURN * 100.0f + 0.5f), MW, MH);
     if (fade_env < 0) say(" T1 FOUND NO ALPHA-ONLY BUMP LAYER: stages 2..4 drew the plain glow");
-    if (auto_done < T3_STAGES) say(" THE RUN DID NOT FINISH: %u of %u stages", auto_done, (unsigned)T3_STAGES);
+    if (auto_done < T3_STAGES && pad_stop) say(" RUN STOPPED BY THE PAD AT STAGE %u: stages %u.. were not measured", auto_done, auto_done);
+    else if (auto_done < T3_STAGES) say(" THE RUN DID NOT FINISH: %u of %u stages", auto_done, (unsigned)T3_STAGES);
     say("stage            frame  PVR scr  PVR map  map send  verts");
     for (i = 0; i < auto_done; i++) {
         const sums_t *s = &auto_sum[i];
@@ -883,8 +924,9 @@ int main(void) {
         fault_on = 1;
         if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
         t1();
-        t2();
-        loop(1);
+        if (!pad_stop) t2(); else { pg_break(); say("T2: not run (the pad ended the run)"); }
+        if (!pad_stop) loop(1);
+        if (pad_stop) loop(0);              /* a button during the run: the live view at once, the pages after it */
         stop("auto end");
         t3_report();
     }

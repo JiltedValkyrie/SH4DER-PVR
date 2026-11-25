@@ -1,0 +1,87 @@
+{
+  "note": "The suite disc psm-suite-s8 (lead builds it when Junior's pl4nar is in: demo/psm/suite/build.py --tag s8 --list demo/psm/suite/suite_s8.json). s7 with these rebuilt after its console run of 2026-11-25 (s7.mkv): d1-b (T1 judged by the level's shape, so T3 draws the fade; band 0's curve printed), lamp-d (LAMP ON is a whole shade, the slots in stage 3 alone, stage 2's halves swapped, d-pad down a lit inside behind the slits), ao4-i and hen-e (no change to what is measured), pd-d (the graph page only). In d1-b, lamp-d, ao4-i and hen-e any button or trigger during the run ends it and opens the live view; the run's key line says so. Every graph page keeps its title clear of the effect labels (psm_page.h). hero1 and pl4nar are Junior's: as on s7 until he sends new ELFs. ao1c-live and hud1c-2 as on s7. The menu's CREDITS say that SH4ZAM-DCE is not SH4ZAM's own. NOT RUN on a console. Times are ESTIMATE.",
+  "tests": [
+    {
+      "name": "ao4",
+      "file": "AO4.BIN",
+      "elf": "build/psm_ao/psm-ao4-i.elf",
+      "order": 1,
+      "what": "AO side by side; clip guard; tile cut last. 110 s",
+      "read": "photo ALL 4 pages+graph; stages 16, 17 (GUARD label)",
+      "group": "demos"
+    },
+    {
+      "name": "ao-lamp",
+      "file": "AOLAMP.BIN",
+      "elf": "build/psm_ao/psm-lamp-d.elf",
+      "order": 2,
+      "what": "lamp: sss shade, halo; slots in stage 3. ~35 s",
+      "read": "photo pages+graph; live: X compare, A near, dn inside",
+      "group": "demos"
+    },
+    {
+      "name": "hero1",
+      "file": "HERO1.BIN",
+      "elf": "D:/tmp/junior_build_hero1_h1e/sh4der-psm-hero1-h1e.elf",
+      "order": 3,
+      "what": "skinned hero, pass costs, room + hens. ~50 s",
+      "read": "photo every page; START = live (keys on the last page)",
+      "group": "demos"
+    },
+    {
+      "name": "pl4nar",
+      "file": "PL4NAR.BIN",
+      "elf": "demo/pl4nar/build/pl4m_pl4m-c5/sh4der-pl4m-pl4m-c5.elf",
+      "order": 4,
+      "what": "new map, reflection, shadows, AO, split. ~121 s",
+      "read": "photo every page; 11 stages: frame, SH4, PVR, TA a scene",
+      "group": "demos",
+      "credits": "pl4nar"
+    },
+    {
+      "name": "d1",
+      "file": "D1.BIN",
+      "elf": "build/psm_ao/psm-d1-b.elf",
+      "order": 1,
+      "what": "depth fade: glow soft at a wall, 3 tests. ~45 s",
+      "read": "photo 3 held pictures, T3 stages, every page + graph",
+      "group": "tools"
+    },
+    {
+      "name": "hens-eyes",
+      "file": "HENEYES.BIN",
+      "elf": "build/psm_ao/psm-hen-e.elf",
+      "order": 2,
+      "what": "hens: rays vs collision sweep, cycles. ~50 s",
+      "read": "photo every page + graph; START = live: X mode, Y hens",
+      "group": "tools"
+    },
+    {
+      "name": "pvr-dma",
+      "file": "PVRDMA.BIN",
+      "elf": "build/psm_ao/psm-pd-d.elf",
+      "order": 3,
+      "what": "PVR-DMA download proof: VRAM to RAM. ~2 s",
+      "read": "PVR-DMA download proof: photo the page and the graph",
+      "group": "tools"
+    },
+    {
+      "name": "ao1c-live",
+      "file": "AO1CLIVE.BIN",
+      "elf": "D:/tmp/junior_build_ao1c-live_clay/psm_dc/sh4der-psm-town-ao1c-live.elf",
+      "order": 0,
+      "what": "TEST, no label: town walk, X AO OFF/1/2, Y CLAY",
+      "read": "photo pairs at one spot: CLAY, AO OFF/1/2; then TEXTURED",
+      "group": "tools"
+    },
+    {
+      "name": "hud1c-2",
+      "file": "HUD1C2.BIN",
+      "elf": "D:/tmp/junior_build_hud1c-2_hb/psm_dc/sh4der-psm-town-hud1c-2-hb.elf",
+      "order": 0,
+      "what": "TEST, no label: hud1b, no DIAG box in opaque",
+      "read": "photo the bottom two lines; ABXY or START 3 s leaves",
+      "group": "tools"
+    }
+  ]
+}

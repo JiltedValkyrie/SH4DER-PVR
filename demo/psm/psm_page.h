@@ -265,8 +265,9 @@ static float pg_round_up(float v) {
 
 #define PG_GX0 120
 #define PG_GX1 572
-#define PG_GY0 124
-#define PG_GY1 332
+#define PG_GTOP ((int)(PG_TOP * 16u))       /* a graph page keeps the rows under the header free too, as a text page does */
+#define PG_GY0 (124 + PG_GTOP)
+#define PG_GY1 (332 + PG_GTOP)
 
 static void pg_plot_draw(const pg_plot_t *p) {
     float xmin = 0.0f, xmax = 1.0f, ymin = 0.0f, ymax = 0.0f, ytop;
@@ -286,8 +287,8 @@ static void pg_plot_draw(const pg_plot_t *p) {
     if (xmax <= xmin) xmax = xmin + 1.0f;
     ytop = pg_round_up(ymax);
     if (ymin < 0.0f) ymin = -pg_round_up(-ymin);
-    pg_text(PG_X0, PG_Y0 + 24u, PG_WHITE, p->title);
-    pg_text(PG_X0, PG_GY0 - 26, PG_GREY, p->ylabel);
+    pg_text(PG_X0, PG_Y0 + 32u + (unsigned)PG_GTOP, PG_WHITE, p->title);     /* row 2: row 1 is the effect labels' first line */
+    pg_text(PG_X0, (unsigned)(PG_GY0 - 26), PG_GREY, p->ylabel);
     pg_text((unsigned)(PG_GX1 - (int)(strlen(p->xlabel) * PG_CW)), PG_GY1 + 30, PG_GREY, p->xlabel);
     for (i = 0; i <= 5u; i++) {            /* the y axis: six ticks, a faint line across at each */
         const float v = ymin + (ytop - ymin) * (float)i / 5.0f;

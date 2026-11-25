@@ -397,6 +397,25 @@ static void counts_text(const tally_t *t, char *out, size_t size) {
                  per100(t->sst.reject, t->steps), per100(t->sst.cell, t->steps), per100(t->sst.pair, t->steps));
 }
 
+static int run_stage = -1;                  /* the run's stage in hand; -1: the live view */
+static int pad_stop;                        /* a button during the run: the run ends there and the live view opens */
+static int pad_from = -1;                   /* the stage the live view then starts as */
+
+/* The pad during the run: 1 at a button or a trigger newly pressed (the stick does not count). The first call takes
+   what is held as old, so the menu's A does not count. */
+static int pad_hit(void) {
+    static unsigned held = ~0u;
+    static int trig = 1;
+    maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+    cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    const unsigned now = st ? st->buttons : 0u;
+    const int tr = st && (st->ltrig > 128 || st->rtrig > 128);
+    const int hit = (now & ~held) != 0u || (tr && !trig);
+
+    held = now; trig = tr;
+    return hit;
+}
+
 static void labels(const view_t *v, const tally_t *t) {
     const unsigned long s = t->steps ? t->steps : 1ul;
     const unsigned pre = (unsigned)(t->cyc_pre / s), post = (unsigned)(t->cyc_post / s);
@@ -407,7 +426,8 @@ static void labels(const view_t *v, const tally_t *t) {
     text_set(1u, "pre %u cyc/step (worst %u) post+sep %u = %u us", pre, t->pre_worst, post, (unsigned)(((unsigned long long)(pre + post) * 1000ull) / CYC_PER_MS));
     counts_text(t, line, sizeof line);
     text_set(2u, "%s", line);
-    text_set(3u, "X mode Y hens A rays drawn B tick up/down fan START pages");
+    if (run_stage >= 0) text_set(3u, "MEASURING stage %u of 10: any button = live view now", (unsigned)run_stage + 1u);
+    else text_set(3u, "X mode Y hens A rays drawn B tick up/down fan START pages");
     fx_format(&fx_now, v->mode == HENR_EYES ? hen_fx_eyes : hen_fx_sweep, HEN_FX_N);   /* the effect labels follow the mode */
     text_set(4u, "%s", fx_now.line[0]);
     text_set(5u, "%s", fx_now.line[1]);
@@ -469,6 +489,9 @@ static void loop(int auto_run) {
     fx_live = !auto_run;
     v.ri = 1u; v.ti = 1u; v.debug = 1;
     if (auto_run) { v.ni = auto_stage[0][0]; v.mode = auto_stage[0][1]; auto_done = 0; }
+    else if (pad_from >= 0) { v.ni = auto_stage[pad_from][0]; v.mode = auto_stage[pad_from][1]; }      /* the live view a button opened: as the stage it stopped */
+    pad_from = -1;
+    run_stage = auto_run ? 0 : -1;
     apply(&v);
     memset(&t, 0, sizeof t);
     tally_take(&t, 0u, 0ull, 0ull);
@@ -495,11 +518,13 @@ static void loop(int auto_run) {
             if (v.turn < -0.6f) v.turn = -0.6f;
         }
         if (auto_run) {
+            if (pad_hit()) { pad_stop = 1; pad_from = (int)stage; break; }   /* the stage in hand is not counted as done */
             if (t_now - t_stage > (uint64_t)HENS_AUTO_S * 1000000000ull) {
                 tally_take(&auto_tally[stage], run_frames, run_cyc, run_pvr);
                 t_stage = t_now; stage++; auto_done = stage; changed = 1;
                 if (stage >= AUTO_STAGES) break;
                 v.ni = auto_stage[stage][0]; v.mode = auto_stage[stage][1];
+                run_stage = (int)stage;
             }
         } else {
             if ((hit & CONT_START) && frames > 10u) break;
@@ -522,6 +547,7 @@ static void loop(int auto_run) {
             text_upload();                  /* the render is done (scene_close): nothing reads the texture now */
         }
     }
+    run_stage = -1;
 }
 
 /* ---- the run ---------------------------------------------------------------------- */
@@ -544,7 +570,8 @@ static void report(void) {
     say("world %u objects %u triangles; grid 16x16, %u items", hr.objs, hr.world.ntri, hr.grid_items);
     say("9 rays + 2 down, tick 100 ms; sweeps look as far as the eyes");
     if (!world_ok) say("NO WORLD from the room: nothing was steered");
-    if (auto_done < AUTO_STAGES) say("THE RUN DID NOT FINISH: %u of %u stages", auto_done, AUTO_STAGES);
+    if (auto_done < AUTO_STAGES && pad_stop) say("RUN STOPPED BY THE PAD AT STAGE %u: stages %u.. not measured", auto_done + 1u, auto_done + 1u);
+    else if (auto_done < AUTO_STAGES) say("THE RUN DID NOT FINISH: %u of %u stages", auto_done, AUTO_STAGES);
     for (i = 0; i < auto_done; i++) {
         const tally_t *t = &auto_tally[i];
         const unsigned long s = t->steps ? t->steps : 1ul;
@@ -582,6 +609,7 @@ int main(void) {
     if (start()) {
         if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
         loop(1);
+        if (pad_stop) loop(0);              /* a button during the run: the live view at once, the pages after it */
         stop("auto end");
     }
     report();

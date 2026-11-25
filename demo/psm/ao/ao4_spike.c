@@ -51,6 +51,8 @@
    in front of KallistiOS's); no wait is longer than LIMIT_NS. The text texture is uploaded only after a render is
    done. Only PVR registers and video memory are written. The fault catcher (../psm_fault.h) is in.
    Every number comes from the run that prints it; only a real console's run is evidence.
+   ANY BUTTON OR TRIGGER DURING THE RUN (ao4-i) ends the run there and opens the live view at once, as that stage; the
+   pages after it say the run was stopped. The stick moves the eye in the run too, as it always did.
    Build: python demo/psm/ao/build.py --spike ao4 --tag <new tag>. Not run on a console when this file was written. */
 
 #include <kos.h>
@@ -653,6 +655,25 @@ static int frame(const view_t *v, cost_t *c, unsigned frame_no) {
 }
 
 /* The text of this view and these costs (the costs: a mean the caller keeps). */
+static int run_stage = -1;                  /* the run's stage in hand; -1: the live view */
+static int pad_stop;                        /* a button during the run: the run ends there and the live view opens */
+static int pad_from = -1;                   /* the stage the live view then starts as */
+
+/* The pad during the run: 1 at a button or a trigger newly pressed (the stick does not count). The first call takes
+   what is held as old, so the menu's A does not count. */
+static int pad_hit(void) {
+    static unsigned held = ~0u;
+    static int trig = 1;
+    maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+    cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    const unsigned now = st ? st->buttons : 0u;
+    const int tr = st && (st->ltrig > 128 || st->rtrig > 128);
+    const int hit = (now & ~held) != 0u || (tr && !trig);
+
+    held = now; trig = tr;
+    return hit;
+}
+
 static void labels(const view_t *v, const cost_t *c) {
     const unsigned ml = split_lr[v->scene][v->split][v->swap ? 1 : 0], mr = split_lr[v->scene][v->split][v->swap ? 0 : 1];
     const unsigned method[2] = { ml, mr };
@@ -682,7 +703,8 @@ static void labels(const view_t *v, const cost_t *c) {
     else if (room) snprintf(tail, sizeof tail, " HENS off");
     text_set(2u, "SCENE %c %s%s K%u reach%u%% %u.%u ms%s", 'A' + v->scene, look_name[v->look], v->exaggerate ? " x2" : "", k_of[v->ki],
              (unsigned)(ao4_reach[v->reach] * 100.0f + 0.5f), us_of(c->frame) / 1000u, us_of(c->frame) % 1000u / 100u, tail);
-    if (room) text_set(3u, "X pair Y swap A x2 B look LT/RT div L+R sc up K dn hen GUARD %s", clip_guard ? "ON" : "OFF");
+    if (run_stage >= 0) text_set(3u, "MEASURING stage %u of 19: any button = live view. GUARD %s", (unsigned)run_stage + 1u, clip_guard ? "ON" : "OFF");
+    else if (room) text_set(3u, "X pair Y swap A x2 B look LT/RT div L+R sc up K dn hen GUARD %s", clip_guard ? "ON" : "OFF");
     else text_set(3u, "X pair Y swap A x2 B look LT/RT div L+R sc pad K,reach GUARD %s", clip_guard ? "ON" : "OFF");
     {                                       /* the effect labels: what each half shows now (ao_fx.h says where each is read from) */
         const int sun = !scenes[v->scene].no_sun_shadow && v->look != AO4_AO_ONLY, movers = room && v->hens && v->mq;
@@ -843,6 +865,12 @@ static void loop(int auto_run) {
     memset(&shown, 0, sizeof shown);
     ao4_hens_reset(&hens);
     if (auto_run) { memset(auto_sum, 0, sizeof auto_sum); stage_set(&v, 0u); }
+    else if (pad_from >= 0) {               /* the live view a button opened: as the stage it stopped, with nothing of the tests left on */
+        stage_set(&v, (unsigned)pad_from);
+        v.cut = 0; v.still = 0; v.marks = 0; clip_guard = 1;
+    }
+    pad_from = -1;
+    run_stage = auto_run ? 0 : -1;
     labels(&v, &shown);
     text_upload();
     for (;;) {
@@ -864,10 +892,12 @@ static void loop(int auto_run) {
             if (scenes[v.scene].cam_swing > 0.0f) { if (v.turn > 0.6f) v.turn = 0.6f; if (v.turn < -0.6f) v.turn = -0.6f; }
         }
         if (auto_run) {
+            if (pad_hit()) { pad_stop = 1; pad_from = (int)stage; break; }   /* the stage in hand keeps what it counted: the page says where the run stopped */
             if (t_now - t_stage > (uint64_t)auto_stage[stage].secs * 1000000000ull) {
                 t_stage = t_now; stage++; changed = 1;
                 if (stage >= AUTO_STAGES) { auto_ok = 1; break; }
                 stage_set(&v, stage);
+                run_stage = (int)stage;
             }
         } else {
             if ((hit & CONT_START) && frames > 10u) break;
@@ -921,6 +951,7 @@ static void loop(int auto_run) {
             text_upload();                  /* the last render is done (scene_close): nothing reads the texture now */
         }
     }
+    run_stage = -1;
 }
 
 /* ---- the run ---------------------------------------------------------------------- */
@@ -940,7 +971,8 @@ static void report(void) {
     say(" view (d-pad up held + B hides them).");
     say("%s. CLAY, K 4, reach 60%%, %u s a split", rev, AO4_AUTO_S);
     say("bake at load, 64 rays a vertex: A %u ms, B %u ms", bake_ms[0], bake_ms[1]);
-    if (!auto_ok) { say("THE RUN DID NOT FINISH: the lines below are of what ran"); }
+    if (!auto_ok && pad_stop) say("RUN STOPPED BY THE PAD: lines of 0 or of a short stage are not whole");
+    else if (!auto_ok) { say("THE RUN DID NOT FINISH: the lines below are of what ran"); }
     for (sc = 0; sc < AO4_SCENES; sc++) {
         const ao4_scene_t *s = &scenes[sc];
         const sums_t *a = &auto_sum[auto_first[sc]];
@@ -1032,6 +1064,7 @@ int main(void) {
     if (start()) {
         if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
         loop(1);
+        if (pad_stop) loop(0);              /* a button during the run: the live view at once, the pages after it */
         stop("auto end");
     }
     report();
