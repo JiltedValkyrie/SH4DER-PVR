@@ -195,7 +195,7 @@ Vertex colour gives at most 5 to 6 usable bits. That is too coarse, as the lead 
 
 The spike `demo/psm/spike` (image `psm-ab-spike-s2`) was run by the owner on a real Dreamcast on 2026-11-24. The numbers below are **from photos** of its four result pages (`PXL_20261125_0237*.jpg`), read by two readers. Nothing was captured over serial. One console, one run; the KallistiOS on the disc was revision 568c3404.
 
-Everything marked **measured** is what that run printed. Everything marked **inferred** is reasoning about it and has not been tested. Spike s3 exists to test the inferences; its results are not in yet.
+Everything marked **measured** is what that run printed. Everything marked **inferred** is reasoning about it and has not been tested. Spike s3 tested several of them: see "Hardware result s3" below, which overrides this section where they differ.
 
 ### What was measured
 
@@ -305,6 +305,132 @@ Nothing here is built. Each step names what it rests on.
 - Whether the download can be slower or faster with the PVR rendering at the same time. The plan above downloads between two renders.
 - A warped (perspective) map: its depth is not the uniform map's, and the code's form for it is not worked out.
 - One console. Nothing is known about another unit or a different video cable or mode.
+
+## Hardware result s3
+
+Spike image `psm-ab-spike-s3`, run by the owner on the same real Dreamcast on 2026-11-24. Numbers are **from photos** of its four result pages (`PXL_20261125_0310*.jpg`), read by two readers. One console, one run.
+
+**Two of this run's numbers are not what their labels say.** Both are faults of the test program, found when reading the results; they are set out under "What the cost lines do and do not measure". The other numbers stand.
+
+### Measured
+
+**The pixels a render holds back** (E lines). Each pass drew a new background colour; the SH-4 filled the target with 0x1234 before each.
+
+| Target rows | Pixels not the background | Where | What they held |
+|---|---|---|---|
+| 128 | 16, every pass | row 127, x 96 to 125 | the pass before's colour |
+| 130 | 16, every pass | row 129, x 96 to 125 | first pass: the prefill; then the pass before's colour |
+| 136 | 16, every pass | row 135, x 96 to 125 | the same |
+| 160 | 16, every pass | row 159, x 96 to 125 | the same |
+| 128, a screen pass drawn before the read | 16 | row 127, x 96 to 125 | the prefill |
+
+- It is always 16 pixels on the **last row the pass renders**, in the last tile (x 96 to 127). 16 pixels inside a box 30 wide: **inferred**, every other pair of pixels, which is one of the two 32-bit halves of the 64-bit texture area, 32 bytes.
+- They are written when the next pass into a target begins, with the old pass's values. An ordinary screen pass does not bring them out.
+- **Every pixel of rows 0 to 127 was right when the target was 130, 136 or 160 rows tall.** So a map of 128 rows rendered as 130 rows is whole at render-done. 129 rows was not tried.
+
+**The ramp codes, dither off, by sign** (R lines; pixels of 16,384; "more" is an error over one code).
+
+| Test | One under | One over | More | Coverage errors |
+|---|---|---|---|---|
+| 10 bits FLAT | 0 | 0 | 0 | 0 |
+| 10 bits TILT | 224 | 112 | 0 | 0 |
+| 10 bits OVER | 0 | 0 | 0 | 0 |
+| 16 bits FLAT | 8,124 | 0 | 0 | 0 |
+| 16 bits TILT | 2,016 | 1,456 | 0 | 0 |
+| 16 bits OVER | 6,044 | 0 | 0 | 0 |
+
+The coverage errors of s2 are gone because the pass before each test now has a black background, which is what the held pixels then hold.
+
+**Precision of the 16-bit ramp** (P lines; six bands of 1,792 pixels, the code one more a pixel, every value mid-step).
+
+| Band's first code | One under | One over | More |
+|---|---|---|---|
+| 64 | 0 | 0 | 0 |
+| 1,024 | 0 | 0 | 0 |
+| 4,096 | 0 | 0 | 0 |
+| 16,384 | 0 | 0 | 0 |
+| 32,768 | 1,792 (all) | 0 | 0 |
+| 57,344 | 1,792 (all) | 0 | 0 |
+
+**Dither off for the target pass alone** (D lines).
+
+- `FB_CFG_2` was 0x00000001 for the target pass and 0x00000009 after it.
+- The target (10 bits FLAT) was exact: 0 under, 0 over, 0 more.
+- The screen pass drawn next differed from the same pass drawn undithered in 8,704 of 16,384 pixels. The screen kept its dither.
+
+**The copy back.** One download matched the SH-4's read exactly. Eight runs of 32 KB: 910 us smallest, 931 largest, 925 mean. `CHCR0` 0x000853C3 again.
+
+**Cost by target size** (C lines; smallest of 3; see the next heading before using the first two columns).
+
+| Target | "send" | "PVR render" | PVR-DMA of the whole target | 20,000 two-byte reads from the copy in RAM | Ball's pixels |
+|---|---|---|---|---|---|
+| 128 x 128 | 3,111 us | 6,837 us | 32 KB: 925 us | 2,776 us | 4,566 of 16,384 |
+| 256 x 256 | 3,112 us | 6,837 us | 128 KB: 3,702 us | 3,760 us | 18,248 of 65,536 |
+| 512 x 512 | 3,105 us | 16,821 us | 512 KB: 14,803 us | 4,026 us | 73,144 of 262,144 |
+
+### What the cost lines do and do not measure
+
+- **"PVR render" is not the PVR's render time. It is an upper bound set by KallistiOS's scheduler.**
+  - The program timed from `pvr_wait_ready` returning to `pvr_wait_render_done` returning.
+  - **Documented** (KallistiOS `pvr_irq.c`): the render-done interrupt wakes the waiting thread (`genwait_wake_all`) but does not reschedule. The thread runs again at the next scheduler tick. The tick is 100 Hz (`THD_SCHED_HZ`, `arch/arch.h`).
+  - The numbers show it: 3,111 + 6,837 = 9,948 us and 3,105 + 16,821 = 19,926 us, one tick and two ticks from where the pass began. 128 and 256 give the same 6,837 us to the microsecond.
+  - So: the 128 and 256 renders ended inside the first tick (under 6.8 ms after they started; how far under is not known), and the 512 render ended inside the second (between 6.8 and 16.8 ms).
+  - The real figure is in KallistiOS's own statistics (`pvr_get_stats`, `rnd_last_time`, stamped inside the interrupts). The next spike must read that.
+  - **This also matters to the route:** a client that blocks in `pvr_wait_render_done` can lose up to 10 ms. The plan's order (do other work, then call it once the render has long ended, when it returns at once) avoids that.
+- **"send" is not the cost of sending 920 triangles.** The program built the ball inside the timed part: five `sinf` / `cosf` calls and a division for each of 960 vertices, in plain C with no SH4ZAM, plus one `pvr_prim` call a vertex and the opening and closing of the pass. 3.1 ms is all of that together. No figure for a triangle sent can be taken from it.
+- **The PVR-DMA times are sound**: timed by the register going idle, on two clocks, with a spread under 3 %. 128 KB took 3,702 us and 512 KB 14,803 us: 34.6 and 35.4 MB/s, in line with the 32 KB figure.
+- **The 20,000 reads are a worst case for a compare's fetches.** Each read is at a random place in the map: 139 ns a read at 32 KB, 188 ns at 128 KB, 201 ns at 512 KB. The map is larger than the SH-4's 16 KB data cache at every size.
+
+### What it means
+
+**The held pixels: measured, with a fix that was measured too.** Render the map pass two rows taller than the map (130 for 128) and copy back only the map's rows. The cost is 512 bytes of video memory. The alternative, keeping the last row of the map as border, also works by these results but gives up a row.
+
+**The one-under at high codes.** No error exceeded one code in any test.
+
+- The bands show it by size of code: exact up to 16,495, one under from 32,768 up. The 16-bit FLAT test's 8,124 would be every pixel whose code is 17,972 or more, if it is a threshold at all (arithmetic on the test's own codes). That is not a power of two, and the 16-bit OVER test has 6,044 pixels one under where a size-only rule gives 8,064.
+- So "about 15 significant bits of the coordinate" describes the size of the effect, but **the pattern is not explained**: it depends on more than the size of the code. An error map (which pixels) would be needed to say more.
+- What it costs: one code is 0.9 mm of a 60 m range; the compare's bias is about 20 codes. **Ignore it**, or keep the codes under 16,384 (a 14-bit code, 3.7 mm a step), where every test was exact.
+
+**Dither: settled.** Off before the map pass is closed, on after its render-done, and the frame keeps its dither.
+
+**The SH-4's side of route AB a frame at 128 x 128, as far as it is measured:**
+
+| Part | Time | Standing |
+|---|---|---|
+| Sending the casters | not measured | the 3.1 ms includes the test's own geometry |
+| PVR-DMA copy back | 0.93 ms | measured; the bus is held (burst mode), so it is SH-4 time |
+| The compare's fetches, 5,000 vertices x 4 | under 2.8 ms | measured as a worst case; see below |
+| The compare's arithmetic | not measured | route B's compare, never timed on a console |
+
+- **A cache-friendlier fetch (inferred, not measured).** A real compare reads four neighbouring texels a vertex: two rows of two, so two cache lines, not four random ones. Receivers that are walked in an order that is coherent in the map (a ground grid, row by row) touch the same lines again and again. A prefetch of the next vertex's two lines inside the batch kernel hides most of the rest. The 2.8 ms should fall well under 1 ms; that is an estimate until a kernel's cycle table or a console says so.
+
+**The PVR's side.** Under 6.8 ms for the ball at 128 and at 256, real value unknown. **Inferred** from the KallistiOS source (`pvr_misc.c`, `pvr_begin_queued_render`): a pass to a texture uses the screen's tile matrix, all 300 tiles of 640 x 480, with the pixel clip set to the target. So some of the render time may be the PVR walking empty tiles, the same for any target size. Not measured.
+
+**512 x 512 is out.** The download alone is 14.8 ms, most of a 60 Hz frame, and KallistiOS's pass draws only to row 479.
+
+**256 x 256** costs 3.7 ms of download against 0.93 ms. Whether that is worth it depends on the numbers still missing.
+
+**For route A.** It makes the same pass into a target and pays the same unknown PVR time, but no download and no compare. Its vertices go through the store queues (`pvr_dr_target` / `pvr_dr_commit` in `demo/psm/psm_dc.c`), not through `pvr_prim`, so the spike's "send" figure says nothing about it either.
+
+### The send cost: a plan, not built
+
+The 3.1 ms is not a send cost, so the first step is to measure one. In order, each a line of a next spike:
+
+1. **Build the ball once, outside the timing**, into an array of 960 ready vertices. Time only the sending.
+2. **Send that array three ways and print each**: `pvr_prim` a vertex (as now); the store queues a vertex (`pvr_dr_target` / `pvr_dr_commit`, what the demo does); one store-queue copy of the whole array (`sq_cpy` to the tile accelerator, 32 bytes a vertex, 30 KB).
+3. **Read the PVR's render time from `pvr_get_stats`**, at 128, 256, and with the ball at two sizes on the target, so the fixed part (the tile walk) and the part that grows with covered pixels come apart.
+4. Only then pick. **Expected** (not measured): the whole-array store-queue copy is the cheapest, and it fits a caster whose map vertices are transformed into a buffer by the batch transform the library already has (`sh4der_psm_raster_xform_n`), then sent in one copy.
+
+If step 2 shows the per-vertex store-queue path is already a small part of a millisecond for 920 triangles, there is nothing to fix.
+
+### Still open after s3
+
+- The PVR's true render time for a caster pass (needs `pvr_get_stats`).
+- The cost of sending the casters.
+- Route B's raster and compare time on the console: the figure route AB has to beat.
+- The pattern of the one-under codes.
+- A target 129 rows tall; a 256 map's held pixels (expected on its last row, not tried).
+- Everything is one console, one run.
 
 ## Could not read
 

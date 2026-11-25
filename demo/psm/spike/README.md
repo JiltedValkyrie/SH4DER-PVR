@@ -58,8 +58,8 @@ On a failure the program adds the target's pointer, the pass's return values, th
 
 **C lines: the cost by target size** (128, 256, 512), the smallest of 3 runs each.
 
-- `send`: the SH-4 time to send a 920-triangle ball (a stand-in for a caster) with the 16-bit ramp.
-- `PVR render`: render start to render-done, as the program's thread saw the two interrupts.
+- `send`: the SH-4 time to build and send a 920-triangle ball (a stand-in for a caster) with the 16-bit ramp. **Not a send cost**: the ball's sines and cosines are inside the timed part.
+- `PVR render`: render start to render-done, as the program's thread saw the two waits end. **An upper bound, not the render time**: KallistiOS runs the waiting thread again only at its next 100 Hz scheduler tick. (`../ROUTE_AB_NOTES.md`, "Hardware result s3".)
 - `DMA`: the download of the whole target.
 - `20000 taps`: 20,000 two-byte reads of the copy in RAM, 4 a vertex for 5,000 vertices. This is the fetches of a compare, not the compare.
 - KallistiOS renders a target through the screen's tile grid (640 x 480), so a 512-row target is drawn to row 479 only. The ball fits inside that.
