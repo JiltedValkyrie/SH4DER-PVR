@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
     unsigned sun, r;
 
     (void)ray_slice; (void)ray_slice_ref; (void)ray_proxy_pass; (void)ray_proxy_pass_ref;
+    (void)ray_tri_pass; (void)ray_tri_pass_ref; (void)ray_tri_sun_pass; (void)ray_tri_sun_pass_ref;
     ray_points(pts, PK, 7u);
     printf("P2's %u stand-ins (ray_points seed 7), steps by ray_walk_ref; line C_setup %.2f + n x C_step %.2f\n", PK, c_setup, c_step);
     for (sun = 0; sun < 2u; sun++) {

@@ -630,3 +630,58 @@ What stays and what is demoted. This is a recommendation; the owner decides.
 - `mat_transform` keeps one vector in flight, with its loads interleaved.
 - The batch keeps three in flight. It may pay in register moves what the model did not count.
 - The next image could time the batch with two vectors in flight.
+
+## Ray bench (image ray2): built, not run
+
+Built 2026-11-25 by Senior. **Not run on a console; no number from it exists yet.**
+
+- Image: `demo/psm/out/cdi/psm-bench-ray2.cdi` (1,745,961 bytes, sha256 7e668d77b3c535f6978d633f7de08a66e31c43d2335eee9d99937a6b7d0b0db1).
+- ELF: `build/psm_bench/psm-bench-ray2.elf`, 0 warnings at `-Wall -Wextra`.
+- Build log: `D:\tmp\psmbuild\logs\bench_ray_ray2_20261125_092751.log`.
+- Host test `ray_test.c`: 20,064 checks, 0 failed, at `-O2` and at `-O3 -ffast-math`.
+
+### What changed from ray1
+
+**CLOCK (Q62, and the CLOCK.2 bug).**
+- CLOCK.2 now reads the cycles at the same point as the ns, before anything is printed. Expected: about 200,000 cycles in 1 ms.
+- CLOCK.3 is new: the cycles one ns call takes.
+- CLOCK.4 is new: over 2.2 s it compares each step of the ns clock with the cycles between the two reads. It prints how many times the ns clock stepped over 1 ms ahead, and the largest step.
+
+**A cause for the 2.502 ms, found in KallistiOS's timer source** (read only; `kernel/arch/dreamcast/kernel/timer.c` and `include/arch/timer.h`, tree 568c3404). Status: ESTIMATE until CLOCK.4 is photographed.
+- The ns clock is timer TMU2. KallistiOS reloads it every `TIMER_PCK / 4` = 12,468,720 counts, from its clock constant 199,499,520 Hz.
+- It converts a count to 80 ns. So a full reload is 12,468,720 × 80 = 997,497,600 ns.
+- At each reload it adds one whole second. So the ns clock steps ahead by 1,000,000,000 − 997,497,600 = **2,502,400 ns once every reload**.
+- ray1's two odd rows each carried 2.502 ms extra in the ns and nothing in the cycles (section 2 above). A row that spans a reload gets exactly this step.
+- This replaces readings (a) and (b) of section 2 as the leading explanation. They stay untested, not ruled out.
+- If CLOCK.4 confirms it: every interval timed with `timer_ns_gettime64` across a reload reads 2.5 ms long, in every bench and spike of this project. The cycle counter does not have the step.
+
+**P1 rows.** Each row now prints a second line:
+- the ns less the cycles (as ns) for the row's 16 passes;
+- the two gaps between an ns read and the cycle read beside it (`ns, cyc, ns` at both ends);
+- 1 if the ns clock's second changed during the row;
+- the interrupts counted in a second run of the same passes (counter 1 in interrupt mode, then back on cycles).
+
+P1.2 and P1.4 run three times each (a, b, c).
+
+**Page RT, new: a shadow ray against a triangle.** The town notes' TOWN-063 assumes 50 cycles a test (ESTIMATE); this page measures it.
+- Scene: 256 points × 96 triangles, all in the cache, sun at 14:00, each ray tested until its first hit.
+- Four forms, cycles a test each:
+  - any direction, with early outs (the kernel);
+  - any direction, every quantity worked out (its reference);
+  - prepared for the sun, with early outs;
+  - prepared for the sun, reference.
+- "Prepared for the sun": every shadow ray has the sun's direction, so what depends on the direction and the triangle alone is worked out once a triangle (64 bytes a triangle). A test is then one subtraction, one cross product and at most three dot products. No divide in any form.
+- The maths is SH4ZAM's (`shz_vec3_dot`, `shz_vec3_cross`, `shz_vec3_sub`).
+- The page prints whether each kernel gives its reference's bytes.
+- Host test (`ray_test.c`, test 6), HOST:
+  - known hit, miss and behind cases pass;
+  - kernel equals reference, 0 bytes differ, in both forms, at both suns;
+  - over 131,072 pairs, the prepared form differs from the general form in 0, and the general form from a double-precision test in 0;
+  - 4,096 points × 128 triangles took 472,197 tests (115.3 a ray); 874 of 4,096 rays were shadowed at 14:00.
+
+**Not built: the batch with two vectors in flight.** It needs a new SH-4 loop in `sh4zam-dce` with its own reference and host test; that is not cheap, and the batch is demoted. Left for a later image if the owner wants it.
+
+### Risks
+- The page count is higher (eight P1 runs of about 2.5 pages each).
+- The triangle kernels' bytes were compared on x86 only; the console prints its own comparison.
+- The interrupt count is taken in a second run of the row, not the timed one.

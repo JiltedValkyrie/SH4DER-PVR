@@ -29,7 +29,11 @@
 
    Only RAM and SH-4 registers are written (the OC-RAM switch is in the cache's own register: a power cycle clears it).
    No flash, no GD-ROM, no sound chip, no PVR drawing. Every loop has a fixed count.
-   Build: python demo/psm/bench/build.py --src bench_ray.c --tag <new tag>. Not run on a console when this file was written.
+   Build: python demo/psm/bench/build.py --src bench_ray.c --tag <new tag>. Image ray1 ran on a console on 2026-11-25
+   (NOTES.md). ray2, not run when written, changes: CLOCK reads both clocks together (ray1's CLOCK.2 held a print) and
+   looks for the ns clock's step once a second; every P1 row prints the ns less the cycles, the read gaps, whether the ns
+   clock's second changed, and the interrupts of a second run; P1.2 and P1.4 run three times; page RT times a shadow ray
+   against a triangle (the kernels and their references are in ray_kernels.h, host tested).
 */
 
 #include <kos.h>
@@ -53,7 +57,7 @@ void h3_project_np(void *out, const void *in, unsigned n);   /* bench_ray_np.c *
 
 #define COLS 50u
 #define ROWS 17u
-#define LINES_MAX 600u
+#define LINES_MAX 1400u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
 static psm_fault_crumbs_t crumbs;
@@ -140,17 +144,47 @@ static unsigned x100(uint64_t num, uint64_t den) { return den ? (unsigned)(num *
 static const float sun_az[2] = { TOWN_RAY_SUN14_AZ, TOWN_RAY_SUN16_AZ }, sun_el[2] = { TOWN_RAY_SUN14_EL, TOWN_RAY_SUN16_EL };
 static const char *const sun_name[2] = { "14:00", "16:00" };
 
-static void t_clock(void) {
-    uint64_t a = ns(), b, least = ~0ull, c0, t0, t;
-    unsigned i;
+/* Cycles as ns at F = 200.006 MHz (MEASURED s2). */
+static int64_t cyc_ns(uint64_t c) { return (int64_t)(c * 1000000u / 200006u); }
 
-    heading("CLOCK", "the ns timer's least step; CPU cycles counted in one ms of the ns timer");
+/* ray2. ray1 read CLOCK.2's cycles inside the say() after CLOCK.1's say() had printed (its 1,027,528 cycles in 1 ms
+   held that print); here both clocks are read together, before anything is printed. CLOCK.4 looks for the step the ns
+   clock is expected to take once a second: KallistiOS reloads TMU2 each 12,468,720 counts (its clock constant
+   199,499,520 Hz / 16), counts each as 80 ns (997,497,600 ns) and then adds a whole second. */
+static void t_clock(void) {
+    uint64_t a = ns(), b, least = ~0ull, c0, c1, t0, t, pc, pn, e0, e1, n0;
+    int64_t top = 0;
+    unsigned i, jumps = 0, call;
+
+    heading("CLOCK", "the two clocks: the ns timer's least step; cycles in 1 ms of it (both read together); one ns call; steps of the ns clock against the cycles over 2.2 s");
     for (i = 0; i < 20000u; i++) { b = ns(); if (b != a && b - a < least) least = b - a; a = b; }
     perf_cntr_start(PRFC1, PMCR_ELAPSED_TIME_MODE, PMCR_COUNT_CPU_CYCLES);
     c0 = cyc(); t0 = ns();
     while ((t = ns() - t0) < 1000000u) { }
+    c1 = cyc() - c0;
+    e0 = cyc(); for (i = 0; i < 4096u; i++) (void)ns(); e1 = cyc() - e0;
+    call = x100(e1, 4096u);
+    step("clock steps");
+    pc = e0 = cyc(); pn = n0 = ns();
+    for (i = 0; i < 8u; i++) {                       /* 8 x 55,000,000 cycles: 2.2 s, a heartbeat each 0.275 s */
+        const uint64_t until = pc + 55000000u;
+
+        while (pc < until) {
+            const uint64_t c = cyc(), n = ns();
+            const int64_t d = (int64_t)(n - pn) - cyc_ns(c - pc);
+
+            if (d > top) top = d;
+            jumps += d > 1000000;
+            pc = c; pn = n;
+        }
+        psm_fault_beat(&crumbs);
+    }
     say("RESULT CLOCK.1 ns timer least step: %u ns", (unsigned)least);
-    say("RESULT CLOCK.2 cycles in %u ns: %u", (unsigned)t, (unsigned)(cyc() - c0));
+    say("RESULT CLOCK.2 cycles in %u ns: %u", (unsigned)t, (unsigned)c1);
+    say("RESULT CLOCK.3 one ns call: %u.%02u cycles", F2(call));
+    say("RESULT CLOCK.4 in %u us of cycles the ns clock moved %u us; it stepped over 1 ms ahead %u times, largest step %d ns",
+        (unsigned)(cyc_ns(pc - e0) / 1000), (unsigned)((pn - n0) / 1000u), jumps, (int)top);
+    say("  (CLOCK.4 predicted from KallistiOS's timer source: +2,502,400 ns once a second; ESTIMATE until this line)");
 }
 
 /* ---- P1: rays of known n ----------------------------------------------------------------------- */
@@ -179,22 +213,31 @@ static void t_p1(const char *id, unsigned town, unsigned sun) {
 
         NSTEP[c] = (uint8_t)(lit ? n : 0u);
     }
+    say("  (second line of a row: the ns less the cycles as ns, for the row's 16 passes; the two gaps between an ns read and the cycle read beside it; 1 if the ns clock's second changed in the row; interrupts counted in a second run of the row)");
     for (b = 0; b < sizeof want / sizeof want[0]; b++) {
-        unsigned cnt = 0, cy, nsr;
-        uint64_t c0, t0, dc, dt;
+        unsigned cnt = 0, cy, nsr, irq;
+        uint64_t a0, a1, b0, b1, c0, c1, dc, dt;
 
         step("p1 bucket");
         for (c = 0; c < NCAND && cnt < 256u; c++)
             if (NSTEP[c] == want[b]) { memcpy(RAYS[cnt], CAND[c], 16u); cnt++; }
         if (cnt < 32u) { say("RESULT %s n %u: %u rays among %u, not timed", id, want[b], cnt, NCAND); continue; }
         ray_slice(GRID, &s, (const float (*)[4])RAYS, LIT, cnt);
-        c0 = cyc(); t0 = ns();
+        a0 = ns(); c0 = cyc(); a1 = ns();
         for (r = 0; r < 16u; r++) ray_slice(GRID, &s, (const float (*)[4])RAYS, LIT, cnt);
-        dc = cyc() - c0; dt = ns() - t0;
+        b0 = ns(); c1 = cyc(); b1 = ns();
+        dc = c1 - c0; dt = b0 - a1;
         ray_slice_ref(g, &s, (const float (*)[4])RAYS, LITREF, NULL, cnt);
         bad += memcmp(LIT, LITREF, cnt) != 0;
+        /* the same passes again with counter 1 counting interrupts, then the counter back on cycles */
+        perf_cntr_start(PRFC1, PMCR_INTERRUPT_COUNTER_MODE, PMCR_COUNT_CPU_CYCLES);
+        for (r = 0; r < 16u; r++) ray_slice(GRID, &s, (const float (*)[4])RAYS, LIT, cnt);
+        irq = (unsigned)cyc();
+        perf_cntr_start(PRFC1, PMCR_ELAPSED_TIME_MODE, PMCR_COUNT_CPU_CYCLES);
         cy = x100(dc, 16u * cnt); nsr = x100(dt, 16u * cnt);
         say("RESULT %s n %2u (%3u rays): %u.%02u cycles a ray, %u.%02u ns", id, want[b], cnt, F2(cy), F2(nsr));
+        say("  ns-cyc %d ns, gaps %u %u, sec %u, irq %u", (int)((int64_t)dt - cyc_ns(dc)), (unsigned)(a1 - a0), (unsigned)(b1 - b0),
+            (unsigned)(a0 / 1000000000u != b1 / 1000000000u), irq);
         if (cnt >= 64u) { const double n = want[b], y = cy / 100.0; sn += n; sc += y; snn += n * n; snc += n * y; fits++; }
     }
     say("RESULT %s kernel against reference: %s", id, bad ? "BYTES DIFFER" : "the same bytes");
@@ -400,22 +443,67 @@ static void t_h3(void) {
     say("  (cycles a vertex; out of cache: input and output purged first)");
 }
 
+/* ---- RT (ray2): a shadow ray against a triangle ---------------------------------------------------- */
+
+#define RT_N 96u                                                  /* 4,608 bytes of triangles, 6,144 prepared */
+#define RT_P 256u
+#define RT_TRI ((ray_tri_t *)(void *)(VIN + 9u * KB))             /* cache offsets 9 .. 13.5 KB; the points are at 5 .. 9 */
+#define RT_SUN ((ray_tri_sun_t *)(void *)(VIN + OC + 9u * KB))    /* 9 .. 15 KB; the bytes out at 1.5 .. 2.5 KB */
+
+static void t_rt(void) {
+    static const char *const name[4] = { "any direction, early outs", "any direction, reference", "prepared for the sun, early outs", "prepared for the sun, reference" };
+    uint8_t *const o[4] = { LITREF, LITREF + 512u, LITREF, LITREF + 512u };
+    unsigned k, r, i, tests[4] = { 0, 0, 0, 0 }, cy[4], dark = 0, same_any = 0;
+    uint64_t c0 = 0;
+    ray_sun_t s;
+    float d[3];
+
+    heading("RT", "a shadow ray against a triangle, to the first hit: 256 points x 96 triangles, all in the cache, sun at 14:00; cycles a test, four forms");
+    ray_sun_init(&s, TOWN_RAY_SUN14_AZ, TOWN_RAY_SUN14_EL);
+    d[0] = s.sx; d[1] = s.sy; d[2] = s.sz;
+    ray_tri_scene(RT_TRI, RT_N, RAYS, RT_P, d, 1.5f, 5u);
+    for (i = 0; i < RT_N; i++) ray_tri_sun_init(&RT_SUN[i], &RT_TRI[i], d);
+    for (k = 0; k < 4u; k++) {
+        step("rt");
+        for (r = 0; r < 17u; r++) {                  /* the first pass warms the cache and is not timed */
+            if (r == 1u) c0 = cyc();
+            tests[k] = k == 0u ? ray_tri_pass(RT_TRI, RT_N, (const float (*)[4])RAYS, RT_P, d, o[k])
+                     : k == 1u ? ray_tri_pass_ref(RT_TRI, RT_N, (const float (*)[4])RAYS, RT_P, d, o[k])
+                     : k == 2u ? ray_tri_sun_pass(RT_SUN, RT_N, (const float (*)[4])RAYS, RT_P, o[k])
+                     : ray_tri_sun_pass_ref(RT_SUN, RT_N, (const float (*)[4])RAYS, RT_P, o[k]);
+        }
+        cy[k] = x100(cyc() - c0, 16u * (uint64_t)(tests[k] ? tests[k] : 1u));
+        if (k == 1u) same_any = !memcmp(o[0], o[1], RT_P);   /* forms 3 and 4 write the same two arrays next */
+    }
+    for (r = 0; r < RT_P; r++) dark += o[2][r] == 0u;
+    for (k = 0; k < 4u; k++) say("RESULT RT.%u %s: %u.%02u cycles a test (%u tests a pass)", k + 1u, name[k], F2(cy[k]), tests[k]);
+    say("RESULT RT.5 any direction, kernel against reference: %s", same_any ? "the same bytes" : "BYTES DIFFER");
+    say("RESULT RT.6 prepared, kernel against reference: %s; %u of %u rays shadowed", memcmp(o[2], o[3], RT_P) ? "BYTES DIFFER" : "the same bytes", dark, RT_P);
+    say("  (a test includes the loop over triangles; the town notes' TOWN-063 assumes 50 cycles a test: ESTIMATE)");
+    say("  (host test: 472,197 tests for 4,096 points x 128 triangles; this page's scene is smaller)");
+}
+
 /* ---- the groups --------------------------------------------------------------------------------- */
 
 static void group1(void) {
     unsigned sun;
 
-    say("RAY BENCH: THESIS_SH4_SHADOWS.md P1, P2, P9; h3. One run, this console.");
+    say("RAY BENCH ray2: THESIS_SH4_SHADOWS.md P1, P2, P9; h3; RT. One run, this console.");
     say("Each test has its own page. A/B turn the pages.");
     t_clock();
     t_p1("P1.1", 0u, 0u);
-    t_p1("P1.2", 0u, 1u);
+    t_p1("P1.2a", 0u, 1u);
+    t_p1("P1.2b", 0u, 1u);
+    t_p1("P1.2c", 0u, 1u);
     t_p1("P1.3", 1u, 0u);
-    t_p1("P1.4", 1u, 1u);
+    t_p1("P1.4a", 1u, 1u);
+    t_p1("P1.4b", 1u, 1u);
+    t_p1("P1.4c", 1u, 1u);
     vertices_fill();
     for (sun = 0; sun < 2u; sun++) t_p2(sun ? "P2.B" : "P2.A", sun, 0u);
     t_p9();
     t_h3();
+    t_rt();
     page_break();
     say("GROUP 1 END. START runs group 2: OC-RAM, left on.");
     step("group 1 end");

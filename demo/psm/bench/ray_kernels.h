@@ -327,4 +327,151 @@ static RAY_NOINLINE void ray_proxy_pass_ref(const ray_proxy_t *c, unsigned np, c
         }
 }
 
+/* ---- a ray against a triangle (ray2; the town notes' TOWN-063 assumes 50 cycles a test) ---- */
+
+/* A triangle as a corner and two edges, 48 bytes. The last three floats are the caller's. */
+typedef struct {
+    float a[3], e1[3], e2[3], pad[3];
+} ray_tri_t;
+
+/* The same triangle prepared for one sun (every shadow ray has the sun's direction d, so what depends on d and the
+   triangle alone is worked out once): h = (d x e2) / det, dq = d / det, e2q = e2 / det, with det = e1 . (d x e2).
+   ok = 0 for a triangle edge-on to the sun (no test). 64 bytes: two cache lines. */
+typedef struct {
+    float a[3], e1[3], h[3], e2q[3];
+    float dq[3];                /* the sun's direction over det */
+    float ok;
+} ray_tri_sun_t;
+
+#define RAY_TRI_EPS 1e-4f       /* a hit nearer than this along the ray is the receiver's own surface, m */
+
+static inline shz_vec3_t ray_v3(const float p[3]) { return shz_vec3_init(p[0], p[1], p[2]); }
+
+/* Reference, any direction: every quantity worked out, then the five tests together. 1 = the ray from o along d meets
+   the triangle further than RAY_TRI_EPS; both faces count. No divide: the tests are scaled by det. */
+static RAY_NOINLINE unsigned ray_tri_ref(const ray_tri_t *t, const float o[3], const float d[3]) {
+    const shz_vec3_t dv = ray_v3(d), e1 = ray_v3(t->e1), e2 = ray_v3(t->e2);
+    const shz_vec3_t h = shz_vec3_cross(dv, e2), s = shz_vec3_sub(ray_v3(o), ray_v3(t->a)), q = shz_vec3_cross(s, e1);
+    float det = shz_vec3_dot(e1, h), u = shz_vec3_dot(s, h), v = shz_vec3_dot(dv, q), w = shz_vec3_dot(e2, q);
+
+    if (det < 0.0f) { det = -det; u = -u; v = -v; w = -w; }
+    return (unsigned)((det > 1e-9f) & (u >= 0.0f) & (u <= det) & (v >= 0.0f) & (u + v <= det) & (w > RAY_TRI_EPS * det));
+}
+
+/* The kernel, any direction: the same arithmetic, leaving at the first test that fails. */
+static inline unsigned ray_tri(const ray_tri_t *t, const float o[3], const float d[3]) {
+    const shz_vec3_t dv = ray_v3(d), e1 = ray_v3(t->e1), e2 = ray_v3(t->e2);
+    const shz_vec3_t h = shz_vec3_cross(dv, e2), s = shz_vec3_sub(ray_v3(o), ray_v3(t->a));
+    float det = shz_vec3_dot(e1, h), u = shz_vec3_dot(s, h), v, w, sign = 1.0f;
+    shz_vec3_t q;
+
+    if (det < 0.0f) { det = -det; u = -u; sign = -1.0f; }
+    if (!(det > 1e-9f) || u < 0.0f || u > det) return 0u;
+    q = shz_vec3_cross(s, e1);
+    v = sign * shz_vec3_dot(dv, q);
+    if (v < 0.0f || u + v > det) return 0u;
+    w = sign * shz_vec3_dot(e2, q);
+    return (unsigned)(w > RAY_TRI_EPS * det);
+}
+
+/* A triangle prepared for the sun direction d. */
+static inline void ray_tri_sun_init(ray_tri_sun_t *p, const ray_tri_t *t, const float d[3]) {
+    const shz_vec3_t dv = ray_v3(d), e1 = ray_v3(t->e1), e2 = ray_v3(t->e2), h = shz_vec3_cross(dv, e2);
+    const float det = shz_vec3_dot(e1, h), ad = det < 0.0f ? -det : det, inv = ad > 1e-9f ? 1.0f / det : 0.0f;
+    unsigned k;
+
+    memset(p, 0, sizeof *p);
+    for (k = 0; k < 3u; k++) { p->a[k] = t->a[k]; p->e1[k] = t->e1[k]; p->e2q[k] = t->e2[k] * inv; p->dq[k] = d[k] * inv; }
+    p->h[0] = h.x * inv; p->h[1] = h.y * inv; p->h[2] = h.z * inv;
+    p->ok = ad > 1e-9f ? 1.0f : 0.0f;
+}
+
+/* Reference for the prepared form: u, v and the distance t in their own units (u, v in 0 .. 1, t in metres). */
+static RAY_NOINLINE unsigned ray_tri_sun_ref(const ray_tri_sun_t *p, const float o[3]) {
+    const shz_vec3_t s = shz_vec3_sub(ray_v3(o), ray_v3(p->a)), q = shz_vec3_cross(s, ray_v3(p->e1));
+    const float u = shz_vec3_dot(s, ray_v3(p->h)), v = shz_vec3_dot(ray_v3(p->dq), q), w = shz_vec3_dot(ray_v3(p->e2q), q);
+
+    return (unsigned)((p->ok != 0.0f) & (u >= 0.0f) & (u <= 1.0f) & (v >= 0.0f) & (u + v <= 1.0f) & (w > RAY_TRI_EPS));
+}
+
+/* The kernel for the prepared form: one subtraction, one cross product and three dot products at the most. */
+static inline unsigned ray_tri_sun(const ray_tri_sun_t *p, const float o[3]) {
+    const shz_vec3_t s = shz_vec3_sub(ray_v3(o), ray_v3(p->a));
+    const float u = shz_vec3_dot(s, ray_v3(p->h));
+    shz_vec3_t q;
+    float v;
+
+    if (p->ok == 0.0f || u < 0.0f || u > 1.0f) return 0u;
+    q = shz_vec3_cross(s, ray_v3(p->e1));
+    v = shz_vec3_dot(ray_v3(p->dq), q);
+    if (v < 0.0f || u + v > 1.0f) return 0u;
+    return (unsigned)(shz_vec3_dot(ray_v3(p->e2q), q) > RAY_TRI_EPS);
+}
+
+/* The bench's triangles and points: nt triangles of side about `size` m scattered in a box of 20 m, and np points under
+   them, so that a share of the rays toward d hits. The points are 16 bytes each, as the walk's. */
+static inline void ray_tri_scene(ray_tri_t *t, unsigned nt, float (*pts)[4], unsigned np, const float d[3], float size, uint32_t seed) {
+    unsigned i, k;
+
+    for (i = 0; i < nt; i++) {
+        memset(&t[i], 0, sizeof t[i]);
+        t[i].a[0] = ray_frand(&seed, -10.0f, 10.0f); t[i].a[1] = ray_frand(&seed, 2.0f, 8.0f); t[i].a[2] = ray_frand(&seed, -10.0f, 10.0f);
+        for (k = 0; k < 3u; k++) { t[i].e1[k] = ray_frand(&seed, -size, size); t[i].e2[k] = ray_frand(&seed, -size, size); }
+    }
+    for (i = 0; i < np; i++) {
+        /* under a point of triangle i mod nt, back along the ray, then moved aside by up to the triangle's size */
+        const ray_tri_t *q = &t[i % nt];
+        const float u = ray_frand(&seed, 0.0f, 0.6f), v = ray_frand(&seed, 0.0f, 0.6f), back = ray_frand(&seed, 1.0f, 6.0f);
+
+        for (k = 0; k < 3u; k++) pts[i][k] = q->a[k] + u * q->e1[k] + v * q->e2[k] - back * d[k] + ray_frand(&seed, -size, size) * 0.7f;
+        pts[i][3] = 0.0f;
+    }
+}
+
+/* The pass the bench times: each point against each triangle until one hits (a shadow ray wants any hit). out[r] = 0
+   in shadow, 255 lit. *tests = the ray-triangle tests made. */
+static RAY_NOINLINE unsigned ray_tri_pass(const ray_tri_t *t, unsigned nt, const float (*pts)[4], unsigned np, const float d[3], uint8_t *out) {
+    unsigned r, i, tests = 0;
+
+    for (r = 0; r < np; r++) {
+        for (i = 0; i < nt && !ray_tri(&t[i], pts[r], d); i++) { }
+        tests += i < nt ? i + 1u : nt;
+        out[r] = (uint8_t)(i < nt ? 0u : RAY_LIT);
+    }
+    return tests;
+}
+
+static RAY_NOINLINE unsigned ray_tri_pass_ref(const ray_tri_t *t, unsigned nt, const float (*pts)[4], unsigned np, const float d[3], uint8_t *out) {
+    unsigned r, i, tests = 0;
+
+    for (r = 0; r < np; r++) {
+        for (i = 0; i < nt && !ray_tri_ref(&t[i], pts[r], d); i++) { }
+        tests += i < nt ? i + 1u : nt;
+        out[r] = (uint8_t)(i < nt ? 0u : RAY_LIT);
+    }
+    return tests;
+}
+
+static RAY_NOINLINE unsigned ray_tri_sun_pass(const ray_tri_sun_t *t, unsigned nt, const float (*pts)[4], unsigned np, uint8_t *out) {
+    unsigned r, i, tests = 0;
+
+    for (r = 0; r < np; r++) {
+        for (i = 0; i < nt && !ray_tri_sun(&t[i], pts[r]); i++) { }
+        tests += i < nt ? i + 1u : nt;
+        out[r] = (uint8_t)(i < nt ? 0u : RAY_LIT);
+    }
+    return tests;
+}
+
+static RAY_NOINLINE unsigned ray_tri_sun_pass_ref(const ray_tri_sun_t *t, unsigned nt, const float (*pts)[4], unsigned np, uint8_t *out) {
+    unsigned r, i, tests = 0;
+
+    for (r = 0; r < np; r++) {
+        for (i = 0; i < nt && !ray_tri_sun_ref(&t[i], pts[r]); i++) { }
+        tests += i < nt ? i + 1u : nt;
+        out[r] = (uint8_t)(i < nt ? 0u : RAY_LIT);
+    }
+    return tests;
+}
+
 #endif /* RAY_KERNELS_H */

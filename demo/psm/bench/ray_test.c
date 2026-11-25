@@ -155,7 +155,81 @@ static void t_sizes(void) {
     }
 }
 
+/* 6 (ray2) the ray against a triangle: known hits and misses; the kernels give their references' bytes; the form
+   prepared for the sun agrees with the general form and with a double-precision test but for rays at an edge. */
+#define TRI_N 128u
+#define TRI_P 4096u
+
+static int tri_double(const ray_tri_t *t, const float o[3], const float d[3], double *margin) {
+    const double e1[3] = { t->e1[0], t->e1[1], t->e1[2] }, e2[3] = { t->e2[0], t->e2[1], t->e2[2] }, dd[3] = { d[0], d[1], d[2] };
+    const double h[3] = { dd[1] * e2[2] - dd[2] * e2[1], dd[2] * e2[0] - dd[0] * e2[2], dd[0] * e2[1] - dd[1] * e2[0] };
+    const double det = e1[0] * h[0] + e1[1] * h[1] + e1[2] * h[2];
+    const double s[3] = { (double)o[0] - t->a[0], (double)o[1] - t->a[1], (double)o[2] - t->a[2] };
+    const double q[3] = { s[1] * e1[2] - s[2] * e1[1], s[2] * e1[0] - s[0] * e1[2], s[0] * e1[1] - s[1] * e1[0] };
+    double u, v, w, m;
+
+    *margin = 0.0;
+    if (fabs(det) < 1e-9) return 0;
+    u = (s[0] * h[0] + s[1] * h[1] + s[2] * h[2]) / det;
+    v = (dd[0] * q[0] + dd[1] * q[1] + dd[2] * q[2]) / det;
+    w = (e2[0] * q[0] + e2[1] * q[1] + e2[2] * q[2]) / det;
+    m = fabs(u); if (fabs(v) < m) m = fabs(v); if (fabs(1.0 - u - v) < m) m = fabs(1.0 - u - v);
+    if (fabs(w - RAY_TRI_EPS) < m) m = fabs(w - RAY_TRI_EPS);
+    *margin = m;                                     /* how far the ray is from an edge of the test */
+    return u >= 0.0 && v >= 0.0 && u + v <= 1.0 && w > RAY_TRI_EPS;
+}
+
+static void t_tri(void) {
+    static ray_tri_t tri[TRI_N];
+    static ray_tri_sun_t tsun[TRI_N];
+    static const ray_tri_t flat = { { -1.0f, 5.0f, -1.0f }, { 4.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 4.0f }, { 0.0f, 0.0f, 0.0f } };
+    static const float up[3] = { 0.0f, 1.0f, 0.0f }, under[3] = { 0.0f, 0.0f, 0.0f }, aside[3] = { 5.0f, 0.0f, 0.0f }, above[3] = { 0.0f, 6.0f, 0.0f };
+    unsigned r, i, k, ta, tb, differ = 0, differ_sun = 0, hits = 0, form = 0, form_edge = 0, dbl = 0, dbl_edge = 0, pairs = 0;
+    ray_tri_sun_t fs;
+    ray_sun_t s;
+    float d[3];
+
+    ray_tri_sun_init(&fs, &flat, up);
+    CHECK(ray_tri_ref(&flat, under, up) == 1u && ray_tri(&flat, under, up) == 1u && ray_tri_sun(&fs, under) == 1u && ray_tri_sun_ref(&fs, under) == 1u, "a ray up under the triangle misses");
+    CHECK(ray_tri_ref(&flat, aside, up) == 0u && ray_tri(&flat, aside, up) == 0u && ray_tri_sun(&fs, aside) == 0u, "a ray up beside the triangle hits");
+    CHECK(ray_tri_ref(&flat, above, up) == 0u && ray_tri(&flat, above, up) == 0u && ray_tri_sun(&fs, above) == 0u, "a ray from above the triangle hits it behind");
+    for (k = 0; k < 2u; k++) {
+        ray_sun_init(&s, k ? TOWN_RAY_SUN16_AZ : TOWN_RAY_SUN14_AZ, k ? TOWN_RAY_SUN16_EL : TOWN_RAY_SUN14_EL);
+        d[0] = s.sx; d[1] = s.sy; d[2] = s.sz;
+        ray_tri_scene(tri, TRI_N, pts, TRI_P, d, 1.5f, 5u + k);
+        for (i = 0; i < TRI_N; i++) ray_tri_sun_init(&tsun[i], &tri[i], d);
+        ta = ray_tri_pass_ref(tri, TRI_N, (const float (*)[4])pts, TRI_P, d, out_a);
+        tb = ray_tri_pass(tri, TRI_N, (const float (*)[4])pts, TRI_P, d, out_b);
+        for (r = 0; r < TRI_P; r++) { differ += out_a[r] != out_b[r]; hits += out_a[r] == 0u; }
+        CHECK(ta == tb, "triangles: the kernel made %u tests, the reference %u", tb, ta);
+        ta = ray_tri_sun_pass_ref(tsun, TRI_N, (const float (*)[4])pts, TRI_P, out_a);
+        tb = ray_tri_sun_pass(tsun, TRI_N, (const float (*)[4])pts, TRI_P, out_b);
+        for (r = 0; r < TRI_P; r++) differ_sun += out_a[r] != out_b[r];
+        CHECK(ta == tb, "triangles, sun form: the kernel made %u tests, the reference %u", tb, ta);
+        if (!k) printf("6 triangles at 14:00: %u points x %u triangles, %u tests to the first hit (%.1f a ray), %u of %u rays shadowed\n",
+                       TRI_P, TRI_N, ta, (double)ta / TRI_P, hits, TRI_P);
+        for (r = 0; r < 512u; r++)
+            for (i = 0; i < TRI_N; i++) {
+                double m;
+                const int want = tri_double(&tri[i], pts[r], d, &m);
+                const unsigned g = ray_tri_ref(&tri[i], pts[r], d), q = ray_tri_sun_ref(&tsun[i], pts[r]);
+
+                pairs++;
+                if (g != q) { form++; form_edge += m < 1e-4; }
+                if ((int)g != want) { dbl++; dbl_edge += m < 1e-4; }
+            }
+    }
+    CHECK(differ == 0u, "triangles: %u bytes differ between the kernel and the reference", differ);
+    CHECK(differ_sun == 0u, "triangles, sun form: %u bytes differ between the kernel and the reference", differ_sun);
+    CHECK(form == form_edge && dbl == dbl_edge, "triangles: %u (sun form) and %u (double) answers differ away from an edge", form - form_edge, dbl - dbl_edge);
+    CHECK(form * 1000u < pairs && dbl * 1000u < pairs, "triangles: %u and %u of %u pairs differ", form, dbl, pairs);
+    CHECK(hits > TRI_P / 10u && hits < 2u * TRI_P * 9u / 10u, "triangles: %u rays shadowed over two suns of %u each", hits, TRI_P);
+    printf("6 triangles: kernel == reference (%u and %u bytes differ, general and sun form); of %u pairs the sun form differs from the general in %u and the general from a double test in %u, all within 1e-4 of an edge\n",
+           differ, differ_sun, pairs, form, dbl);
+}
+
 int main(void) {
+    t_tri();
     t_bytes();
     t_empty();
     t_wall();
