@@ -22,7 +22,7 @@
     {
       "name": "hero1",
       "file": "HERO1.BIN",
-      "elf": "D:/tmp/junior_build_hero1_h1e/sh4der-psm-hero1-h1e.elf",
+      "elf": "D:/tmp/junior_build_hero1_h1f/sh4der-psm-hero1-h1f.elf",
       "order": 3,
       "what": "skinned hero, pass costs, room + hens. ~50 s",
       "read": "photo every page; START = live (keys on the last page)",
@@ -33,7 +33,7 @@
       "file": "PL4NAR.BIN",
       "elf": "demo/pl4nar/build/pl4m_pl4m-c7/sh4der-pl4m-pl4m-c7.elf",
       "order": 4,
-      "what": "new map, reflection, shadows, AO, split, LOD. ~150 s",
+      "what": "map, reflection, shadows, AO, split, LOD. ~150 s",
       "read": "photo every page; 13 stages: frame, SH4, PVR, TA a scene",
       "group": "demos",
       "credits": "pl4nar"
