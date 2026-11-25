@@ -88,3 +88,91 @@ The last number of line 4 is cut by the page's 50 columns. With every pixel draw
 - Any second console, any second run.
 - C1 or C2 on a real scene, the 11-layer pass as one pass, the mask laid over the screen.
 - The volume at more than one, and with any triangle behind the near plane.
+
+## Hardware result c3b
+
+One run on one console, read from photos of the result pages (`logs/benchmarks/PXL_20261125_054724266.jpg`,
+`..054728965.jpg`, `..054736434.jpg`, `..054747805.jpg`). Every number below is from those photos. Nothing was
+repeated. The program is `sub_spike.c`, the models are in `sub_model.h` (models, not measurements).
+
+### What the pages said
+
+| Line | Console | Model |
+|---|---|---|
+| 1a RGB, row 128, x 32 96 124 128 132 160 224 | 255 255 255 255 255 255 255 | none |
+| 1a A (the same through alpha) | 125 125 125 125 125 125 125 | a fall from about 226 to about 48 |
+| 1a Q by vertex | err -101..-101, found 127, rag 100, btw 0 | err +0..+0 |
+| 1b RGB | 255 x 7 | none |
+| 1b A | 223 207 142 109 109 28 48 | 226 209 140 116 116 30 47 |
+| 1b Q in 32 strips | err -5..+3, found 253, rag 0, btw 0 | err -4..+3 |
+| 2 thr 1 | err +0..+0, found 255, rag 0 | +0 |
+| 2 thr 2 | err +1..+1, found 254, rag 0 | +1 |
+| 2 thr 128 | err +127..+127, found 128, rag 0 | +127 |
+| 2 register while set | 00800003 | pack mode 3, threshold 0x80 |
+| 2 4444, row 0 | alpha over 0 from x = 16; 15 at x = 255; pixel ffff | 16; 15 |
+| 5a 4444, ref 64 / 128 / 192 | 49152 / 32768 / 16384 drawn | the same for "alpha >= reference" |
+| 5a reference register | reads c0 | the last value written (192) |
+| 5b product, ref 64 | 65536 drawn; differs 39022 39192 39300 39108 | 26514 26344 26236 26428 drawn |
+| 5c bump, ref 128, 32 strips | 65536 drawn; no edge found | err -4..+3 |
+| 6a ramp table, x 1 3 7 15 31 63 127 255 | 12 52 89 125 158 190 223 255 | 16 56 92 126 159 191 223 255 |
+| 6b top octave, x 0 64 128 192 255 | 0 60 125 190 251; steps back 0; most off the line 5 | 0 65 130 195 255 |
+| 1c raster texture (after START) | err -5..+3, found 253, rag 0, btw 0 | err -4..+3 |
+| 1d codes the PVR drew | 0 of 65536 wrong | 0 |
+| 1d PVR target as the bump texture | err -5..+3, found 253, rag 0, btw 0 | err -4..+3 |
+
+The "A" row for 1b is the model for the strip each sample falls in (Q = 36, 100, 124, 132, 132, 164, 228 against
+M = 128), worked out here from `sub_bump_level`; the read-back has 6 bits, so a value stands for itself and the
+three above it.
+
+### What that settles
+
+- **The bump unit is a subtract.** With Q one value a polygon the level follows 128 + 127 sin(M - Q) (1b: five of
+  seven samples inside one 6-bit step of the model; the other two are one strip, below) and the binary edge is the model's on every row but those where
+  M equals Q. The level is in alpha; the colour is white.
+- **Q is one value a polygon, not interpolated.** 1a gave the same level across the whole quad though its left
+  vertices carried Q = 0 and its right ones Q = 255. 125 at M = 128 is the level for Q = 255: both triangles of the
+  strip took the Q of their last vertex.
+- **Equal depths are undecided.** The model's +3 rows and the console's extra -5 rows are the same rows, those
+  where M = Q for one strip: on some the strip read lit, on others shadow. A difference of one code either way read
+  correctly. So the compare is exact to +-1 code and a bias of at least one code is needed.
+- **One strip is low.** At M - Q = -4 (both samples in that strip) the level read 109 (108 to 111) where the model has 116. The sign is right;
+  the size on the negative side is not the model's. Not explained; the PVR's own sine is not known.
+- **A bump texture need not be twiddled, and a render target can be one.** 1c and 1d gave the same numbers as 1b,
+  and the PVR drew all 65,536 codes of the target exactly. Sega's errata list says the CORE hangs on a bump texture
+  that is not twiddled; on this console, in this test, it did not. One run: not a proof that it never does.
+- **The frame buffer write does the threshold.** With the target written as ARGB1555 the alpha bit is "accumulated
+  alpha >= threshold", exact at 1, 2 and 128. The register is not touched by KallistiOS between the lists and the
+  render. The ARGB4444 target keeps the top four bits of alpha.
+- **c1's +1 was the doublings.** The threshold at 1 puts the edge at +0 with the same add and invert layers, so a
+  difference of exactly 1 is there in the alpha and is lost only when it is doubled.
+- **Punch-through: the rule is alpha >= reference** (5a), and the reference register holds what is written.
+- **Punch-through did not act on vertex alpha times texture alpha, nor on the bump level** (5b, 5c: every pixel
+  drawn). 5a's header was KallistiOS's default for the list; 5b's and 5c's had the depth test at "always", no depth
+  write and the blend at one / zero, and 5b's texture was paletted. Which of those stops the test is not known.
+- **The fog table gives a depth code per pixel.** 6a: the table is addressed by 16 entries an octave of scaled
+  1 / w, the far end first, as documented. 6b: across one octave the level rises with no step back, one level a
+  pixel.
+  - 6a is one 6-bit step low at the four dark samples and equal at the four bright ones. A multiply that takes 1.0
+    as 255 / 256 does that (16 becomes 15, 56 becomes 55, 92 becomes 91, 126 becomes 125). Fits; not proven.
+  - 6b is one step low everywhere, 251 at the end where the model has 255. KallistiOS packs the fog scale with 7
+    bits of mantissa, cut, so the 255.99 asked for is 255.0 in the register; with that scale and the same lost
+    level the model gives 62, 126, 189 and 251 at x = 64, 128, 192, 255: the console's 6-bit values at all four.
+    Fits; not proven.
+
+### What it means
+
+- A shadow compare with no blend chain: the map as a bump texture (8 bits, drawn by the PVR), the receiver's depth
+  as Q, the result in alpha, the threshold at the target write. Two layers where c1 needed eleven, and the map has 8
+  bits where c1's had 6.
+- The price is Q per polygon: a receiver polygon has one depth. It must be small along the light, or cut into bands
+  of equal depth.
+- The compare is cyclic (256 codes a turn). K1, K3 and the threshold choose how much of the turn reads lit.
+
+### Not measured
+
+- The bump level with K1 and K3 other than 128 and 127, and S other than 0.
+- The bump level written straight into a 1555 target (test 1 read it through a multiply; test 2 used paletted
+  alpha).
+- Punch-through with the bump level under KallistiOS's default header.
+- The fog level routed into the low byte of a target.
+- Any time. A second run.
