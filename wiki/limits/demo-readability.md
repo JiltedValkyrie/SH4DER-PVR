@@ -35,3 +35,4 @@ The owner's finding: most of our demos are very hard to read. Someone watching c
 - [Header RECOMMENDED block](header-recommended.md): the same idea for headers
 - [Frame budget](frame-budget.md)
 - [Video ledger](../hardware/ledger-video.md)
+- [Demo readability audit](demo-readability-audit.md): every program scored, 2026-11-25

@@ -45,6 +45,7 @@ wiki/
     frame-budget.md          practices that keep the frame rate: which side bounds a frame, measured feature costs, what to do, the default look
     header-recommended.md    the RECOMMENDED block at the top of each public header: start settings, cost, status, do and do not
     demo-readability.md      the six rules every demo and test disc keeps: first screen, plain stage titles, controls from one table, verdict first, plain names, no game names
+    demo-readability-audit.md  each demo and test program scored against those rules (2026-11-25), and the fixes ranked cheapest first
     recommended-limits.md    the "do this, not that" table: limit, why, number, status, scene it came from
     scenes.md                the scenes the numbers came from (town, ocean, street, torch walk), with their counts
   status/
