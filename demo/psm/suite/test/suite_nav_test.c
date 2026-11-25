@@ -6,7 +6,9 @@
    The list below is s7's sorting. Checked: the start screen (cold, a program back, a one-group disc), every button
    on every screen, RUN ALL's order a group (tools once through, demos round), the scrolling window, that every
    screen's rows keep to 64 columns and off the rows of the news line and the foot, and that ../../psm_credits.h is
-   64 columns of plain ASCII with the owner's first line word for word.
+   64 columns of plain ASCII with the owner's first line word for word. The keys: on every screen, with and without
+   the TOP screen, each button acts exactly when the screen's legend names it (read from the legend's text, not from
+   the table), the whole legend is on the screen, and two buttons in one pass do what they did before the table.
 
    Build (from the repository's root):
      gcc -std=c99 -O2 -Wall -Wextra -Werror demo/psm/suite/test/suite_nav_test.c -o build/psm_suite/suite_nav_test
@@ -40,7 +42,11 @@ static void show(const char *what, const nav_t *v, const suite_entry_t *list, un
     static nav_grid_t g;
     unsigned row, used = 0;
 
+    char keys[96];
+
     nav_grid(&g, v, list, n, "PSM TEST SUITE s7", note, psm_credits_foot);
+    nav_legend(keys, sizeof keys, v->screen, v->has_top);
+    CHECK(keys[0] && strstr(g.text[v->screen == NAV_TOP ? 14u : 1u], keys));   /* the whole legend, not cut */
     for (row = 0; row < NAV_ROWS; row++) {
         CHECK(strlen(g.text[row]) <= NAV_COLS);
         if (g.big[row]) { CHECK(strlen(g.text[row]) <= NAV_COLS / 2u); CHECK(row + 1u < NAV_ROWS && !g.text[row + 1u][0]); }
@@ -55,6 +61,48 @@ static void show(const char *what, const nav_t *v, const suite_entry_t *list, un
     printf("+----------------------------------------------------------------+\n");
     for (row = 0; row < NAV_ROWS; row++) printf("|%-64s|%s\n", g.text[row], g.big[row] ? " [2x]" : g.colour[row] == NAV_YELLOW ? " yellow" : g.colour[row] == NAV_GREY ? " grey" : "");
     printf("+----------------------------------------------------------------+\n");
+}
+
+/* 1 when a legend names `button`: its items are "keys word" two spaces apart, the keys split by '/'. */
+static int named(const char *legend, unsigned button) {
+    static const char *const name[6] = { "up", "down", "A", "B", "Y", "START" };   /* NAV_UP .. NAV_START, bit by bit */
+    const char *want = 0, *s = legend;
+    unsigned b;
+
+    for (b = 0; b < 6u; b++) if (button == 1u << b) want = name[b];
+    while (want && *s) {
+        const char *end = strchr(s, ' ');
+        const char *next = strstr(s, "  ");
+        const size_t keys = end ? (size_t)(end - s) : strlen(s);
+        size_t i = 0;
+
+        while (i < keys) {
+            size_t len = 0;
+
+            while (i + len < keys && s[i + len] != '/') len++;
+            if (len == strlen(want) && !strncmp(s + i, want, len)) return 1;
+            i += len + 1u;
+        }
+        if (!next) break;
+        s = next + 2;
+    }
+    return 0;
+}
+
+/* Each button alone on a copy of `start`: it acts exactly when the screen's legend names it. */
+static void keys_match(const char *what, const nav_t *start, const suite_entry_t *list, unsigned n) {
+    char keys[96];
+    unsigned b;
+
+    nav_legend(keys, sizeof keys, start->screen, start->has_top);
+    for (b = NAV_UP; b <= NAV_START; b <<= 1) {
+        nav_t v = *start;
+        int index;
+        const int acts = nav_key(&v, list, n, b, 7u, &index) != NAV_NONE;
+
+        if (acts != named(keys, b)) { printf("FAIL keys, %s: button %u %s, legend \"%s\"\n", what, b, acts ? "acts" : "does nothing", keys); fails++; }
+    }
+    if (verbose) printf("keys, %s: %s\n", what, keys);
 }
 
 int main(int argc, char **argv) {
@@ -142,6 +190,56 @@ int main(int argc, char **argv) {
     for (i = 0; i < 20u; i++) many[i].group = NAV_DEMOS;
     nav_init(&v, many, 20u, 19u);
     CHECK(v.screen == NAV_LIST && v.group == NAV_DEMOS && v.cursor == 20u && v.first == 11u && !v.has_top);
+
+    /* the keys: shown = acts, on every screen, with and without TOP; the legend reads as the owner sees it */
+    CHECK(named("up/down pick  A start  B/START back", NAV_START) && named("up/down pick", NAV_DOWN) && !named("Y credits", NAV_A));
+    nav_init(&v, s7, N7, 0xffffffffu);
+    keys_match("TOP", &v, s7, N7);
+    nav_key(&v, s7, N7, NAV_A, 7u, &index);
+    keys_match("LIST, RUN ALL picked", &v, s7, N7);
+    nav_key(&v, s7, N7, NAV_DOWN, 7u, &index);
+    keys_match("LIST, an entry picked", &v, s7, N7);
+    nav_key(&v, s7, N7, NAV_Y, 7u, &index);
+    keys_match("CREDITS from a LIST", &v, s7, N7);
+    nav_init(&v, s7, N7, 0xffffffffu);
+    nav_key(&v, s7, N7, NAV_Y, 7u, &index);
+    keys_match("CREDITS from TOP", &v, s7, N7);
+    nav_init(&v, many, 20u, 0xffffffffu);
+    keys_match("LIST, one-group disc (no TOP)", &v, many, 20u);
+    nav_key(&v, many, 20u, NAV_Y, 7u, &index);
+    keys_match("CREDITS, one-group disc", &v, many, 20u);
+    {
+        char keys[96];
+
+        nav_legend(keys, sizeof keys, NAV_TOP, 1);
+        CHECK(!strcmp(keys, "up/down pick  A open  Y credits"));
+        nav_legend(keys, sizeof keys, NAV_LIST, 1);
+        CHECK(!strcmp(keys, "up/down pick  A start  B/START back  Y credits"));
+        for (i = 0; i < NAV_GROUPS; i++) CHECK(strlen(nav_group_name[i]) + 2u + strlen(keys) <= NAV_COLS);
+        nav_legend(keys, sizeof keys, NAV_LIST, 0);
+        CHECK(!strcmp(keys, "up/down pick  A start  Y credits"));
+        nav_legend(keys, sizeof keys, NAV_CREDITS, 1);
+        CHECK(!strcmp(keys, "A next  B last  Y/START back"));
+        nav_legend(keys, 8u, NAV_LIST, 1);                                                  /* a short buffer: cut, ended */
+        CHECK(strlen(keys) == 7u);
+    }
+    /* two buttons in one pass: the order the menu had before the table */
+    nav_init(&v, s7, N7, 0xffffffffu);
+    nav_key(&v, s7, N7, NAV_A, 7u, &index);
+    nav_key(&v, s7, N7, NAV_DOWN, 7u, &index);
+    {
+        nav_t w = v;
+
+        CHECK(nav_key(&w, s7, N7, NAV_A | NAV_B, 7u, &index) == NAV_REDRAW && w.screen == NAV_TOP);   /* back before start */
+        w = v;
+        CHECK(nav_key(&w, s7, N7, NAV_Y | NAV_A, 7u, &index) == NAV_REDRAW && w.screen == NAV_CREDITS);
+        w = v;
+        CHECK(nav_key(&w, s7, N7, NAV_UP | NAV_DOWN, 7u, &index) == NAV_REDRAW && w.cursor == 0u);  /* up before down */
+        w = v;
+        CHECK(nav_key(&w, s7, N7, NAV_DOWN | NAV_START, 7u, &index) == NAV_REDRAW && w.screen == NAV_LIST && w.cursor == 2u);
+        nav_key(&w, s7, N7, NAV_Y, 7u, &index);
+        CHECK(nav_key(&w, s7, N7, NAV_A | NAV_START, 7u, &index) == NAV_REDRAW && w.screen == NAV_LIST);  /* leave before a page */
+    }
 
     /* the credits text: the owner's first line, 64 columns, plain ASCII, a page break alone on its line */
     CHECK(!strcmp(psm_credits_foot[0], "SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie"));

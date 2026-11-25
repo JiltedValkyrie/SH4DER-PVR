@@ -15,7 +15,7 @@
 |                                                                |
 |                                                                |
 |                                                                |
-|up/down pick    A open    Y credits                             |
+|up/down pick  A open  Y credits                                 |
 |                                                                |
 |                                                                |
 |In a test: hold A+B+X+Y on its result pages for this menu.      | grey
@@ -43,7 +43,7 @@
 |                                                                |
 |                                                                |
 |                                                                |
-|up/down pick    A open    Y credits                             |
+|up/down pick  A open  Y credits                                 |
 |                                                                |
 |                                                                |
 |In a test: hold A+B+X+Y on its result pages for this menu.      | grey
@@ -58,7 +58,7 @@
 --- LIST of TECH DEMOS, RUN ALL picked
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|TECH DEMOS    up/down pick, A start, B back, Y credits          |
+|TECH DEMOS  up/down pick  A start  B/START back  Y credits      |
 |                                                                |
 |> RUN ALL: the numbered demos, round and round; B stops         | yellow
 | 1 ao4        AO side by side; clip guard; tile cut last. 110 s |
@@ -86,7 +86,7 @@
 --- LIST of TECH DEMOS, the last picked
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|TECH DEMOS    up/down pick, A start, B back, Y credits          |
+|TECH DEMOS  up/down pick  A start  B/START back  Y credits      |
 |                                                                |
 |  RUN ALL: the numbered demos, round and round; B stops         |
 | 1 ao4        AO side by side; clip guard; tile cut last. 110 s |
@@ -114,7 +114,7 @@
 --- LIST of DEVELOPER TOOLS, a NO RETURN entry picked, with news
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS    up/down pick, A start, B back, Y credits     |
+|DEVELOPER TOOLS  up/down pick  A start  B/START back  Y credits |
 |                                                                |
 |  RUN ALL: the numbered tests in order, 20 s a page             |
 | 1 d1         depth-fade spike                                  |
@@ -142,7 +142,7 @@
 --- a one-group disc of 20: the list is the menu
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS    up/down pick, A start, Y credits             |
+|DEVELOPER TOOLS  up/down pick  A start  Y credits               |
 |                                                                |
 |> RUN ALL: the numbered tests in order, 20 s a page             | yellow
 | 1 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
@@ -170,7 +170,7 @@
 --- the same, the 12th picked: scrolled
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS    up/down pick, A start, Y credits             |
+|DEVELOPER TOOLS  up/down pick  A start  Y credits               |
 |                                                                |
 |  RUN ALL: the numbered tests in order, 20 s a page             |
 |     ... 3 more above                                           | grey
@@ -198,7 +198,7 @@
 --- the same, the last picked
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS    up/down pick, A start, Y credits             |
+|DEVELOPER TOOLS  up/down pick  A start  Y credits               |
 |                                                                |
 |  RUN ALL: the numbered tests in order, 20 s a page             |
 |     ... 11 more above                                          | grey
@@ -222,4 +222,11 @@
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
+keys, TOP: up/down pick  A open  Y credits
+keys, LIST, RUN ALL picked: up/down pick  A start  B/START back  Y credits
+keys, LIST, an entry picked: up/down pick  A start  B/START back  Y credits
+keys, CREDITS from a LIST: A next  B last  Y/START back
+keys, CREDITS from TOP: A next  B last  Y/START back
+keys, LIST, one-group disc (no TOP): up/down pick  A start  Y credits
+keys, CREDITS, one-group disc: A next  B last  Y/START back
 suite_nav_test: ok

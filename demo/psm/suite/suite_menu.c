@@ -215,8 +215,12 @@ int main(void) {
         if (act != NAV_NONE) redraw = 1;
         if (redraw) {
             psm_fault_stage(&crumbs, "menu");
-            if (nav.screen == NAV_CREDITS) pg_draw(nav.page % pg_pages(), "CREDITS", "pages, Y back");
-            else draw();
+            if (nav.screen == NAV_CREDITS) {
+                char keys[64];
+
+                nav_legend(keys, sizeof keys, NAV_CREDITS, nav.has_top);
+                pg_draw(nav.page % pg_pages(), "CREDITS", keys);
+            } else draw();
             redraw = 0;
         }
         thd_sleep(20);

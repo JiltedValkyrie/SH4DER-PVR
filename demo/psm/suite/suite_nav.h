@@ -45,6 +45,36 @@ enum { NAV_WHITE = 0, NAV_GREY = 1, NAV_YELLOW = 2 };
 #define NAV_Y     16u
 #define NAV_START 32u
 
+/* THE KEYS: one table. nav_key acts from it and nav_legend writes each screen's legend from it, so a key shown is a
+   key that works and a key that works is shown (test/suite_nav_test.c presses each button on each screen and reads
+   the legend). A row: its screen; 1 when it needs the TOP screen; its rank (two buttons down in one pass: the lower
+   rank wins, the order the menu had before the table); what it does; its buttons; the legend's keys and word (0: the
+   row is shown by the row before it). The legend is in the table's order. */
+enum { NAV_ACT_TOGGLE = 1, NAV_ACT_OPEN, NAV_ACT_PICK_UP, NAV_ACT_PICK_DOWN, NAV_ACT_START, NAV_ACT_BACK, NAV_ACT_CREDITS,
+       NAV_ACT_PAGE_NEXT, NAV_ACT_PAGE_PREV, NAV_ACT_LEAVE };
+
+typedef struct nav_keydef {
+    unsigned char screen, need_top, rank, act;
+    unsigned buttons;
+    const char *keys, *word;
+} nav_keydef_t;
+
+static const nav_keydef_t nav_keys[] = {
+    { NAV_TOP,     0u, 1u, NAV_ACT_TOGGLE,    NAV_UP | NAV_DOWN, "up/down", "pick" },
+    { NAV_TOP,     0u, 2u, NAV_ACT_OPEN,      NAV_A,             "A",       "open" },
+    { NAV_TOP,     0u, 0u, NAV_ACT_CREDITS,   NAV_Y,             "Y",       "credits" },
+    { NAV_LIST,    0u, 1u, NAV_ACT_PICK_UP,   NAV_UP,            "up/down", "pick" },
+    { NAV_LIST,    0u, 2u, NAV_ACT_PICK_DOWN, NAV_DOWN,          0,         0 },
+    { NAV_LIST,    0u, 4u, NAV_ACT_START,     NAV_A,             "A",       "start" },
+    { NAV_LIST,    1u, 3u, NAV_ACT_BACK,      NAV_B | NAV_START, "B/START", "back" },
+    { NAV_LIST,    0u, 0u, NAV_ACT_CREDITS,   NAV_Y,             "Y",       "credits" },
+    { NAV_CREDITS, 0u, 1u, NAV_ACT_PAGE_NEXT, NAV_A,             "A",       "next" },
+    { NAV_CREDITS, 0u, 2u, NAV_ACT_PAGE_PREV, NAV_B,             "B",       "last" },
+    { NAV_CREDITS, 0u, 0u, NAV_ACT_LEAVE,     NAV_Y | NAV_START, "Y/START", "back" },
+};
+#define NAV_KEYS_N ((unsigned)(sizeof nav_keys / sizeof nav_keys[0]))
+#define NAV_RANKS 5u
+
 #define NAV_ROWS 24u
 #define NAV_COLS 64u
 #define NAV_WINDOW 9u                       /* entries of a list on screen at once: rows 4 .. 16 hold them, two detail lines and the two "more" lines */
@@ -129,33 +159,58 @@ static inline void nav_init(nav_t *v, const suite_entry_t *list, unsigned n, uns
     else v->screen = NAV_TOP;
 }
 
+/* The table's row for the buttons `hit` on a screen (the lowest rank of those down), or 0: no key of that screen. */
+static inline const nav_keydef_t *nav_keydef(unsigned screen, int has_top, unsigned hit) {
+    unsigned r, i;
+
+    for (r = 0; r < NAV_RANKS; r++)
+        for (i = 0; i < NAV_KEYS_N; i++) {
+            const nav_keydef_t *k = &nav_keys[i];
+
+            if (k->rank == r && k->screen == screen && (!k->need_top || has_top) && (hit & k->buttons)) return k;
+        }
+    return 0;
+}
+
+/* A screen's legend from the table, "up/down pick  A start  B/START back  Y credits". */
+static inline void nav_legend(char *out, size_t size, unsigned screen, int has_top) {
+    size_t len = 0;
+    unsigned i;
+
+    if (!size) return;
+    out[0] = 0;
+    for (i = 0; i < NAV_KEYS_N && len < size; i++) {
+        const nav_keydef_t *k = &nav_keys[i];
+
+        if (k->screen != screen || !k->keys || (k->need_top && !has_top)) continue;
+        len += (size_t)snprintf(out + len, size - len, "%s%s %s", len ? "  " : "", k->keys, k->word);
+    }
+}
+
 /* A button. hit: the NAV_ buttons that went down this pass; pages: the credits' pages. For NAV_LAUNCH *index is the
    entry to start; for NAV_RUN_ALL it is the run's first entry, or -1 when no entry of the group can come back. */
 static inline int nav_key(nav_t *v, const suite_entry_t *list, unsigned n, unsigned hit, unsigned pages, int *index) {
-    const unsigned count = nav_count(list, n, v->group);
+    const unsigned count = nav_count(list, n, v->group), p = pages ? pages : 1u;
+    const nav_keydef_t *k = nav_keydef(v->screen, v->has_top, hit);
 
     *index = -1;
-    if (v->screen == NAV_CREDITS) {
-        if (hit & (NAV_Y | NAV_START)) { v->screen = v->back; return NAV_REDRAW; }
-        if (hit & NAV_A) { v->page = (v->page + 1u) % (pages ? pages : 1u); return NAV_REDRAW; }
-        if (hit & NAV_B) { v->page = (v->page + (pages ? pages : 1u) - 1u) % (pages ? pages : 1u); return NAV_REDRAW; }
-        return NAV_NONE;
-    }
-    if (hit & NAV_Y) { v->back = v->screen; v->screen = NAV_CREDITS; v->page = 0; return NAV_REDRAW; }
-    if (v->screen == NAV_TOP) {
-        if (hit & (NAV_UP | NAV_DOWN)) { v->top_cursor ^= 1u; return NAV_REDRAW; }
-        if (hit & NAV_A) { nav_open_(v, v->top_cursor == 0u ? NAV_DEMOS : NAV_TOOLS); return NAV_REDRAW; }
-        return NAV_NONE;
-    }
-    if (hit & NAV_UP) { v->cursor = (v->cursor + count) % (count + 1u); nav_scroll_(v); return NAV_REDRAW; }
-    if (hit & NAV_DOWN) { v->cursor = (v->cursor + 1u) % (count + 1u); nav_scroll_(v); return NAV_REDRAW; }
-    if ((hit & (NAV_B | NAV_START)) && v->has_top) { v->screen = NAV_TOP; return NAV_REDRAW; }
-    if (hit & NAV_A) {
+    if (!k) return NAV_NONE;
+    switch (k->act) {
+    case NAV_ACT_LEAVE:     v->screen = v->back; return NAV_REDRAW;
+    case NAV_ACT_PAGE_NEXT: v->page = (v->page + 1u) % p; return NAV_REDRAW;
+    case NAV_ACT_PAGE_PREV: v->page = (v->page + p - 1u) % p; return NAV_REDRAW;
+    case NAV_ACT_CREDITS:   v->back = v->screen; v->screen = NAV_CREDITS; v->page = 0; return NAV_REDRAW;
+    case NAV_ACT_TOGGLE:    v->top_cursor ^= 1u; return NAV_REDRAW;
+    case NAV_ACT_OPEN:      nav_open_(v, v->top_cursor == 0u ? NAV_DEMOS : NAV_TOOLS); return NAV_REDRAW;
+    case NAV_ACT_PICK_UP:   v->cursor = (v->cursor + count) % (count + 1u); nav_scroll_(v); return NAV_REDRAW;
+    case NAV_ACT_PICK_DOWN: v->cursor = (v->cursor + 1u) % (count + 1u); nav_scroll_(v); return NAV_REDRAW;
+    case NAV_ACT_BACK:      v->screen = NAV_TOP; return NAV_REDRAW;
+    case NAV_ACT_START:
         if (v->cursor == 0u) { *index = nav_next_in_order(list, n, v->group, 0u); return NAV_RUN_ALL; }
         *index = nav_entry(list, n, v->group, v->cursor - 1u);
         return *index < 0 ? NAV_NONE : NAV_LAUNCH;
+    default:                return NAV_NONE;
     }
-    return NAV_NONE;
 }
 
 static inline void nav_put_(nav_grid_t *g, unsigned row, unsigned colour, const char *s) {
@@ -171,10 +226,11 @@ static inline void nav_put_(nav_grid_t *g, unsigned row, unsigned colour, const 
 /* The TOP or the LIST screen as text. title: the disc's ("PSM TEST SUITE s7"); note: the menu's one line of news;
    foot: the two copyright lines. The CREDITS screen is not made here (it is result pages). */
 static inline void nav_grid(nav_grid_t *g, const nav_t *v, const suite_entry_t *list, unsigned n, const char *title, const char *note, const char *const foot[2]) {
-    char s[160];
+    char s[160], keys[96];
     unsigned row, k;
 
     memset(g, 0, sizeof *g);
+    nav_legend(keys, sizeof keys, v->screen, v->has_top);
     nav_put_(g, 0u, NAV_WHITE, title);
     if (v->screen == NAV_TOP) {
         for (k = 0; k < 2u; k++) {
@@ -185,11 +241,11 @@ static inline void nav_grid(nav_grid_t *g, const nav_t *v, const suite_entry_t *
             snprintf(s, sizeof s, "    %u on this disc: %s", count, group == NAV_DEMOS ? "the effects, to look at and compare" : "tests, proofs and debug views");
             nav_put_(g, 5u + 5u * k, NAV_GREY, s);
         }
-        nav_put_(g, 14u, NAV_WHITE, "up/down pick    A open    Y credits");
+        nav_put_(g, 14u, NAV_WHITE, keys);
     } else {
         const unsigned count = nav_count(list, n, v->group);
 
-        snprintf(s, sizeof s, "%s    up/down pick, A start%s, Y credits", nav_group_name[v->group], v->has_top ? ", B back" : "");
+        snprintf(s, sizeof s, "%s  %s", nav_group_name[v->group], keys);
         nav_put_(g, 1u, NAV_WHITE, s);
         snprintf(s, sizeof s, "%c RUN ALL: %s", v->cursor == 0u ? '>' : ' ',
                  v->group == NAV_DEMOS ? "the numbered demos, round and round; B stops" : "the numbered tests in order, 20 s a page");
