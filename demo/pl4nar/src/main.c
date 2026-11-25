@@ -88,7 +88,11 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 #endif
 #define AUTO_SAMPLE 8u
 #define AUTO_SPEED 14.0f
+#ifdef PL4NAR_HILLS
+#define AUTO_Z 880.0f                              /* the hills: the south side's steepest stretch (s 926), then over the crest past the seam (s 45) */
+#else
 #define AUTO_Z 60.0f
+#endif
 #define AUTO_X -2.0f
 #ifndef PL4M_TAG
 #define PL4M_TAG untagged
@@ -96,8 +100,15 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
-typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; float lod; } stage_t;   /* blobs: no shadow tiles; noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default */
-#ifdef PL4NAR_MAP
+typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; float lod; unsigned sun; } stage_t;   /* blobs: no shadow tiles (the hills: 2 the flat quad); noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default; sun: 1 the sweep (the hills) */
+#if defined(PL4NAR_HILLS)
+static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night; blobs 0 mesh, 1 off, 2 flat quad */
+    { "128x64 day mesh",  1, 1, 1, 0, 0, 0, 0, 0.0f, 0 }, { "128x64 day flat",  1, 1, 1, 0, 2, 0, 0, 0.0f, 0 }, { "128x64 noshad", 1, 1, 1, 0, 1, 0, 0, 0.0f, 0 },
+    { "128x64 swp mesh", 1, 1, 1, 0, 0, 0, 0, 0.0f, 1 }, { "128x64 swp flat", 1, 1, 1, 0, 2, 0, 0, 0.0f, 1 }, { "128x64 no AO", 1, 1, 1, 0, 0, 1, 0, 0.0f, 0 },
+    { "off day",          0, 1, 1, 0, 0, 0, 0, 0.0f, 0 }, { "256x128 day mesh", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0 }, { "512x256 day mesh", 1, 2, 1, 0, 0, 0, 0, 0.0f, 0 },
+    { "128x64 night",     1, 1, 2, 0, 0, 0, 0, 0.0f, 0 }, { "off night",        0, 1, 2, 0, 0, 0, 0, 0.0f, 0 }, { "128x64 orbit", 1, 1, 1, 1, 0, 0, 0, 0.0f, 0 }
+};
+#elif defined(PL4NAR_MAP)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
     { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0, 0, 0.0f }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f },
     { "on 256 day split", 1, 0, 1, 0, 0, 0, 1, 0.0f }, { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f },
@@ -133,7 +144,11 @@ static void report(void) {
     suite_rev_text(rev, sizeof rev);
     demo_counts(&c);
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS
+    pg_say("pl4m %s: the new map with hills, each stage's cost.", STR(PL4M_TAG));
+#else
     pg_say("pl4m %s: the new map (loop, overpass, strips, traffic), each stage's cost.", STR(PL4M_TAG));
+#endif
 #else
     pg_say("pl4m %s: the street demo as it is, each stage's cost.", STR(PL4M_TAG));
 #endif
@@ -180,8 +195,15 @@ static void report(void) {
     pg_say("TA bytes include headers; PVR = rnd_last_time of the scene");
     pg_say("keys as live; B+stick, B+LT/RT free; any other key: TOUCHED");
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS
+    pg_say("effect labels OFF in every stage (fill); hills on, no split");
+    pg_say("shadow: mesh = laid on the ground's triangles, flat = one quad");
+    pg_say("at the car's ground height (B+Y), noshad = blobs; swp: sun sweep");
+    pg_say("stage 12: the camera orbits, across the crest at s 45");
+#else
     pg_say("effect labels OFF in every stage (fill); stage 4: the split at the middle");
     pg_say("buildings boxed past %u m (traffic %u), stages 12-13 past 30 m", 50u, 40u);
+#endif
 #endif
     g = pg_plot("pl4m: frame and PVR a stage, ms", "stage", "ms", 1);
     for (k = 0; k < STAGES; k++) { char c[4]; snprintf(c, sizeof c, "%u", k + 1u); pg_cat(g, c); }
@@ -212,7 +234,12 @@ int main(int argc, char **argv) {
     if (psm_fault_init(&crumbs) < 0) pg_say("fault catcher: a hook was refused");
     acc[0].resize_fail = demo_auto_set(stages[0].reflect, stages[0].size, stages[0].tod, stages[0].orbit) != 0;
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS
+    demo_auto_tiles(stages[0].blobs == 2 ? 2 : !stages[0].blobs);
+    demo_auto_sun(stages[0].sun);
+#else
     demo_auto_tiles(!stages[0].blobs);
+#endif
     demo_auto_ao(!stages[0].noao);
     demo_auto_split(stages[0].split);
     demo_auto_lod(stages[0].lod);
@@ -292,7 +319,12 @@ int main(int argc, char **argv) {
             if (stage >= STAGES) break;
             acc[stage].resize_fail = demo_auto_set(stages[stage].reflect, stages[stage].size, stages[stage].tod, stages[stage].orbit) != 0;
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS
+            demo_auto_tiles(stages[stage].blobs == 2 ? 2 : !stages[stage].blobs);
+            demo_auto_sun(stages[stage].sun);
+#else
             demo_auto_tiles(!stages[stage].blobs);
+#endif
             demo_auto_ao(!stages[stage].noao);
             demo_auto_split(stages[stage].split);
             demo_auto_lod(stages[stage].lod);

@@ -61,6 +61,9 @@ void  demo_auto_tiles(int on);
 void  demo_auto_ao(int on);
 void  demo_auto_lod(float m);                      /* the new map: a building past m (its footprint's edge) is its box; 0: LOD_NEAR */
 void  demo_auto_split(int on);                     /* the split at its middle (the reflection layer on the left half only), or off */
+#ifdef PL4NAR_HILLS
+void  demo_auto_sun(unsigned mode);                /* the hills build: the sun 0 FIXED, 1 SWEEP (from its start), 2 HOLD */
+#endif
 
 /* Platform: microseconds since start. */
 uint64_t plat_us(void);

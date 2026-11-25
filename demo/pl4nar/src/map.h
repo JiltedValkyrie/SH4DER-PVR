@@ -16,4 +16,5 @@ void       map_traffic_reset(void);
 void       map_traffic_step(float dt);
 unsigned   map_traffic_n(void);
 map_pose_t map_traffic_pose(unsigned k);     /* yaw: the way the car faces (oncoming lanes turned round) */
+float      map_traffic_s(unsigned k);        /* its s along the loop */
 #endif

@@ -19,6 +19,9 @@
 void demo_host_pose(float z, float x, float orbit, float tod, int reflect);
 void demo_host_cam(float ex, float ey, float ez, float ax, float ay, float az);
 void demo_host_car(float *x, float *z, float *yaw);
+#ifdef PL4NAR_HILLS
+float demo_host_car_y(void);
+#endif
 uint64_t plat_us(void) { return (uint64_t)clock() * 1000000ull / CLOCKS_PER_SEC; }
 
 typedef struct shot { const char *name; float sl[2]; float orbit, tod; int cam; } shot_t;
@@ -31,6 +34,14 @@ static void set(const shot_t *s, int reflect) {
     if (s->cam == 2) demo_host_cam(x - sh * 6.5f, 2.0f, z - ch * 6.5f, x + sh * 12.0f, 2.6f, z + ch * 12.0f);
     if (s->cam == 3) demo_host_cam(x + sh * 5.5f + ch * 2.5f, 1.25f, z + ch * 5.5f - sh * 2.5f, x + sh * 0.8f, 0.85f, z + ch * 0.8f);
     if (s->cam == 4) demo_host_cam(x - sh * 4.5f, 1.7f, z - ch * 4.5f, x + sh * 3.0f, 1.0f, z + ch * 3.0f);
+#ifdef PL4NAR_HILLS                                 /* the hills: the camera's heights over the car's ground */
+    {
+        float gy = demo_host_car_y();
+        if (s->cam == 5) demo_host_cam(x - ch * 9.0f, gy + 0.9f, z + sh * 9.0f, x, gy + 0.6f, z);                       /* low, from the side: the wheels on the road */
+        if (s->cam == 6) demo_host_cam(x - sh * 45.0f, gy + 16.0f, z - ch * 45.0f, x + sh * 40.0f, gy, z + ch * 40.0f);   /* high, wide: the road's rise and fall */
+        if (s->cam == 7) demo_host_cam(x - sh * 9.0f, gy + 1.4f, z - ch * 9.0f, x + sh * 30.0f, gy + 0.8f, z + ch * 30.0f);   /* low behind: the road ahead */
+    }
+#endif
 }
 
 /* The lap: steer toward lane -2 from the car's own offset (a driver, not the demo's input), 1 s steps printed. */
@@ -84,6 +95,18 @@ int main(int argc, char **argv) {
         { "b in the covered passage, day, the demo's chase camera", { MAP_SHOT_PASSAGE_SL }, 0.0f, 0.15f, 0 },
         { "a before the overpass, day, the chase camera 20 m back", { 97.0f, 2.0f }, 0.0f, 0.15f, 0 },
         { "c in the open, day, low camera in front, the split at the middle (layer on the left)", { MAP_SHOT_OPEN_SL }, 0.0f, 0.15f, 3 },
+#ifdef PL4NAR_HILLS
+        { "e hills: south side, day, low from the side (the wheels on the road)", { 900.0f, -2.0f }, 0.0f, 0.15f, 5 },
+        { "e hills: south side, day, high and wide (the road's rise and fall)", { 900.0f, -2.0f }, 0.0f, 0.15f, 6 },
+        { "e hills: east side, day, high and wide, toward the overpass (the flat ground there)", { 40.0f, -2.0f }, 0.0f, 0.15f, 6 },
+        { "e hills: north side, day, low behind (the road ahead)", { 420.0f, -2.0f }, 0.0f, 0.15f, 7 },
+        { "e hills: west side, dusk, low from the side", { 800.0f, -2.0f }, 0.0f, 0.45f, 5 },
+        { "e hills: a corner, day, high and wide", { 330.0f, -2.0f }, 0.0f, 0.15f, 6 },
+        { "f the steepest stretch, day, the chase camera", { 925.7f, -2.0f }, 0.0f, 0.15f, 0 },
+        { "f the steepest stretch, day, low from the side", { 925.7f, -2.0f }, 0.0f, 0.15f, 5 },
+        { "f the steepest stretch, day, the chase camera turned to the side", { 925.7f, -2.0f }, 1.3f, 0.15f, 0 },
+        { "g across the crest, day, low behind", { 30.0f, -2.0f }, 0.0f, 0.15f, 7 },
+#endif
     };
     demo_stats_t st = { 0, 0, 0, 0, 0, 0 };
     char p[512];
@@ -111,6 +134,13 @@ int main(int argc, char **argv) {
         demo_auto_ao(1);
         snprintf(p, sizeof p, "%s/%02u_noao.ppm", dir, k); gfx_host_save(p, 0);
         demo_auto_split(0);
+#ifdef PL4NAR_HILLS
+        set(s, 1);                                  /* the comparison: TYPICAL (a flat quad at the car's ground height) */
+        demo_auto_tiles(2);
+        demo_draw(&st);
+        demo_auto_tiles(1);
+        snprintf(p, sizeof p, "%s/%02u_typ.ppm", dir, k); gfx_host_save(p, 0);
+#endif
         if (f) {                                    /* the screen scene's triangles (reflection on), AO on and off */
             demo_counts_t c;
             unsigned on;

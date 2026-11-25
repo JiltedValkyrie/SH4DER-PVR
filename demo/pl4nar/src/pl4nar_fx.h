@@ -35,12 +35,18 @@ static inline unsigned pl4nar_fx_add_(fx_entry_t *out, unsigned n, const char *n
 }
 
 /* The live view's entries into out (room for PL4NAR_FX_MAX). reflect: the layer drawn on this side; tiles: car tiles
-   this frame (any); blobs: a blob disc this frame (any); ao: the baked occlusion on; night: the lamps lit. */
+   this frame (any; the hills build: 1 on the ground mesh, 2 the flat quad); blobs: a blob disc this frame (any); ao: the baked occlusion on; night: the lamps lit. */
 static inline unsigned pl4nar_fx_live(int reflect, int tiles, int blobs, int ao, int night, fx_entry_t out[PL4NAR_FX_MAX]) {
     unsigned n = 0;
 
     if (reflect) n = pl4nar_fx_add_(out, n, "Planar Reflection", FX_BOTH, FX_REALTIME);
+#ifdef PL4NAR_HILLS                                 /* the hills build: tiles 1 the projected shadow laid on the ground mesh, 2 the
+                                                       typical flat quad at the car's ground height (B+Y) */
+    if (tiles == 2) n = pl4nar_fx_add_(out, n, "Flat Shadow Quad", FX_BOTH, FX_REALTIME);
+    else if (tiles) n = pl4nar_fx_add_(out, n, "Projected Shadow on Mesh", FX_BOTH, FX_REALTIME);   /* the page's long name does not fit two lines */
+#else
     if (tiles) n = pl4nar_fx_add_(out, n, "Projected Shadow", FX_BOTH, FX_REALTIME);
+#endif
     if (blobs) n = pl4nar_fx_add_(out, n, "Blob Shadow", FX_SH4, FX_REALTIME);
     if (ao) n = pl4nar_fx_add_(out, n, "Ambient Occlusion", FX_SH4, FX_BAKED);
     if (night) n = pl4nar_fx_add_(out, n, "Light Pool", FX_SH4, FX_REALTIME);
@@ -50,11 +56,20 @@ static inline unsigned pl4nar_fx_live(int reflect, int tiles, int blobs, int ao,
 /* The result pages: everything the run showed. Three lines: main.c defines PG_TOP 2. */
 static const fx_entry_t pl4nar_fx_page[] = {
     { "Planar Reflection", FX_BOTH, FX_REALTIME, NULL },
+#ifdef PL4NAR_HILLS
+    { "Projected Shadow (on the ground mesh)", FX_BOTH, FX_REALTIME, NULL },
+    { "Flat Shadow Quad", FX_BOTH, FX_REALTIME, NULL },
+#else
     { "Projected Shadow", FX_BOTH, FX_REALTIME, NULL },
+#endif
     { "Blob Shadow", FX_SH4, FX_REALTIME, NULL },
     { "Ambient Occlusion", FX_SH4, FX_BAKED, NULL },
     { "Light Pool", FX_SH4, FX_REALTIME, NULL },
 };
+#ifdef PL4NAR_HILLS
+#define PL4NAR_FX_PAGE_N 6u
+#else
 #define PL4NAR_FX_PAGE_N 5u
+#endif
 
 #endif /* PL4NAR_FX_H */

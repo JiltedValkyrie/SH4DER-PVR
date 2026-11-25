@@ -53,6 +53,8 @@ void map_traffic_step(float dt) {
 
 unsigned map_traffic_n(void) { return MAP_CARS; }
 
+float map_traffic_s(unsigned k) { return s_traffic[k]; }
+
 map_pose_t map_traffic_pose(unsigned k) {
     const float *l = map_lane[map_car[k].lane];
     map_pose_t p = map_at(s_traffic[k], l[0]);

@@ -22,6 +22,9 @@
 #include "map.h"
 #include "map_gen.h"
 #include "map_ao_gen.h"                            /* tools/map_ao.c: a byte a model vertex, the road's patches */
+#ifdef PL4NAR_HILLS
+#include "hills.h"                                 /* the hills build: the height field, the meshes' heights */
+#endif
 #define MAP_DRAW     200.0f        /* drawn round the camera, m (the haze is full by then) */
 #define MAP_MIRROR   80.0f         /* mirrored round the camera */
 #define LOD_NEAR     50.0f         /* a building past this is its box (lod_init): the screen pass (demo_auto_lod) */
@@ -176,18 +179,43 @@ static const uint8_t *s_mao;                       /* draw_model: this model's b
 static int s_ao = 1;                               /* the baked occlusion on (the autorun's "no AO" stage) */
 void demo_auto_ao(int on) { s_ao = on; }
 #endif
+#ifdef PL4NAR_HILLS
+static float s_my, s_mp, s_mr;                     /* draw_model / draw_box: the base's height, the pitch and roll (rise a metre) */
+static float s_cy, s_cp, s_cr;                     /* the player's car: the same, smoothed */
+static float s_aoy[MAP_AOG_ROWS][MAP_AOG_COLS];    /* the road's occlusion patches: the ground under each corner */
+#define MODEL_Y s_my
+#define CAR_Y   s_cy
+#define HILLS_SNAP() (s_cp = -1e9f)                /* the next demo_place takes the tilt whole */
+#else
+#define HILLS_SNAP() ((void)0)
+#define MODEL_Y 0.0f
+#define CAR_Y   0.0f
+#endif
 static unsigned s_haze_max = (unsigned)(HAZE_MAX * 256.0f);   /* this pass: the reflection pass keeps more contrast (less haze) */
 static sh4der_pl4nar_view_t s_pv;
 static int s_pv_ok;                               /* this frame's reflection view was built: the layer may be drawn */
+#ifdef PL4NAR_HILLS
+static sh4der_pl4nar_plane_t s_road_plane = { { 0.0f, 1.0f, 0.0f }, 0.0f };   /* fitted under the car each frame (road_plane_fit) */
+#else
 static const sh4der_pl4nar_plane_t s_road_plane = { { 0.0f, 1.0f, 0.0f }, 0.0f };
+#endif
 #ifdef PL4NAR_MAP
 /* Car shadow tiles: drawn in the mirror pass into the target's right half, read on the screen by a ground quad a car. */
-static int      s_tiles = 1;                       /* the switch (the autorun's "no tiles" stage) */
+static int      s_tiles = 1;                       /* the switch (the autorun's "no tiles" stage); hills: 1 ON, 2 TYPICAL, 0 OFF */
 static unsigned s_tile_n;                          /* this frame's tiles; 0: blobs only */
 static int      s_tile_car[TILE_N];                /* -1 the player, else the traffic index */
 static float    s_tile_c[TILE_N][2];               /* the tile's centre on the ground (x, z) */
 static float    s_tile_px;                         /* a tile's side in target pixels */
 void demo_auto_tiles(int on) { s_tiles = on; }
+#ifdef PL4NAR_HILLS
+void demo_auto_sun(unsigned mode) { s_sun_mode = mode % 3u; s_sun_ph = 0.0f; }
+#endif
+#ifdef PL4NAR_HILLS
+static float s_lamp_s[MAP_LAMPS];                  /* each lamp head's s on the loop */
+static float s_blob_s;                             /* blob(): the car's s on the loop */
+static float s_tb_y, s_tb_p, s_tb_r;               /* tile_box(): the car's base height, pitch and roll */
+static float s_tile_s[TILE_N], s_tile_y[TILE_N];   /* each tile's car: s on the loop, its ground height */
+#endif
 #endif
 
 int demo_reflect_on(void) { return s_reflect; }
@@ -200,7 +228,7 @@ void demo_auto_split(int on) { s_split = on; s_div = split_middle(SPLIT_COLS); }
 static int          s_fx_hidden;                  /* the labels: B + START; off while the autorun measures */
 static unsigned     s_blob_n;                     /* blob discs drawn this frame (the labels) */
 
-static void demo_place(void);
+static void demo_place(float dt);
 #ifdef PL4NAR_MAP
 static void lod_init(void);
 #endif
@@ -219,7 +247,8 @@ int demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit) {
 float demo_speed(void) { return s_car.v; }
 void demo_auto_place(float z, float x, float v) {
     s_car.z = z; s_car.x = x; s_car.h = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.v = v;
-    demo_place();
+    HILLS_SNAP();
+    demo_place(0.0f);
 }
 void demo_counts(demo_counts_t *c) {
     c->tris_main = s_tris_main; c->tris_refl = s_tris_refl; c->lookup_us = s_pv_ok ? s_refl_cpu_us : 0u;
@@ -247,12 +276,39 @@ static void add_prop(const mdl_t *body, const mdl_t *wheels, float x, float z, f
 }
 #endif
 
+#ifdef PL4NAR_HILLS
+/* The mirror plane under the car: through the ground point under it, its normal from the eased pitch and roll (the
+   tilt kept, the camera's up still the world's). n = F x R, F = forward + up x pitch, R = right + up x roll. */
+static void road_plane_fit(void) {
+    const shz_sincos_t hc = shz_sincosf(s_car.wh);
+    const shz_vec3_t f = shz_vec3_init(hc.sin, s_cp, hc.cos), r = shz_vec3_init(hc.cos, s_cr, -hc.sin);
+    const shz_vec3_t n = shz_vec3_normalize(shz_vec3_cross(f, r));
+    s_road_plane.n[0] = n.x; s_road_plane.n[1] = n.y; s_road_plane.n[2] = n.z;
+    s_road_plane.d = shz_fmaf(n.x, s_car.wx, shz_fmaf(n.y, s_cy, n.z * s_car.wz));
+}
+#endif
+
 /* The car's world pose and the camera's yaw from the street-frame state. */
-static void demo_place(void) {
+static void demo_place(float dt) {
 #ifdef PL4NAR_MAP
     const map_pose_t p = map_at(s_car.z, s_car.x);
     s_car.wx = p.x; s_car.wz = p.z; s_car.wh = p.yaw + s_car.h; s_car.wcam = p.yaw + s_car.cam_h;
+#ifdef PL4NAR_HILLS
+    {   /* the ground's pose under the car: the height as it is (eased, a fast car would sink or float by v x slope x the
+           time), the tilt eased over 0.25 s (the mirror plane follows it: no wobble from facet to facet) */
+        const hills_tilt_t t = hills_car(s_car.z, s_car.x, s_car.wh);
+        s_cy = t.y;
+        if (s_cp < -1e8f) { s_cp = t.pitch; s_cr = t.roll; }   /* a new pose (demo_init, a jump): taken whole */
+        else {
+            const float kt = shz_saturatef(dt * (1.0f / 0.25f));
+            s_cp = shz_lerpf(s_cp, t.pitch, kt); s_cr = shz_lerpf(s_cr, t.roll, kt);
+        }
+    }
 #else
+    (void)dt;
+#endif
+#else
+    (void)dt;
     s_car.wx = s_car.x; s_car.wz = s_car.z; s_car.wh = s_car.h; s_car.wcam = s_car.cam_h;
 #endif
 }
@@ -304,7 +360,21 @@ void demo_init(void) {
     add_prop(&mdl_police_body, &mdl_police_wheels, -6.7f, 330.0f, 3.1416f);
 #endif
     s_car.x = -2.0f; s_car.z = 8.0f; s_car.h = 0.0f; s_car.v = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.clock = 0.0f;
-    demo_place();
+#ifdef PL4NAR_HILLS
+    hills_init();
+    {
+        unsigned r, c;
+        for (r = 0; r < MAP_AOG_ROWS; r++)
+            for (c = 0; c < MAP_AOG_COLS; c++) s_aoy[r][c] = hills_y_xz(map_aog[r][c][0], map_aog[r][c][1]);
+    }
+    s_size = 1u;                                   /* 128 x 64 from c9 on (the owner's choice); B+A still cycles */
+    {
+        unsigned i;
+        for (i = 0; i < MAP_LAMPS; i++) s_lamp_s[i] = hills_s_of(map_lamp[i][0], map_lamp[i][1]);
+    }
+#endif
+    HILLS_SNAP();
+    demo_place(0.0f);
     gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]);
 }
 
@@ -337,7 +407,11 @@ void demo_update(const demo_input_t *in, float dt) {
     if (in->pressed & DEMO_BTN_SPLIT) s_split = !s_split;
     if (in->pressed & DEMO_BTN_FX) s_fx_hidden = !s_fx_hidden;
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS
+    if (in->pressed & DEMO_BTN_TILES) s_tiles = s_tiles == 1 ? 2 : s_tiles == 2 ? 0 : 1;   /* ON -> TYPICAL -> OFF */
+#else
     if (in->pressed & DEMO_BTN_TILES) s_tiles = !s_tiles;
+#endif
     if (in->pressed & DEMO_BTN_AO) s_ao = !s_ao;
 #endif
     s_div = split_step(&s_split_step, s_div, SPLIT_COLS, in->split_l, in->split_r);
@@ -374,7 +448,7 @@ void demo_update(const demo_input_t *in, float dt) {
     if (!s_auto && shz_fabsf(in->orbit) < 0.05f && shz_fabsf(s_car.v) > 4.0f)  /* driving: the camera eases back behind the car */
         s_car.orbit -= s_car.orbit * shz_saturatef(1.2f * dt);
     s_car.clock += dt;
-    demo_place();
+    demo_place(dt);
 }
 
 /* ------------------------------------------------------------------------------------------------ helpers */
@@ -530,7 +604,11 @@ static void draw_road(void) {
             if (dx * dx + dz * dz <= MAP_DRAW * MAP_DRAW || (dz + 20.0f) * (dz + 20.0f) + dx * dx <= MAP_DRAW * MAP_DRAW) { any = 1; break; }   /* hand: scalar products */
         }
         if (!any) { have = 0; continue; }
+#ifdef PL4NAR_HILLS
+        for (gx = 0; gx <= GROUND_NX; gx++) gfx_xform(&cur[gx], shz_vec3_init(-180.0f + 20.0f * (float)gx, hills_gy[gz][gx], z1));
+#else
         for (gx = 0; gx <= GROUND_NX; gx++) gfx_xform(&cur[gx], shz_vec3_init(-180.0f + 20.0f * (float)gx, -0.03f, z1));
+#endif
         if (have)
             for (gx = 0; gx < GROUND_NX; gx++) {
                 const float x0 = -180.0f + 20.0f * (float)gx, x1 = x0 + 20.0f, z0 = z1 - 20.0f;
@@ -550,13 +628,18 @@ static void draw_road(void) {
         const float cx = a[0] - s_camx, cz = a[1] - s_camz;
         unsigned i;
         if (cx * cx + cz * cz > MAP_DRAW * MAP_DRAW) { have = 0; continue; }
+#ifdef PL4NAR_HILLS
+        const float *ry = &hills_ry[k];               /* the heights of a, b, c, d */
+#else
+        static const float ry[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+#endif
         if (have) { q[3] = prev[0]; q[2] = prev[1]; }
         else {
-            gfx_xform(&q[2], shz_vec3_init(b[0], 0.0f, b[1]));
-            gfx_xform(&q[3], shz_vec3_init(a[0], 0.0f, a[1]));
+            gfx_xform(&q[2], shz_vec3_init(b[0], ry[1], b[1]));
+            gfx_xform(&q[3], shz_vec3_init(a[0], ry[0], a[1]));
         }
-        gfx_xform(&q[0], shz_vec3_init(c[0], 0.0f, c[1]));
-        gfx_xform(&q[1], shz_vec3_init(d[0], 0.0f, d[1]));
+        gfx_xform(&q[0], shz_vec3_init(c[0], ry[2], c[1]));
+        gfx_xform(&q[1], shz_vec3_init(d[0], ry[3], d[1]));
         prev[0] = q[0]; prev[1] = q[1]; have = 1;                             /* untouched: the next quad's a, b */
         q[0].u = c[2]; q[0].v = c[3]; q[1].u = d[2]; q[1].v = d[3]; q[2].u = b[2]; q[2].v = b[3]; q[3].u = a[2]; q[3].v = a[3];
         for (i = 0; i < 4u; i++) { q[i].argb = s_road_col; haze_tex(&q[i]); }
@@ -667,8 +750,11 @@ static void draw_model(const mdl_t *m, float x, float z, float yaw) {
         return;
     }
     VP_LOAD();
-    shz_xmtrx_translate(x, 0.0f, z);
+    shz_xmtrx_translate(x, MODEL_Y, z);
     shz_xmtrx_rotate_y(yaw);
+#ifdef PL4NAR_HILLS
+    if (s_mp != 0.0f || s_mr != 0.0f) { shz_xmtrx_rotate_x(-s_mp); shz_xmtrx_rotate_z(s_mr); }   /* the slope: small angles, rise = angle */
+#endif
     for (i = 0; i < m->nv; i++) {
         const mdl_vert_t *s = &m->v[i];
         gfx_vert_t *o = &s_scr[i];
@@ -771,8 +857,11 @@ static void draw_box(unsigned mi, float x, float z, float yaw) {
     gfx_vert_t c[8], q[4];
     unsigned f, k;
     VP_LOAD();
-    shz_xmtrx_translate(x, 0.0f, z);
+    shz_xmtrx_translate(x, MODEL_Y, z);
     shz_xmtrx_rotate_y(yaw);
+#ifdef PL4NAR_HILLS
+    if (s_mp != 0.0f || s_mr != 0.0f) { shz_xmtrx_rotate_x(-s_mp); shz_xmtrx_rotate_z(s_mr); }
+#endif
     for (k = 0; k < 8u; k++) gfx_xform(&c[k], shz_vec3_init(k & 1u ? m->hi[0] : m->lo[0], k & 2u ? m->hi[1] : m->lo[1], k & 4u ? m->hi[2] : m->lo[2]));
     for (f = 0; f < 5u; f++) {
         const float l = shz_fmaf(DIFFUSE, shz_fmaxf(0.0f, sh4der_dot3_(fn[f], lm)), amb);
@@ -804,7 +893,16 @@ static void draw_props(int reflect_pass) {
         const float dx = p->x - s_camx, dz = p->z - s_camz, d2 = dx * dx + dz * dz, r = lim + m->radius;   /* hand: scalar products */
         if (d2 > r * r) continue;
         if (m->radius < 4.0f && d2 > (reflect_pass ? 60.0f * 60.0f : 100.0f * 100.0f)) continue;   /* small far things: not worth it */
-        if (!sphere_seen(p->x, m->radius * 0.5f, p->z, m->radius)) continue;
+#ifdef PL4NAR_HILLS
+        s_my = hills_iy[i];
+#endif
+        if (!sphere_seen(p->x, MODEL_Y + m->radius * 0.5f, p->z, m->radius)) continue;
+#ifdef PL4NAR_HILLS
+        if (reflect_pass) {                           /* wholly under the mirror plane: the PVR has no clip plane, skip it */
+            const float c[3] = { p->x, MODEL_Y + m->radius * 0.5f, p->z };
+            if (sh4der_pl4nar_sphere_side(&s_road_plane, c, m->radius) < 0) continue;
+        }
+#endif
         s_tint = 0xff000000u | p->tint;
         if (s_box_bld[p->model] && d2 > (lod + s_box_r[p->model]) * (lod + s_box_r[p->model])) draw_box(p->model, p->x, p->z, p->yaw);
         else {
@@ -819,7 +917,19 @@ static void draw_props(int reflect_pass) {
         const mdl_t *body = map_models[map_car[i].body];
         const float dx = q.x - s_camx, dz = q.z - s_camz, d2 = dx * dx + dz * dz;
         if (d2 > (reflect_pass ? CAR_MIRROR * CAR_MIRROR : TRAFFIC_DRAW * TRAFFIC_DRAW)) continue;
-        if (!sphere_seen(q.x, body->radius * 0.5f, q.z, body->radius)) continue;
+#ifdef PL4NAR_HILLS
+        {   /* on the road's triangles, tilted with them (not eased: the traffic's own lane is smooth enough) */
+            const hills_tilt_t t = hills_car(map_traffic_s(i), map_lane[map_car[i].lane][0], q.yaw);
+            s_my = t.y; s_mp = t.pitch; s_mr = t.roll;
+        }
+#endif
+        if (!sphere_seen(q.x, MODEL_Y + body->radius * 0.5f, q.z, body->radius)) continue;
+#ifdef PL4NAR_HILLS
+        if (reflect_pass) {
+            const float c[3] = { q.x, MODEL_Y + body->radius * 0.5f, q.z };
+            if (sh4der_pl4nar_sphere_side(&s_road_plane, c, body->radius) < 0) continue;
+        }
+#endif
         if (!reflect_pass && d2 > CAR_NEAR * CAR_NEAR) { draw_box(map_car[i].body, q.x, q.z, q.yaw); continue; }
         s_mao = s_ao ? map_model_ao[map_car[i].body] : NULL;
         draw_model(body, q.x, q.z, q.yaw);
@@ -827,6 +937,9 @@ static void draw_props(int reflect_pass) {
         if (!reflect_pass) draw_model(map_models[map_car[i].wheels], q.x, q.z, q.yaw);
     }
     s_mao = NULL;
+#ifdef PL4NAR_HILLS
+    s_my = s_mp = s_mr = 0.0f;
+#endif
 }
 
 /* The road's baked occlusion: the kept rows of tools/map_ao.c's 2 m grid, multiplied over the road (GFX_MAT_MUL) at
@@ -843,7 +956,11 @@ static void draw_road_ao(void) {
         cur ^= 1u;
         for (c = 0; c < MAP_AOG_COLS; c++) {
             const unsigned g = (unsigned)(map_aog[r][c][2] * 255.0f);
+#ifdef PL4NAR_HILLS
+            gfx_xform(&row[cur][c], shz_vec3_init(map_aog[r][c][0], s_aoy[r][c] + 0.01f, map_aog[r][c][1]));
+#else
             gfx_xform(&row[cur][c], shz_vec3_init(map_aog[r][c][0], 0.01f, map_aog[r][c][1]));
+#endif
             row[cur][c].argb = gfx_rgb(255u, g, g, g); row[cur][c].oargb = 0u; row[cur][c].u = row[cur][c].v = 0.0f;
         }
         if (!prev || !map_aog_join[r]) { prev = 1; continue; }
@@ -896,14 +1013,23 @@ static void draw_player(void) {
     const mdl_t *m = &mdl_player_body;
     unsigned i;
     uint64_t t0;
+#ifdef PL4NAR_HILLS
+    s_my = s_cy; s_mp = s_cp; s_mr = s_cr;
+#endif
     draw_model(&mdl_player_wheels, s_car.wx, s_car.wz, s_car.wh);
+#ifdef PL4NAR_HILLS
+    s_my = s_mp = s_mr = 0.0f;
+#endif
     if (m->nv > MDL_PLAYER_BODY_NV) {
         if (!(s_refused & 2u)) { s_refused |= 2u; printf("demo: player body of %u vertices refused (arrays hold %u)\n", (unsigned)m->nv, (unsigned)MDL_PLAYER_BODY_NV); }
         return;
     }
     /* world positions + normals (model matrix in XMTRX) */
-    shz_xmtrx_init_translation(s_car.wx, 0.0f, s_car.wz);
+    shz_xmtrx_init_translation(s_car.wx, CAR_Y, s_car.wz);
     shz_xmtrx_rotate_y(s_car.wh);
+#ifdef PL4NAR_HILLS
+    shz_xmtrx_rotate_x(-s_cp); shz_xmtrx_rotate_z(s_cr);
+#endif
     for (i = 0; i < m->nv; i++) {
         const mdl_vert_t *s = &m->v[i];
         const shz_vec3_t p = shz_xmtrx_transform_point3(shz_vec3_init(s->p[0], s->p[1], s->p[2]));
@@ -1010,6 +1136,101 @@ static void fan(const sh4der_pool_vtx_t *p, unsigned nv, int closed) {
     for (i = 0; i < n; i++) gfx_tri(&v[0], &v[i + 1u], &v[closed ? (i + 1u) % n + 1u : i + 2u]);
 }
 
+#ifdef PL4NAR_HILLS
+/* Draping: a region triangle (a pool's fan triangle, a tile's half square) laid on the drawn ground. Each ground
+   triangle near it is cut to the region in a 2D space that is affine on a plane (x, z for a pool; for a tile, the
+   point slid along the sun to y = 0), so what is drawn lies in the ground's own planes: nothing clips, nothing floats.
+   Sutherland-Hodgman, three edges; at most 6 points a piece. */
+typedef struct dv { float p[3], c[2]; } dv_t;
+static float s_drape[HILLS_NEAR_MAX][3][3];
+static unsigned s_drape_n;
+
+static void drape_2d(const float p[3], float c[2], int slide) {
+    if (!slide) { c[0] = p[0]; c[1] = p[2]; return; }
+    {
+        const float t = p[1] * shz_invf(s_sun[1]);                   /* along -sun to y = 0 */
+        c[0] = shz_fmaf(-s_sun[0], t, p[0]); c[1] = shz_fmaf(-s_sun[2], t, p[2]);
+    }
+}
+
+static unsigned clip_edge(const dv_t *in, unsigned n, const float a[2], const float b[2], dv_t *out) {
+    const float ex = b[0] - a[0], ez = b[1] - a[1];
+    unsigned i, m = 0, k;
+    for (i = 0; i < n; i++) {
+        const dv_t *P = &in[i], *Q = &in[i + 1u == n ? 0u : i + 1u];
+        const float dp = shz_fmaf(ex, P->c[1] - a[1], -ez * (P->c[0] - a[0])), dq = shz_fmaf(ex, Q->c[1] - a[1], -ez * (Q->c[0] - a[0]));
+        if (dp >= 0.0f) out[m++] = *P;
+        if ((dp >= 0.0f) != (dq >= 0.0f)) {
+            const float t = dp * shz_invf(dp - dq);
+            for (k = 0; k < 3u; k++) out[m].p[k] = shz_lerpf(P->p[k], Q->p[k], t);
+            out[m].c[0] = shz_lerpf(P->c[0], Q->c[0], t); out[m].c[1] = shz_lerpf(P->c[1], Q->c[1], t);
+            m++;
+        }
+    }
+    return m;
+}
+
+/* Region r (three 2D points) over s_drape's triangles. col: the region's corner colours (a pool), interpolated; NULL:
+   the tile's texture coordinates from the slid point (tile k). lift: up from the ground, against depth fighting. */
+static void drape(const float r[3][2], const uint32_t *col, int slide, unsigned tile, float lift) {
+    const float area = shz_fmaf(r[1][0] - r[0][0], r[2][1] - r[0][1], -(r[2][0] - r[0][0]) * (r[1][1] - r[0][1]));
+    const unsigned o1 = area > 0.0f ? 1u : 2u, o2 = area > 0.0f ? 2u : 1u;   /* inside on the left of each edge */
+    float ia, iw = 0.0f, ih = 0.0f, ks = 0.0f, ox = 0.0f, oz = 0.0f;
+    unsigned t, i, n;
+    if (shz_fabsf(area) < 1e-6f) return;
+    ia = shz_invf(area);
+    if (!col) {
+        const float W = (float)RT_W(s_sizes[s_size][0]), H = (float)s_sizes[s_size][1], T = s_tile_px;
+        iw = shz_invf(W) * gfx_reflect_u_scale(); ih = shz_invf(H); ks = T * (1.0f / TILE_M);
+        ox = T * (float)(4u + (tile & 3u)) + 0.5f * T - s_tile_c[tile][0] * ks;
+        oz = T * (float)(tile >> 2) + 0.5f * T - s_tile_c[tile][1] * ks;
+    }
+    for (t = 0; t < s_drape_n; t++) {
+        dv_t a[8], b[8];
+        gfx_vert_t v[8];
+        for (i = 0; i < 3u; i++) { a[i].p[0] = s_drape[t][i][0]; a[i].p[1] = s_drape[t][i][1]; a[i].p[2] = s_drape[t][i][2]; drape_2d(a[i].p, a[i].c, slide); }
+        n = clip_edge(a, 3u, r[0], r[o1], b);
+        if (n >= 3u) n = clip_edge(b, n, r[o1], r[o2], a);
+        if (n >= 3u) n = clip_edge(a, n, r[o2], r[0], b);
+        if (n < 3u) continue;
+        for (i = 0; i < n; i++) {
+            gfx_xform(&v[i], shz_vec3_init(b[i].p[0], b[i].p[1] + lift, b[i].p[2]));
+            v[i].oargb = 0u;
+            if (col) {                                /* the corner colours at this point: barycentric in the region */
+                const float w1 = shz_fmaf(b[i].c[0] - r[0][0], r[2][1] - r[0][1], -(r[2][0] - r[0][0]) * (b[i].c[1] - r[0][1])) * ia;
+                const float w2 = shz_fmaf(r[1][0] - r[0][0], b[i].c[1] - r[0][1], -(b[i].c[0] - r[0][0]) * (r[1][1] - r[0][1])) * ia;
+                uint32_t o = 0u;
+                unsigned sh;
+                for (sh = 0; sh < 32u; sh += 8u) {
+                    const float c0 = (float)((col[0] >> sh) & 255u), c1 = (float)((col[1] >> sh) & 255u), c2 = (float)((col[2] >> sh) & 255u);
+                    const float c = shz_fmaf(w1, c1 - c0, shz_fmaf(w2, c2 - c0, c0));
+                    o |= (uint32_t)(shz_clampf(c, 0.0f, 255.0f) + 0.5f) << sh;
+                }
+                v[i].argb = o; v[i].u = v[i].v = 0.0f;
+            } else {
+                v[i].argb = 0xffffffffu;
+                v[i].u = shz_fmaf(b[i].c[0], ks, ox) * iw; v[i].v = shz_fmaf(b[i].c[1], ks, oz) * ih;
+            }
+        }
+        for (i = 1; i + 1u < n; i++) gfx_tri(&v[0], &v[i], &v[i + 1u]);
+    }
+}
+
+/* A pool fan (sh4der_pool_disc / _wedge) on the drawn ground near (s, x, z) within r. */
+static void fan_drape(const sh4der_pool_vtx_t *p, unsigned nv, int closed, float s, float x, float z, float r, float lift) {
+    unsigned n, i;
+    if (nv < 3u || nv > SH4DER_POOL_MAX_N + 2u) return;
+    n = closed ? nv - 1u : nv - 2u;
+    s_drape_n = hills_tris_near(s, x, z, r, s_drape, HILLS_NEAR_MAX);
+    for (i = 0; i < n; i++) {
+        const unsigned b = i + 1u, c = closed ? (i + 1u) % n + 1u : i + 2u;
+        const float rg[3][2] = { { p[0].x, p[0].z }, { p[b].x, p[b].z }, { p[c].x, p[c].z } };
+        const uint32_t col[3] = { p[0].argb, p[b].argb, p[c].argb };
+        drape(rg, col, 0, 0u, lift);
+    }
+}
+#endif
+
 /* A halo: SH4DER-PVR's camera-facing quad (sh4der_spark_quad) at a world point, projected by hand (the quad comes
    back in view space). rgb x gain is the brightness; the bound material decides how it is drawn. */
 static void halo(float x, float y, float z, float half, uint32_t rgb, float gain) {
@@ -1059,15 +1280,33 @@ static void draw_lamps(int what) {
     for (i = 0; i < MAP_LAMPS + MAP_STRIPS; i++) {
         const int strip = i >= MAP_LAMPS;
         const float x = strip ? map_strip[i - MAP_LAMPS][0] : map_lamp[i][0], z = strip ? map_strip[i - MAP_LAMPS][2] : map_lamp[i][1];
-        const float y = strip ? map_strip[i - MAP_LAMPS][1] : LAMP_HEAD_Y;
+#ifdef PL4NAR_HILLS
+        const float gy = strip ? 0.0f : hills_ly[i];   /* the strips hang under the structures: flat ground */
+#else
+        const float gy = 0.0f;
+#endif
+        const float y = strip ? map_strip[i - MAP_LAMPS][1] : gy + LAMP_HEAD_Y;
         const uint32_t col = strip ? 0x00d8e8ffu : COL_LAMP;
         const float dx = x - s_car.wx, dz = z - s_car.wz;
         if (dx * dx + dz * dz > range * range) continue;                     /* hand: scalar products */
         if (what == 0) {
-            const float c[3] = { x, 0.03f, z };
+            const float c[3] = { x, gy + 0.03f, z };
+#ifdef PL4NAR_HILLS
+            if (!strip) { fan_drape(p, sh4der_pool_disc(c, ux, uz, 10u, col, 0.60f * s_lamp, p), 1, s_lamp_s[i], x, z, 7.6f, 0.03f); continue; }
+#endif
             fan(p, sh4der_pool_disc(c, ux, uz, 10u, col, (strip ? 0.15f : 0.60f) * s_lamp, p), 1);
         } else if (what == 1) halo(x, y, z, strip ? 2.0f : 2.2f, col, s_lamp);          /* D1 (the depth fade) goes here */
+#ifdef PL4NAR_HILLS
+        else {                                        /* the head mirrored about the fitted plane; none under it */
+            const float h[3] = { x, y, z };
+            float m[3];
+            if (sh4der_pl4nar_sphere_side(&s_road_plane, h, 0.0f) < 0) continue;
+            sh4der_pl4nar_mirror_point(&s_road_plane, h, m);
+            halo(m[0], m[1], m[2], strip ? 1.6f : 1.5f, col, s_lamp);
+        }
+#else
         else halo(x, -y, z, strip ? 1.6f : 1.5f, col, s_lamp);
+#endif
     }
     return;
 #endif
@@ -1094,8 +1333,16 @@ static void draw_car_lights(int halos) {
         const float side = 0.62f * (float)s;
         if (!halos) {
             const float a[3] = { shz_fmaf(fw[0], 2.3f, shz_fmaf(rt[0], side, s_car.wx)), 0.035f, shz_fmaf(fw[2], 2.3f, shz_fmaf(rt[2], side, s_car.wz)) };
+#ifdef PL4NAR_HILLS
+            {   /* on the road's triangles ahead (a beam 30 m long would leave a plane on the first crest) */
+                const float mx = shz_fmaf(fw[0], 17.0f, s_car.wx), mz = shz_fmaf(fw[2], 17.0f, s_car.wz), ms = s_car.z + 17.0f;
+                fan_drape(p, sh4der_pool_wedge(a, fw, rt, 30.0f, 0.11f, 2u, COL_HEAD, 0.45f * s_lamp, p), 0, ms, mx, mz, 17.0f, 0.035f);
+                fan_drape(p, sh4der_pool_wedge(a, fw, rt, 20.0f, 0.30f, 4u, COL_HEAD, 0.22f * s_lamp, p), 0, ms, mx, mz, 17.0f, 0.035f);
+            }
+#else
             fan(p, sh4der_pool_wedge(a, fw, rt, 30.0f, 0.11f, 2u, COL_HEAD, 0.45f * s_lamp, p), 0);      /* the beam */
             fan(p, sh4der_pool_wedge(a, fw, rt, 20.0f, 0.30f, 4u, COL_HEAD, 0.22f * s_lamp, p), 0);      /* its spill: a soft edge */
+#endif
         } else {
             halo(shz_fmaf(fw[0], 2.40f, shz_fmaf(rt[0], side, s_car.wx)), 0.60f, shz_fmaf(fw[2], 2.40f, shz_fmaf(rt[2], side, s_car.wz)), 0.55f, COL_HEAD, s_lamp);
             halo(shz_fmaf(fw[0], -2.42f, shz_fmaf(rt[0], side, s_car.wx)), 0.60f, shz_fmaf(fw[2], -2.42f, shz_fmaf(rt[2], side, s_car.wz)), 0.40f, COL_TAIL, s_lamp);
@@ -1109,7 +1356,11 @@ static void blob(float x, float z, float yaw, float alpha) {
     const shz_sincos_t hc = shz_sincosf(yaw);
     const float c[3] = { x, 0.02f, z }, u[3] = { hc.sin * 2.9f, 0.0f, hc.cos * 2.9f }, v[3] = { hc.cos * 1.35f, 0.0f, -hc.sin * 1.35f };
     sh4der_pool_vtx_t p[SH4DER_POOL_MAX_N + 2];
+#ifdef PL4NAR_HILLS
+    fan_drape(p, sh4der_pool_disc(c, u, v, 8u, 0x00000000u, alpha, p), 1, s_blob_s, x, z, 3.2f, 0.02f);
+#else
     fan(p, sh4der_pool_disc(c, u, v, 8u, 0x00000000u, alpha, p), 1);
+#endif
 }
 
 #ifdef PL4NAR_MAP
@@ -1146,7 +1397,11 @@ static void tile_box(unsigned k, float x, float z, float yaw, const float lo[3],
     for (i = 0; i < 8u; i++) {
         const float lx = (i & 1u) ? hi[0] : lo[0], ly = (i & 2u) ? hi[1] : lo[1], lz = (i & 4u) ? hi[2] : lo[2];
         const float wx = shz_fmaf(lx, sc.cos, shz_fmaf(lz, sc.sin, x)), wz = shz_fmaf(-lx, sc.sin, shz_fmaf(lz, sc.cos, z));
+#ifdef PL4NAR_HILLS
+        const float t = shz_fmaf(s_tb_p, lz, shz_fmaf(s_tb_r, lx, s_tb_y + ly)) * iy;   /* the corner's world height (base, tilt), along -sun to y = 0 */
+#else
         const float t = ly * iy;                                     /* along -sun to y = 0 */
+#endif
         p[i][0] = shz_clampf(shz_fmaf(shz_fmaf(-s_sun[0], t, wx), ks, ox), x0 + 2.0f, x0 + T - 2.0f);
         p[i][1] = shz_clampf(shz_fmaf(shz_fmaf(-s_sun[2], t, wz), ks, oz), y0 + 2.0f, y0 + T - 2.0f);
     }
@@ -1216,10 +1471,23 @@ static void draw_tiles(float tw, float th) {
         }
         if (car < 0) { x = s_car.wx; z = s_car.wz; yaw = s_car.wh; m = &mdl_player_body; }
         else { const map_pose_t q = map_traffic_pose((unsigned)car); x = q.x; z = q.z; yaw = q.yaw; m = map_models[map_car[car].body]; }
+#ifdef PL4NAR_HILLS
+        if (car < 0) { s_tb_y = s_cy; s_tb_p = s_cp; s_tb_r = s_cr; s_tile_s[k] = s_car.z; }
+        else {
+            const hills_tilt_t t = hills_car(map_traffic_s((unsigned)car), map_lane[map_car[car].lane][0], yaw);
+            s_tb_y = t.y; s_tb_p = t.pitch; s_tb_r = t.roll; s_tile_s[k] = map_traffic_s((unsigned)car);
+        }
+        s_tile_y[k] = s_tb_y;
+        {   /* the square in the slid space (y = 0): the car's base slid along the sun, then half the shadow's reach on */
+            const float r = shz_fminf(0.5f * m->hi[1] * shz_invf(sy), 2.0f) + s_tb_y * shz_invf(sy);
+            s_tile_c[k][0] = shz_fmaf(-s_sun[0], r, x); s_tile_c[k][1] = shz_fmaf(-s_sun[2], r, z);
+        }
+#else
         {   /* the tile's ground square: on the car, moved half the shadow's reach away from the sun (at most 2 m) */
             const float r = shz_fminf(0.5f * m->hi[1] * shz_invf(sy), 2.0f);
             s_tile_c[k][0] = shz_fmaf(-s_sun[0], r, x); s_tile_c[k][1] = shz_fmaf(-s_sun[2], r, z);
         }
+#endif
         s_tile_car[k] = car;
         {   /* under a deck (baked road occlusion under 0.95) the sun is gone: the casters fade to white by 0.80 */
             const float f = shz_saturatef((0.95f - road_ao_at(x, z)) * (1.0f / 0.15f));
@@ -1245,6 +1513,33 @@ static void draw_tile_quads(void) {
     unsigned k, c;
     if (!s_tile_n) return;
     gfx_bind(GFX_MAT_SHADOW);
+#ifdef PL4NAR_HILLS
+    for (k = 0; k < s_tile_n; k++) {
+        const float hs = h - 0.5f * TILE_M * shz_invf(s_tile_px);     /* half a texel in: the tile's own white border */
+        const float cx = s_tile_c[k][0], cz = s_tile_c[k][1];
+        if (s_tiles == 1) {                           /* ON: the square laid on the ground's triangles, through the slid point */
+            const float r0[3][2] = { { cx - hs, cz - hs }, { cx + hs, cz - hs }, { cx + hs, cz + hs } };
+            const float r1[3][2] = { { cx - hs, cz - hs }, { cx + hs, cz + hs }, { cx - hs, cz + hs } };
+            const float gy = s_tile_y[k] * shz_invf(s_sun[1]);
+            s_drape_n = hills_tris_near(s_tile_s[k], shz_fmaf(s_sun[0], gy, cx), shz_fmaf(s_sun[2], gy, cz), h * 1.42f + 1.0f, s_drape, HILLS_NEAR_MAX);
+            drape(r0, NULL, 1, k, 0.02f);
+            drape(r1, NULL, 1, k, 0.02f);
+            continue;
+        }
+        {   /* TYPICAL: one flat quad at the car's ground height (what a flat-ground shadow does on a slope) */
+            const float y = s_tile_y[k] + 0.02f, ty = y * shz_invf(s_sun[1]);
+            const float T = s_tile_px, x0 = T * (float)(4u + (k & 3u)), y0 = T * (float)(k >> 2);
+            for (c = 0; c < 4u; c++) {
+                const int ix = c == 1u || c == 2u, iz = c >= 2u;
+                gfx_xform(&q[c], shz_vec3_init(shz_fmaf(s_sun[0], ty, cx + (ix ? h : -h)), y, shz_fmaf(s_sun[2], ty, cz + (iz ? h : -h))));
+                q[c].u = (x0 + (ix ? T - 0.5f : 0.5f)) * iw; q[c].v = (y0 + (iz ? T - 0.5f : 0.5f)) * ih;
+                q[c].argb = 0xffffffffu; q[c].oargb = 0u;
+            }
+            quad(q);
+        }
+    }
+    return;
+#endif
     for (k = 0; k < s_tile_n; k++) {
         const float T = s_tile_px, x0 = T * (float)(4u + (k & 3u)), y0 = T * (float)(k >> 2);
         for (c = 0; c < 4u; c++) {
@@ -1263,10 +1558,16 @@ static void draw_shadows(void) {
     unsigned i;
     s_blob_n = 0u;
 #ifdef PL4NAR_MAP
+#ifdef PL4NAR_HILLS
+    s_blob_s = s_car.z;
+#endif
     if (!tiled(-1)) blob(s_car.wx, s_car.wz, s_car.wh, alpha);
     for (i = 0; i < map_traffic_n(); i++) {
         const map_pose_t q = map_traffic_pose(i);
         const float dx = q.x - s_car.wx, dz = q.z - s_car.wz;
+#ifdef PL4NAR_HILLS
+        s_blob_s = map_traffic_s(i);
+#endif
         if (dx * dx + dz * dz < 80.0f * 80.0f && !tiled((int)i)) blob(q.x, q.z, q.yaw, alpha);    /* hand: scalar products */
     }
     draw_tile_quads();
@@ -1316,7 +1617,7 @@ static void overlay(const demo_stats_t *st) {
     if (!s_fx_hidden) {                               /* the effect labels: two lines over the speed, Realtime in yellow */
         fx_entry_t e[PL4NAR_FX_MAX];
         fx_text_t ft;
-        const unsigned n = pl4nar_fx_live(s_pv_ok, s_tile_n > 0u, s_blob_n > 0u, s_ao, s_lamp > 0.5f, e);
+        const unsigned n = pl4nar_fx_live(s_pv_ok, s_tile_n > 0u ? s_tiles : 0, s_blob_n > 0u, s_ao, s_lamp > 0.5f, e);
         unsigned l, c, c0;
         if (n) {
             (void)fx_format_merged(&ft, e, n);
@@ -1382,20 +1683,24 @@ static shz_vec3_t s_host_eye, s_host_at;
 void demo_host_pose(float z, float x, float orbit, float tod, int reflect) {
     s_car.z = z; s_car.x = x; s_car.h = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = orbit; s_car.v = 0.0f;
     s_tod = tod; s_tod_mode = 3u; s_reflect = reflect; s_info = 0; s_host_cam = 0;
-    demo_place();
+    HILLS_SNAP();
+    demo_place(0.0f);
 }
 void demo_host_cam(float ex, float ey, float ez, float ax, float ay, float az) { s_host_cam = 1; s_host_eye = shz_vec3_init(ex, ey, ez); s_host_at = shz_vec3_init(ax, ay, az); }
 void demo_host_car(float *x, float *z, float *yaw) { *x = s_car.wx; *z = s_car.wz; *yaw = s_car.wh; }
+#ifdef PL4NAR_HILLS
+float demo_host_car_y(void) { return s_cy; }
+#endif
 #endif
 
 void demo_draw(const demo_stats_t *st) {
     const shz_sincos_t hc = shz_sincosf(s_car.wh), cc = shz_sincosf(s_car.wcam + s_car.orbit);
 #ifdef DEMO_HOST
-    const shz_vec3_t eye = s_host_cam ? s_host_eye : shz_vec3_init(s_car.wx - cc.sin * CAM_DIST, CAM_HEIGHT, s_car.wz - cc.cos * CAM_DIST);
-    const shz_vec3_t at = s_host_cam ? s_host_at : shz_vec3_init(s_car.wx + hc.sin * 1.2f, 1.0f, s_car.wz + hc.cos * 1.2f);
+    const shz_vec3_t eye = s_host_cam ? s_host_eye : shz_vec3_init(s_car.wx - cc.sin * CAM_DIST, CAM_HEIGHT + CAR_Y, s_car.wz - cc.cos * CAM_DIST);
+    const shz_vec3_t at = s_host_cam ? s_host_at : shz_vec3_init(s_car.wx + hc.sin * 1.2f, 1.0f + CAR_Y, s_car.wz + hc.cos * 1.2f);
 #else
-    const shz_vec3_t eye = shz_vec3_init(s_car.wx - cc.sin * CAM_DIST, CAM_HEIGHT, s_car.wz - cc.cos * CAM_DIST);
-    const shz_vec3_t at = shz_vec3_init(s_car.wx + hc.sin * 1.2f, 1.0f, s_car.wz + hc.cos * 1.2f);
+    const shz_vec3_t eye = shz_vec3_init(s_car.wx - cc.sin * CAM_DIST, CAM_HEIGHT + CAR_Y, s_car.wz - cc.cos * CAM_DIST);
+    const shz_vec3_t at = shz_vec3_init(s_car.wx + hc.sin * 1.2f, 1.0f + CAR_Y, s_car.wz + hc.cos * 1.2f);
 #endif
     const float eye3[3] = { eye.x, eye.y, eye.z }, at3[3] = { at.x, at.y, at.z }, up3[3] = { 0.0f, 1.0f, 0.0f };
     s_camz = eye.z; s_camx = eye.x;
@@ -1408,6 +1713,9 @@ void demo_draw(const demo_stats_t *st) {
 #endif
     if (s_reflect) {
         const float tw = (float)s_sizes[s_size][0], th = (float)s_sizes[s_size][1], fov = FOV_MAIN * SH4DER_PL4NAR_FOV_SCALE;
+#ifdef PL4NAR_HILLS
+        road_plane_fit();
+#endif
         s_pv_ok = sh4der_pl4nar_view_build(&s_pv, &s_road_plane, eye3, at3, up3, fov, GFX_NEAR, tw, th, s_reach * 0.25f);   /* the fade: a quarter of the reach */
     }
     if (s_pv_ok) {
