@@ -177,4 +177,44 @@ The note under P2.C and P2.D is the same as P2.A's: least of 5 runs, us = cycles
    - Group 2 (OC-RAM) is p19 to p22, in my files at 1352xx, not at 1357xx.
    - Whoever holds p1 to p7 (CLOCK, P1.1, P1.2, the start of P1.3) and p23 to p24 should check that nothing is missing. I did not open files outside my range.
 
+## Host follow-up: the town's own receivers at 16:00 (ESTIMATE, not a console)
+
+This answers thesis 5.9's open 16:00 figure, n = 48 for real receivers.
+
+- **Tool:** `demo/psm/bench/ray_town_n.c`, run 2026-11-25 on the host (gcc, MSYS2, plain C path).
+- **Walk:** the bench's own `ray_walk_ref` on `town_ray_h`, the bytes the console kernel matched. Suns `TOWN_RAY_SUN14` / `SUN16`.
+- **Receivers:**
+  - every static model vertex that faces the sun (8,697 static vertices; 3,783 / 3,989 face away and need no ray, 5.3);
+  - one ray a texel of a 192 x 192 ground map at 0.5 m over the grid's 96 m square (5.3's world map, `town_bake.c`'s layout).
+- **Price:** the line 72 + 22.1 n (SH4-052).
+
+| Receivers | Start | 14:00 mean n (lit / shadowed) | 16:00 mean n (lit / shadowed) | 16:00 line, cycles a ray | 16:00 k at 2 ms |
+|---|---|---|---|---|---|
+| ground texels, 36,864 | y = 0.02 | 21.35 (27.67 / 6.08); 29.3 % shadowed | **21.54** (28.25 / 8.77); 34.5 % shadowed | **548** | **730** |
+| models facing the sun, 4,914 / 4,708 | 0.05 m along the normal | 1.64; 98 % shadowed | 1.67; 99 % shadowed | 109 | 3,672 |
+| same | 0.3 m along the normal + 0.5 m toward the sun (TOWN-065) | 7.81; 84 % shadowed | 5.57; 94 % shadowed | 195 | 2,050 |
+| same | 1.5 m (one cell) along the normal (5.3) | 12.84; 73 % shadowed | 10.51; 88 % shadowed | 304 | 1,314 |
+| ground and models (0.05 m) | — | 19.03 | 19.29 | 498 | 802 |
+
+What it says (all ESTIMATE, host):
+
+1. **The 16:00 receivers do not average 48 steps; they average about 21.5.** The ground is the bulk of the rays, and its mean n at 16:00 is 21.54, about the same as 14:00's 21.35. The ground's 16:00 histogram has a long tail: 2,105 rays at 64 or more, max 98.
+   - **Why 5.3's 48 does not hold here.** 5.3's table assumes every ray climbs to H = 13 m before it is clear. On this grid H is the tower's 28 m, and at 12.9° a lit ray would need 122 m to climb it. The 96 m grid ends first, so a lit ray stops at the grid's edge (lit mean 28.25), and a shadowed ray stops at its first hit (8.77).
+   - **That is the grid's extent, not the world.** A larger grid or a world past its edge would lengthen the lit rays. The tower's shadow already runs off the map at 16:00 (TOWN-062).
+2. **The models' numbers are the grid's self-hit, not shadow.** With a start 0.05 m off the surface, 98 to 99 % of the sun-facing model vertices are "shadowed" in one or two steps. That is 5.3's third limit: a wall vertex lies inside its own building's column. Starting further out cuts the self-hits (84 to 94 % at TOWN-065's offset, 73 to 88 % one cell out), but those are still far above the 43 % / 74 % that `town_bake` gives with triangles (TOWN-061).
+   - So the grid walk is not the right model term without 5.3's overhang / own-cell fix. The models' n should not be used for a budget.
+3. **5.9's 16:00 row, redone on this count** (DERIVED from SH4-052 / SH4-053 on host-ESTIMATE n; P = 28,699 / (k x 30) as in 5.9):
+
+   | Ray | Cycles a ray | k at 2 ms | P | Needed P |
+   |---|---|---|---|---|
+   | batched | 548 | 730 | 1.31 s | 0.66 s |
+   | interleaved (+89) | 637 | 628 | 1.52 s | 0.66 s |
+
+   - Still outside, by about 2 times, not 4.
+   - Meeting 0.66 s needs k >= 1,450 rays a frame: 4.0 ms batched, 4.6 ms interleaved, instead of 8.2 to 8.9 ms.
+   - The interval variant (5.4) or a looser ε is still needed at x60 near sunset, but the gap is half what 5.9 now says.
+4. **The stand-ins were a fair proxy for the ground.** P2's 1,024 stand-ins gave a mean n of 22.08 / 21.47 (`ray_mean_n.c`); the town's ground gives 21.35 / 21.54.
+
+Not checked: a console run of the walk over these receivers; a grid larger than 96 m; the ground map's real extent (5.3 says 75 x 61 m; this used the grid's 96 m square).
+
 Kernel against reference was "the same bytes" on every page in my range (P1.3, P1.4, P2.A to D, P9, h3). The risk named in NOTES.md, bytes compared on x86 only, did not show on these pages.

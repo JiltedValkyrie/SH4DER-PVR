@@ -281,6 +281,10 @@ A shadowed vertex stops at its first hit, so the table's n is a lit vertex's cos
 - **H is the tower, not 13 m.** With H = 28 m, at 14:00, L = 56 m from the ground and mean n = 48: about twice the table's cost. A global H is a weak early out. Use a coarser max-height level (for example 4 x 4 cells), and stop when the ray is above that block's max. This is a standard two-level walk; its cost is not estimated here.
 - **A height column is solid from the ground up.** The grid cannot represent the arch's passage, the eaves' overhang or the stall canopies. A low sun through the arch would be wrongly blocked.
 - **A wall vertex lies inside its own building's column**, so its first cell is a self-hit. Starting the walk one cell out along the normal fixes the self-hit, but skips the eave 0.5 to 1 m above a window. That eave's shadow on the wall is exactly what route B's eave bands exist for (`TOWN_MOCKUP.md`, finding 5).
+  - **How large the self-hit is on the town** (host ESTIMATE, 2026-11-25, `demo/psm/bench/ray_town_n.c` on the bench's grid and walk). Of the sun-facing static model vertices (4,914 at 14:00, 4,708 at 16:00), the grid walk calls 98 to 99 % shadowed when started 0.05 m off the surface, nearly all within one or two steps (mean n 1.6 to 1.7).
+  - Started 0.3 m along the normal and 0.5 m toward the sun (TOWN-065's offset), it calls 84 % / 94 % shadowed. Started one cell (1.5 m) out, 73 % / 88 %.
+  - A triangle test calls 43 % / 74 % shadowed (TOWN-061).
+  - So without the fix below, the grid walk is not a usable term for the model vertices, and their n must not be used for a budget. The ground's rays are not affected.
 
 The fix for all three is the same: cells flagged "overhang" carry a short list of exact proxy triangles. The walk tests those triangles instead of the column height. This includes the vertex's own cell, with a bias along the normal (route B's a + b x texel, here in metres).
 
@@ -479,22 +483,37 @@ The constants:
 
 - C_ray = 72 + 22.1 n: MEASURED, ray1 P1, SH4-052.
 - Interleaved, with the vertex transform evicting the grid, a ray costs 89 to 117 cycles more: MEASURED on stand-ins, ray1 P2, SH4-053.
-- n is 5.3's table: ESTIMATE at 14:00, OPEN for real receivers at 16:00.
+- n: at 14:00, 5.3's table (ESTIMATE). At 16:00, a host count over the town's own ground receivers (ESTIMATE, below); 5.3's n = 48 is kept as a second row for comparison.
 
 P = 28,699 / (k x 30).
 
 | Sun | n | C_ray batched | k at 2 ms | P | C_ray interleaved | k at 2 ms | P | Needed P at S = 60 |
 |---|---|---|---|---|---|---|---|---|
-| 14:00 | 22 (ESTIMATE) | 558 | 716 | 1.34 s | 675 (+117) | 592 | 1.62 s | 2.65 s: **inside** |
-| 16:00 | 48 (OPEN) | 1,133 | 353 | 2.71 s | 1,222 (+89) | 327 | 2.93 s | 0.66 s: **outside, by about 4 times** |
+| 14:00 | 22 (5.3, ESTIMATE) | 558 | 716 | 1.34 s | 675 (+117) | 592 | 1.62 s | 2.65 s: **inside** |
+| 16:00 | **21.5** (host count over the town's ground, ESTIMATE) | 548 | 730 | 1.31 s | 637 (+89) | 628 | 1.52 s | 0.66 s: **outside, by about 2 times** |
+| 16:00, 5.3's table | 48 (H = 13 m; see below) | 1,133 | 353 | 2.71 s | 1,222 (+89) | 327 | 2.93 s | 0.66 s: outside, by about 4 times |
 | check: P2's stand-ins, 14:00 / 16:00 | 22.08 / 21.47 (host count) | 554.19 / 539.68 (MEASURED) | 721 / 741 (741 printed by the page) | — | — | — | — | not the town's receivers |
 
-Everything in the 14:00 and 16:00 rows is DERIVED from MEASURED constants on the n shown. Read from the table:
+Everything in the 14:00 and 16:00 rows is DERIVED from MEASURED constants on the n shown.
+
+**The 16:00 count** (host ESTIMATE, 2026-11-25; `demo/psm/bench/ray_town_n.c`, results in `demo/psm/bench/RAY1_RESULTS_cortana.md`, "Host follow-up"):
+
+- **Method.** The bench's own walk (`ray_walk_ref`, the bytes the console kernel matched) on the town grid. One ray a texel of a 192 x 192 ground map at 0.5 m over the grid's 96 m square.
+- **Result.** Mean n 21.54 at 16:00 (lit 28.25, shadowed 8.77, max 98; 34.5 % shadowed), against 21.35 at 14:00. P2's stand-ins gave 22.08 / 21.47, so they were a fair proxy for the ground.
+- **Why 21.5 and not 48: the grid's extent.**
+  - 5.3's 48 assumes a lit ray climbs to H = 13 m before it is clear.
+  - On the town grid H is the tower's 28 m (`TOWN_RAY_H`). At 12.9° a ray needs 122 m to climb that, and the grid is 96 m across.
+  - So a lit ray ends at the grid's edge, not at H, and a shadowed ray ends at its first hit.
+  - A larger grid, or a world past its edge, would lengthen the lit rays toward 5.3's figure. The tower's shadow already runs off the map at 16:00 (TOWN-062).
+  - So 21.5 is a figure for this grid, and the 48 row is the bound for a grid that holds the whole shadow.
+- **The model vertices are not in this n.** On the grid, nearly all of them hit their own building's column (5.3, third limit). The ground is the bulk of the rays.
+
+Read from the table:
 
 - **14:00 still fits.** Meeting 2.65 s needs k >= 361 rays a frame: 1.01 ms batched, 1.22 ms interleaved (DERIVED).
-- **16:00 does not fit at 2 ms.** Meeting 0.66 s needs k >= 1,450 rays a frame: 8.2 ms batched, 8.9 ms interleaved (DERIVED, on n = 48), most of the 10.7 ms of room at 30 fps.
-  - At 2 ms the shift grows with P. If it grows in proportion (ASSUMPTION), the first draft's 1.9 m at 1.68 s becomes about 3.1 m at 2.71 s, and 3.3 m interleaved, at h = 13 m (ESTIMATE).
-- **The first draft's conclusion holds, more strongly:** at x60 near sunset the interval variant (5.4) or a looser ε is needed. The 16:00 rows rest on n = 48 for real receivers, which is OPEN. The stand-ins' 21.47 shows how far early exits can pull it down (5.3). A host count over the town's own vertices would settle it without a console.
+- **16:00 does not fit at 2 ms, by about 2 times on this grid.** Meeting 0.66 s needs k >= 1,450 rays a frame: 4.0 ms batched, 4.6 ms interleaved (DERIVED, on the host-ESTIMATE n = 21.5). On 5.3's n = 48 it would be 8.2 and 8.9 ms, most of the 10.7 ms of room at 30 fps.
+  - At 2 ms the shift grows with P. If it grows in proportion (ASSUMPTION), the first draft's 1.9 m at 1.68 s becomes about 1.5 m at 1.31 s and 1.7 m interleaved on this grid, or 3.1 to 3.3 m on n = 48, at h = 13 m (ESTIMATE).
+- **The first draft's conclusion holds:** at x60 near sunset the interval variant (5.4) or a looser ε is needed. On the town's grid the gap is about half of what n = 48 gives. A console run of the walk over these receivers is the test that would settle it.
 - **The proxy pass is cheap beside the slice:** 312 µs a frame at the load places (MEASURED, ray1 P9, SH4-055), 15.6 % of a 2 ms slice. P9 stands. Other places on the walkers' routes are not timed.
 
 | Memory | Size | Tag |
