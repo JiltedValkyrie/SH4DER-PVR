@@ -35,10 +35,18 @@
 #define VC_TAG        "vc-b1"
 #elif VC_PART == 2
 #define VC_TAG        "vc-b2"
+#elif VC_PART == 3
+#define VC_TAG        "vc-c1"           /* the placement's options (psm_scene.h, PSM_PLACE_*) on route B */
+#elif VC_PART == 5
+#define VC_TAG        "vc-d"            /* the stage that froze in vc-a, ten times over: build it with VC_VBUF 1,024 KB and with 1,536 KB */
+#elif VC_PART == 4
+#define VC_TAG        "vc-c2"           /* and on route A's turns: the sky first, the town last, the plain placement last of all */
 #else
 #define VC_TAG        "vc-b"
 #endif
+#ifndef VC_VBUF
 #define VC_VBUF       (1536u * 1024u)   /* this test's vertex buffer, bytes a frame: with the town's 1,024 KB route A's boot view fills it */
+#endif
 #define VC_EVT_N      6u                /* the TA's error events: ISP, strip, PARAM, OPB, input error, input overflow */
 #define VC_DT         (1.0f / 30.0f)    /* the simulation's step a frame, seconds */
 #define VC_TURN       1.5707963f        /* a turning stage's yaw, radians, over its counted and skipped frames */
@@ -53,7 +61,7 @@
 enum {
     VC_FRAME, VC_TOP, VC_P0, VC_P1, VC_P2, VC_P3, VC_COLOUR, VC_PLAN, VC_RDY1, VC_RDY2, VC_HUD, VC_OP, VC_TR, VC_FIN, VC_OTHER,
     VC_V_ALL, VC_V_GROUND, VC_V_LAYER, VC_V_MODEL, VC_V_MAP, VC_KB,
-    VC_S_FRAME, VC_S_WAIT, VC_S_RTT, VC_S_SCR, VC_S_GVN, VC_S_MVIS,
+    VC_S_FRAME, VC_S_WAIT, VC_S_RTT, VC_S_SCR, VC_S_GVN, VC_S_MVIS, VC_S_BLK,
     VC_METRICS
 };
 
@@ -66,27 +74,60 @@ typedef struct vc_stage {
     int route;              /* 0 route A, 1 route B (PSM_ROUTE_A, PSM_ROUTE_B) */
     float pitch;
     int turn, inset;
+    unsigned opt;           /* the placement's options this stage (PSM_PLACE_AREA 1, _BLOCKS 2, _SIDE 4) */
 } vc_stage_t;
 
 static const vc_stage_t vc_script[] = {
+#if VC_PART == 3
+    /* f0 the plain placement, f1 area from the stored 1 / w, f3 and by block, f7 and the side cull */
+    { "B sky st f0",  1, VC_PITCH_SKY,  0, 0, 0u },
+    { "B sky tn f0",  1, VC_PITCH_SKY,  1, 0, 0u },
+    { "B sky tn f1",  1, VC_PITCH_SKY,  1, 0, 1u },
+    { "B sky tn f3",  1, VC_PITCH_SKY,  1, 0, 3u },
+    { "B sky tn f7",  1, VC_PITCH_SKY,  1, 0, 7u },
+    { "B sky st f7",  1, VC_PITCH_SKY,  0, 0, 7u },
+    { "B boot st f0", 1, VC_PITCH_BOOT, 0, 0, 0u },
+    { "B boot tn f0", 1, VC_PITCH_BOOT, 1, 0, 0u },
+    { "B boot tn f1", 1, VC_PITCH_BOOT, 1, 0, 1u },
+    { "B boot tn f3", 1, VC_PITCH_BOOT, 1, 0, 3u },
+    { "B boot tn f7", 1, VC_PITCH_BOOT, 1, 0, 7u },
+    { "B boot st f7", 1, VC_PITCH_BOOT, 0, 0, 7u },
+#elif VC_PART == 5
+    { "A boot tn 1",  0, VC_PITCH_BOOT, 1, 0, 0u }, { "A boot tn 2",  0, VC_PITCH_BOOT, 1, 0, 0u }, { "A boot tn 3",  0, VC_PITCH_BOOT, 1, 0, 0u },
+    { "A boot tn 4",  0, VC_PITCH_BOOT, 1, 0, 0u }, { "A boot tn 5",  0, VC_PITCH_BOOT, 1, 0, 0u }, { "A boot tn 6",  0, VC_PITCH_BOOT, 1, 0, 0u },
+    { "A boot tn 7",  0, VC_PITCH_BOOT, 1, 0, 0u }, { "A boot tn 8",  0, VC_PITCH_BOOT, 1, 0, 0u }, { "A boot tn 9",  0, VC_PITCH_BOOT, 1, 0, 0u },
+    { "A boot tn 10", 0, VC_PITCH_BOOT, 1, 0, 0u },
+#elif VC_PART == 4
+    { "A sky tn f0",  0, VC_PITCH_SKY,  1, 0, 0u },
+    { "A sky tn f1",  0, VC_PITCH_SKY,  1, 0, 1u },
+    { "A sky tn f3",  0, VC_PITCH_SKY,  1, 0, 3u },
+    { "A sky tn f7",  0, VC_PITCH_SKY,  1, 0, 7u },
+    { "A boot st f7", 0, VC_PITCH_BOOT, 0, 0, 7u },
+    { "A boot st f0", 0, VC_PITCH_BOOT, 0, 0, 0u },
+    { "A boot tn f7", 0, VC_PITCH_BOOT, 1, 0, 7u },
+    { "A boot tn f3", 0, VC_PITCH_BOOT, 1, 0, 3u },
+    { "A boot tn f1", 0, VC_PITCH_BOOT, 1, 0, 1u },
+    { "A boot tn f0", 0, VC_PITCH_BOOT, 1, 0, 0u },
+#else
     /* route B first, and route A's two turns over the town last: vc-a froze in "A boot turn" (the run's video, 2026-11-25) */
 #if VC_PART != 2
-    { "B sky still",  1, VC_PITCH_SKY,  0, 0 },
-    { "B boot still", 1, VC_PITCH_BOOT, 0, 0 },
-    { "B down still", 1, VC_PITCH_DOWN, 0, 0 },
-    { "B boot inset", 1, VC_PITCH_BOOT, 0, 1 },
-    { "B sky turn",   1, VC_PITCH_SKY,  1, 0 },
-    { "B boot turn",  1, VC_PITCH_BOOT, 1, 0 },
-    { "B down turn",  1, VC_PITCH_DOWN, 1, 0 },
-    { "A sky still",  0, VC_PITCH_SKY,  0, 0 },
-    { "A boot still", 0, VC_PITCH_BOOT, 0, 0 },
-    { "A down still", 0, VC_PITCH_DOWN, 0, 0 },
-    { "A boot inset", 0, VC_PITCH_BOOT, 0, 1 },
-    { "A sky turn",   0, VC_PITCH_SKY,  1, 0 },
+    { "B sky still",  1, VC_PITCH_SKY,  0, 0, 0u },
+    { "B boot still", 1, VC_PITCH_BOOT, 0, 0, 0u },
+    { "B down still", 1, VC_PITCH_DOWN, 0, 0, 0u },
+    { "B boot inset", 1, VC_PITCH_BOOT, 0, 1, 0u },
+    { "B sky turn",   1, VC_PITCH_SKY,  1, 0, 0u },
+    { "B boot turn",  1, VC_PITCH_BOOT, 1, 0, 0u },
+    { "B down turn",  1, VC_PITCH_DOWN, 1, 0, 0u },
+    { "A sky still",  0, VC_PITCH_SKY,  0, 0, 0u },
+    { "A boot still", 0, VC_PITCH_BOOT, 0, 0, 0u },
+    { "A down still", 0, VC_PITCH_DOWN, 0, 0, 0u },
+    { "A boot inset", 0, VC_PITCH_BOOT, 0, 1, 0u },
+    { "A sky turn",   0, VC_PITCH_SKY,  1, 0, 0u },
 #endif
 #if VC_PART != 1
-    { "A boot turn",  0, VC_PITCH_BOOT, 1, 0 },
-    { "A down turn",  0, VC_PITCH_DOWN, 1, 0 },
+    { "A boot turn",  0, VC_PITCH_BOOT, 1, 0, 0u },
+    { "A down turn",  0, VC_PITCH_DOWN, 1, 0, 0u },
+#endif
 #endif
 };
 #define VC_STAGES ((unsigned)(sizeof vc_script / sizeof vc_script[0]))
@@ -110,6 +151,7 @@ typedef struct vc_run {
 typedef struct vc_view {
     int route, inset;
     float pitch, yaw;               /* yaw: added to the boot heading */
+    unsigned opt;                   /* the placement's options */
 } vc_view_t;
 
 /* one frame's numbers from psm_dc.c: its marks and what it counted */
@@ -120,7 +162,7 @@ typedef struct vc_frame {
     uint64_t m[VC_MARKS];
     int sampled, rtt_waited;
     uint64_t rnd_rtt_ns, rnd_scr_ns;
-    unsigned v_all, v_ground, v_layer, v_model, v_map, vbuf_bytes, gvn, mvis;
+    unsigned v_all, v_ground, v_layer, v_model, v_map, vbuf_bytes, gvn, mvis, blk;   /* blk: model blocks the placement left out */
     uint32_t evt[VC_EVT_N];         /* the TA's event counts so far */
 } vc_frame_t;
 
@@ -143,7 +185,7 @@ static inline void vc_apply(const vc_run_t *r, vc_view_t *v) {
     const vc_stage_t *g = &vc_script[s];
     const unsigned n = vc_stage_frames(s);
 
-    v->route = g->route; v->inset = g->inset; v->pitch = g->pitch;
+    v->route = g->route; v->inset = g->inset; v->pitch = g->pitch; v->opt = g->opt;
     v->yaw = g->turn ? VC_TURN * (float)r->frame / (float)(n - 1u) : 0.0f;
 }
 
@@ -190,7 +232,7 @@ static inline int vc_record(vc_run_t *r, const vc_frame_t *f) {
             vc_stat_add(&st[VC_S_WAIT], rtt + scr);
             if (f->rtt_waited) vc_stat_add(&st[VC_S_RTT], (float)f->rnd_rtt_ns * 1.0e-3f);
             vc_stat_add(&st[VC_S_SCR], (float)f->rnd_scr_ns * 1.0e-3f);
-            vc_stat_add(&st[VC_S_GVN], (float)f->gvn); vc_stat_add(&st[VC_S_MVIS], (float)f->mvis);
+            vc_stat_add(&st[VC_S_GVN], (float)f->gvn); vc_stat_add(&st[VC_S_MVIS], (float)f->mvis); vc_stat_add(&st[VC_S_BLK], (float)f->blk);
         } else
             vc_stat_add(&st[VC_FRAME], frame);
     }
@@ -215,9 +257,8 @@ static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...
     unsigned s;
 
     say("TOWN VIEW COST " VC_TAG ": where the frame goes, by view");
-    say("routes A, B; pitch sky -72, boot 7, down 17 deg (+ down);");
-    say(" still, then a 90 deg turn; INSET on at boot. Step 1/30 s,");
-    say(" %u + %u (still) or %u (turn) frames a stage, the first", VC_SKIP, VC_STILL, VC_TURNING);
+    say("pitch sky -72, boot 7, down 17 deg (+ down); a turn is 90 deg.");
+    say(" Step 1/30 s; %u + %u (still) or %u (turn) fr a stage, first", VC_SKIP, VC_STILL, VC_TURNING);
     say(" %u not counted. State: map %u %s, casters %s, time x%u,", VC_SKIP, map_size, warp ? "PSM" : "UNIFORM", movers_only ? "MOVERS" : "ALL", tspeed);
     say(" readout %d, vertex buffer %u KB x2. One console, one run.", readout, vbuf_kb);
     say("ms, means. frame: frames with no sampled render wait");
@@ -231,7 +272,9 @@ static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...
     say(" their count, frame and waits; PVR map, scr = render times.");
     say("v all, g ground, l layer, m models, map = vertices sent;");
     say(" KB = KallistiOS's buffer reading; gvn = ground window");
-    say(" vertices, mvis = model vertices marked sent (sampled).");
+    say(" vertices, mvis = model vertices marked sent, blk = model");
+    say(" blocks the placement left out (sampled). f in a name =");
+    say(" placement options: 1 area from stored 1/w, 2 blocks, 4 side.");
     say("TA events in the counted frames: PARAM = vertex buffer full,");
     say(" OPB = tile bins; other = ISP, strip, input error, overflow.");
     if (r->stopped) say("RUN STOPPED BY THE PAD at stage %u frame %u: n shows what ran", r->stop_stage + 1u, r->stop_frame);
@@ -250,8 +293,8 @@ static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...
             VC_MS_(t, VC_S_FRAME), VC_MS_(t, VC_S_WAIT));
         say("   PVR map %5.2f scr %5.2f v %5.0f g %5.0f l %5.0f m %5.0f", VC_MS_(t, VC_S_RTT), VC_MS_(t, VC_S_SCR),
             (double)vc_mean(&t[VC_V_ALL]), (double)vc_mean(&t[VC_V_GROUND]), (double)vc_mean(&t[VC_V_LAYER]), (double)vc_mean(&t[VC_V_MODEL]));
-        say("   map v %5.0f KB %4.0f gvn %5.0f mvis %5.0f", (double)vc_mean(&t[VC_V_MAP]), (double)vc_mean(&t[VC_KB]),
-            (double)vc_mean(&t[VC_S_GVN]), (double)vc_mean(&t[VC_S_MVIS]));
+        say("   map v %5.0f KB %4.0f gvn %5.0f mvis %5.0f blk %3.0f", (double)vc_mean(&t[VC_V_MAP]), (double)vc_mean(&t[VC_KB]),
+            (double)vc_mean(&t[VC_S_GVN]), (double)vc_mean(&t[VC_S_MVIS]), (double)vc_mean(&t[VC_S_BLK]));
         say("   TA events PARAM %lu OPB %lu other %lu", (unsigned long)r->evt[s][2], (unsigned long)r->evt[s][3],
             (unsigned long)(r->evt[s][0] + r->evt[s][1] + r->evt[s][4] + r->evt[s][5]));
         if (brk && s % 3u == 2u) brk();

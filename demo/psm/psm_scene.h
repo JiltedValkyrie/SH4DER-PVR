@@ -944,6 +944,27 @@ static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, cons
 
 /* ---- frame ------------------------------------------------------------------- */
 
+/* The placement's options, a bit each (psm_frame_t.place_opt). The picture is the same with any of them: what they leave
+   out is off the screen or has no area. What changes is the SH-4's work when the camera moves and the vertices sent.
+     AREA    the area test of a cell's and a model's triangles from the 1 / W the placement already stored: no reciprocal
+             a triangle, and the finite check once a vertex, not nine times a triangle (sh4der_tri_area_ok does both).
+             On the console the stored 1 / W is FSRRA's and the guard's is a divide: a triangle within rounding of the
+             area limit (0.01 square pixel) can fall on the other side. On a host the two are the same number.
+     BLOCKS  the static models in blocks of whole strips with a box each: a block whose box is outside the view (behind
+             the near plane, past one side of the screen, or wholly past DRAW DISTANCE) is not placed, tested or sent.
+     SIDE    a model triangle whose three corners are past one side of the screen is not sent (the ground's cells
+             always had this test: psm_cell_seen_). */
+#define PSM_PLACE_AREA   1u
+#define PSM_PLACE_BLOCKS 2u
+#define PSM_PLACE_SIDE   4u
+#define PSM_MB_TRIS      48u          /* a block closes at the first strip end at or past this many triangles */
+#define PSM_MB_MAX       320u
+
+typedef struct psm_mblock {
+    uint16_t t0, tn;                  /* its triangles */
+    float lo[3], hi[3];               /* the box of their vertices */
+} psm_mblock_t;
+
 typedef struct psm_frame {
     sh4der_psm_cam_t cam;
     float sun[3];
@@ -993,6 +1014,16 @@ typedef struct psm_frame {
     uint8_t mtri[PSM_MT_MAX];   /* 1: the triangle is in front and has screen area; 2: it crosses the near plane (psm_clip_near cuts it) */
     sh4der_psm_raster_t raster; /* route B's map */
     unsigned tris, drawn;       /* caster triangles given to the map and drawn into it (B: rasterised; A: sent to the target, the program counts) */
+    /* the placement's options (PSM_PLACE_*), at the end so no field above moves. 0: the placement as it always was */
+    unsigned place_opt;         /* this frame's options */
+    unsigned place_opt_done;    /* the options the kept placement was made with */
+    uint8_t gbad[PSM_GV_MAX];   /* PSM_PLACE_AREA: 1 when the ground vertex's clip X, Y or W is not finite */
+    uint8_t mbad[PSM_MV_MAX];   /* and the model vertex's */
+    uint8_t mplaced[PSM_MV_MAX];   /* PSM_PLACE_BLOCKS: 1 when the static vertex was placed in this placement */
+    psm_mblock_t mb[PSM_MB_MAX];   /* the static model triangles in runs of whole strips, each with its box (made once a scene) */
+    unsigned mbn, mb_tdyn0, mb_mdyn0;
+    int mb_town;
+    unsigned mb_culled, mb_culled_tris;   /* blocks and their triangles the last placement left out */
 } psm_frame_t;
 
 static const float psm_probe_m[4] = { 4.0f, 10.0f, 25.0f, 60.0f };
@@ -1311,13 +1342,139 @@ static inline int psm_cell_seen_(const float a[3], const float b[3], const float
     return 1;
 }
 
+/* PSM_PLACE_AREA: sh4der_tri_area_ok's answer for three corners in front of the near plane, from their clip X, Y and the
+   1 / W the placement stored (ia, ib, ic) and their not-finite marks: the same sums in the same order, no reciprocal. */
+static inline int psm_area_ok_(const float a[3], const float b[3], const float c[3], float ia, float ib, float ic, unsigned bad) {
+    const float ex = b[0] * ib - a[0] * ia, ey = b[1] * ib - a[1] * ia;
+    const float fx = c[0] * ic - a[0] * ia, fy = c[1] * ic - a[1] * ia;
+
+    if (bad) return 0;
+    return sh4der_abs_(ex * fy - ey * fx) >= SH4DER_GUARD_MIN_AREA2;
+}
+
+/* A point's place as psm_place_pt_, and 1 when its clip X, Y or W is not finite (PSM_PLACE_AREA's mark). */
+static inline uint8_t psm_place_pt_bad_(const psm_xf_t *xf, const float p[3], float clip[3], float scr[3]) {
+    psm_place_pt_(xf, p, clip, scr);
+    return (uint8_t)(!sh4der_finite_(clip[0]) || !sh4der_finite_(clip[1]) || !sh4der_finite_(clip[2]));
+}
+
 /* model triangle i's flag from its corners' places (and the draw distance) */
 static inline void psm_place_tri_(psm_frame_t *f, const psm_scene_t *s, unsigned i) {
     const unsigned a = s->mt[i][0], b = s->mt[i][1], k = s->mt[i][2];
     const unsigned infront = (f->mclip[a][2] > PSM_NEAR) + (f->mclip[b][2] > PSM_NEAR) + (f->mclip[k][2] > PSM_NEAR);
 
-    f->mtri[i] = (uint8_t)(infront == 3u ? sh4der_tri_area_ok(f->mclip[a], f->mclip[b], f->mclip[k], PSM_NEAR, SH4DER_GUARD_MIN_AREA2) : infront ? 2 : 0);
+    if (infront == 3u && (f->place_opt & PSM_PLACE_AREA))
+        f->mtri[i] = (uint8_t)psm_area_ok_(f->mclip[a], f->mclip[b], f->mclip[k], f->mscr[a][2], f->mscr[b][2], f->mscr[k][2],
+                                           (unsigned)f->mbad[a] | f->mbad[b] | f->mbad[k]);
+    else
+        f->mtri[i] = (uint8_t)(infront == 3u ? sh4der_tri_area_ok(f->mclip[a], f->mclip[b], f->mclip[k], PSM_NEAR, SH4DER_GUARD_MIN_AREA2) : infront ? 2 : 0);
     if (f->dist > 0.0f && f->mclip[a][2] > f->dist && f->mclip[b][2] > f->dist && f->mclip[k][2] > f->dist) f->mtri[i] = 0u;
+    if ((f->place_opt & PSM_PLACE_SIDE) && f->mtri[i] && !psm_cell_seen_(f->mclip[a], f->mclip[b], f->mclip[k], f->mclip[k])) f->mtri[i] = 0u;
+}
+
+/* PSM_PLACE_BLOCKS: the static model triangles in blocks, once a scene: whole strips, in the mesh's order (a kit piece's
+   strips follow each other), a block closed at the first strip end at or past PSM_MB_TRIS triangles; each with the box of
+   its vertices. The static vertices never move, so the boxes stand. */
+static inline void psm_blocks_fit_(psm_frame_t *f, const psm_scene_t *s) {
+    unsigned i, k, c;
+
+    if (f->mbn && f->mb_tdyn0 == s->tdyn0 && f->mb_mdyn0 == s->mdyn0 && f->mb_town == s->town) return;
+    f->mbn = 0u; f->mb_tdyn0 = s->tdyn0; f->mb_mdyn0 = s->mdyn0; f->mb_town = s->town;
+    for (i = 0; i < s->tdyn0; i++) {
+        psm_mblock_t *b;
+
+        if (!f->mbn || (s->mstart[i] && f->mb[f->mbn - 1u].tn >= PSM_MB_TRIS && f->mbn < PSM_MB_MAX)) {
+            b = &f->mb[f->mbn++];
+            b->t0 = (uint16_t)i; b->tn = 0u;
+            for (c = 0; c < 3u; c++) { b->lo[c] = 1.0e30f; b->hi[c] = -1.0e30f; }
+        }
+        b = &f->mb[f->mbn - 1u];
+        b->tn++;
+        for (k = 0; k < 3u; k++)
+            for (c = 0; c < 3u; c++) {
+                const float v = s->mv[s->mt[i][k]][c];
+
+                if (v < b->lo[c]) b->lo[c] = v;
+                if (v > b->hi[c]) b->hi[c] = v;
+            }
+    }
+}
+
+/* 0 when the box is wholly outside the view: its eight corners all behind the near plane, all past one side of the
+   screen, or (dist > 0) all past the draw distance. Each test is linear in the clip coordinates, so it holds for every
+   point of the box: no triangle in it could be sent, or seen. A corner that is not finite keeps the box. */
+static inline int psm_block_seen_(const psm_xf_t *xf, const psm_mblock_t *b, float dist) {
+    unsigned c, behind = 1u, left = 1u, right = 1u, below = 1u, above = 1u, far = dist > 0.0f;
+
+    for (c = 0; c < 8u; c++) {
+        const float p[3] = { (c & 1u) ? b->hi[0] : b->lo[0], (c & 2u) ? b->hi[1] : b->lo[1], (c & 4u) ? b->hi[2] : b->lo[2] };
+        float h[4];
+
+        psm_xf_apply(xf, p, h);
+        if (!sh4der_finite_(h[0]) || !sh4der_finite_(h[1]) || !sh4der_finite_(h[3])) return 1;
+        behind &= !(h[3] > PSM_NEAR);
+        left &= h[0] < -h[3]; right &= h[0] > h[3];
+        below &= h[1] < -h[3]; above &= h[1] > h[3];
+        far &= h[3] > dist;
+    }
+    return !(behind || left || right || below || above || far);
+}
+
+/* psm_place_geo's work when the camera moved, with the options of f->place_opt (not 0). The same clip and screen positions,
+   cells and triangle flags as the plain placement for everything that can reach the screen. */
+static inline void psm_place_geo_opt_(psm_frame_t *f, const psm_scene_t *s) {
+    const unsigned opt = f->place_opt;
+    psm_xf_t xf;
+    unsigned i, r, c, k;
+
+    psm_xf_load(&xf, f->rows);
+    f->mb_culled = f->mb_culled_tris = 0u;
+    if (opt & PSM_PLACE_AREA) for (i = 0; i < f->gvn; i++) f->gbad[i] = psm_place_pt_bad_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
+    else for (i = 0; i < f->gvn; i++) psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
+    for (r = 0; r + 1u < f->grows; r++)
+        for (c = 0; c + 1u < f->gcols; c++) {
+            const unsigned a = r * f->gcols + c, b = a + 1u, d = a + f->gcols, e = d + 1u;
+            const int front = f->gclip[a][2] > PSM_NEAR && f->gclip[b][2] > PSM_NEAR && f->gclip[d][2] > PSM_NEAR && f->gclip[e][2] > PSM_NEAR;
+            int ok = front && psm_cell_seen_(f->gclip[a], f->gclip[b], f->gclip[d], f->gclip[e]);
+
+            if (ok && (opt & PSM_PLACE_AREA))
+                ok = psm_area_ok_(f->gclip[d], f->gclip[a], f->gclip[e], f->gscr[d][2], f->gscr[a][2], f->gscr[e][2], (unsigned)f->gbad[d] | f->gbad[a] | f->gbad[e])
+                  && psm_area_ok_(f->gclip[a], f->gclip[e], f->gclip[b], f->gscr[a][2], f->gscr[e][2], f->gscr[b][2], (unsigned)f->gbad[a] | f->gbad[e] | f->gbad[b]);
+            else if (ok)
+                ok = sh4der_tri_area_ok(f->gclip[d], f->gclip[a], f->gclip[e], PSM_NEAR, SH4DER_GUARD_MIN_AREA2)
+                  && sh4der_tri_area_ok(f->gclip[a], f->gclip[e], f->gclip[b], PSM_NEAR, SH4DER_GUARD_MIN_AREA2);
+            if (ok && f->dist > 0.0f && f->gclip[a][2] > f->dist && f->gclip[b][2] > f->dist && f->gclip[d][2] > f->dist && f->gclip[e][2] > f->dist) ok = 0;
+            f->cell[r * PSM_COLS + c] = (uint8_t)ok;
+        }
+    if (opt & PSM_PLACE_BLOCKS) {              /* the static models a block at a time; a block out of view costs eight points */
+        psm_blocks_fit_(f, s);
+        memset(f->mplaced, 0, s->mdyn0);
+        for (k = 0; k < f->mbn; k++) {
+            const psm_mblock_t *b = &f->mb[k];
+
+            if (!psm_block_seen_(&xf, b, f->dist)) {
+                memset(f->mtri + b->t0, 0, b->tn);
+                f->mb_culled++; f->mb_culled_tris += b->tn;
+                continue;
+            }
+            for (i = b->t0; i < (unsigned)b->t0 + b->tn; i++)
+                for (c = s->mstart[i] ? 0u : 2u; c < 3u; c++) {      /* a strip's later triangles bring one new vertex each */
+                    const unsigned v = s->mt[i][c];
+
+                    if (f->mplaced[v]) continue;
+                    f->mplaced[v] = 1u;
+                    f->mbad[v] = psm_place_pt_bad_(&xf, s->mv[v], f->mclip[v], f->mscr[v]);
+                }
+            for (i = b->t0; i < (unsigned)b->t0 + b->tn; i++) psm_place_tri_(f, s, i);
+        }
+        for (i = s->mdyn0; i < s->mvn; i++) f->mbad[i] = psm_place_pt_bad_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
+        for (i = s->tdyn0; i < s->mtn; i++) psm_place_tri_(f, s, i);
+    } else {
+        for (i = 0; i < s->mvn; i++) f->mbad[i] = psm_place_pt_bad_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
+        for (i = 0; i < s->mtn; i++) psm_place_tri_(f, s, i);
+    }
+    f->place_ok = 1; f->place_gen = f->gpos_gen; memcpy(f->place_rows, f->rows, sizeof f->rows); f->place_dist = f->dist;
+    f->place_opt_done = opt;
 }
 
 /* This frame's place on the screen. The ground and the models go through the camera's rows once each: clip and screen
@@ -1328,7 +1485,12 @@ static inline void psm_place_geo(psm_frame_t *f, const psm_scene_t *s) {
     psm_xf_t xf;
     unsigned i, r, c;
 
-    if (!f->place_ok || f->place_gen != f->gpos_gen || memcmp(f->place_rows, f->rows, sizeof f->rows) != 0 || f->place_dist != f->dist) {
+    if (f->place_opt && (!f->place_ok || f->place_gen != f->gpos_gen || memcmp(f->place_rows, f->rows, sizeof f->rows) != 0
+                         || f->place_dist != f->dist || f->place_opt_done != f->place_opt)) {
+        psm_place_geo_opt_(f, s);              /* the same placement by the options' ways */
+    } else if (!f->place_ok || f->place_gen != f->gpos_gen || memcmp(f->place_rows, f->rows, sizeof f->rows) != 0 || f->place_dist != f->dist
+               || f->place_opt_done != f->place_opt) {
+        f->place_opt_done = 0u; f->mb_culled = f->mb_culled_tris = 0u;
         psm_xf_load(&xf, f->rows);
         for (i = 0; i < f->gvn; i++) psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
         for (i = 0; i < s->mvn; i++) psm_place_pt_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
@@ -1354,7 +1516,8 @@ static inline void psm_place_geo(psm_frame_t *f, const psm_scene_t *s) {
         f->place_ok = 1; f->place_gen = f->gpos_gen; memcpy(f->place_rows, f->rows, sizeof f->rows); f->place_dist = f->dist;
     } else if (s->mdyn0 < s->mvn) {                              /* the movers: every frame */
         psm_xf_load(&xf, f->rows);
-        for (i = s->mdyn0; i < s->mvn; i++) psm_place_pt_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
+        if (f->place_opt & PSM_PLACE_AREA) for (i = s->mdyn0; i < s->mvn; i++) f->mbad[i] = psm_place_pt_bad_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
+        else for (i = s->mdyn0; i < s->mvn; i++) psm_place_pt_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
         for (i = s->tdyn0; i < s->mtn; i++) psm_place_tri_(f, s, i);
     }
     memset(f->mvis, 0, s->mvn);

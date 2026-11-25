@@ -63,7 +63,9 @@ int main(void) {
     uint64_t clock = 1000u;
     unsigned s, k, total = 0;
 
+#if VC_PART == 0
     CHECK(VC_STAGES == 14u);
+#endif
     vc_start(&r);
     memset(&f, 0, sizeof f);
     for (s = 0; s < VC_STAGES; s++) {
@@ -73,7 +75,7 @@ int main(void) {
         for (k = 0; k < n; k++) {
             CHECK(!r.done && r.stage == s && r.frame == k);
             vc_apply(&r, &v);
-            CHECK(v.route == vc_script[s].route && v.inset == vc_script[s].inset && v.pitch == vc_script[s].pitch);
+            CHECK(v.route == vc_script[s].route && v.inset == vc_script[s].inset && v.pitch == vc_script[s].pitch && v.opt == vc_script[s].opt);
             if (!vc_script[s].turn) CHECK(v.yaw == 0.0f);
             else if (k == 0u) CHECK(v.yaw == 0.0f);
             else if (k == n - 1u) CHECK(fabsf(v.yaw - VC_TURN) < 1e-5f);
@@ -82,7 +84,11 @@ int main(void) {
             total++;
         }
     }
-    CHECK(r.done && !r.stopped && total == 7u * 2u * VC_SKIP + 8u * VC_STILL + 6u * VC_TURNING);
+    CHECK(r.done && !r.stopped);
+    (void)total;
+#if VC_PART == 0
+    CHECK(total == 7u * 2u * VC_SKIP + 8u * VC_STILL + 6u * VC_TURNING);
+#endif
     for (s = 0; s < VC_STAGES; s++) {
         const vc_stat_t *t = r.st[s];
         const int a = vc_script[s].route == 0;
@@ -102,25 +108,27 @@ int main(void) {
         CHECK(t[VC_S_RTT].n == (a ? t[VC_S_FRAME].n : 0u) && fabsf(vc_mean(&t[VC_S_SCR]) - 12000.0f) < 1.0f);
         CHECK(vc_mean(&t[VC_V_ALL]) == 30000.0f && vc_mean(&t[VC_KB]) == 700.0f && vc_mean(&t[VC_S_MVIS]) == 8815.0f);
         CHECK(r.evt[s][3] == counted && r.evt[s][2] == (a ? counted : 0u) && r.evt[s][0] == 0u);   /* the counted frames' events only */
+#if VC_PART == 0
         CHECK(s < 7u ? !a : a);                                              /* route B first */
+#endif
     }
     show = 1;
     vc_report(&r, say, brk, 256u, 0, 0, 1u, 1, VC_VBUF / 1024u);
     show = 0;
     CHECK(widest <= 64u);                       /* psm_page.h's PG_COLS: no line is wrapped */
-    CHECK(lines == 21u + 7u * VC_STAGES && breaks == 1u + VC_STAGES / 3u);
+    CHECK(lines == 22u + 7u * VC_STAGES && breaks == 1u + VC_STAGES / 3u);
     printf("pages: %u lines, widest %u, %u breaks\n", lines, widest, breaks);
 
     /* a run a button ends: what ran is kept, the rest has no frames, and the page says where */
     vc_start(&r);
     clock = 1000u;
-    for (k = 0; k < VC_SKIP + 30u; k++) { fake(&f, &clock, 0, 0); vc_record(&r, &f); }
+    for (k = 0; k < VC_SKIP + 30u; k++) { fake(&f, &clock, vc_script[0].route == 0, 0); vc_record(&r, &f); }
     vc_stop(&r);
     CHECK(r.done && r.stopped && r.stop_stage == 0u && r.stop_frame == VC_SKIP + 30u && r.st[0][VC_FRAME].n == 30u && r.st[1][VC_FRAME].n == 0u);
     CHECK(vc_record(&r, &f) == 1 && r.st[0][VC_FRAME].n == 30u);
     lines = widest = breaks = 0;
     vc_report(&r, say, NULL, 512u, 1, 1, 60u, 2, 1024u);
-    CHECK(widest <= 64u && lines == 21u + 7u * VC_STAGES);
+    CHECK(widest <= 64u && lines == 22u + 7u * VC_STAGES);
 
     printf(failed ? "psm_viewcost_test: %d FAILED\n" : "psm_viewcost_test: ok\n", failed);
     return failed != 0;

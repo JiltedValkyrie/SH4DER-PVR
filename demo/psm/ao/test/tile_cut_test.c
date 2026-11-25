@@ -78,7 +78,7 @@ static unsigned differ(void) {
 int main(void) {
     static const unsigned cuts[5][2] = { { 4, 5 }, { 8, 9 }, { 1, 1 }, { 4, 15 }, { 20, 4 } };
     static unsigned seen[TW][TH];
-    tile_cut_t c;
+    static tile_cut_t c;
     unsigned k, x, y, q, n, wrong;
 
     build(0); build(1);
@@ -117,11 +117,48 @@ int main(void) {
     tile_cut_end(&c);
     CHECK(differ() == 0u, "after the whole-screen cut");
     CHECK(!tile_cut_begin(&c, 21u, 5u) && !tile_cut_begin(&c, 4u, 16u) && !tile_cut_begin(&c, 0u, 5u) && differ() == 0u, "cuts larger than the screen, or empty");
+    CHECK(tile_cut_check(&c), "the full check on tables as taken");
     tab[1][6u + 6u * 5u + 2u] = 0x00900000u;                                /* a table spoiled after it was taken: a pointer outside video memory */
-    CHECK(!tile_cut_begin(&c, 4u, 5u), "a cut on a table that no longer reads as laid out");
+    CHECK(!tile_cut_check(&c), "the full check does not see a spoiled pointer");
     tab[1][6u + 6u * 5u + 2u] = ref[1][6u + 6u * 5u + 2u];
+    tab[1][0] = 0u;                                                         /* the two words a cut looks at: the first, and the last entry's */
+    CHECK(!tile_cut_begin(&c, 4u, 5u) && !tile_cut_begin_cols(&c, 4u), "a cut on a table whose first word is wrong");
+    tab[1][0] = ref[1][0];
+    tab[1][6u + 6u * (TW * TH - 1u)] &= 0x7fffffffu;
+    CHECK(!tile_cut_begin(&c, 4u, 5u) && !tile_cut_begin_cols(&c, 4u), "a cut on a table with no end mark");
+    tab[1][6u + 6u * (TW * TH - 1u)] = ref[1][6u + 6u * (TW * TH - 1u)];
     CHECK(differ() == 0u, "a refused cut wrote something");
-    printf("  a 4 x 5 cut writes %u words a table and restores as many\n", 4u * 5u * 6u);
+    for (q = 1; q <= TW; q += 3u) {                                         /* the column cut: the first q whole columns, one word a table */
+        unsigned changed;
+
+        CHECK(tile_cut_begin_cols(&c, q) && !tile_cut_begin(&c, 4u, 5u), "column cut %u", q);
+        for (k = 0; k < 2u; k++) {
+            n = walk(k, seen, &wrong);
+            CHECK(n == q * TH && wrong == 0u, "column cut %u, table %u: %u entries walked, %u wrong", q, k, n, wrong);
+            for (x = 0; x < TW; x++) for (y = 0; y < TH; y++) CHECK(seen[x][y] == (x < q ? 1u : 0u), "column cut %u: tile %u, %u visited %u times", q, x, y, seen[x][y]);
+        }
+        changed = differ();
+        CHECK(changed == (q < TW ? 2u : 0u), "column cut %u changed %u words (one a table)", q, changed);
+        CHECK(tile_cut_end(&c) == 0u && differ() == 0u, "column cut %u: not as before", q);
+    }
+    CHECK(!tile_cut_begin_cols(&c, 0u) && !tile_cut_begin_cols(&c, TW + 1u), "column cuts outside the screen");
+    {                                                                       /* what a cut writes: the first column's entries stay where they are */
+        unsigned w;
+
+        CHECK(tile_cut_begin(&c, 10u, 8u), "the 10 x 8 cut");
+        w = differ();
+        CHECK(w <= 2u * 73u * 6u && w >= 2u * 72u, "the 10 x 8 cut changed %u words", w);
+        CHECK(tile_cut_end(&c) == 0u && differ() == 0u, "the 10 x 8 cut: not as before");
+        printf("  a 10 x 8 cut writes %u words a table (73 entries: the first column's first 7 stay) and restores as many; %u of them differ from the table\n", 73u * 6u, w / 2u);
+    }
+    {                                                                       /* the read-back runs on the first TILE_CUT_VERIFY ends only */
+        static tile_cut_t d;
+
+        tile_cut_init(&d, TW, TH);
+        CHECK(tile_cut_add(&d, tab[0]) && d.verify == TILE_CUT_VERIFY, "a second cut state");
+        for (q = 0; q < TILE_CUT_VERIFY + 3u; q++) { CHECK(tile_cut_begin(&d, 4u, 5u), "begin %u", q); CHECK(tile_cut_end(&d) == 0u, "end %u", q); }
+        CHECK(d.verify == 0u && differ() == 0u, "the read-back count");
+    }
     if (fails) { printf("tile_cut_test: %d FAILED\n", fails); return 1; }
     printf("tile_cut_test: all passed\n");
     return 0;

@@ -684,6 +684,7 @@ int main(void) {
             if (vc_pad_hit()) { vc_stop(&vc_run); break; }
             vc_apply(&vc_run, &v);
             state.route = v.route; state.inset = v.inset; state.pitch = v.pitch; state.yaw = vc_yaw0 + v.yaw;
+            frame.place_opt = v.opt;         /* the placement's options this stage (psm_scene.h): the placement is made again on a change */
             state.x = vc_x0; state.z = vc_z0; state.menu = 0;
             if (state.route != route_before) psm_mapsrc_reset(&mapsrc);
             dt = VC_DT;
@@ -833,7 +834,7 @@ int main(void) {
             vc_f.v_layer = sink.kv[PSM_HK_LAYER];
             vc_f.v_model = sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG];
             vc_f.vbuf_bytes = vbuf_used;
-            vc_f.gvn = frame.gvn; vc_f.mvis = 0u;
+            vc_f.gvn = frame.gvn; vc_f.mvis = 0u; vc_f.blk = frame.mb_culled;
             if (sample) for (i = 0; i < scene.mvn; i++) vc_f.mvis += frame.mvis[i];
             for (i = 0; i < VC_EVT_N; i++) vc_f.evt[i] = vc_evt[i];
             vc_f.last_end = last_end;

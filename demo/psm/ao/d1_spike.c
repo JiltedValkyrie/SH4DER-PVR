@@ -119,6 +119,7 @@ static void wait_ns(uint64_t t) {
 static pvr_ptr_t tgt_mem, ramp_mem, strip_mem, glow_mem, text_mem;
 static pvr_poly_hdr_t h_flat, h_ramp, h_clear, h_fade_s[2], h_rep_s, h_show, h_tshow, h_text, h_dim;
 static pvr_poly_hdr_t h_room, h_clear_c, h_fade_c[2], h_far_c, h_halo_c, h_plain_c, h_show_c, h_dummy;
+static pvr_poly_hdr_t h_room_g, h_fade_g[2], h_far_g, h_halo_g, h_plain_g;   /* the same with no user clip: the halves cut by geometry */
 static pvr_vertex_t vrun[RUN] __attribute__((aligned(32)));
 static unsigned run_n, sent;
 static uint32_t cur_oargb;
@@ -200,8 +201,9 @@ static void headers(void) {
         bump_cxt(&c, strip_mem, 256u, 8u, env[k]);
         pvr_poly_compile(&h_fade_s[k], &c);
         bump_cxt(&c, tgt_mem, TW, TH, env[k]);
-        c.gen.clip_mode = PVR_USERCLIP_INSIDE;
         c.depth.comparison = PVR_DEPTHCMP_GEQUAL;
+        pvr_poly_compile(&h_fade_g[k], &c);
+        c.gen.clip_mode = PVR_USERCLIP_INSIDE;
         pvr_poly_compile(&h_fade_c[k], &c);
     }
     bump_cxt(&c, strip_mem, 256u, 8u, PVR_TXRENV_REPLACE);       /* the control: the level as colour, as c4 wrote it */
@@ -215,21 +217,29 @@ static void headers(void) {
     c.gen.clip_mode = PVR_USERCLIP_INSIDE;
     pvr_poly_compile(&h_show_c, &c);
     pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                      /* FAR: (0, 0, 0, 255) added where the scene is behind it */
-    c.gen.culling = PVR_CULLING_NONE; c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    c.gen.culling = PVR_CULLING_NONE;
     c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ONE;
     c.depth.comparison = PVR_DEPTHCMP_GEQUAL; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_far_g, &c);
+    c.gen.clip_mode = PVR_USERCLIP_INSIDE;
     pvr_poly_compile(&h_far_c, &c);
     pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)GLOW, (int)GLOW, glow_mem, PVR_FILTER_BILINEAR);
-    c.gen.culling = PVR_CULLING_NONE; c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    c.gen.culling = PVR_CULLING_NONE;
     c.txr.env = PVR_TXRENV_MODULATE; c.txr.uv_clamp = PVR_UVCLAMP_UV;
     c.blend.src = PVR_BLEND_DESTALPHA; c.blend.dst = PVR_BLEND_ONE;   /* HALO: the glow x destination alpha, added */
     c.depth.comparison = PVR_DEPTHCMP_ALWAYS; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_halo_g, &c);
+    c.gen.clip_mode = PVR_USERCLIP_INSIDE;
     pvr_poly_compile(&h_halo_c, &c);
     c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ONE;    /* the plain glow: added where it is in front of the scene */
     c.depth.comparison = PVR_DEPTHCMP_GEQUAL;
     pvr_poly_compile(&h_plain_c, &c);
-    pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                      /* the room on the screen, inside the user clip */
-    c.gen.culling = PVR_CULLING_NONE; c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    c.gen.clip_mode = PVR_USERCLIP_DISABLE;
+    pvr_poly_compile(&h_plain_g, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                      /* the room on the screen: once, or inside the user clip a half */
+    c.gen.culling = PVR_CULLING_NONE;
+    pvr_poly_compile(&h_room_g, &c);
+    c.gen.clip_mode = PVR_USERCLIP_INSIDE;
     pvr_poly_compile(&h_room, &c);
     pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                      /* the polygon before a change of clip in the translucent list */
     c.gen.culling = PVR_CULLING_NONE; c.depth.write = PVR_DEPTHWRITE_DISABLE;
@@ -629,19 +639,26 @@ typedef struct view {
     int far_on;
     int cut;                                /* the depth map's pass through its own tiles (tile_cut.h) */
     int zoom;                               /* the room's eye with a long lens aimed at the glow */
+    int geo;                                /* 1: the halves cut at the divider by geometry, no user clip in the screen's lists; 0: a user clip a half (d1-c) */
     unsigned stage;                         /* the run's stage, for the text */
     float turn, lift, t;
 } view_t;
 
 enum { SHOW_NONE = 0, SHOW_PLAIN, SHOW_ALPHA, SHOW_FADE };
-typedef struct t3_stage { uint8_t show, swap, far_on, cut; const char *name; } t3_stage_t;
-enum { T3_NONE = 0, T3_PLAIN, T3_ALPHA, T3_FADE, T3_SWAP, T3_NOFAR, T3_CUT, T3_STAGES };
+typedef struct t3_stage { uint8_t show, swap, far_on, cut, geo; const char *name; } t3_stage_t;
+enum { T3_NONE = 0, T3_PLAIN, T3_PLAING, T3_ALPHA, T3_FADE, T3_SWAP, T3_NOFAR, T3_CUT, T3_CUTC, T3_STAGES };
 static const t3_stage_t t3_stage[T3_STAGES] = {
-    { SHOW_NONE, 0, 1, 0, "no glow" }, { SHOW_PLAIN, 0, 1, 0, "plain | plain" }, { SHOW_ALPHA, 0, 1, 0, "plain | alpha" }, { SHOW_FADE, 0, 1, 0, "plain | fade" },
-    { SHOW_FADE, 1, 1, 0, "fade | plain" }, { SHOW_FADE, 0, 0, 0, "plain | no FAR" }, { SHOW_FADE, 0, 1, 1, "fade, map cut" },
+    /* 0 and 1 as d1-c drew them (a user clip a half): 1 is the control for the flicker d1-c showed left of the divider.
+       From 2 on the halves are cut by geometry and no user clip is sent */
+    { SHOW_NONE, 0, 1, 0, 0, "no glow, clip" }, { SHOW_PLAIN, 0, 1, 0, 0, "plain, clip" }, { SHOW_PLAIN, 0, 1, 0, 1, "plain | plain" },
+    { SHOW_ALPHA, 0, 1, 0, 1, "plain | alpha" }, { SHOW_FADE, 0, 1, 0, 1, "plain | fade" },
+    { SHOW_FADE, 1, 1, 0, 1, "fade | plain" }, { SHOW_FADE, 0, 0, 0, 1, "plain | no FAR" }, { SHOW_FADE, 0, 1, 1, 1, "fade, map cut" },
+    { SHOW_FADE, 0, 1, 2, 1, "fade, col cut" },                  /* the column cut: the map's 10 columns, every row: one word written a table */
 };
 static const float wall_m[4] = { 0.2f, 0.4f, 0.6f, 0.9f };
-#define WALL_RUN 1u                         /* the run's: 0.4 m from each wall, so the corner behind the glow's middle is about 0.7 m behind it */
+#define WALL_RUN 0u                         /* the run's: 0.2 m from each wall, so the glow's sides are inside the walls: the plain half is cut along them
+                                               (d1-c ran at 0.4 m: the walls were behind all of the glow, the fade's band lay where the glow is dark already,
+                                               and the two halves looked the same) */
 #define GLOW_Y 2.1f                         /* the glow's middle: above the lamp, which stands in front of this corner */
 #define GLOW_R 0.55f                        /* the glow quad's half side, metres: its sides reach the walls at 0.4 m */
 #define GLOW_C 0xffffdc9eu                  /* its colour */
@@ -649,7 +666,7 @@ static const float wall_m[4] = { 0.2f, 0.4f, 0.6f, 0.9f };
 #define CUT_W (MW / 32u)                    /* the map's own tiles: 10 x 8 of the screen's 20 x 15 */
 #define CUT_H ((MH + 2u + 31u) / 32u)
 
-typedef struct cost { uint64_t frame, map_send; uint64_t pvr_map, pvr_scr; unsigned verts, cut_on, cut_refused; int have_map; } cost_t;
+typedef struct cost { uint64_t frame, map_send, cut_begin, cut_end; uint64_t pvr_map, pvr_scr; unsigned verts, cut_on, cut_refused; int have_map; } cost_t;
 static int cut_fatal;                       /* a tile table did not restore: the PVR is stopped */
 
 static int frame(const view_t *v, cost_t *c) {
@@ -692,10 +709,17 @@ static int frame(const view_t *v, cost_t *c) {
     zq = sh4der_recip_pos_(depth); zfar = sh4der_recip_pos_(depth + D1_FADE);
 
     if (fade && !half[fside].hidden) {      /* the depth map: the room once more, through the ramp. No render is running: the last one was waited for */
-        const uint64_t t0 = cyc();
+        uint64_t t0;
         int did = 0, ok;
 
-        if (v->cut) { did = tile_cut_begin(&tcut, CUT_W, CUT_H); c->cut_on = (unsigned)did; c->cut_refused = (unsigned)!did; }
+        if (v->cut) {                       /* the cut's own time, apart from the send's (d1-c had it inside: PVR-192) */
+            const uint64_t tb = cyc();
+
+            did = v->cut == 2 ? tile_cut_begin_cols(&tcut, CUT_W) : tile_cut_begin(&tcut, CUT_W, CUT_H);
+            c->cut_begin = cyc() - tb;
+            c->cut_on = (unsigned)did; c->cut_refused = (unsigned)!did;
+        }
+        t0 = cyc();
         ok = scene_open(1);
         if (ok) {
             sent = 0;
@@ -709,13 +733,21 @@ static int frame(const view_t *v, cost_t *c) {
                 }
             flush();
             pvr_list_finish();
-            pvr_list_begin(PVR_LIST_TR_POLY);
-            user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
-            pvr_list_finish();
+            if (!v->geo) {
+                pvr_list_begin(PVR_LIST_TR_POLY);
+                user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
+                pvr_list_finish();
+            }
             c->map_send = cyc() - t0;
             ok = scene_close();
         }
-        if (did && tile_cut_end(&tcut)) { cut_fatal = 1; return 0; }       /* the tables back before anything else is drawn */
+        if (did) {                          /* the tables back before anything else is drawn */
+            const uint64_t te = cyc();
+            const unsigned bad = tile_cut_end(&tcut);
+
+            c->cut_end = cyc() - te;
+            if (bad) { cut_fatal = 1; return 0; }
+        }
         if (!ok) return 0;
         c->pvr_map = last_render_ns; c->have_map = 1;
     }
@@ -724,9 +756,15 @@ static int frame(const view_t *v, cost_t *c) {
     sent = 0;
     pvr_list_begin(PVR_LIST_OP_POLY);
     for (sd = 0; sd < 2u; sd++) {
-        if (half[sd].hidden) continue;
-        user_clip(&h_room, &half[sd]);
-        pvr_prim(&h_room, sizeof h_room);
+        if (v->geo) {                       /* the room is the same in both halves: once, no clip */
+            if (sd) break;
+            flush();
+            pvr_prim(&h_room_g, sizeof h_room_g);
+        } else {
+            if (half[sd].hidden) continue;
+            user_clip(&h_room, &half[sd]);
+            pvr_prim(&h_room, sizeof h_room);
+        }
         for (st = 0, k = 0; st < room.strips; k += room.slen[st], st++)
             for (i = 0; i < room.slen[st]; i++) {
                 const float *s = scr[room.idx[k + i]];
@@ -741,19 +779,31 @@ static int frame(const view_t *v, cost_t *c) {
         const float x0 = q[0][0] < q[3][0] ? q[0][0] : q[3][0], x1 = q[0][0] < q[3][0] ? q[3][0] : q[0][0];
         const float y0 = q[0][1] < q[3][1] ? q[0][1] : q[3][1], y1 = q[0][1] < q[3][1] ? q[3][1] : q[0][1];   /* a rectangle on the screen: the camera's right and up are the screen's */
 
+        const float iw = sh4der_recip_pos_(x1 - x0 > 1.0e-3f ? x1 - x0 : 1.0e-3f);
+
         for (sd = 0; sd < 2u; sd++) {
+            const int g = v->geo;
+            float xa = x0, xb = x1, ua, ub;
+
             if (half[sd].hidden) continue;
-            user_clip(&h_dummy, &half[sd]);
+            if (g) {                        /* this half's part of the rectangle: cut at the divider, the glow's u cut with it */
+                const float dx = split_x(v->div);
+
+                if (sd == 0u) { if (xb > dx) xb = dx; } else if (xa < dx) xa = dx;
+                if (!(xb > xa)) continue;
+            } else
+                user_clip(&h_dummy, &half[sd]);
+            ua = (xa - x0) * iw; ub = (xb - x0) * iw;
             if (sd != fside || !fade) {     /* the plain glow: the depth test cuts it where it enters a wall */
-                layer(&h_plain_c, x0, y0, x1, y1, zq, 0.0f, 0.0f, 1.0f, 1.0f, GLOW_C, 0u);
+                layer(g ? &h_plain_g : &h_plain_c, xa, y0, xb, y1, zq, ua, 0.0f, ub, 1.0f, GLOW_C, 0u);
                 continue;
             }
-            layer(&h_clear_c, x0, y0, x1, y1, zq, 0, 0, 0, 0, CLEAR_C, 0u);
-            layer(&h_fade_c[fade_env], x0, y0, x1, y1, zq, x0 * (0.5f / (float)TW), y0 * (0.5f / (float)TH), x1 * (0.5f / (float)TW), y1 * (0.5f / (float)TH), BLACK_A,
-                  KQ(0u, 255u, d1_q(depth)));
-            if (v->far_on) layer(&h_far_c, x0, y0, x1, y1, zfar, 0, 0, 0, 0, BLACK_A, 0u);
-            if (v->show == SHOW_ALPHA) layer(&h_show_c, x0, y0, x1, y1, zq, 0, 0, 0, 0, 0xffffffffu, 0u);
-            else layer(&h_halo_c, x0, y0, x1, y1, zq, 0.0f, 0.0f, 1.0f, 1.0f, GLOW_C, 0u);
+            layer(g ? &h_clear : &h_clear_c, xa, y0, xb, y1, zq, 0, 0, 0, 0, CLEAR_C, 0u);
+            layer(g ? &h_fade_g[fade_env] : &h_fade_c[fade_env], xa, y0, xb, y1, zq, xa * (0.5f / (float)TW), y0 * (0.5f / (float)TH), xb * (0.5f / (float)TW),
+                  y1 * (0.5f / (float)TH), BLACK_A, KQ(0u, 255u, d1_q(depth)));
+            if (v->far_on) layer(g ? &h_far_g : &h_far_c, xa, y0, xb, y1, zfar, 0, 0, 0, 0, BLACK_A, 0u);
+            if (v->show == SHOW_ALPHA) layer(g ? &h_show : &h_show_c, xa, y0, xb, y1, zq, 0, 0, 0, 0, 0xffffffffu, 0u);
+            else layer(g ? &h_halo_g : &h_halo_c, xa, y0, xb, y1, zq, ua, 0.0f, ub, 1.0f, GLOW_C, 0u);
         }
     }
     if (!split_at_end(v->div, SPLIT_COLS)) {
@@ -780,7 +830,7 @@ static unsigned auto_done;
 static void sums_add(sums_t *s, const cost_t *c) {
     s->c.frame += c->frame; s->c.pvr_scr += c->pvr_scr; s->c.verts = c->verts; s->n++;
     s->c.cut_on += c->cut_on; s->c.cut_refused += c->cut_refused;
-    if (c->have_map) { s->c.map_send += c->map_send; s->c.pvr_map += c->pvr_map; s->n_map++; }
+    if (c->have_map) { s->c.map_send += c->map_send; s->c.pvr_map += c->pvr_map; s->c.cut_begin += c->cut_begin; s->c.cut_end += c->cut_end; s->n_map++; }
 }
 
 static void labels(const view_t *v, const sums_t *s) {
@@ -789,10 +839,11 @@ static void labels(const view_t *v, const sums_t *s) {
     const int wants = v->show >= SHOW_ALPHA, fade = wants && fade_env >= 0;
 
     text_set(0u, "d1 %s%s%s  %u cm from the walls%s%s", fx_live ? live[v->show] : t3_stage[v->stage].name, fx_live && v->swap ? " SWAPPED" : "", wants && fade_env < 0 ? " (NO FADE: T1)" : "",
-             (unsigned)(wall_m[v->wall] * 100.0f + 0.5f), v->far_on ? "" : " FAR OFF", fx_live && v->cut ? " CUT" : "");
+             (unsigned)(wall_m[v->wall] * 100.0f + 0.5f), v->far_on ? "" : " FAR OFF", !fx_live || !v->cut ? "" : v->cut == 2 ? " COL CUT" : " CUT");
+    if (fx_live && !v->geo) text_set(0u, "d1 %s, USER CLIP halves  %u cm from the walls", live[v->show], (unsigned)(wall_m[v->wall] * 100.0f + 0.5f));
     text_set(1u, "frame %u us  PVR screen %u  map %u us  map send %u us", us_of(s->c.frame / n), (unsigned)(s->c.pvr_scr / n / 1000u), (unsigned)(s->c.pvr_map / nm / 1000u),
              us_of(s->c.map_send / nm));
-    if (fx_live) text_set(2u, "X alpha Y swap A walls B FAR dn cut lf zoom LT/RT div START pg");
+    if (fx_live) text_set(2u, "X alph Y swap A wall B FAR dn cut lf zoom rt clip LT/RT START pg");
     else text_set(2u, "MEASURING stage %u of %u: any button = live view now", v->stage + 1u, (unsigned)T3_STAGES);
     fx_format(&fx_now, d1_fx, fade ? 2u : 1u);
     text_set(4u, "%s", fx_now.line[0]);
@@ -801,6 +852,7 @@ static void labels(const view_t *v, const sums_t *s) {
 
 static void stage_set(view_t *v, unsigned k) {
     v->stage = k; v->show = t3_stage[k].show; v->swap = t3_stage[k].swap; v->far_on = t3_stage[k].far_on; v->cut = t3_stage[k].cut;
+    v->geo = t3_stage[k].geo;
 }
 
 /* T3's frames: the stages (auto_run 1), or the live view until START (0). */
@@ -813,7 +865,7 @@ static void loop(int auto_run) {
     uint64_t t_prev = ns(), t_stage = ns();
 
     memset(&v, 0, sizeof v);
-    v.div = split_middle(SPLIT_COLS); v.wall = WALL_RUN; v.zoom = 1;
+    v.div = split_middle(SPLIT_COLS); v.wall = WALL_RUN; v.zoom = 1; v.geo = 1;
     stage_set(&v, auto_run ? T3_NONE : T3_FADE);
     fx_live = !auto_run;
     memset(&win, 0, sizeof win);
@@ -855,8 +907,9 @@ static void loop(int auto_run) {
             else if (hit & CONT_Y) { v.swap = !v.swap; changed = 1; }
             if (hit & CONT_A) { v.wall = (v.wall + 1u) % 4u; changed = 1; }
             if (hit & CONT_B) { v.far_on = !v.far_on; changed = 1; }
-            if (hit & CONT_DPAD_DOWN) { v.cut = !v.cut; changed = 1; }
+            if (hit & CONT_DPAD_DOWN) { v.cut = (v.cut + 1) % 3; changed = 1; }   /* off, the map's own tiles, its columns */
             if (hit & CONT_DPAD_LEFT) { v.zoom = !v.zoom; changed = 1; }
+            if (hit & CONT_DPAD_RIGHT) { v.geo = !v.geo; changed = 1; }       /* the halves by a user clip, as d1-c drew them, or by geometry */
         }
         if (changed) memset(&win, 0, sizeof win);
         if (!frame(&v, &c)) {
@@ -884,9 +937,11 @@ static void t3_report(void) {
     pg_break();
     say("T3 THE FADE: one glow in the room's far corner, %u cm from", (unsigned)(wall_m[WALL_RUN] * 100.0f + 0.5f));
     say(" each wall, ACROSS the divider. fade %u cm, a turn %u cm,", (unsigned)(D1_FADE * 100.0f + 0.5f), (unsigned)(D1_TURN * 100.0f + 0.5f));
-    say(" map %u x %u. The walls are 7 cm behind the glow at its sides", MW, MH);
-    say(" and 61 cm at its middle (host geometry). The eye is the");
-    say(" room's with a long lens on the glow: costs are this view's.");
+    say(" map %u x %u. At 20 cm the glow's sides are INSIDE the walls and", MW, MH);
+    say(" the corner is about 30 cm behind its middle (geometry, not");
+    say(" measured). The eye is the room's with a long lens on the");
+    say(" glow: costs are this view's. Stages 0, 1: a user clip a half");
+    say(" (as d1-c); 2 on: the halves cut by geometry, no user clip.");
     if (fade_env < 0) say(" T1 FOUND NO ALPHA-ONLY BUMP LAYER: the fade's stages drew the plain glow");
     if (auto_done < T3_STAGES && pad_stop) say(" RUN STOPPED BY THE PAD AT STAGE %u: stages %u.. were not measured", auto_done, auto_done);
     else if (auto_done < T3_STAGES) say(" THE RUN DID NOT FINISH: %u of %u stages", auto_done, (unsigned)T3_STAGES);
@@ -898,26 +953,41 @@ static void t3_report(void) {
         say("%u %-14s %6u %7u %8u %9u %6u", i, t3_stage[i].name, us_of(s->c.frame / n), (unsigned)(s->c.pvr_scr / n / 1000u), (unsigned)(s->c.pvr_map / nm / 1000u), us_of(s->c.map_send / nm), s->c.verts);
     }
     if (auto_done > T3_FADE) {
-        const sums_t *a = &auto_sum[T3_PLAIN], *b = &auto_sum[T3_FADE];
+        const sums_t *a = &auto_sum[T3_PLAING], *b = &auto_sum[T3_FADE];
 
-        say("DERIVED the fade adds to a frame: %+d us (3 - 1)", (int)mean_us(b->c.frame, b->n) - (int)mean_us(a->c.frame, a->n));
+        say("DERIVED the fade adds to a frame: %+d us (4 - 2)", (int)mean_us(b->c.frame, b->n) - (int)mean_us(a->c.frame, a->n));
+        a = &auto_sum[T3_PLAIN]; b = &auto_sum[T3_PLAING];
+        say("DERIVED no user clip, room sent once: %+d us a frame (2 - 1)", (int)mean_us(b->c.frame, b->n) - (int)mean_us(a->c.frame, a->n));
     }
     if (auto_done > T3_CUT) {
         const sums_t *b = &auto_sum[T3_FADE], *k = &auto_sum[T3_CUT];
 
-        say("MAP PASS CUT to its %u x %u tiles of 20 x 15 (stage 6): passes", CUT_W, CUT_H);
+        say("MAP PASS CUT to its %u x %u tiles of 20 x 15 (stage 7): passes", CUT_W, CUT_H);
         say(" cut %u, refused %u.", k->c.cut_on, k->c.cut_refused);
+        say(" the cut's own SH-4 time a pass: begin %u us, end %u us", us_of(k->c.cut_begin / (k->n_map ? k->n_map : 1u)), us_of(k->c.cut_end / (k->n_map ? k->n_map : 1u)));
         if (k->c.cut_on)
-            say("DERIVED the cut: PVR map %+d us, frame %+d us (6 - 3)", (int)(k->c.pvr_map / (k->n_map ? k->n_map : 1u) / 1000u) - (int)(b->c.pvr_map / (b->n_map ? b->n_map : 1u) / 1000u),
+            say("DERIVED the cut: PVR map %+d us, map send %+d us, frame %+d us (7 - 4)", (int)(k->c.pvr_map / (k->n_map ? k->n_map : 1u) / 1000u) - (int)(b->c.pvr_map / (b->n_map ? b->n_map : 1u) / 1000u),
+                (int)us_of(k->c.map_send / (k->n_map ? k->n_map : 1u)) - (int)us_of(b->c.map_send / (b->n_map ? b->n_map : 1u)),
                 (int)mean_us(k->c.frame, k->n) - (int)mean_us(b->c.frame, b->n));
         else say(" THE CUT DID NOT RUN: every pass refused (table not as read)");
     }
+    if (auto_done > T3_CUTC) {
+        const sums_t *b = &auto_sum[T3_FADE], *k = &auto_sum[T3_CUTC];
+        const unsigned nm = k->n_map ? k->n_map : 1u, nb = b->n_map ? b->n_map : 1u;
+
+        say("COLUMN CUT to the first %u columns, %u x 15 tiles (stage 8): cut", CUT_W, CUT_W);
+        say(" %u, refused %u; begin %u us, end %u us a pass.", k->c.cut_on, k->c.cut_refused, us_of(k->c.cut_begin / nm), us_of(k->c.cut_end / nm));
+        if (k->c.cut_on)
+            say("DERIVED the column cut: PVR map %+d us, frame %+d us (8 - 4)", (int)(k->c.pvr_map / nm / 1000u) - (int)(b->c.pvr_map / nb / 1000u),
+                (int)mean_us(k->c.frame, k->n) - (int)mean_us(b->c.frame, b->n));
+    }
     say("us; one run, one console. The LOOK is not on this page:");
-    say(" 3: right of the line the glow has no hard cut at the walls.");
-    say(" 4: the same with the halves swapped. 5 (no FAR): the glow's");
-    say(" middle goes dark: the level comes round, as designed.");
+    say(" 1 against 2: is the left half steady without the user clip?");
+    say(" 4: left the glow is cut along the walls, right it thins to");
+    say(" them. 5: the halves swapped. 6 (no FAR): the level comes");
+    say(" round where the scene is over 60 cm behind, as designed.");
     g = pg_plot("d1: a frame, us", "T3 stage", "us", 1);
-    pg_cat(g, "none"); pg_cat(g, "plain"); pg_cat(g, "alpha"); pg_cat(g, "fade"); pg_cat(g, "swap"); pg_cat(g, "no FAR"); pg_cat(g, "cut");
+    pg_cat(g, "none c"); pg_cat(g, "plain c"); pg_cat(g, "plain"); pg_cat(g, "alpha"); pg_cat(g, "fade"); pg_cat(g, "swap"); pg_cat(g, "no FAR"); pg_cat(g, "cut"); pg_cat(g, "col cut");
     pg_series(g, "frame"); for (i = 0; i < T3_STAGES; i++) pg_point(g, (float)i, i < auto_done ? (float)mean_us(auto_sum[i].c.frame, auto_sum[i].n) : 0.0f);
 }
 
