@@ -31,7 +31,7 @@ Two caps: a part is never marked above its weakest claim, so one OPEN step caps 
 | ALPHA | 26 |
 | PROTOTYPE | 36 |
 
-After the re-rank from s8, mip-a and corr-a2 with Parity's second read (below). Two rows keep two versions inside ALPHA; no label is disputed. Five rows rest on the written client rule (a demo or a suite program counts), which the owner may change (below).
+After the re-rank from s8, mip-a and corr-a2 with Parity's second read (below). Two rows keep two versions inside ALPHA; no label is disputed. Six rows rest on the written client rule (a demo or a suite program counts), which the owner may change (below): the five of the s8 re-rank and user clip.
 
 ## The library: effects and shared parts
 
@@ -111,12 +111,31 @@ Every header and source in `AGENTS.md`'s Files list. Where one header holds part
 | baked AO | The suite's AO byte a vertex, baked at load | ALPHA | v0.5 | s3 (PVR-135), s6b (PVR-138, PVR-148 twice), s7 (PVR-152, PVR-166: it shows in the town's colour look); the bake 252 to 254 ms (SH4-076, SH4-082). OPEN: its placing cost tripled in ao4-h (Q91); the owner's eye (Q86). | Q91 explained | ao4 with the divider code out |
 | hen rays | The hens' eyes and sweeps (hens-eyes) | ALPHA | v0.4 | Two runs within 5 % (SH4-080, SH4-085). OPEN: the cost model reads 3 to 4 times low for the sweeps (Q88). | Q88 | Each test timed alone |
 | D1 depth fade | A halo that fades where it meets the scene, by a camera depth map | ALPHA | v0.3 | **d1-b, s8: the fade ran and costs +3.7 ms of frame, nearly all the depth map (PVR-172); T1 and T2 repeat code for code (PVR-171, two runs). Its look is OPEN: the glow sat left of the divider (PVR-173, Q90).** The split (Scholar v0.2, Parity v0.3) is settled at v0.3: Scholar's reason, that the fade had not run, is gone. s7: the level into destination alpha works (PVR-163); the camera depth code reads back right (PVR-164). The fade itself not run in s7 (PVR-165). | The look read with the glow across the divider; the map pass cut to its tiles | T3 placed right |
-| user clip | The screen split by the PVR's user tile clip | ALPHA | v0.4 | s6b (PVR-144) and s7 in three programs (PVR-155, PVR-158, PVR-161); no hang. OPEN: CORE 18 in other orders (Q95). | Q95 | The guard test with the divider moving |
+| user clip | The screen split by the PVR's user tile clip, as the suite's split code does it (ao4, the lamp, the street demo's split); not the library's pvrx clip change, which stays PROTOTYPE | ALPHA | v0.5 | **ao4-j: the guard's marks read again with the guard OFF, CORE 18 not seen (PVR-186).** s6b (PVR-144) and s7 in three programs (PVR-155, PVR-158, PVR-161); no hang. OPEN: CORE 18 in other orders (Q95). | Q95 | The guard test with the divider moving |
 | effect labels | The label rows naming each effect on pages and live views | ALPHA | **v0.4 (Scholar) / v0.5 (Parity)** | Drawn on every page of eight programs on three discs, off in every measured stage, clear of graph titles (VID-016, MEASURED); also in s7, where the graph-title defect was seen. | Tests of the label table on the host | — |
 | split divider | The movable divider (`psm_split.h`) | ALPHA | v0.2 | The middle position works (PVR-144, PVR-161). Moving it has not been exercised (OPEN, Q95). | A run that moves it | The divider stepped a tile a frame |
 | trilinear pair | Trilinear as two passes: TRILINEAR1 opaque, TRILINEAR2 translucent ONE × ONE, depth GEQUAL, the same vertices | ALPHA | v0.4 | Two programs, 1 console. mip-a: the pair gives a ramp of 48 codes with no step over 2 on a flat-level texture, +0.48 ms over bilinear at 320 × 240 (PVR-168, PVR-170). corr-a2: +3.27 ms PVR and +0.74 ms SH-4 at 640 × 480, the corridor drawn with no doubled or black half (PVR-180, PVR-182). OPEN: the blend read off the corridor's screen (PVR-182). | The corridor split read with no light change across it | — |
 | mip level probe | A flat-level mipmapped texture read back to see which level each pixel took (mip-a) | ALPHA | v0.3 | mip-a, 1 run: per pixel; footprint, not depth (2 levels a doubling on a floor, 1 on a wall); costs (PVR-167 to PVR-170). OPEN: the floor reads up to one level above the MAX guess (Q96). | Q96; a second run | mip-a with the D adjust stepped |
 | fakeaf bias code | `demo/psm/fakeaf.h`'s `faf_bias_code`: a mip D adjust a polygon from its slope | ALPHA | v0.2 | Host test (`fakeaf_test`). corr-a2 ran it per polygon on the console: bias by slope 7.20 and 7.21 ms PVR, a fixed bias 7.71, bilinear 6.17 (PVR-180, 1 run). The level it picks was not read back, so what is measured is its cost, not its effect. OPEN: batched headers; why a biased level costs +1 ms. | The level it picks read back (as mip-a) | corr with a mip-a read-back |
+
+## Re-rank after ao4-j, c8, c9 tiles4 and vc-a
+
+Scholar, 2026-11-25, from PVR-183 to PVR-188 (`a04j.mkv`, `c8-sun.mkv`, `pl4nar-c9-hills.mkv` (the C9T disc), `psm-town-vc-a--crashed.mkv`; one console). Parity's second read the same day agrees with the move and every refusal; at Parity's word the user clip row names the suite's split code, and autorun is added to the refusals.
+
+| Row | Was | Now | Backed by |
+|---|---|---|---|
+| user clip (the suite's split code: `demo/pl4nar/src/demo.c:286`, `gfx_pvr.c:216-217`, `demo/psm/ao/lamp_spike.c:152, 166, 185`; not pvrx) | ALPHA v0.4 | ALPHA v0.5 | PVR-186: stage 16 with the guard OFF, the marks read, CORE 18 not seen, as PVR-155 in ao4-h. Repeated in this order (s7, s8's ao4-j), called by suite programs (ao4, the lamp, the street demo's split), held by OPEN only (Q95). v0.5 by the written client rule |
+
+Refused:
+
+| Row | Stays | Why |
+|---|---|---|
+| tile cut | ALPHA v0.4 | ao4-j was stopped by the pad in stage 17: both cut stages "STAGE NOT REACHED" (PVR-186). The C9T disc has a cut stage but its run was a live drive with no numbers (PVR-188) |
+| baked AO | ALPHA v0.5 | A third run of the build agrees (+222 / +265 us, PVR-186), but BETA needs a test that covers it, and Q91's cause is open |
+| page kit | ALPHA v0.5 | Three more text pages and a graph agree with their CRCs (PVR-186); still no target runs `psm_page_test` |
+| pl4nar, pl4nar street demo | ALPHA v0.5, v0.4 | c8 was driven live with keys pressed throughout (PVR-187) and C9T showed no numbers (PVR-188): no comparison. The lookup and mirror numbers agree with PVR-174 and PVR-175 |
+| autorun | ALPHA v0.4 | vc-a, a scripted run of 14 stages then pages (`demo/psm/psm_viewcost.h:60-75`), froze in its sixth stage and never reached its pages (PVR-183): Q87 stays open and the freeze is a new open item on the script path (Q101) |
+| psm, psm_raster, psm_pvr | ALPHA v0.5 | vc-a froze in its sixth stage with no pages (PVR-183): no new cost. The freeze is the town demo's, seen twice now (TOWN-004, PVR-183); it is a known defect of the demo, not of the headers (Q101) |
 
 ## Re-rank after s8, mip-a and corr-a2
 
