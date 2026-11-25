@@ -3,3 +3,7 @@ demo/pl4nar/assets/
 demo/matchlight/assets/
 demo/pl4nar/out/
 __pycache__/
+demo/psm/assets/
+demo/psm/out/
+third_party/sh4zam/
+HUMAN.md

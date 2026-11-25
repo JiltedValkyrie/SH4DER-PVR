@@ -41,6 +41,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | cloudvolume | A cloud deck you fly through: a software ray march through a cloud slab (cover map, tiling noise erosion, sun light with Beer and forward scatter) into a small 8-bit buffer that the PVR draws as one filtered quad over its own sky; real fly-through, so whiteout falls out of the march. Dreamcast demo with a sea under the clouds (three options) and on-screen controls. | A flight over and through cumulus, 1970s and 1980s cinema sky fly-through, any scene that needs a lit cloud layer. | RAM about 143 KB; VRAM 32 KB for the cloud texture at the default, 128 KB at the top resolution; one blended full-screen quad; CPU 14 to 22 ms a frame at the default (ESTIMATE, not measured on a console) | `sh4der_cloudvolume.h` | header comment, `demo/cloudvolume.c` |
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); about 0.43 ms for 1,623 vertices measured on an emulator | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
 | pool | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing (also a dark blob shadow). | Street lamp pools and headlight beams on ground polygons too big to light per vertex. | RAM 16 B a vertex (176 B for a 10 triangle disc); VRAM 0 | `sh4der_pool.h` (header only) | [section](#the-pool-effect-light-pools-on-a-plane) |
+| psm | Where the texels of a shadow map go: a uniform map for a directional light, and a perspective shadow map fitted in the camera's post-projective space so near ground gets more texels. | Sharper shadows near the camera for the same map size; a software renderer or a client with its own depth compare. | RAM 76 B a map description; VRAM 0 | `sh4der_psm.h` (header only) | [section](#the-psm-effect-perspective-shadow-maps) |
 | shafts | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light. | Light shafts through a dark scene, the dark twin of the glow's god rays. | RAM 16 KB; VRAM 16 KB (128 x 64 RGB565) | `sh4der_shafts.h` + `sh4der_shafts.c` | [section](#the-shadow-shafts) |
 | spark | A fixed pool of 24 short-lived additive quads that face the camera, as billboards or streaks. | Muzzle flashes, tracers, impact sparks, lamp halos. | RAM 1,256 B pool; VRAM 3 KB atlas; 96 vertices a frame at most | `sh4der_spark.h` + `sh4der_spark.c` | [section](#the-spark-effect-pooled-additive-quads) |
 | sss | Back-lit transmission, a sub-surface scattering stand-in: light through a thin part toward the eye, tinted by absorption. | Ears against the sun, leaves, wax, ice, cloth, wave crests. | RAM 40 B parameter block; VRAM 0; about 12 multiplies and three exponentials a vertex | `sh4der_sss.h` (header only) | [section](#the-sss-effect-back-lit-transmission) |
@@ -113,6 +114,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | spark | `sh4der_spark.h` | A fixed pool of 24 short-lived additive quads that face the camera, in two shapes: a billboard (a muzzle flash, an impact flash) and a streak (a tracer whose tail retreats to its hit, a spark that flies and falls), with a least width in pixels, a fade along the length, a burst helper and a pool rule (sparks die first, a flash or tracer is never lost to one). Sizes, colours, lives and atlas cells are the caller's table | one atlas texture (64 x 64 VQ: 3 KB), additive ONE / ONE on the translucent list, depth test on, write off | v0.10 |
 | pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
 | pool | `sh4der_pool.h` | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing: a disc under a street lamp, a wedge ahead of a headlight, and the same disc, dark, as a blob shadow. For ground polygons too big to light per vertex | untextured vertex-alpha fans on the translucent list: additive for light, blended for shadow | v0.10 |
+| psm | `sh4der_psm.h` | A world-to-map matrix for a directional light, fitted to the receivers inside the view frustum: uniform (orthographic) or warped through the camera's post-projective space (one point L' for the parallel rays, either sign of w), with a virtual near plane for the warp, the depth key (distance along the light), a world-space bias, texel and pixel footprints for the A/B, the frustum corners and a slab clip. The map is the client's: a depth compare in software, a silhouette on the PVR (no depth compare there) | none; a map the client draws and reads | v0.10 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
 
@@ -969,6 +971,49 @@ Both return the vertices written, or 0 with nothing written for a bad count, len
 | --- | --- | --- |
 | SH4DER_POOL_MAX_N | 16 | Most triangles in one fan (the caller's array holds SH4DER_POOL_MAX_N + 2 vertices) |
 | SH4DER_POOL_TAU | 6.28318530718 | A whole turn, radians |
+## The psm effect (perspective shadow maps)
+
+`sh4der_psm.h`, header only; `demo/psm` is the software demo. The placement of a shadow map for a directional light, in two forms through one interface: a uniform (orthographic) map fitted to the receivers, and a perspective shadow map, the same fit made in the camera's post-projective space. Idea from the GPU Gems chapter "Perspective Shadow Maps: Care and Feeding": near ground is large on screen and needs more texels than far ground. The equations were checked against the chapter's printed text (NVIDIA's PDF) and are written here in this library's own code and row form. Where it differs: the fit axis is the mean direction (the chapter uses the minimal cone), and the bias is in metres (the chapter's `Ltexel` is a squared length). They are pinned in `test/psm_test.c` against the numbers its prose gives.
+
+- **The warp.** World to post-projective space (`z' = Q (1 - Zn / z)`, `Q = Zf / (Zf - Zn)`), then a projective map through L' = (D, 0) x ViewProj, the light's place in that space, fitted off axis to a rectangle round the receivers' points. One 4 x 4 matrix: `u = x / w`, `v = y / w`.
+- **Light kinds.** By the sign of L'.w: 0 is a direction (an orthographic map in the warped space), more is a sun ahead of the camera, less is a sun behind it. The map is the same projective line through L' either way. A caster's vertices can have either sign of w; a triangle with mixed signs crosses the singularity and is cut or dropped (`sh4der_psm_tri_ok`).
+- **The warp's near plane** (`warp_near`, not the render's) is the cheapest fix and the one that matters: `Q` is about 1, so the first metre after a 1 m near plane takes half the depth range. Raise it to a little beyond the nearest receiver (4 m for 1.7 m eye height pitched down 7 degrees). With the render's 0.3 m the map degenerates for most suns; `test/psm_test.c` prints the cases.
+- **Depth and bias.** The key is the distance along the light in metres (`sh4der_psm_depth`): linear in world position, so a perspective-correct interpolation in the map is exact and the world-space bias `a + b x texel` (`sh4der_psm_bias`, the texel's metres from `sh4der_psm_texel_m`) is the same everywhere.
+- **Fit.** `sh4der_psm_frustum` (eight corners), `sh4der_psm_slab_pts` (the corners and edge crossings inside a height slab, up to 32 points), then `sh4der_psm_build_uniform` / `sh4der_psm_build_warp`. A build returns 0 for a degenerate frame (a cone of about 90 degrees, a point behind the camera): draw the uniform map instead.
+- **Metrics.** `sh4der_psm_texel_m` (ground a texel covers) over `sh4der_psm_pixel_m` (ground a pixel covers): above 1 the shadow is magnified and shows blocks. `test/psm_test.c` and `demo/psm` print it near and far down the view.
+- **The map in RAM.** `sh4der_psm_raster.h` fills the map and reads it on the SH-4: caster triangles drawn as 16-bit depth into a buffer the caller owns (128 x 128: 32 KB), clipped in homogeneous form on both sides of the light's singularity so nothing is dropped, and a compare per receiver vertex (`sh4der_psm_raster_lit`, four texels compared then blended) that gives 0 .. 1 for the vertex colour: the slot SH4DOW-DC's visibility and `sh4der_sss_rgb`'s `visibility` take. The PVR draws nothing extra and compares nothing. `sh4der_psm_raster_lit_plane` compares each texel read with the receiver surface's own depth at that texel's centre (a receiver-plane bias, not in the chapter): needed on a warped map, where one stored depth covers metres of ground along one axis. `test/psm_raster_test.c` checks every ground vertex of 18 scenes (four suns, uniform and warped, ground drawn or not); nothing here has run on a Dreamcast.
+- **The PVR draws the map instead.** `sh4der_psm_pvr.h` is the SH-4's half of the other route, to be measured against the one above: the casters clipped into triangles for a render target (`sh4der_psm_pvr_tris`: map pixels and 1 / w, both signs of w, nothing the PVR cannot take), and each ground vertex's lookup coordinates (`sh4der_psm_pvr_uv`) for a multiply layer that reads the target per pixel. The PVR does the filling and the lookup; there is no depth compare, so no self-shadowing: casters and receivers are separate sets. A uniform map is affine in world space, so the PVR's interpolation of the vertex coordinates is exact; a perspective map is projective, so it is exact only at the vertices, and `sh4der_psm_pvr_uv_error` measures it in texels. On the host (`test/psm_pvr_test.c`, 256 map): a 4 m ground cell is off by up to 57 texels at 6 m ahead and 1.5 at 20 m, a 1 m cell by 1.1 and 0.07, a 0.25 m cell by 0.06 and 0.004: the ground wants fine cells near the camera and coarse ones far away. Against the exact compare a box's shadow differs at 0.02% to 0.3% of ground points. Host numbers only; nothing here has run on a Dreamcast.
+- **Not the PVR's.** The PVR has no depth texture and no per-pixel compare, so on it the map would be a caster silhouette; and it has no q texture coordinate, so a per-vertex lookup is exact only where the map is affine in world space (a uniform map). Software has neither limit.
+- **Cost.** RAM 76 B for a map description (matrix, light, kind); VRAM 0. CPU: 4 x 4 products at build; a lookup is a 4 x 3 transform and a divide.
+
+### Calls
+
+```c
+int  sh4der_psm_build_uniform(sh4der_psm_t *out, const float light[3], const float *pts, unsigned n);
+int  sh4der_psm_build_warp(sh4der_psm_t *out, const sh4der_psm_cam_t *cam, float warp_near, const float light[3],
+                           const float *pts, unsigned n);
+int  sh4der_psm_map(const sh4der_psm_t *p, const float x[3], float *u, float *v, float *w);
+```
+
+`light` is the unit direction from the surface toward the light; `pts` are n float[3] receiver points inside the frustum. `test/psm_test.c`: the chapter's depth numbers (Q 1.0002 at 1 and 4000, 1.02 at a ratio of 50, half the cube in the first metre, the inverse projection's 0, 1/2, 1), the camera rows, the light kinds, every fitted point inside the map, two points on one light ray on one texel (both signs of w, both sides of the light), the slab clip, the footprint ratio at four sun angles, bad input; both maths back ends.
+
+### Psm tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_PSM_MAX_PTS | 64 | Most points a fit takes (a slab clip of a frustum gives 32) |
+| SH4DER_PSM_W_EPS | 0.0001 | \|L'.w\| under this share of \|L'.xyz\| makes the light a direction in the warped space |
+| SH4DER_PSM_MIN_COS | 0.02 | Least cosine between the cone axis and a point's direction (about 89 degrees) |
+| SH4DER_PSM_MARGIN | 1.01 | The fit's rectangle, a little larger than the points |
+| SH4DER_PSM_TRI_EPS | 0.000001 | \|w\| under this is the singularity: a vertex there is not drawn |
+| SH4DER_PSM_BIAS_A | 0.02 | Bias a, metres |
+| SH4DER_PSM_BIAS_B | 1.5 | Bias b, texels (times the texel's size in metres) |
+| SH4DER_PSM_RASTER_SIZE_MAX | 1024 | Largest map side, texels |
+| SH4DER_PSM_RASTER_EDGE_EPS | 0.001 | A texel centre this far outside an edge is still covered (no cracks between a clipped triangle's parts) |
+| SH4DER_PSM_RASTER_DELTA | 0.02 | Step of the texel size measure, metres |
+| SH4DER_PSM_RASTER_TEXEL_MAX | 5 | Largest texel size the bias follows, metres |
+| SH4DER_PSM_RASTER_SLOPE_MAX | 8 | Most depth a surface's slope may add across a texel in the plane compare, metres |
+
 ## The bolt effect (branching strands that re-roll)
 
 `include/sh4der_bolt.h` (the state and the quad maths, inline, host tested) and `src/sh4der_bolt.c` (the KallistiOS draw). Thin jagged strands run from a root along a direction, each with a few forks, and the whole pattern is drawn again a few times a second while its first half stays put. Lightning, an arc, a spark gap, a discharge, cracks of light, a lit root system. The caller gives roots, directions and lengths (world units) and the colours; nothing here knows a ship or a sky.
@@ -1219,7 +1264,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 ## Build and test
 
 ```sh
-make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/pl4nar_test, test/pool_test, example/blade
+make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/pl4nar_test, test/pool_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, example/blade
 make test-shz SH4ZAM=/path/to/sh4zam   # host, the SH4ZAM path on SH4ZAM's software back-end
 make dc SH4ZAM=/path/to/sh4zam   # Dreamcast: build/libsh4der_core.a (KallistiOS environment sourced)
 make test-dc SH4ZAM=/path/to/sh4zam  # Dreamcast: build/*_test.elf

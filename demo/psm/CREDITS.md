@@ -1,0 +1,11 @@
+# demo/psm credits
+
+Third-party art the software shadow demo uses. None of it is in this repository: `tools/fetch.py` downloads it, checks the sha256 in `fetch_table.json` and keeps it in `assets/_dl` (ignored by git).
+
+| File | Author | Licence | Source |
+|---|---|---|---|
+| `spot.obj` (Spot the cow) | Keenan Crane | CC0 1.0 Universal ("Model and associated data is dedicated under CC0 1.0 Universal.") | https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/ , fetched from the copy at https://github.com/alecjacobson/common-3d-test-models |
+
+The ground, the poles and the sky are made by the demo's own code.
+
+The technique is from "Perspective Shadow Maps: Care and Feeding", GPU Gems (NVIDIA, 2004), chapter 14. The equations in `include/sh4der_psm.h` were checked against the chapter's printed text (https://download.nvidia.com/developer/GPU_Gems_2/CD/Resources/PSMs_Care_and_Feeding.pdf) and written in this library's own code and row form, not copied: see its header for where it differs.

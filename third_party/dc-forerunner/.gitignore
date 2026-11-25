@@ -1,0 +1,13 @@
+config/config.local
+build/
+out/
+*.o
+*.d
+*.elf
+*.bin
+*.cdi
+__pycache__/
+third_party/sh4zam/
+third_party/sh4der-pvr/
+third_party/sh4dow-dc/
+HUMAN.md

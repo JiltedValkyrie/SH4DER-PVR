@@ -1,0 +1,14 @@
+{
+  "note": "Third-party art the software shadow demo uses. Nothing here is in the repository: tools/fetch.py downloads each file into assets/_dl, checks its sha256 and keeps it there. A file with sha256 null is NOT pinned yet: fetch.py refuses it unless run with --pin, which prints the hash to put here. Every file has a row in CREDITS.md.",
+  "files": [
+    {
+      "name": "Spot the cow",
+      "author": "Keenan Crane",
+      "page": "https://www.cs.cmu.edu/~kmcrane/Projects/ModelRepository/",
+      "licence": "CC0 1.0",
+      "url": "https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/spot.obj",
+      "file": "spot.obj",
+      "sha256": "0738b5e8608fed74e5e8c7aa8dd0af97b4b74f9f6cbf7aac84cd7e40b2e44a75"
+    }
+  ]
+}
