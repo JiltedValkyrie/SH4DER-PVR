@@ -29,6 +29,12 @@
    (not the route A layer, the text or the map pass). INFINITE sends everything through headers without fog, as before. The map's
    casters do not follow it.
 
+   THE TOWN (the SCENE row; the image boots into it, 14:00, the first view): a market square of the Modular Village kit (CC0)
+   with a church tower, people and hens as placeholder blocks, the sun on a clock (TIME, TIME SPEED; D-pad left / right a
+   quarter of an hour). demo/psm/psm_town.h is its logic, demo/psm/tools/bake_town.py its mesh. The models go as strips; the
+   casters are their own low meshes, culled an object at a time against the map's square. Sky and fog come from one table
+   (psm_look_at), so a later look row changes numbers, not this file.
+
    The cost label reads "--" until the console has measured a second. Nothing in it comes from a host.
 
    KallistiOS paths: pvr_init, pvr_mem_malloc / pvr_mem_free (the target, the textures), pvr_scene_begin_rtt (the
@@ -43,6 +49,7 @@
 #include <dc/minifont.h>
 #include "sh4der_guard.h"
 #include "psm_scene.h"
+#include "psm_mapsrc.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -52,8 +59,6 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define INSET 128u                 /* the map inset, texels and pixels */
 #define HUD_EVERY 20u              /* frames between looks at the text and the inset */
 #define STICK_DEAD 12
-
-static const float SKY[3] = { 0.55f, 0.68f, 0.85f };
 
 static psm_scene_t scene;
 static psm_state_t state;
@@ -65,6 +70,10 @@ static uint16_t depth_map[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));    /*
 static uint16_t text_px[TEXT_W * TEXT_H] __attribute__((aligned(32)));
 static uint16_t inset_px[INSET * INSET] __attribute__((aligned(32)));
 static uint16_t checker_px[16 * 16] __attribute__((aligned(32)));
+static uint16_t depth_map2[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));   /* route AB's second slot: the same again (32 KB at 128, 128 KB at 256) */
+static psm_mapsrc_t mapsrc;               /* route AB (stub): the map source hook, the SH-4's raster standing in for the PVR, one frame late */
+static psm_ab_stub_t ab_stub;
+static int route3;                        /* the route of three: psm_input knows two */
 static char ln_now[PSM_HUD_LINES][PSM_HUD_COLS + 1u];     /* the lines this frame, and the lines on the texture */
 static char ln_prev[PSM_HUD_LINES][PSM_HUD_COLS + 1u];
 
@@ -76,6 +85,7 @@ static unsigned ta_v;                     /* vertices sent this frame, counted w
 static unsigned map_tris, layer_v;        /* route A: triangles into the target, vertices of the ground layer */
 static int rtt_refused_shown;
 static float fog_dist;                    /* the distance the fog table was made for (0: none yet) */
+static float sky_now[3] = { -1.0f, -1.0f, -1.0f }, fog_now[3];   /* the sky and fog colours set on the PVR (psm_look_at) */
 
 /* ---- small helpers --------------------------------------------------------- */
 
@@ -186,24 +196,68 @@ static void target_fit(unsigned size) {
     make_target_headers();
 }
 
-static int load(void) {
+static uint16_t rgb565(float r, float g, float b) {
+    return (uint16_t)(((unsigned)(r * 31.0f + 0.5f) << 11) | ((unsigned)(g * 63.0f + 0.5f) << 5) | (unsigned)(b * 31.0f + 0.5f));
+}
+
+/* The ground's 16 x 16 texture, squares of 8 texels: the field's checker (1 m squares, u and v are metres / 2), or the town's
+   cobble (two near stones, TOWN_MOCKUP.md; 1.5 m squares at a third of a repeat a metre). Call when the PVR is not reading it. */
+static void ground_texture(void) {
+    const uint16_t c1 = scene.ground_tex ? rgb565(0.75f, 0.665f, 0.54f) : 0xffffu, c2 = scene.ground_tex ? rgb565(0.725f, 0.64f, 0.52f) : 0xc618u;
     unsigned i;
 
+    for (i = 0; i < 256u; i++) checker_px[i] = (((i >> 3) ^ (i >> 7)) & 1u) ? c1 : c2;
+    pvr_txr_load(checker_px, checker_mem, sizeof checker_px);
+}
+
+/* The sky (the PVR's background) and the fog table's colour at the scene's clock, set when they change; the fog table's
+   ramp when the draw distance changes. */
+static void look_update(void) {
+    float sky[3], fog[3];
+
+    psm_look_at(&scene, state.clock, sky, fog);
+    if (fabsf(sky[0] - sky_now[0]) + fabsf(sky[1] - sky_now[1]) + fabsf(sky[2] - sky_now[2]) > 1.0f / 512.0f) {
+        pvr_set_bg_color(sky[0], sky[1], sky[2]);
+        memcpy(sky_now, sky, sizeof sky_now);
+    }
+    if (frame.dist > 0.0f && (frame.dist != fog_dist || fabsf(fog[0] - fog_now[0]) + fabsf(fog[1] - fog_now[1]) + fabsf(fog[2] - fog_now[2]) > 1.0f / 512.0f)) {
+        pvr_fog_table_color(1.0f, fog[0], fog[1], fog[2]);  /* DRAW DISTANCE: the fog table, made again only when it changes */
+        pvr_fog_table_linear(frame.dist * PSM_DIST_FADE, frame.dist);
+        fog_dist = frame.dist;
+        memcpy(fog_now, fog, sizeof fog_now);
+    }
+}
+
+/* The SCENE row changed: the other scene, its walk, its ground; the frame's cached positions and placement are old. */
+static void scene_switch(void) {
+    pvr_wait_ready();
+    pvr_wait_render_done();
+    if (state.scene) psm_scene_init_town(&scene);
+    else psm_scene_init(&scene);
+    psm_scene_limits(&scene, &walk_lim);
+    frame.gpos_ok = 0; frame.place_ok = 0;
+    ground_texture();
+    psm_mapsrc_reset(&mapsrc);
+    fog_dist = 0.0f;
+}
+
+static int load(void) {
     text_mem = pvr_mem_malloc(sizeof text_px);
     inset_mem = pvr_mem_malloc(sizeof inset_px);
     checker_mem = pvr_mem_malloc(sizeof checker_px);
     if (!text_mem || !inset_mem || !checker_mem) return 0;
-    for (i = 0; i < 256u; i++)                              /* 1 m squares: u and v are metres / 2 */
-        checker_px[i] = (((i >> 3) ^ (i >> 7)) & 1u) ? 0xffffu : 0xc618u;
-    pvr_txr_load(checker_px, checker_mem, sizeof checker_px);
     memset(inset_px, 0, sizeof inset_px);
     pvr_txr_load(inset_px, inset_mem, sizeof inset_px);
     memset(text_px, 0, sizeof text_px);
     pvr_txr_load(text_px, text_mem, sizeof text_px);
     make_headers();
-    psm_scene_init(&scene);
+    psm_scene_init_town(&scene);                            /* the image boots into the town, 14:00, the first view */
     psm_scene_limits(&scene, &walk_lim);
-    psm_state_default(&state);
+    psm_state_town(&state);
+    ground_texture();
+    ab_stub.f = &frame; ab_stub.s = &scene;
+    psm_mapsrc_init(&mapsrc, psm_ab_stub_fill, &ab_stub, 1u, depth_map, depth_map2);
+    route3 = state.route;
     memset(&cost, 0, sizeof cost);
     return 1;
 }
@@ -238,14 +292,20 @@ static int pad(float dt) {
         in.rt = (float)st->rtrig * (1.0f / 255.0f);
     }
     in.held = held;
-    psm_input(&state, &walk_lim, &in, dt);
+    {
+        const int route_before = state.route;
+
+        psm_input(&state, &walk_lim, &in, dt);
+        state.route = psm_ab_route_step(&route3, route_before, state.route);   /* A, B, AB (stub) */
+        if (state.route != route_before) psm_mapsrc_reset(&mapsrc);          /* a route change: route AB starts with no map */
+    }
     return held != before;
 }
 
 /* ---- the frame's vertices ---------------------------------------------------- */
 
 /* The ground as strips, a ring at a time, a strip broken where a cell cannot be sent (psm_cell_ok: the flags psm_place
-   made). layer 0: the checker, lit. layer 1: route A's multiply layer, the map target's coordinates, white. Returns the
+   made). layer 0: the ground texture, lit. layer 1: route A's multiply layer, the map target's coordinates, white. Returns the
    vertices sent. One header for the run of strips, as sh4der_spark.c and sh4der_bump.h send theirs. */
 static unsigned ground(int layer) {
     const unsigned before = ta_v;
@@ -266,8 +326,8 @@ static unsigned ground(int layer) {
                     vert(PVR_CMD_VERTEX, frame.gscr[o][0], frame.gscr[o][1], frame.gscr[o][2], frame.guv[o][0], frame.guv[o][1], 0xffffffffu);
                     vert(k == end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, frame.gscr[i][0], frame.gscr[i][1], frame.gscr[i][2], frame.guv[i][0], frame.guv[i][1], 0xffffffffu);
                 } else {
-                    vert(PVR_CMD_VERTEX, frame.gscr[o][0], frame.gscr[o][1], frame.gscr[o][2], frame.gpos[o][0] * 0.5f, frame.gpos[o][2] * 0.5f, frame.gcol[o]);
-                    vert(k == end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, frame.gscr[i][0], frame.gscr[i][1], frame.gscr[i][2], frame.gpos[i][0] * 0.5f, frame.gpos[i][2] * 0.5f, frame.gcol[i]);
+                    vert(PVR_CMD_VERTEX, frame.gscr[o][0], frame.gscr[o][1], frame.gscr[o][2], frame.gpos[o][0] * scene.ground_uv, frame.gpos[o][2] * scene.ground_uv, frame.gcol[o]);
+                    vert(k == end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, frame.gscr[i][0], frame.gscr[i][1], frame.gscr[i][2], frame.gpos[i][0] * scene.ground_uv, frame.gpos[i][2] * scene.ground_uv, frame.gcol[i]);
                 }
             }
             c = end;
@@ -276,38 +336,46 @@ static unsigned ground(int layer) {
     return ta_v - before;
 }
 
-/* The models: the triangles psm_place passed (in front, with area), and those across the near plane cut there. */
+/* The models: the runs of strip triangles psm_place passed (in front, with area) as strips, and those across the near plane
+   cut there. */
 static void models(void) {
-    unsigned i;
+    unsigned i, k, end;
 
     if (!header(frame.dist > 0.0f ? &hdr_model_fog : &hdr_model)) return;
     for (i = 0; i < scene.mtn; i++) {
-        const unsigned a = scene.mt[i][0], b = scene.mt[i][1], c = scene.mt[i][2];
+        const unsigned a = scene.mt[i][0], b = scene.mt[i][1];
 
         if (frame.mtri[i] == 2u) {
             psm_cv_t cv[4];
             const unsigned n = psm_clip_near(&frame, &scene, i, cv);
-            unsigned k;
 
             for (k = 0; k < n; k++) vert(k + 1u == n ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, cv[k].x, cv[k].y, cv[k].iw, 0.0f, 0.0f, cv[k].argb);
             continue;
         }
         if (!frame.mtri[i]) continue;
+        end = psm_model_run_end(&frame, &scene, i);         /* i .. end: one strip, the first's corners 0 and 1, then each one's 2 */
         vert(PVR_CMD_VERTEX, frame.mscr[a][0], frame.mscr[a][1], frame.mscr[a][2], 0.0f, 0.0f, frame.mcol[a]);
         vert(PVR_CMD_VERTEX, frame.mscr[b][0], frame.mscr[b][1], frame.mscr[b][2], 0.0f, 0.0f, frame.mcol[b]);
-        vert(PVR_CMD_VERTEX_EOL, frame.mscr[c][0], frame.mscr[c][1], frame.mscr[c][2], 0.0f, 0.0f, frame.mcol[c]);
+        for (k = i; k <= end; k++) {
+            const unsigned e = scene.mt[k][2];
+
+            vert(k == end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, frame.mscr[e][0], frame.mscr[e][1], frame.mscr[e][2], 0.0f, 0.0f, frame.mcol[e]);
+        }
+        i = end;
     }
 }
 
 /* ---- route A's map pass -------------------------------------------------------- */
 
-/* The casters into the target: white first (far), each caster triangle in the shadow's grey (nearer), then a white
-   frame one texel wide (nearest), so a lookup clamped past the map's edge reads lit. Returns 1 when the pass ran. */
+/* The casters into the target: white first (far), each caster triangle in the shadow's colour (nearer; the scene's ambient
+   over its full light, so the layer's multiply leaves the ambient), then a white frame one texel wide (nearest), so a lookup
+   clamped past the map's edge reads lit. A caster object off the map's square (frame.con) is not clipped or sent. Returns 1
+   when the pass ran. */
 static int map_pass(void) {
     static sh4der_psm_pvr_vtx_t out[SH4DER_PSM_PVR_MAX_TRIS][3];
-    const float n = (float)target_size, g = frame.shadow_grey;
-    const uint32_t grey = psm_pack_rgb(g, g, g), white = 0xffffffffu;
-    unsigned i, k, t;
+    const float n = (float)target_size;
+    const uint32_t grey = psm_pack_rgb(frame.shadow_rgb[0], frame.shadow_rgb[1], frame.shadow_rgb[2]), white = 0xffffffffu;
+    unsigned i, j, k, t;
 
     map_tris = 0;
     if (!target_mem || !hdr_target_ok) return 0;
@@ -319,20 +387,22 @@ static int map_pass(void) {
     pvr_list_begin(PVR_LIST_OP_POLY);
     quad(&hdr_flat, 0.0f, 0.0f, n, n, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, white);
     if (frame.built && header(&hdr_flat)) {
-        for (i = 0; i < scene.mtn; i++) {
-            if (!psm_caster_on(&scene, i, state.movers_only)) continue;     /* CASTERS: movers only leaves the static ones out */
-            frame.tris++;
-            t = psm_pvr_tris_h(frame.ma[scene.mt[i][0]], frame.ma[scene.mt[i][1]], frame.ma[scene.mt[i][2]], target_size, out);
-            for (k = 0; k < t; k++) {
-                const float area = (out[k][1].x - out[k][0].x) * (out[k][2].y - out[k][0].y) - (out[k][2].x - out[k][0].x) * (out[k][1].y - out[k][0].y);
+        for (j = 0; j < scene.con; j++)
+            for (i = scene.co[j].t0; i < scene.co[j].t0 + scene.co[j].tn; i++) {
+                if (!psm_caster_on(&scene, i, state.movers_only)) continue;     /* CASTERS: movers only leaves the static ones out */
+                frame.tris++;
+                if (!frame.con[j]) continue;                                  /* the object is off the map's square */
+                t = psm_pvr_tris_h(frame.ma[scene.ct[i][0]], frame.ma[scene.ct[i][1]], frame.ma[scene.ct[i][2]], target_size, out);
+                for (k = 0; k < t; k++) {
+                    const float area = (out[k][1].x - out[k][0].x) * (out[k][2].y - out[k][0].y) - (out[k][2].x - out[k][0].x) * (out[k][1].y - out[k][0].y);
 
-                if (!(area > 1.0e-3f || area < -1.0e-3f)) continue;       /* no area in the map: not sent */
-                vert(PVR_CMD_VERTEX, out[k][0].x, out[k][0].y, 1.0f, 0.0f, 0.0f, grey);
-                vert(PVR_CMD_VERTEX, out[k][1].x, out[k][1].y, 1.0f, 0.0f, 0.0f, grey);
-                vert(PVR_CMD_VERTEX_EOL, out[k][2].x, out[k][2].y, 1.0f, 0.0f, 0.0f, grey);
-                map_tris++;
+                    if (!(area > 1.0e-3f || area < -1.0e-3f)) continue;       /* no area in the map: not sent */
+                    vert(PVR_CMD_VERTEX, out[k][0].x, out[k][0].y, 1.0f, 0.0f, 0.0f, grey);
+                    vert(PVR_CMD_VERTEX, out[k][1].x, out[k][1].y, 1.0f, 0.0f, 0.0f, grey);
+                    vert(PVR_CMD_VERTEX_EOL, out[k][2].x, out[k][2].y, 1.0f, 0.0f, 0.0f, grey);
+                    map_tris++;
+                }
             }
-        }
     }
     frame.drawn = map_tris;
     quad(&hdr_flat, 0.0f, 0.0f, n, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
@@ -349,7 +419,8 @@ static int map_pass(void) {
 /* The eight lines into ln_now (psm_hud). 1 when they differ from the lines on the texture: only then is a wait for the PVR
    and an upload worth it. */
 static int text_pending(void) {
-    psm_hud(&state, &frame, &cost, ln_now);
+    if (state.route == PSM_ROUTE_AB) psm_ab_hud(&state, &frame, &cost, &mapsrc, ln_now);
+    else psm_hud(&state, &frame, &cost, ln_now);
     return memcmp(ln_prev, ln_now, sizeof ln_prev) != 0;
 }
 
@@ -369,16 +440,17 @@ static void text_upload(void) {
     memcpy(ln_prev, ln_now, sizeof ln_prev);
 }
 
-/* Route B's inset: the depth map as a grey ramp, 128 x 128. Call after the PVR's last render is done. */
+/* Route B's inset (and route AB's): the depth map the compare read, as a grey ramp, 128 x 128. Call after the PVR's last
+   render is done. */
 static void inset_update(void) {
-    const unsigned n = frame.size;
+    const unsigned n = frame.raster.size;      /* the map compared against: at route AB the one of a frame ago */
     unsigned cx[INSET], ry[INSET], x, y;
 
     for (x = 0; x < INSET; x++) cx[x] = x * n / INSET;          /* the map's column of each inset column */
     for (y = 0; y < INSET; y++) ry[y] = (y * n / INSET) * n;    /* and its row, as an offset into the depth map */
     for (y = 0; y < INSET; y++)
         for (x = 0; x < INSET; x++) {
-            const unsigned d = depth_map[ry[y] + cx[x]];
+            const unsigned d = frame.raster.depth[ry[y] + cx[x]];
             const unsigned g = d ? 48u + (d >> 9) + (d >> 10) : 0u;           /* empty is black, a caster 48 .. 143 .. */
             const unsigned c = g > 255u ? 255u : g;
 
@@ -412,7 +484,7 @@ static void hud(int a_drawn) {
     if (state.inset) {
         const float x = PSM_SCR_W - 16.0f - (float)INSET, y = 290.0f - (float)INSET;
 
-        if (state.route == PSM_ROUTE_B) quad(&hdr_inset_b, x, y, (float)INSET, (float)INSET, 1000.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0xffffffffu);
+        if (state.route != PSM_ROUTE_A) quad(&hdr_inset_b, x, y, (float)INSET, (float)INSET, 1000.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0xffffffffu);
         else if (a_drawn) quad(&hdr_inset_a, x, y, (float)INSET, (float)INSET, 1000.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0xffffffffu);
     }
 }
@@ -437,6 +509,7 @@ int main(void) {
     pvr_init_params_t init = pvr_default_params;
     uint64_t previous, win_t0, win_us[4] = { 0, 0, 0, 0 }, win_rnd_ns = 0;
     unsigned win_frames = 0, hud_tick = HUD_EVERY;
+    size_t vram0;
 
     /* PSM_VTX_BUDGET vertices of 32 B: the host test holds the worst frame (the ground strips and the layer at the widest
        window, the models, the text) under it. KallistiOS sizes two vertex buffers with this value (one a frame,
@@ -445,10 +518,16 @@ int main(void) {
     init.opb_overflow_count = 4;
     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
-    pvr_set_bg_color(SKY[0], SKY[1], SKY[2]);
+    vram0 = pvr_mem_available();
     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
-    printf("psm: %u rings, %u ground vertices a frame, %u model vertices, %u model triangles, VRAM free %lu KB\n", scene.rows,
-           scene.rows * (PSM_COLS + 1u), scene.mvn, scene.mtn, (unsigned long)(pvr_mem_available() / 1024u));
+    /* the rings' vertices are the whole ground lattice; a frame sends the window the view covers (psm_window_half) */
+    printf("psm: %u rings, %u ground vertices in the rings (a frame sends its view's window), %u model vertices, %u model triangles,"
+           " %u caster triangles in %u objects\n", scene.rows, scene.rows * (PSM_COLS + 1u), scene.mvn, scene.mtn, scene.ctn, scene.con);
+    printf("psm: VRAM free %lu KB (after load; %lu after pvr_init), vertex buffers 2 x %u KB, textures %u KB (text %u, inset %u, ground %u);"
+           " route A's target %u KB at %u from the free\n", (unsigned long)(pvr_mem_available() / 1024u), (unsigned long)(vram0 / 1024u),
+           (unsigned)(PSM_VTX_BUDGET * 32u / 1024u), (unsigned)((sizeof text_px + sizeof inset_px + sizeof checker_px + 1023u) / 1024u),
+           (unsigned)(sizeof text_px / 1024u), (unsigned)(sizeof inset_px / 1024u), (unsigned)((sizeof checker_px + 1023u) / 1024u),
+           MAP_MAX * MAP_MAX * 2u / 1024u, MAP_MAX);
     previous = win_t0 = timer_us_gettime64();
     for (;;) {
         const uint64_t now = timer_us_gettime64();
@@ -460,12 +539,15 @@ int main(void) {
         previous = now;
         if (dt > 0.1f) dt = 0.1f;
         pad_edge = pad(dt);
+        if (state.scene != scene.town) scene_switch();     /* the SCENE row */
+        psm_town_update(&scene, &state, dt);               /* the town's clock, sun, people and hens (nothing in the field) */
         ta_v = 0; layer_v = 0;
 
         /* the SH-4's work, in the label's parts. B: build, clear, casters, receivers. A: build, clip (the map pass), uv.
            A wait for the PVR is the PVR's time: it is taken between two parts, in none of them. */
         t0 = timer_us_gettime64();
         psm_frame_setup(&frame, &scene, &state);
+        psm_place_geo(&frame, &scene);       /* the screen placement first: route B compares only the model vertices it sends */
         t1 = timer_us_gettime64();
         win_us[0] += t1 - t0;
         if (state.route == PSM_ROUTE_B) {
@@ -476,6 +558,18 @@ int main(void) {
             if (b_ok) psm_frame_b_receivers(&frame, &scene, &state);
             else psm_frame_unshadowed(&frame, &scene);
             win_us[1] += t2 - t1; win_us[2] += t3 - t2; win_us[3] += timer_us_gettime64() - t3;
+        } else if (state.route == PSM_ROUTE_AB) {
+            /* the hook: this frame's fill goes into the slot that is not read, the compare reads the last complete map.
+               The fill here is the SH-4's raster (the stand-in), so its time is the casters' part, clear included */
+            const sh4der_psm_raster_t *map;
+
+            ab_stub.movers_only = state.movers_only;
+            map = psm_frame_ab_fill(&frame, &scene, &mapsrc);
+            t3 = timer_us_gettime64();
+            b_ok = map != NULL;
+            if (b_ok) psm_frame_ab_compare(&frame, &scene, &state, map);
+            else psm_frame_unshadowed(&frame, &scene);
+            win_us[2] += t3 - t1; win_us[3] += timer_us_gettime64() - t3;
         } else {
             target_fit(frame.size);          /* waits for the PVR, on a size change only */
             pvr_wait_ready();
@@ -487,18 +581,14 @@ int main(void) {
             psm_frame_a_ground(&frame);
             win_us[1] += t3 - t2; win_us[2] += timer_us_gettime64() - t3;
         }
-        psm_place(&frame, &scene);           /* the screen placement and the colours: this frame's, after the lit and the lookup */
-        if (frame.dist > 0.0f && frame.dist != fog_dist) {   /* DRAW DISTANCE: the fog table, made again only when it changes */
-            pvr_fog_table_color(1.0f, SKY[0], SKY[1], SKY[2]);
-            pvr_fog_table_linear(frame.dist * PSM_DIST_FADE, frame.dist);
-            fog_dist = frame.dist;
-        }
+        psm_colour(&frame, &scene);          /* the colours: this frame's, after the lit and the lookup */
+        look_update();
 
         pvr_wait_ready();
         if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text and the inset: uploaded when they changed, after the last render */
             hud_tick = 0;
             want_text = text_pending();
-            want_inset = state.inset && state.route == PSM_ROUTE_B && b_ok;
+            want_inset = state.inset && state.route != PSM_ROUTE_A && b_ok;
             if (want_text || want_inset) {
                 pvr_wait_render_done();
                 if (want_text) text_upload();
@@ -529,7 +619,7 @@ int main(void) {
             cost.fps = fr / secs;
             cost.ta_v = ta_v;                /* this frame's: the map pass, the scene, the layer and the text */
             cost.vram_kb = ((state.route == PSM_ROUTE_A ? target_size * target_size * 2u : 0u)
-                          + (state.inset && state.route == PSM_ROUTE_B ? (unsigned)sizeof inset_px : 0u) + 1023u) / 1024u;
+                          + (state.inset && state.route != PSM_ROUTE_A ? (unsigned)sizeof inset_px : 0u) + 1023u) / 1024u;
             cost.map_tris = map_tris; cost.layer_v = layer_v;
             cost.have = 1;
             win_us[0] = win_us[1] = win_us[2] = win_us[3] = 0; win_rnd_ns = 0; win_frames = 0;

@@ -9,6 +9,15 @@
       "url": "https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/spot.obj",
       "file": "spot.obj",
       "sha256": "0738b5e8608fed74e5e8c7aa8dd0af97b4b74f9f6cbf7aac84cd7e40b2e44a75"
+    },
+    {
+      "name": "Modular Village",
+      "author": "Keith at Fertile Soil Productions",
+      "page": "https://opengameart.org/content/modular-village",
+      "licence": "CC0 1.0",
+      "url": "https://opengameart.org/sites/default/files/modular_village_collection.zip",
+      "file": "modular_village_collection.zip",
+      "sha256": "cb1141480a79a6f5a58cb356667c976235542a40087ac5453a849d486702ad95"
     }
   ]
 }

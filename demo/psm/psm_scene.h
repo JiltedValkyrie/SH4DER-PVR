@@ -23,8 +23,15 @@
    the poles and cows but the circles psm_scene_init gives it.
 
    The cow is Spot (CC0) cut to about 400 triangles by tools/bake_cow.py into the build folder (PSM_HAVE_COW and
-   psm_cow.h on the include path), or a stand-in made of boxes. One mesh serves the screen and the map, so the depth
-   the SH-4 stores and the surface it compares are the same surface.
+   psm_cow.h on the include path), or a stand-in made of boxes. In the field one mesh serves the screen and the map (its
+   casters are a copy of its triangles), so the depth the SH-4 stores and the surface it compares are the same surface.
+
+   The second scene is the town square (psm_town.h; PSM_HAVE_TOWN with tools/bake_town.py's psm_town_mesh.h on the include
+   path). Its screen mesh is strips (a strip's triangle i is its vertices i, i + 1, i + 2), its casters a low mesh of their
+   own in objects (a house, a prop, a mover), and an object whose box falls wholly off the map's square is not drawn into
+   it (psm_frame_cull_: the map's own square, not the view, so a tower out of view still shades the square). Its movers'
+   vertices are placed every frame (psm_movers_apply), the rest is cached as the field's is. Each scene carries its light,
+   its colours, its fit slab by route, its ground texture, its walk area and its sky and fog table (psm_look_row_t).
 */
 
 #ifndef PSM_SCENE_H
@@ -40,6 +47,9 @@
 
 #ifdef PSM_HAVE_COW
 #include "psm_cow.h"
+#endif
+#ifdef PSM_HAVE_TOWN
+#include "psm_town_mesh.h"
 #endif
 
 /* ---- tuning ---------------------------------------------------------------- */
@@ -61,8 +71,15 @@
 #define PSM_GV_MAX       (PSM_ROWS_MAX * (PSM_COLS + 1u))
 #define PSM_SNAP         0.25f        /* the grid's centre is the eye snapped to this lattice (a near ring's depth) */
 #define PSM_SNAP_OFF     0.1768f      /* the farthest the eye is from that centre: half the lattice's diagonal */
-#define PSM_MV_MAX       1024u        /* model vertices: 240 for the poles, two cows */
-#define PSM_MT_MAX       1024u        /* model triangles: 120 for the poles, two cows of 400 */
+#define PSM_MV_MAX       12288u       /* model vertices: the field 240 for the poles and two cows; the town about 8,700 and its movers */
+#define PSM_MT_MAX       8192u        /* model triangles: the field 120 for the poles and two cows of 400; the town about 5,900 */
+#define PSM_CV_MAX       2048u        /* caster vertices (the field: its model vertices, copied) */
+#define PSM_CT_MAX       2048u        /* caster triangles: the town's map, about 1,200 */
+#define PSM_CO_MAX       64u          /* caster objects: a pole, a cow; a house, a prop, a mover */
+#define PSM_PAL_MAX      64u          /* colours a scene */
+#define PSM_MOVERS_MAX   16u          /* the town's eight people and four hens */
+#define PSM_DYN_V_MAX    1536u        /* the movers' screen vertices */
+#define PSM_DYN_CV_MAX   512u         /* the movers' caster vertices */
 #define PSM_AMBIENT      0.42f        /* the share of the light that is not the sun's */
 #define PSM_NORMAL_PUSH  0.06f        /* a model vertex is compared this far out along its normal, metres */
 #define PSM_TURN         1.2f         /* radians a second at full stick */
@@ -110,17 +127,82 @@ enum { PSM_ROUTE_A = 0, PSM_ROUTE_B = 1 };
 
 /* ---- scene ----------------------------------------------------------------- */
 
+/* The sky's colour and the fog's at a solar hour: a scene's table, rows in hour order (one row: the same all day). */
+typedef struct psm_look_row {
+    float hour, sky[3], fog[3];
+} psm_look_row_t;
+
+static const psm_look_row_t psm_field_look[1] = { { 12.0f, { 0.55f, 0.68f, 0.85f }, { 0.55f, 0.68f, 0.85f } } };
+
+/* A caster object: its caster vertices and triangles (each a run), and its box in the world (made at load; a mover's
+   every frame). */
+typedef struct psm_cobj {
+    unsigned v0, vn, t0, tn;
+    unsigned mover;
+    float lo[3], hi[3];
+} psm_cobj_t;
+
+/* A mover: a template placed every frame at (x, z), turned to its bearing and tipped forward by tilt about its hip. */
+typedef struct psm_mover {
+    unsigned kind;                      /* 0 a person, 1 a hen */
+    float x, z, bearing, tilt;          /* story metres (z north), radians from north clockwise, radians nose down */
+    unsigned v0, vn, cv0, cvn, co;      /* its screen vertices, its caster vertices, its caster object */
+    float t, b[4];                      /* a hen: the time left in its move, its bounds (story x0, x1, z0, z1) */
+    int mode;
+    uint32_t rng;
+} psm_mover_t;
+
 typedef struct psm_scene {
     float row_r[PSM_ROWS_MAX];
     unsigned rows;                      /* rings */
     float mv[PSM_MV_MAX][3], mn[PSM_MV_MAX][3];
-    uint8_t mkind[PSM_MV_MAX];          /* 0 a pole, 1 and 2 the cows */
-    uint16_t mt[PSM_MT_MAX][3];
+    uint8_t mkind[PSM_MV_MAX];          /* the vertex's colour, an index into pal (the field: 0 a pole, 1 and 2 the cows) */
+    uint16_t mt[PSM_MT_MAX][3];         /* in strip order: a strip's triangle i is its vertices i, i + 1, i + 2 */
+    uint8_t mstart[PSM_MT_MAX];         /* 1: the triangle starts a strip (the field: every one) */
     uint8_t mtmov[PSM_MT_MAX];          /* 1: the triangle is a mover's (a cow; the town's people and hens), 0: static (a pole; the town's houses) */
     unsigned mvn, mtn;
+    unsigned mdyn0, tdyn0;              /* the movers' first vertex and triangle (mvn and mtn: none): placed every frame */
+    float cv[PSM_CV_MAX][3];            /* the casters: the map is drawn from these, never from the screen mesh */
+    uint16_t ct[PSM_CT_MAX][3];
+    uint8_t ctmov[PSM_CT_MAX];          /* 1: a mover's caster (CASTERS movers only keeps these) */
+    unsigned cvn, ctn, cdyn0;
+    psm_cobj_t co[PSM_CO_MAX];
+    unsigned con;
+    psm_mover_t mover[PSM_MOVERS_MAX];
+    unsigned movern;
+    float dloc[PSM_DYN_V_MAX][3], dnloc[PSM_DYN_V_MAX][3], dcloc[PSM_DYN_CV_MAX][3];   /* the movers' templates, local to their feet */
+    float pal[PSM_PAL_MAX][3];
+    unsigned paln;
+    float amb[3], sunc[3];              /* the light: the ambient colour, and the sun's at N.L 1 */
+    float slab[2];                      /* the fit's receiver slab, 0 .. this many metres, by route */
+    float ground_uv;                    /* the ground texture's repeats a metre */
+    int ground_tex;                     /* 0 the checker, 1 the cobbles */
+    const psm_look_row_t *look;         /* the sky and fog table */
+    unsigned lookn;
+    float x0, x1, z0, z1;               /* the walk area, world x and z */
+    int town;                           /* 0 the field, 1 the town */
     float obst[PSM_OBST_MAX][3];        /* x, z, radius: the eye stays out of each (psm_walk_limit) */
     unsigned obn;
 } psm_scene_t;
+
+/* The sky and the fog at `hour` from the scene's table. */
+static inline void psm_look_at(const psm_scene_t *s, float hour, float sky[3], float fog[3]) {
+    const psm_look_row_t *t = s->look ? s->look : psm_field_look;
+    const unsigned n = s->look ? s->lookn : 1u;
+    unsigned i = 0, k;
+    float u = 0.0f;
+
+    if (n > 1u && hour > t[0].hour) {
+        while (i + 2u < n && hour > t[i + 1u].hour) i++;
+        u = sh4der_clamp_((hour - t[i].hour) * sh4der_recip_pos_(t[i + 1u].hour - t[i].hour + 1e-6f), 0.0f, 1.0f);
+    }
+    for (k = 0; k < 3u; k++) {
+        const float s1 = n > 1u ? t[i + 1u].sky[k] : t[0].sky[k], f1 = n > 1u ? t[i + 1u].fog[k] : t[0].fog[k];
+
+        sky[k] = t[i].sky[k] + (s1 - t[i].sky[k]) * u;
+        fog[k] = t[i].fog[k] + (f1 - t[i].fog[k]) * u;
+    }
+}
 
 /* A box of half sizes h round c, turned by yaw about y, then scaled by s and moved to at: 24 vertices (a normal a face), 12 triangles. */
 static inline void psm_scene_box_(psm_scene_t *s, const float c[3], const float h[3], float yaw, float scale, const float at[3], unsigned kind, unsigned mover) {
@@ -210,11 +292,10 @@ static inline void psm_scene_cow_(psm_scene_t *s, float x, float z, float size, 
 #endif
 }
 
-/* The rings, the poles and the cows. Once, at load. */
-static inline void psm_scene_init(psm_scene_t *s) {
+/* The scene cleared and its rings: both scenes have the same ground grid. */
+static inline void psm_scene_rings_(psm_scene_t *s) {
     const float grow = (PSM_ROW_FAR - PSM_ROW_NEAR) / (PSM_FAR - PSM_FIT_NEAR);
     float r = PSM_ROW_R0;
-    unsigned i;
 
     memset(s, 0, sizeof *s);
     while (s->rows < PSM_ROWS_MAX) {
@@ -225,15 +306,106 @@ static inline void psm_scene_init(psm_scene_t *s) {
         if (step < PSM_ROW_NEAR) step = PSM_ROW_NEAR;
         r += step;
     }
+}
+
+/* The caster objects' boxes, from their vertices. */
+static inline void psm_scene_objects_(psm_scene_t *s) {
+    unsigned k, i, c;
+
+    for (k = 0; k < s->con; k++) {
+        psm_cobj_t *o = &s->co[k];
+
+        for (c = 0; c < 3u; c++) { o->lo[c] = 1e30f; o->hi[c] = -1e30f; }
+        for (i = o->v0; i < o->v0 + o->vn; i++)
+            for (c = 0; c < 3u; c++) {
+                if (s->cv[i][c] < o->lo[c]) o->lo[c] = s->cv[i][c];
+                if (s->cv[i][c] > o->hi[c]) o->hi[c] = s->cv[i][c];
+            }
+    }
+}
+
+/* A field object: the vertices and triangles made since (v0, t0), its casters the same (copied at the end of the field's
+   init, so the indices are the same). */
+static inline void psm_scene_obj_(psm_scene_t *s, unsigned v0, unsigned t0, unsigned mover) {
+    if (s->con >= PSM_CO_MAX) return;
+    s->co[s->con].v0 = v0; s->co[s->con].vn = s->mvn - v0;
+    s->co[s->con].t0 = t0; s->co[s->con].tn = s->mtn - t0;
+    s->co[s->con].mover = mover;
+    s->con++;
+}
+
+/* The rings, the poles and the cows. Once, at load (or when the SCENE row picks the field). */
+static inline void psm_scene_init(psm_scene_t *s) {
+    unsigned i, v0, t0;
+
+    psm_scene_rings_(s);
     for (i = 0; i < 10u; i++) {
         const float c[3] = { 0.0f, 2.5f, 0.0f }, h[3] = { 0.15f, 2.5f, 0.15f };
         const float at[3] = { (i & 1u) ? 2.6f : -2.6f, 0.0f, -4.0f - 4.4f * (float)i };
 
+        v0 = s->mvn; t0 = s->mtn;
         psm_scene_box_(s, c, h, 0.0f, 1.0f, at, 0u, 0u);
+        psm_scene_obj_(s, v0, t0, 0u);
         psm_scene_obst_(s, at[0], at[2], 0.2122f + PSM_WALK_BODY);       /* the pole's half diagonal */
     }
+    v0 = s->mvn; t0 = s->mtn;
     psm_scene_cow_(s, 0.3f, -7.0f, 2.2f, 0.5f, 1u);
+    psm_scene_obj_(s, v0, t0, 1u);
+    v0 = s->mvn; t0 = s->mtn;
     psm_scene_cow_(s, -1.6f, -15.0f, 2.6f, -0.9f, 2u);
+    psm_scene_obj_(s, v0, t0, 1u);
+    for (i = 0; i < 3u; i++) memcpy(s->pal[i], psm_albedo[i], sizeof s->pal[i]);
+    s->paln = 3u;
+    memset(s->mstart, 1, s->mtn);
+    s->mdyn0 = s->mvn; s->tdyn0 = s->mtn;
+    s->cvn = s->mvn < PSM_CV_MAX ? s->mvn : PSM_CV_MAX;                   /* the casters: the screen mesh, copied */
+    s->ctn = s->mtn < PSM_CT_MAX ? s->mtn : PSM_CT_MAX;
+    memcpy(s->cv, s->mv, s->cvn * sizeof s->cv[0]);
+    memcpy(s->ct, s->mt, s->ctn * sizeof s->ct[0]);
+    memcpy(s->ctmov, s->mtmov, s->ctn);
+    s->cdyn0 = s->cvn;
+    for (i = 0; i < 3u; i++) { s->amb[i] = PSM_AMBIENT; s->sunc[i] = 1.0f - PSM_AMBIENT; }
+    s->slab[PSM_ROUTE_A] = s->slab[PSM_ROUTE_B] = PSM_SLAB_H;
+    s->ground_uv = 0.5f; s->ground_tex = 0;
+    s->look = psm_field_look; s->lookn = 1u;
+    s->x0 = -PSM_AREA_X; s->x1 = PSM_AREA_X; s->z0 = PSM_AREA_Z0; s->z1 = PSM_AREA_Z1;
+    psm_scene_objects_(s);
+}
+
+/* The movers' vertices from their templates: tipped by tilt about the hip (0.1 m up), turned to the bearing, at (x, -z) in
+   the world; their casters the same, and their objects' boxes. Every frame, before the placement. */
+static inline void psm_movers_apply(psm_scene_t *s) {
+    unsigned k, i, c;
+
+    for (k = 0; k < s->movern; k++) {
+        const psm_mover_t *m = &s->mover[k];
+        psm_cobj_t *o = &s->co[m->co];
+        float sb, cb, st, ct;
+
+        sh4der_sincos_(m->bearing, &sb, &cb);
+        sh4der_sincos_(m->tilt, &st, &ct);
+        for (i = 0; i < m->vn; i++) {
+            const float *l = s->dloc[m->v0 + i - s->mdyn0], *n = s->dnloc[m->v0 + i - s->mdyn0];
+            const float y = (l[1] - 0.1f) * ct + l[2] * st + 0.1f, z = l[2] * ct - (l[1] - 0.1f) * st;
+            const float ny = n[1] * ct + n[2] * st, nz = n[2] * ct - n[1] * st;
+            float *p = s->mv[m->v0 + i], *q = s->mn[m->v0 + i];
+
+            p[0] = m->x + l[0] * cb - z * sb; p[1] = y; p[2] = -m->z + l[0] * sb + z * cb;
+            q[0] = n[0] * cb - nz * sb; q[1] = ny; q[2] = n[0] * sb + nz * cb;
+        }
+        for (c = 0; c < 3u; c++) { o->lo[c] = 1e30f; o->hi[c] = -1e30f; }
+        for (i = 0; i < m->cvn; i++) {
+            const float *l = s->dcloc[m->cv0 + i - s->cdyn0];
+            const float y = (l[1] - 0.1f) * ct + l[2] * st + 0.1f, z = l[2] * ct - (l[1] - 0.1f) * st;
+            float *p = s->cv[m->cv0 + i];
+
+            p[0] = m->x + l[0] * cb - z * sb; p[1] = y; p[2] = -m->z + l[0] * sb + z * cb;
+            for (c = 0; c < 3u; c++) {
+                if (p[c] < o->lo[c]) o->lo[c] = p[c];
+                if (p[c] > o->hi[c]) o->hi[c] = p[c];
+            }
+        }
+    }
 }
 
 /* ---- walking: the camera on the ground (the town demo takes this part whole) ---- */
@@ -341,10 +513,11 @@ static inline unsigned psm_repeat_step(psm_repeat_t *r, int held, float dt) {
 /* The menu's rows, as torchwalk's: one line "ROW: value", D-pad up / down picks, left / right (and A) changes. */
 enum {
     PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
-    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROWS
+    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROWS
 };
 static const char *const psm_row_name[PSM_ROWS] = {
-    "ROUTE", "MAP", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "PCF", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y"
+    "ROUTE", "MAP", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "PCF", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
+    "SCENE", "TIME", "TIME SPEED"
 };
 static const float psm_preset_sun[3][2] = { { 120.0f, 35.0f }, { 0.0f, 20.0f }, { 180.0f, 20.0f } };   /* default, head-on, behind */
 static const char *const psm_preset_name[3] = { "default", "head-on", "behind" };
@@ -358,6 +531,13 @@ typedef struct psm_state {
     float az, el, warp_near, bias_a, bias_b, yaw, pitch, x, z;
     unsigned last;       /* the pad a frame ago */
     int start_used;      /* START was a shift this press (or closed the menu), not a tap */
+    int scene;           /* SCENE: 0 the field, 1 the town (the program loads it when it differs from the scene it has) */
+    float clock;         /* the town's solar time, hours */
+    unsigned tspeed;     /* TIME SPEED: psm_time_speed's index */
+    int sun_free;        /* 1: the sun was set by hand (azimuth, elevation), off the clock */
+    int freeze;          /* START + B: the people and the hens stand still */
+    float cast_t;        /* the cast's clock, seconds */
+    unsigned tpreset;    /* the town's last preset */
 } psm_state_t;
 
 /* What the program reads from the controller: the PSM_BTN_ bits held, the stick -1 .. 1 (y down positive), the triggers 0 .. 1. */
@@ -380,7 +560,11 @@ static inline void psm_state_default(psm_state_t *st) {
     st->bias_a = 0.02f; st->bias_b = 0.0f;
     st->pitch = PSM_PITCH;
     st->dist_i = PSM_DIST_INF;
+    st->clock = 14.0f;
+    st->tspeed = 1u;
 }
+
+#include "psm_town.h"
 
 /* The draw distance in metres, 0 for INFINITE. */
 static inline float psm_dist(const psm_state_t *st) { return st->dist_i < PSM_DIST_STEPS ? (float)psm_dist_m[st->dist_i] : 0.0f; }
@@ -388,7 +572,7 @@ static inline float psm_dist(const psm_state_t *st) { return st->dist_i < PSM_DI
 /* 1 for a row whose change is a value that steps (it repeats when held), 0 for a toggle (one change a press). */
 static inline int psm_row_repeats(int row) {
     return row == PSM_ROW_DIST || row == PSM_ROW_SIZE || row == PSM_ROW_BIAS_A || row == PSM_ROW_BIAS_B || row == PSM_ROW_WARP_NEAR
-        || row == PSM_ROW_AZIMUTH || row == PSM_ROW_ELEVATION || row == PSM_ROW_READOUT || row == PSM_ROW_PRESET;
+        || row == PSM_ROW_AZIMUTH || row == PSM_ROW_ELEVATION || row == PSM_ROW_READOUT || row == PSM_ROW_PRESET || row == PSM_ROW_TIME;
 }
 
 static inline float psm_step_(float x, float d, float lo, float hi) {
@@ -399,6 +583,21 @@ static inline float psm_wrap_360_(float a) {
     if (a >= 360.0f) a -= 360.0f;
     if (a < 0.0f) a += 360.0f;
     return a;
+}
+
+/* The camera and the sun a scene starts with: the town's first view, or the field's origin and its preset's sun. */
+static inline void psm_scene_enter(psm_state_t *st) {
+    if (st->scene) { psm_town_preset_set(st, 0u); return; }
+    st->x = st->z = st->yaw = 0.0f;
+    st->pitch = PSM_PITCH;
+    st->az = psm_preset_sun[st->preset % 3u][0]; st->el = psm_preset_sun[st->preset % 3u][1];
+}
+
+/* the clock a step on, held in the sweep; the sun back on it */
+static inline void psm_clock_step_(psm_state_t *st, float d) {
+    st->clock = psm_step_(st->clock, d, PSM_CLOCK_T0, PSM_CLOCK_T1);
+    st->sun_free = 0;
+    if (st->scene) psm_sun_at(st->clock, &st->az, &st->el);
 }
 
 /* A row changed by d (-1 or +1): a toggle flips, a list steps round, a number steps and stops at its ends. */
@@ -416,15 +615,19 @@ static inline void psm_row_change(psm_state_t *st, int row, int d) {
         case PSM_ROW_BIAS_A: st->bias_a = psm_step_(st->bias_a, 0.005f * (float)d, 0.0f, 0.2f); break;
         case PSM_ROW_BIAS_B: st->bias_b = psm_step_(st->bias_b, 0.5f * (float)d, 0.0f, 4.0f); break;
         case PSM_ROW_WARP_NEAR: st->warp_near = psm_step_(st->warp_near, 0.5f * (float)d, 1.0f, 12.0f); break;
-        case PSM_ROW_AZIMUTH: st->az = psm_wrap_360_(st->az + 5.0f * (float)d); break;
-        case PSM_ROW_ELEVATION: st->el = psm_step_(st->el, 5.0f * (float)d, 5.0f, 85.0f); break;
+        case PSM_ROW_AZIMUTH: st->az = psm_wrap_360_(st->az + 5.0f * (float)d); st->sun_free = 1; break;
+        case PSM_ROW_ELEVATION: st->el = psm_step_(st->el, 5.0f * (float)d, 5.0f, 85.0f); st->sun_free = 1; break;
         case PSM_ROW_INSET: st->inset = !st->inset; break;
         case PSM_ROW_READOUT: st->readout = (st->readout + (d > 0 ? 1 : 2)) % 3; break;   /* off, on, on + the SH-4's split */
         case PSM_ROW_PRESET:
+            if (st->scene) { psm_town_preset_set(st, st->tpreset + (d > 0 ? 1u : PSM_TOWN_PRESETS - 1u)); break; }
             st->preset = (st->preset + (d > 0 ? 1u : 2u)) % 3u;
             st->az = psm_preset_sun[st->preset][0]; st->el = psm_preset_sun[st->preset][1];
             break;
         case PSM_ROW_INVY: st->invert_y = !st->invert_y; break;
+        case PSM_ROW_SCENE: st->scene = !st->scene; psm_scene_enter(st); break;
+        case PSM_ROW_TIME: psm_clock_step_(st, PSM_CLOCK_STEP * (float)d); break;
+        case PSM_ROW_TSPEED: st->tspeed = (st->tspeed + (d > 0 ? 1u : PSM_TIME_SPEEDS - 1u)) % PSM_TIME_SPEEDS; break;
         default: break;
     }
     st->split = st->readout == 2;
@@ -435,9 +638,10 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
     unsigned t;
 
     switch (row) {
-        case PSM_ROW_ROUTE: return st->route == PSM_ROUTE_A ? "A  PVR draws the map" : "B  SH-4 depth map";
+        case PSM_ROW_ROUTE: return st->route == PSM_ROUTE_A ? "A  PVR draws the map" : st->route == PSM_ROUTE_B ? "B  SH-4 depth map"
+                                   : "AB  stub, a frame late";          /* route AB: demo/psm/psm_mapsrc.h */
         case PSM_ROW_MAP: return st->warp ? "PSM (perspective)" : "uniform";
-        case PSM_ROW_CASTERS: return st->movers_only ? "movers only (cows)" : "all";
+        case PSM_ROW_CASTERS: return st->movers_only ? (st->scene ? "movers only (people, hens)" : "movers only (cows)") : "all";
         case PSM_ROW_DIST:
             if (st->dist_i >= PSM_DIST_INF) return "INF: no cut, no fog";
             snprintf(buf, cap, "%u m, fog from %u", (unsigned)psm_dist_m[st->dist_i], (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
@@ -451,8 +655,17 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
         case PSM_ROW_ELEVATION: snprintf(buf, cap, "%u deg", (unsigned)(st->el + 0.5f)); return buf;
         case PSM_ROW_INSET: return st->inset ? "on" : "off";
         case PSM_ROW_READOUT: return st->readout == 0 ? "off" : st->readout == 1 ? "on" : "on + SH-4 split";
-        case PSM_ROW_PRESET: return psm_preset_name[st->preset % 3u];
+        case PSM_ROW_PRESET: return st->scene ? psm_town_preset[st->tpreset % PSM_TOWN_PRESETS].name : psm_preset_name[st->preset % 3u];
         case PSM_ROW_INVY: return st->invert_y ? "on: stick up looks down" : "off: stick up looks up";
+        case PSM_ROW_SCENE: return st->scene ? "town (the market square)" : "field (poles, cows)";
+        case PSM_ROW_TIME:
+            t = (unsigned)(st->clock * 60.0f + 0.5f);
+            snprintf(buf, cap, "%02u:%02u%s", t / 60u, t % 60u, st->sun_free ? " (sun free: az/el set)" : st->scene ? " (the sun on it)" : " (town only)");
+            return buf;
+        case PSM_ROW_TSPEED:
+            if (!psm_time_speed[st->tspeed % PSM_TIME_SPEEDS]) return "paused";
+            snprintf(buf, cap, "x%u", (unsigned)psm_time_speed[st->tspeed % PSM_TIME_SPEEDS]);
+            return buf;
         default: return "?";
     }
 }
@@ -460,7 +673,9 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
 /* One frame of the pad, torchwalk's single-stick scheme. The stick looks (yaw, pitch). Menu closed: Y / A held walk forward /
    back, X / B strafe left / right; D-pad down opens the menu, up flips the route, left / right turn the sun; a tap of START flips
    uniform / PSM; the triggers raise (R) and lower (L) the sun; START held is a shift: START + L / R step the warp's near plane,
-   START + up flips the casters (all / movers only), and a START used so is not a tap. Menu open: the face buttons do not walk;
+   START + up flips the casters (all / movers only), and a START used so is not a tap. In the town the D-pad's left / right
+   step the clock a quarter of an hour (the sun on it), START + left / right turn the sun off the clock, START + B freezes the
+   people and the hens, START + Y the next preset; the triggers set the sun free too. Menu open: the face buttons do not walk;
    D-pad up / down pick a row, left / right and A change it, B or START close it (that START is not a tap either). A value held
    repeats (psm_repeat_step): the menu's stepping rows, the sun's azimuth, the warp's near plane; a toggle changes once a press.
    `lim` holds the walk (NULL: no limits). */
@@ -490,19 +705,23 @@ static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, cons
         for (k = 0; k < nwr; k++) st->warp_near = psm_step_(st->warp_near, 0.5f, 1.0f, 12.0f);
         for (k = 0; k < nwl; k++) st->warp_near = psm_step_(st->warp_near, -0.5f, 1.0f, 12.0f);
         if (down & PSM_BTN_UP) st->movers_only = !st->movers_only;
+        for (k = 0; k < nr; k++) { st->az = psm_wrap_360_(st->az + 5.0f); st->sun_free = 1; }   /* the sun off the clock */
+        for (k = 0; k < nl; k++) { st->az = psm_wrap_360_(st->az - 5.0f); st->sun_free = 1; }
+        if (down & PSM_BTN_B) st->freeze = !st->freeze;
+        if (down & PSM_BTN_Y) psm_row_change(st, PSM_ROW_PRESET, 1);
         lt = rt = 0.0f;                                         /* a trigger under START is the warp's, not the sun's */
     } else {
         if ((up & PSM_BTN_START) && !st->start_used) st->warp = !st->warp;
         if (down & PSM_BTN_DOWN) st->menu = 1;
         if (down & PSM_BTN_UP) st->route = !st->route;
-        for (k = 0; k < nr; k++) st->az = psm_wrap_360_(st->az + 5.0f);
-        for (k = 0; k < nl; k++) st->az = psm_wrap_360_(st->az - 5.0f);
+        for (k = 0; k < nr; k++) { if (st->scene) psm_clock_step_(st, PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az + 5.0f); }
+        for (k = 0; k < nl; k++) { if (st->scene) psm_clock_step_(st, -PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az - 5.0f); }
         if (held & PSM_BTN_Y) fwd += 1.0f;
         if (held & PSM_BTN_A) fwd -= 1.0f;
         if (held & PSM_BTN_X) side -= 1.0f;
         if (held & PSM_BTN_B) side += 1.0f;
     }
-    if (lt > 0.0f || rt > 0.0f) st->el = psm_step_(st->el, (rt - lt) * PSM_SUN_SPEED * dt, 5.0f, 85.0f);
+    if (lt > 0.0f || rt > 0.0f) { st->el = psm_step_(st->el, (rt - lt) * PSM_SUN_SPEED * dt, 5.0f, 85.0f); st->sun_free = 1; }
     psm_walk(&st->x, &st->z, &st->yaw, &st->pitch, psm_axis_(pad->sx), psm_axis_(pad->sy), st->invert_y, fwd, side, dt, lim);
     st->split = st->readout == 2;
     st->last = held;
@@ -553,7 +772,9 @@ typedef struct psm_frame {
     int head_on;                /* the warp was asked for and had no fit: the uniform map stands in */
     unsigned size;
     float ratio[4];             /* ground a texel covers over ground a pixel covers at 4, 10, 25, 60 m; under 0 for none */
-    float shadow_grey;          /* what a shadowed ground texel is multiplied by on route A: the ambient share */
+    float shadow_grey;          /* what a shadowed ground texel is multiplied by on route A: the ambient share (green) */
+    float shadow_rgb[3];        /* and by channel, for a tinted light */
+    float slab;                 /* the fit's receiver slab this frame (the scene's, by route) */
     unsigned grows, gcols;      /* rings and spokes this frame */
     unsigned gvn;
     float rows[16];             /* the camera's world-to-clip rows at the render's near plane (zero for a bad camera) */
@@ -567,8 +788,12 @@ typedef struct psm_frame {
     float guv[PSM_GV_MAX][2];   /* route A: the map target's coordinates */
     uint8_t gok[PSM_GV_MAX];    /* route A: the vertex has coordinates on the fit's side of the light's singularity */
     uint8_t mlit[PSM_MV_MAX];   /* the sun's share at a model vertex, 0 .. 255: N.L, times the shadow on route B */
-    float mh[PSM_MV_MAX][4];    /* route B's scratch: the casters in the map's homogeneous form (X, Y, K, W) */
-    float ma[PSM_MV_MAX][4];    /* route A: the casters in the map's homogeneous form (X, Y, ., W), once a frame */
+    float mh[PSM_CV_MAX][4];    /* route B's scratch: the casters in the map's homogeneous form (X, Y, K, W) */
+    float ma[PSM_CV_MAX][4];    /* route A: the casters in the map's homogeneous form (X, Y, ., W), once a frame */
+    uint8_t con[PSM_CO_MAX];    /* 1: the caster object's box touches the map's square (psm_frame_cull_) */
+    unsigned cull_objs, cull_tris;   /* objects and their triangles left out by it this frame */
+    uint8_t mvis[PSM_MV_MAX];   /* 1: the model vertex is a corner of a triangle that is sent (psm_place_geo) */
+    int vis_ok;                 /* mvis is this frame's: route B compares those vertices only */
     /* the placement (psm_place): on the screen, the cells and the model triangles with area, and the colours */
     int place_ok;
     unsigned place_gen;         /* gpos_gen the placement was made for */
@@ -590,9 +815,9 @@ typedef struct psm_frame {
 
 static const float psm_probe_m[4] = { 4.0f, 10.0f, 25.0f, 60.0f };
 
-/* The scene's walk: the area and the circles round the poles and the cows. */
+/* The scene's walk: the area and the circles round the poles and the cows (the town: the well and the cross). */
 static inline void psm_scene_limits(const psm_scene_t *s, psm_walk_limits_t *lim) {
-    lim->x0 = -PSM_AREA_X; lim->x1 = PSM_AREA_X; lim->z0 = PSM_AREA_Z0; lim->z1 = PSM_AREA_Z1;
+    lim->x0 = s->x0; lim->x1 = s->x1; lim->z0 = s->z0; lim->z1 = s->z1;
     lim->circle = (const float (*)[3])s->obst; lim->n = s->obn;
 }
 
@@ -647,7 +872,9 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
     sh4der_sincos_(st->az * 0.0174533f, &sa, &ca);
     sh4der_sincos_(st->el * 0.0174533f, &se, &ce);
     f->sun[0] = sa * ce; f->sun[1] = se; f->sun[2] = -ca * ce;
-    f->shadow_grey = sh4der_div_(PSM_AMBIENT, PSM_AMBIENT + (1.0f - PSM_AMBIENT) * f->sun[1]);
+    for (c = 0; c < 3u; c++) f->shadow_rgb[c] = sh4der_div_(s->amb[c], s->amb[c] + s->sunc[c] * f->sun[1]);
+    f->shadow_grey = f->shadow_rgb[1];
+    f->vis_ok = 0;
 
     /* the spokes the view covers round the eye's lattice point: the centre is a whole lattice step and the window starts on
        a whole spoke, so a vertex is the same point every frame. The positions change only when the window moves by a spoke,
@@ -676,8 +903,9 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
     f->size = psm_map_sizes[st->size_i % PSM_MAP_SIZES];
     f->built = 0; f->head_on = 0;
     n = 0;
+    f->slab = s->slab[st->route != PSM_ROUTE_A ? 1 : 0];          /* route B's slab for AB too: it compares the models */
     if (sh4der_psm_frustum(&f->cam, PSM_FIT_NEAR, PSM_FAR, corners))
-        n = sh4der_psm_slab_pts((const float (*)[3])corners, up, 0.0f, PSM_SLAB_H, pts);
+        n = sh4der_psm_slab_pts((const float (*)[3])corners, up, 0.0f, f->slab, pts);
     if (n) {
         if (st->warp) {
             f->built = sh4der_psm_build_warp(&f->map, &f->cam, st->warp_near, f->sun, &pts[0][0], n);
@@ -715,25 +943,61 @@ static inline void psm_frame_unshadowed(psm_frame_t *f, const psm_scene_t *s) {
 static inline int psm_frame_b_begin(psm_frame_t *f, const psm_scene_t *s, uint16_t *depth) {
     float lo, hi;
 
-    if (!f->built || !sh4der_psm_raster_key_range(f->map.light, &s->mv[0][0], 3u * sizeof(float), s->mvn, &lo, &hi)) return 0;
+    if (!f->built || !sh4der_psm_raster_key_range(f->map.light, &s->cv[0][0], 3u * sizeof(float), s->cvn, &lo, &hi)) return 0;
     return sh4der_psm_raster_begin(&f->raster, &f->map, depth, f->size, lo - 0.25f, hi + 0.25f);
 }
 
-/* Route B, step 2: the casters into the map. Each vertex is transformed once. */
-/* 1 when model triangle i goes into the map: every one, or a mover's only (movers_only). The receivers do not change: with
+/* 1 when caster triangle i goes into the map: every one, or a mover's only (movers_only). The receivers do not change: with
    the static casters off, nothing shades a mover but the movers. */
-static inline int psm_caster_on(const psm_scene_t *s, unsigned i, int movers_only) { return !movers_only || s->mtmov[i]; }
+static inline int psm_caster_on(const psm_scene_t *s, unsigned i, int movers_only) { return !movers_only || s->ctmov[i]; }
 
+/* 1 when the box lo .. hi can touch the map: 0 only when its eight corners are all in front of the light's singularity
+   (W > 0) and all past one side of the map's square. W is linear, so the whole box then has W > 0 and maps into the hull
+   of its corners' places: nothing of it is in the square, and no caster in it draws a texel. A box with a corner at or
+   behind the singularity is kept (route B draws both signs of W). */
+static inline int psm_box_in_map(const sh4der_psm_t *map, const float lo[3], const float hi[3]) {
+    int lx = 1, hx = 1, ly = 1, hy = 1;
+    unsigned c;
+
+    for (c = 0; c < 8u; c++) {
+        const float p[3] = { (c & 1u) ? hi[0] : lo[0], (c & 2u) ? hi[1] : lo[1], (c & 4u) ? hi[2] : lo[2] };
+        float h[4];
+
+        sh4der_psm_xform(map->m, p, 1.0f, h);
+        if (!sh4der_finite_(h[3]) || !(h[3] > SH4DER_PSM_TRI_EPS)) return 1;
+        lx &= h[0] < -1.001f * h[3]; hx &= h[0] > 1.001f * h[3];
+        ly &= h[1] < -1.001f * h[3]; hy &= h[1] > 1.001f * h[3];
+    }
+    return !(lx || hx || ly || hy);
+}
+
+/* This frame's caster objects against the map's own square, not the view: a caster out of view toward the sun stays. */
+static inline void psm_frame_cull_(psm_frame_t *f, const psm_scene_t *s) {
+    unsigned k;
+
+    f->cull_objs = f->cull_tris = 0u;
+    for (k = 0; k < s->con; k++) {
+        f->con[k] = (uint8_t)(f->built && psm_box_in_map(&f->map, s->co[k].lo, s->co[k].hi));
+        if (!f->con[k]) { f->cull_objs++; f->cull_tris += s->co[k].tn; }
+    }
+}
+
+/* Route B, step 2: the casters into the map. Each vertex is transformed once; an object off the map's square is not
+   rasterised. tris counts the casters CASTERS gives (culled or not), drawn those that drew a texel. */
 static inline void psm_frame_b_casters(psm_frame_t *f, const psm_scene_t *s, int movers_only) {
     psm_xf_t xf;
-    unsigned i;
+    unsigned i, k, given = 0;
 
+    psm_frame_cull_(f, s);
     psm_xf_load(&xf, f->raster.m);                   /* the map's rows with the depth column: (X, Y, K, W) */
-    for (i = 0; i < s->mvn; i++) psm_xf_apply(&xf, s->mv[i], f->mh[i]);
-    for (i = 0; i < s->mtn; i++)
-        if (psm_caster_on(s, i, movers_only))
-            sh4der_psm_raster_tri_h(&f->raster, f->mh[s->mt[i][0]], f->mh[s->mt[i][1]], f->mh[s->mt[i][2]]);
-    f->tris = f->raster.tris; f->drawn = f->raster.drawn;
+    for (i = 0; i < s->cvn; i++) psm_xf_apply(&xf, s->cv[i], f->mh[i]);
+    for (k = 0; k < s->con; k++)
+        for (i = s->co[k].t0; i < s->co[k].t0 + s->co[k].tn; i++)
+            if (psm_caster_on(s, i, movers_only)) {
+                given++;
+                if (f->con[k]) sh4der_psm_raster_tri_h(&f->raster, f->mh[s->ct[i][0]], f->mh[s->ct[i][1]], f->mh[s->ct[i][2]]);
+            }
+    f->tris = given; f->drawn = f->raster.drawn;
 }
 
 /* Route B, step 3: the compare. The ground through the plane compare (its axes are x and z); a model vertex that
@@ -747,6 +1011,7 @@ static inline void psm_frame_b_receivers(psm_frame_t *f, const psm_scene_t *s, c
         const float ndl = sh4der_dot3_(s->mn[i], f->sun);
         float p[3];
 
+        if (f->vis_ok && !f->mvis[i]) continue;          /* not sent this frame: no compare (psm_place_geo ran first) */
         if (!(ndl > 0.0f)) { f->mlit[i] = 0u; continue; }
         p[0] = s->mv[i][0] + s->mn[i][0] * PSM_NORMAL_PUSH;
         p[1] = s->mv[i][1] + s->mn[i][1] * PSM_NORMAL_PUSH;
@@ -776,18 +1041,23 @@ static inline void psm_frame_a_ground(psm_frame_t *f) {
     }
 }
 
-/* Route A: the casters in the map's homogeneous form, once a frame (psm_pvr_tris_h draws them into the target). */
+/* Route A: the casters in the map's homogeneous form, once a frame (psm_pvr_tris_h draws them into the target), and
+   the objects against the map's square (f->con). */
 static inline void psm_frame_a_casters(psm_frame_t *f, const psm_scene_t *s) {
     psm_xf_t xf;
     unsigned i;
 
+    psm_frame_cull_(f, s);
     if (!f->built) return;
     psm_xf_load(&xf, f->map.m);
-    for (i = 0; i < s->mvn; i++) psm_xf_apply(&xf, s->mv[i], f->ma[i]);
+    for (i = 0; i < s->cvn; i++) psm_xf_apply(&xf, s->cv[i], f->ma[i]);
 }
 
-/* The colour scale of a surface: the ambient share plus the sun's, `direct` 0 .. 1. */
+/* The colour scale of a surface: the ambient share plus the sun's, `direct` 0 .. 1 (the field's grey light). */
 static inline float psm_light(float direct) { return PSM_AMBIENT + (1.0f - PSM_AMBIENT) * direct; }
+
+/* channel c of the scene's light */
+static inline float psm_light_c(const psm_scene_t *s, unsigned c, float direct) { return s->amb[c] + s->sunc[c] * direct; }
 
 static inline uint32_t psm_pack_rgb(float r, float g, float b) {
     return 0xff000000u | ((uint32_t)(sh4der_sat_(r) * 255.0f + 0.5f) << 16) | ((uint32_t)(sh4der_sat_(g) * 255.0f + 0.5f) << 8)
@@ -850,11 +1120,20 @@ static inline int psm_cell_seen_(const float a[3], const float b[3], const float
     return 1;
 }
 
-/* This frame's place on the screen and its colours. The ground and the models go through the camera's rows once each: clip
-   and screen positions, the cells whose two strip triangles have area, the models' triangles with area. That depends on the
-   camera and the ground positions only, so a still camera keeps it. The colours follow the sun and the shadows, so they are
-   made every frame: the ground's from a 256 level table. */
-static inline void psm_place(psm_frame_t *f, const psm_scene_t *s) {
+/* model triangle i's flag from its corners' places (and the draw distance) */
+static inline void psm_place_tri_(psm_frame_t *f, const psm_scene_t *s, unsigned i) {
+    const unsigned a = s->mt[i][0], b = s->mt[i][1], k = s->mt[i][2];
+    const unsigned infront = (f->mclip[a][2] > PSM_NEAR) + (f->mclip[b][2] > PSM_NEAR) + (f->mclip[k][2] > PSM_NEAR);
+
+    f->mtri[i] = (uint8_t)(infront == 3u ? sh4der_tri_area_ok(f->mclip[a], f->mclip[b], f->mclip[k], PSM_NEAR, SH4DER_GUARD_MIN_AREA2) : infront ? 2 : 0);
+    if (f->dist > 0.0f && f->mclip[a][2] > f->dist && f->mclip[b][2] > f->dist && f->mclip[k][2] > f->dist) f->mtri[i] = 0u;
+}
+
+/* This frame's place on the screen. The ground and the models go through the camera's rows once each: clip and screen
+   positions, the cells whose two strip triangles have area, the models' triangles with area. That depends on the camera
+   and the ground positions only, so a still camera keeps it; the movers' part is made every frame. mvis marks the model
+   vertices that are sent (route B compares those only). */
+static inline void psm_place_geo(psm_frame_t *f, const psm_scene_t *s) {
     psm_xf_t xf;
     unsigned i, r, c;
 
@@ -872,13 +1151,8 @@ static inline void psm_place(psm_frame_t *f, const psm_scene_t *s) {
                     && sh4der_tri_area_ok(f->gclip[d], f->gclip[a], f->gclip[e], PSM_NEAR, SH4DER_GUARD_MIN_AREA2)
                     && sh4der_tri_area_ok(f->gclip[a], f->gclip[e], f->gclip[b], PSM_NEAR, SH4DER_GUARD_MIN_AREA2));
             }
-        for (i = 0; i < s->mtn; i++) {
-            const unsigned a = s->mt[i][0], b = s->mt[i][1], k = s->mt[i][2];
-            const unsigned infront = (f->mclip[a][2] > PSM_NEAR) + (f->mclip[b][2] > PSM_NEAR) + (f->mclip[k][2] > PSM_NEAR);
-
-            f->mtri[i] = (uint8_t)(infront == 3u ? sh4der_tri_area_ok(f->mclip[a], f->mclip[b], f->mclip[k], PSM_NEAR, SH4DER_GUARD_MIN_AREA2) : infront ? 2 : 0);
-        }
-        if (f->dist > 0.0f) {                                    /* DRAW DISTANCE: what is wholly past it in view depth is not sent */
+        for (i = 0; i < s->mtn; i++) psm_place_tri_(f, s, i);    /* DRAW DISTANCE: what is wholly past it in view depth is not sent */
+        if (f->dist > 0.0f)
             for (r = 0; r + 1u < f->grows; r++)
                 for (c = 0; c + 1u < f->gcols; c++) {
                     const unsigned a = r * f->gcols + c, b = a + 1u, d = a + f->gcols, e = d + 1u;
@@ -886,23 +1160,48 @@ static inline void psm_place(psm_frame_t *f, const psm_scene_t *s) {
                     if (f->gclip[a][2] > f->dist && f->gclip[b][2] > f->dist && f->gclip[d][2] > f->dist && f->gclip[e][2] > f->dist)
                         f->cell[r * PSM_COLS + c] = 0u;
                 }
-            for (i = 0; i < s->mtn; i++)
-                if (f->mclip[s->mt[i][0]][2] > f->dist && f->mclip[s->mt[i][1]][2] > f->dist && f->mclip[s->mt[i][2]][2] > f->dist) f->mtri[i] = 0u;
-        }
         f->place_ok = 1; f->place_gen = f->gpos_gen; memcpy(f->place_rows, f->rows, sizeof f->rows); f->place_dist = f->dist;
+    } else if (s->mdyn0 < s->mvn) {                              /* the movers: every frame */
+        psm_xf_load(&xf, f->rows);
+        for (i = s->mdyn0; i < s->mvn; i++) psm_place_pt_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
+        for (i = s->tdyn0; i < s->mtn; i++) psm_place_tri_(f, s, i);
     }
-    for (r = 0; r < 256u; r++) {
-        const float l = psm_light(f->sun[1] * (float)r * (1.0f / 255.0f));
+    memset(f->mvis, 0, s->mvn);
+    for (i = 0; i < s->mtn; i++)
+        if (f->mtri[i]) f->mvis[s->mt[i][0]] = f->mvis[s->mt[i][1]] = f->mvis[s->mt[i][2]] = 1u;
+    f->vis_ok = 1;
+}
 
-        f->glut[r] = psm_pack_rgb(l, l, l);
+/* This frame's colours: they follow the sun and the shadows, so they are made every frame, the ground's from a 256 level
+   table. The light by channel (the field's is grey). */
+static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
+    unsigned i, r;
+
+    for (r = 0; r < 256u; r++) {
+        const float d = f->sun[1] * (float)r * (1.0f / 255.0f);
+
+        f->glut[r] = psm_pack_rgb(psm_light_c(s, 0u, d), psm_light_c(s, 1u, d), psm_light_c(s, 2u, d));
     }
     for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut[f->glit[i]];
     for (i = 0; i < s->mvn; i++) {
-        const float l = psm_light((float)f->mlit[i] * (1.0f / 255.0f));
-        const float *alb = psm_albedo[s->mkind[i] % 3u];
+        const float d = (float)f->mlit[i] * (1.0f / 255.0f);
+        const float *alb = s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
 
-        f->mcol[i] = psm_pack_rgb(alb[0] * l, alb[1] * l, alb[2] * l);
+        f->mcol[i] = psm_pack_rgb(alb[0] * psm_light_c(s, 0u, d), alb[1] * psm_light_c(s, 1u, d), alb[2] * psm_light_c(s, 2u, d));
     }
+}
+
+/* The placement and the colours together (the host test's order: after the lit and the lookup). */
+static inline void psm_place(psm_frame_t *f, const psm_scene_t *s) {
+    psm_place_geo(f, s);
+    psm_colour(f, s);
+}
+
+/* The last model triangle of the run that starts at i: i .. the returned one are in one strip and all placed with area
+   (mtri 1), so one strip sends them: the first's corners 0 and 1, then each one's corner 2. */
+static inline unsigned psm_model_run_end(const psm_frame_t *f, const psm_scene_t *s, unsigned i) {
+    while (i + 1u < s->mtn && !s->mstart[i + 1u] && f->mtri[i + 1u] == 1u) i++;
+    return i;
 }
 
 /* ---- a model triangle across the near plane ------------------------------------ */
@@ -1009,21 +1308,23 @@ static inline const char *psm_kind_name(int kind) {
 /* one line: written whole, then cut to the line's width */
 #define PSM_LINE_(i, ...) do { snprintf(big, sizeof big, __VA_ARGS__); memcpy(ln[i], big, PSM_HUD_COLS); ln[i][PSM_HUD_COLS] = 0; } while (0)
 
-/* The eleven lines: 0 the title, 1 texel over pixel, 2 .. 5 the readout (4: the sun and the camera), 6 the cost label, 7 the
-   split of the SH-4's time, 8 the menu's row (torchwalk's line), 9 the controls, 10 the draw distance (with the readout). */
+/* The eleven lines: 0 the title, 1 texel over pixel and the fit's slab, 2 .. 5 the readout (4: the sun and the camera, the
+   town's clock; 5: the map's casters and the objects culled), 6 the cost label, 7 the split of the SH-4's time, 8 the menu's
+   row (torchwalk's line), 9 the controls, 10 the draw distance (with the readout; the town: the placeholders). */
 static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const psm_cost_t *c, char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u]) {
     const unsigned kb = (f->size * f->size * 2u + 1023u) / 1024u;
     char a[4][16], big[192], v[48];
     unsigned i;
 
     memset(ln, 0, PSM_HUD_LINES * (PSM_HUD_COLS + 1u));
-    PSM_LINE_(0, "%s   MAP %s%s", st->route == PSM_ROUTE_A ? "ROUTE A  PVR DRAWS THE MAP" : "ROUTE B  SH-4 DEPTH",
-             !f->built ? "NONE" : !st->warp ? "UNIFORM" : f->head_on ? "PSM -> UNIFORM" : "PSM", f->head_on ? "  [HEAD-ON]" : "");
+    PSM_LINE_(0, "%s   MAP %s%s%s", st->route == PSM_ROUTE_A ? "ROUTE A  PVR DRAWS THE MAP" : "ROUTE B  SH-4 DEPTH",
+             !f->built ? "NONE" : !st->warp ? "UNIFORM" : f->head_on ? "PSM -> UNIFORM" : "PSM", f->head_on ? "  [HEAD-ON]" : "", st->scene ? "  TOWN" : "");
     for (i = 0; i < 4u; i++) {
         if (f->ratio[i] < 0.0f) snprintf(a[i], sizeof a[i], "--");
         else psm_f1_(a[i], sizeof a[i], f->ratio[i] > 999.0f ? 999.0f : f->ratio[i]);
     }
-    PSM_LINE_(1, "TEXEL/PX  4m %s  10m %s  25m %s  60m %s", a[0], a[1], a[2], a[3]);
+    psm_f1_(v, sizeof v, f->slab);
+    PSM_LINE_(1, "TEXEL/PX  4m %s  10m %s  25m %s  60m %s  SLAB 0-%s", a[0], a[1], a[2], a[3], v);
     PSM_LINE_(2, "MAP %ux%u  %u KB %s  text %u KB VRAM", f->size, f->size, kb, st->route == PSM_ROUTE_A ? "VRAM (render target)" : "RAM (16-bit depth)",
              PSM_TEXT_KB);
     psm_f1_(a[0], sizeof a[0], st->warp_near);
@@ -1031,14 +1332,24 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
              st->route == PSM_ROUTE_A ? "no" : "yes", st->movers_only ? "MOVERS" : "ALL");
     psm_f1_(a[2], sizeof a[2], st->x);
     psm_f1_(a[3], sizeof a[3], st->z);
-    PSM_LINE_(4, "SUN az %u el %u   CAM x %s z %s  hdg %u  pitch %d", (unsigned)(st->az + 0.5f), (unsigned)(st->el + 0.5f), a[2], a[3],
-             (unsigned)(st->yaw * 57.29578f + 0.5f) % 360u, (int)(-st->pitch * 57.29578f + (st->pitch > 0.0f ? -0.5f : 0.5f)));
+    if (st->scene) {                                             /* the town: the clock, the camera in story metres (z north) */
+        const unsigned t = (unsigned)(st->clock * 60.0f + 0.5f);
+
+        psm_f1_(a[3], sizeof a[3], -st->z);
+        snprintf(a[0], sizeof a[0], "%02u:%02u", t / 60u, t % 60u);
+        snprintf(a[1], sizeof a[1], "x%u", (unsigned)psm_time_speed[st->tspeed % PSM_TIME_SPEEDS]);
+        PSM_LINE_(4, "%s %s SUN %u/%u  CAM x %s z %s  hdg %u pitch %d", st->sun_free ? "free " : a[0],
+                 psm_time_speed[st->tspeed % PSM_TIME_SPEEDS] ? a[1] : "||", (unsigned)(st->az + 0.5f), (unsigned)(st->el + 0.5f), a[2], a[3],
+                 (unsigned)(st->yaw * 57.29578f + 0.5f) % 360u, (int)(-st->pitch * 57.29578f + (st->pitch > 0.0f ? -0.5f : 0.5f)));
+    } else
+        PSM_LINE_(4, "SUN az %u el %u   CAM x %s z %s  hdg %u  pitch %d", (unsigned)(st->az + 0.5f), (unsigned)(st->el + 0.5f), a[2], a[3],
+                 (unsigned)(st->yaw * 57.29578f + 0.5f) % 360u, (int)(-st->pitch * 57.29578f + (st->pitch > 0.0f ? -0.5f : 0.5f)));
     psm_f1_(a[1], sizeof a[1], st->bias_b);
     if (st->route == PSM_ROUTE_B)
-        PSM_LINE_(5, "BIAS a %u mm  b %s  %s  MAP TRIS %u of %u", (unsigned)(st->bias_a * 1000.0f + 0.5f), a[1], st->pcf ? "PCF 2x2" : "1 TEXEL",
-                 f->drawn, f->tris);
+        PSM_LINE_(5, "BIAS a %u mm  b %s  %s  MAP TRIS %u of %u  cull %u", (unsigned)(st->bias_a * 1000.0f + 0.5f), a[1], st->pcf ? "PCF 2x2" : "1 TEXEL",
+                 f->drawn, f->tris, f->cull_objs);
     else
-        PSM_LINE_(5, "LOOKUP per pixel, no bias  MAP TRIS %u of %u", f->drawn, f->tris);
+        PSM_LINE_(5, "LOOKUP per pixel, no bias  MAP TRIS %u of %u  cull %u", f->drawn, f->tris, f->cull_objs);
     if (c && c->have) {
         psm_f1_(a[0], sizeof a[0], c->sh4_ms);
         psm_f1_(a[1], sizeof a[1], c->pvr_ms);
@@ -1053,10 +1364,14 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
         PSM_LINE_(7, "%s", st->route == PSM_ROUTE_B ? "B: build -- clear -- casters -- recv -- ms" : "A: build -- clip -- uv -- ms");
     }
     PSM_LINE_(8, "%s: %s   (D-pad row/change, B close)", psm_row_name[st->row % PSM_ROWS], psm_row_value(st, st->row % PSM_ROWS, v, sizeof v));
-    if (st->dist_i >= PSM_DIST_INF) PSM_LINE_(10, "DIST INF: no cut, no fog   map casters: all distances");
+    if (st->scene && st->dist_i >= PSM_DIST_INF) PSM_LINE_(10, "DIST INF   people (8), hens (4): PLACEHOLDER blocks");
+    else if (st->scene) PSM_LINE_(10, "DIST %u m, fog from %u   people, hens: PLACEHOLDER", (unsigned)psm_dist_m[st->dist_i],
+                                  (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
+    else if (st->dist_i >= PSM_DIST_INF) PSM_LINE_(10, "DIST INF: no cut, no fog   map casters: all distances");
     else PSM_LINE_(10, "DIST %u m: cut, fog from %u m   map casters: all distances", (unsigned)psm_dist_m[st->dist_i],
                    (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
     PSM_LINE_(9, "%s", st->menu ? "D-pad row/change  A change  B/START close  stick look"
+                                : st->scene ? "stick look YAXB walk  Up route  START map  Dn menu  L/R time"
                                 : "stick look YAXB walk  Up route  START map  Dn menu  L/R sun");
 }
 
