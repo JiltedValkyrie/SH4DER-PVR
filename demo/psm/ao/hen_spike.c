@@ -62,7 +62,10 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "hens"
 #define PG_LINES_MAX 120u
+#define PG_TOP 1u                             /* the effect labels of a page are two lines */
 #include "../psm_page.h"
+#include "../psm_effects.h"
+#include "ao_fx.h"
 #define say pg_say
 static psm_fault_crumbs_t crumbs;
 
@@ -81,8 +84,8 @@ static inline uint64_t ns(void) { const uint64_t n = timer_ns_gettime64(); retur
 
 #define RUN 256u
 #define TEXT_W 512u
-#define TEXT_H 64u
-#define TEXT_LINES 4u
+#define TEXT_H 128u
+#define TEXT_LINES 6u                         /* 4 and 5: the effect labels */
 
 static pvr_ptr_t text_mem;
 static pvr_poly_hdr_t h_obj, h_text, h_dim, h_ray;
@@ -142,7 +145,7 @@ static void headers(void) {
     pvr_poly_compile(&h_dim, &c);
 }
 
-/* ---- the text: four lines of 64 characters in a texture ------------------------------------- */
+/* ---- the text: six lines of 64 characters in a texture ------------------------------------- */
 
 static void text_set(unsigned line, const char *fmt, ...) {
     char s[65];
@@ -179,6 +182,29 @@ static void text_put(unsigned line, float x, float y) {
     rect(x - 2.0f, y - 1.0f, x + 514.0f, y + 17.0f, 10.0f, 0, 0, 0, 0, 0xa0000000u);
     flush(); pvr_prim(&h_text, sizeof h_text);
     rect(x, y, x + 512.0f, y + 16.0f, 11.0f, 0.0f, v0, 1.0f, v1, 0xffffffffu);
+}
+
+/* ---- the effect labels (../psm_effects.h): text lines 4 and 5, the Realtime words in yellow ------------- */
+
+static fx_text_t fx_now;                    /* the labels of the view on screen (labels() makes them) */
+static int fx_live;                         /* 0 during the measured stages: two lines of blended pixels are fill */
+static int fx_hidden;                       /* d-pad left held + B */
+
+static void fx_put(unsigned l, float x, float y) {
+    const unsigned n = (unsigned)strlen(fx_now.line[l]);
+    const float v0 = (float)((4u + l) * 16u) * (1.0f / (float)TEXT_H), v1 = (float)((4u + l) * 16u + 16u) * (1.0f / (float)TEXT_H);
+    unsigned c0 = 0, c;
+
+    if (!n) return;
+    flush(); pvr_prim(&h_dim, sizeof h_dim);
+    rect(x - 2.0f, y - 1.0f, x + (float)(n * 8u) + 2.0f, y + 17.0f, 10.0f, 0, 0, 0, 0, 0xa0000000u);
+    flush(); pvr_prim(&h_text, sizeof h_text);
+    for (c = 1; c <= n; c++)
+        if (c == n || fx_marked(&fx_now, l, c) != fx_marked(&fx_now, l, c0)) {
+            rect(x + (float)(c0 * 8u), y, x + (float)(c * 8u), y + 16.0f, 11.0f, (float)(c0 * 8u) * (1.0f / (float)TEXT_W), v0, (float)(c * 8u) * (1.0f / (float)TEXT_W), v1,
+                 fx_marked(&fx_now, l, c0) ? 0xffffdc00u : 0xffffffffu);
+            c0 = c;
+        }
 }
 
 /* ---- scenes on the PVR --------------------------------------------------------------- */
@@ -322,6 +348,11 @@ static int frame(const view_t *v) {
     text_put(1u, 64.0f, 376.0f);
     text_put(2u, 64.0f, 396.0f);
     text_put(3u, 64.0f, 416.0f);
+    if (fx_live && !fx_hidden) {            /* above the costs; one line sits on the lower row */
+        unsigned l;
+
+        for (l = 0; l < fx_now.lines; l++) fx_put(l, 64.0f, 356.0f - 20.0f * (float)(fx_now.lines - 1u - l));
+    }
     flush();
     pvr_list_finish();
     return scene_close();
@@ -377,6 +408,9 @@ static void labels(const view_t *v, const tally_t *t) {
     counts_text(t, line, sizeof line);
     text_set(2u, "%s", line);
     text_set(3u, "X mode Y hens A rays drawn B tick up/down fan START pages");
+    fx_format(&fx_now, v->mode == HENR_EYES ? hen_fx_eyes : hen_fx_sweep, HEN_FX_N);   /* the effect labels follow the mode */
+    text_set(4u, "%s", fx_now.line[0]);
+    text_set(5u, "%s", fx_now.line[1]);
 }
 
 /* ---- start, stop ------------------------------------------------------------------- */
@@ -432,6 +466,7 @@ static void loop(int auto_run) {
     uint64_t t_prev = ns(), t_stage = ns(), run_pvr = 0;
 
     memset(&v, 0, sizeof v);
+    fx_live = !auto_run;
     v.ri = 1u; v.ti = 1u; v.debug = 1;
     if (auto_run) { v.ni = auto_stage[0][0]; v.mode = auto_stage[0][1]; auto_done = 0; }
     apply(&v);
@@ -471,7 +506,8 @@ static void loop(int auto_run) {
             if (hit & CONT_X) { v.mode = (v.mode + 1u) % HENR_MODES; changed = 1; }
             if (hit & CONT_Y) { v.ni = (v.ni + 1u) % 4u; changed = 1; }
             if (hit & CONT_A) { v.debug = !v.debug; }
-            if (hit & CONT_B) { v.ti = (v.ti + 1u) % 4u; changed = 1; }
+            if ((hit & CONT_B) && (now & CONT_DPAD_LEFT)) fx_hide_chord(1, 1, &fx_hidden);     /* left held, then B: the effect labels */
+            else if (hit & CONT_B) { v.ti = (v.ti + 1u) % 4u; changed = 1; }
             if (hit & CONT_DPAD_UP) { v.ri = (v.ri + 1u) % 3u; changed = 1; }
             if (hit & CONT_DPAD_DOWN) { v.ri = (v.ri + 2u) % 3u; changed = 1; }
         }
@@ -501,6 +537,9 @@ static void report(void) {
     say("hens %s: rays against a sweep, the same hens and room.", HENS_STR(HEN_TAG));
     say("%s. Cycles a step of 1/60 s, all hens (PRFC1).", rev);
     say("pre: the eyes or the sweep. post+sep: the push, hens apart.");
+    say("push + separation run in BOTH modes: not the rays' or sweep's.");
+    say("Effect labels: off in the measured stages, on in the live");
+    say(" view (d-pad left held + B hides them).");
     say("model: the modules' cost tables on the counts, ESTIMATE.");
     say("world %u objects %u triangles; grid 16x16, %u items", hr.objs, hr.world.ntri, hr.grid_items);
     say("9 rays + 2 down, tick 100 ms; sweeps look as far as the eyes");
@@ -564,7 +603,7 @@ int main(void) {
             redraw = 1;
         }
         else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
-        if (redraw) { pg_draw(page % pages, "HENS EYES", suite_keys_text("START live view")); redraw = 0; }
+        if (redraw) { pg_draw(page % pages, "HENS EYES", suite_keys_text("START live view")); fx_page(hen_fx_page, HEN_FX_PAGE_N); redraw = 0; }
         thd_sleep(20);
     }
     return 0;

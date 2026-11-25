@@ -31,8 +31,12 @@
                magenta mark is the left half's last polygon and a cyan one the right half's; if the change of clip
                takes effect a polygon early, the magenta mark is cut away
      X  the next split                            Y  swap the sides          A  EXAGGERATE x2 on / off
-     B  the look: CLAY, COLOUR, AO ONLY           L / R  the scene           up / down  K: 2, 4, 8 (scene C: up K, down the hens on / off)
+     B  the look: CLAY, COLOUR, AO ONLY           LT + RT together  the scene      up / down  K: 2, 4, 8 (scene C: up K, down the hens on / off)
      left / right  method 2's reach              stick  turn and lift the camera      START  back to the pages
+     LT / RT  the divider (../psm_split.h): a tile column (32 pixels) a step, held they repeat. At an end one half is
+              hidden and is NOT SENT (no light, no vertices, no target pass that only it used): the other half then
+              shows its method's cost on the frame's time. The run that counts keeps the divider at the middle.
+     up + B   the effect labels on / off (../psm_effects.h)
 
    The two halves are cut by the PVR's user clip (a rectangle in tiles; KallistiOS writes the clip bits into every
    header; a dummy polygon goes before each change of clip, see user_clip). The halves share the vertices' places and differ in colour and in which shadow target the ground reads:
@@ -60,6 +64,7 @@
 #include "ao4_room.h"
 #include "ao4_hens.h"
 #include "tile_cut.h"
+#include "../psm_split.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -76,7 +81,10 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "ao4"
 #define PG_LINES_MAX 120u
+#define PG_TOP 1u                             /* the effect labels of a page are two lines */
 #include "../psm_page.h"
+#include "../psm_effects.h"
+#include "ao_fx.h"
 #define say pg_say
 static psm_fault_crumbs_t crumbs;
 
@@ -100,8 +108,8 @@ static unsigned us_of(uint64_t t) { return (unsigned)((t + 500u) / 1000u); }
 #define MAP_ROWS (AO4_SIZE + 8u)            /* rows allocated for a target; AO4_SIZE + 2 are drawn, as c4's map */
 #define RUN 256u
 #define TEXT_W 512u
-#define TEXT_H 64u
-#define TEXT_LINES 4u
+#define TEXT_H 128u
+#define TEXT_LINES 6u                         /* 4 and 5: the effect labels */
 
 static pvr_ptr_t map_mem[2], text_mem;      /* [0] target S: the sun alone; [1] target A: the sun and the sky directions */
 static pvr_poly_hdr_t h_flat, h_ao, h_ground[2], h_obj, h_text, h_dim;
@@ -220,7 +228,7 @@ static void user_clip(const pvr_poly_hdr_t *dummy, unsigned tx0, unsigned ty0, u
     pvr_prim(cmd, sizeof cmd);
 }
 
-/* ---- the text: four lines of 64 characters in a texture ------------------------------------- */
+/* ---- the text: six lines of 64 characters in a texture ------------------------------------- */
 
 static void text_set(unsigned line, const char *fmt, ...) {
     char s[65];
@@ -259,6 +267,29 @@ static void text_put(unsigned line, unsigned c0, unsigned c1, float x, float y, 
     rect(x - 2.0f, y - 1.0f, x + (float)((c1 - c0) * 8u) + 2.0f, y + 17.0f, 10.0f, 0, 0, 0, 0, 0xa0000000u);
     flush(); pvr_prim(&h_text, sizeof h_text); *hdr = 1;
     rect(x, y, x + (float)((c1 - c0) * 8u), y + 16.0f, 11.0f, u0, v0, u1, v1, 0xffffffffu);
+}
+
+/* ---- the effect labels (../psm_effects.h): text lines 4 and 5, the Realtime words in yellow ------------- */
+
+static fx_text_t fx_now;                    /* the labels of the view on screen (labels() makes them) */
+static int fx_live;                         /* 0 during the measured stages: two lines of blended pixels are fill */
+static int fx_hidden;                       /* d-pad up held + B */
+
+static void fx_put(unsigned l, float x, float y, int *hdr) {
+    const unsigned n = (unsigned)strlen(fx_now.line[l]);
+    const float v0 = (float)((4u + l) * 16u) * (1.0f / (float)TEXT_H), v1 = (float)((4u + l) * 16u + 16u) * (1.0f / (float)TEXT_H);
+    unsigned c0 = 0, c;
+
+    if (!n) return;
+    if (*hdr != 0) { flush(); pvr_prim(&h_dim, sizeof h_dim); *hdr = 0; }
+    rect(x - 2.0f, y - 1.0f, x + (float)(n * 8u) + 2.0f, y + 17.0f, 10.0f, 0, 0, 0, 0, 0xa0000000u);
+    flush(); pvr_prim(&h_text, sizeof h_text); *hdr = 1;
+    for (c = 1; c <= n; c++)
+        if (c == n || fx_marked(&fx_now, l, c) != fx_marked(&fx_now, l, c0)) {
+            rect(x + (float)(c0 * 8u), y, x + (float)(c * 8u), y + 16.0f, 11.0f, (float)(c0 * 8u) * (1.0f / (float)TEXT_W), v0, (float)(c * 8u) * (1.0f / (float)TEXT_W), v1,
+                 fx_marked(&fx_now, l, c0) ? 0xffffdc00u : 0xffffffffu);
+            c0 = c;
+        }
 }
 
 /* ---- scenes on the PVR --------------------------------------------------------------- */
@@ -332,6 +363,7 @@ typedef struct view {
     int mq;                                 /* 3+M draws its target and its quads (0: the run's stage that leaves them out) */
     int cut, still;                         /* target M's pass through its own tiles; the hens stand at their start (the cut's two stages) */
     int marks;                              /* a mark as each half's last polygon (the clip guard's test) */
+    unsigned div;                           /* the divider: the tile column where the right half starts (../psm_split.h); 10 in the run that counts */
     float turn, lift, t;
 } view_t;
 
@@ -551,12 +583,14 @@ static int frame(const view_t *v, cost_t *c, unsigned frame_no) {
     const unsigned ml = split_lr[v->scene][v->split][v->swap ? 1 : 0], mr = split_lr[v->scene][v->split][v->swap ? 0 : 1];
     const unsigned method[2] = { ml, mr };
     const uint64_t tf = ns();
+    split_half_t hf[2];
     ao4_cam_t cam;
     uint64_t t0;
     unsigned side, i;
     int hdr = -1;
 
     memset(c, 0, sizeof *c);
+    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &hf[0], &hf[1]);   /* a half the divider hides is not lit and not sent */
     c->hens = hens_ns;
     t0 = ns();
     ao4_cam_at(s, &cam, v->t, v->turn, v->lift);
@@ -565,6 +599,7 @@ static int frame(const view_t *v, cost_t *c, unsigned frame_no) {
     for (side = 0; side < 2u; side++) {
         const unsigned kind = method[side] == AO4_BAKED || method[side] >= AO4_LMAP ? 1u : 0u;
 
+        if (hf[side].hidden) continue;
         t0 = ns();
         ao4_light(s, method[side], v->look, v->exaggerate, col[side]);
         c->light[kind] = ns() - t0;
@@ -576,34 +611,38 @@ static int frame(const view_t *v, cost_t *c, unsigned frame_no) {
         c->light[0] = ns() - t0;
     }
     if (!map_pass(s, v, 0, c)) return 0;
-    if (ml == AO4_MAP || mr == AO4_MAP) { c->have_a = 1; if (!map_pass(s, v, 1, c)) return 0; }
-    if ((ml == AO4_LMAP_M || mr == AO4_LMAP_M) && v->hens && v->mq) { c->have_m = 1; if (!m_pass(s, v, c, frame_no)) return 0; }
+    if ((ml == AO4_MAP && !hf[0].hidden) || (mr == AO4_MAP && !hf[1].hidden)) { c->have_a = 1; if (!map_pass(s, v, 1, c)) return 0; }
+    if (((ml == AO4_LMAP_M && !hf[0].hidden) || (mr == AO4_LMAP_M && !hf[1].hidden)) && v->hens && v->mq) { c->have_m = 1; if (!m_pass(s, v, c, frame_no)) return 0; }
 
     if (!scene_open(-1)) return 0;
     sent = 0;
     pvr_list_begin(PVR_LIST_OP_POLY);
-    user_clip(&h_obj, 0u, 0u, 9u, 14u);
-    i = sent;
-    half(s, col[0], ml == AO4_MAP ? 1u : 0u, ml, v, &cam, &c->side_b[0], 0u);
-    c->side_v[0] = sent - i;
-    user_clip(&h_obj, 10u, 0u, 19u, 14u);
-    i = sent;
-    half(s, col[1], mr == AO4_MAP ? 1u : 0u, mr, v, &cam, &c->side_b[1], 1u);
-    c->side_v[1] = sent - i;
+    for (side = 0; side < 2u; side++) {     /* at the middle: tiles 0 .. 9 and 10 .. 19, as before the divider moved */
+        if (hf[side].hidden) continue;
+        user_clip(&h_obj, hf[side].tx0, hf[side].ty0, hf[side].tx1, hf[side].ty1);
+        i = sent;
+        half(s, col[side], method[side] == AO4_MAP ? 1u : 0u, method[side], v, &cam, &c->side_b[side], side);
+        c->side_v[side] = sent - i;
+    }
     pvr_list_finish();
     pvr_list_begin(PVR_LIST_TR_POLY);
     if (c->have_m) {                        /* the movers' quads, a half at a time */
-        if (ml == AO4_LMAP_M) { user_clip(&h_mdummy, 0u, 0u, 9u, 14u); c->mq_px = m_quads(&cam); }
-        if (mr == AO4_LMAP_M) { user_clip(&h_mdummy, 10u, 0u, 19u, 14u); c->mq_px = m_quads(&cam); }
+        for (side = 0; side < 2u; side++)
+            if (method[side] == AO4_LMAP_M && !hf[side].hidden) { user_clip(&h_mdummy, hf[side].tx0, hf[side].ty0, hf[side].tx1, hf[side].ty1); c->mq_px = m_quads(&cam); }
     }
     pvr_prim(&h_dim, sizeof h_dim); hdr = 0;
-    rect(319.0f, 0.0f, 321.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
+    if (!split_at_end(v->div, SPLIT_COLS)) rect(split_x(v->div) - 1.0f, 0.0f, split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
     text_put(0u, 0u, 31u, 68.0f, 52.0f, &hdr);
     text_put(0u, 32u, 63u, 328.0f, 52.0f, &hdr);
     text_put(1u, 0u, 31u, 68.0f, 372.0f, &hdr);
     text_put(1u, 32u, 63u, 328.0f, 372.0f, &hdr);
     text_put(2u, 0u, 63u, 64.0f, 392.0f, &hdr);
     text_put(3u, 0u, 63u, 64.0f, 412.0f, &hdr);
+    if (fx_live && !fx_hidden) {            /* above the costs; one line sits on the lower row */
+        unsigned l;
+
+        for (l = 0; l < fx_now.lines; l++) fx_put(l, 64.0f, 352.0f - 20.0f * (float)(fx_now.lines - 1u - l), &hdr);
+    }
     flush();
     pvr_list_finish();
     c->scr_v = sent;
@@ -619,11 +658,14 @@ static void labels(const view_t *v, const cost_t *c) {
     const unsigned method[2] = { ml, mr };
     const int room = v->scene == SCENE_ROOM;
     char half_cost[2][33], tail[40];
+    split_half_t hf[2];
     unsigned side;
 
     text_set(0u, "%-32.32s%-32.32s", method_name[ml], method_name[mr]);
+    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &hf[0], &hf[1]);
     for (side = 0; side < 2u; side++) {
-        if (room && method[side] != AO4_MAP && method[side] != AO4_LMAP_M)   /* the room: what a half sends is the comparison */
+        if (hf[side].hidden) snprintf(half_cost[side], sizeof half_cost[0], "half hidden: not sent");
+        else if (room && method[side] != AO4_MAP && method[side] != AO4_LMAP_M)   /* the room: what a half sends is the comparison */
             snprintf(half_cost[side], sizeof half_cost[0], "%u vertices, TA %u KB est", c->side_v[side], (c->side_b[side] + 512u) / 1024u);
         else if (method[side] == AO4_OFF)
             snprintf(half_cost[side], sizeof half_cost[0], "SH4 %u+%u us  PVR map %u us", us_of(c->light[0]), us_of(c->sun), us_of(c->pvr_s));
@@ -640,8 +682,19 @@ static void labels(const view_t *v, const cost_t *c) {
     else if (room) snprintf(tail, sizeof tail, " HENS off");
     text_set(2u, "SCENE %c %s%s K%u reach%u%% %u.%u ms%s", 'A' + v->scene, look_name[v->look], v->exaggerate ? " x2" : "", k_of[v->ki],
              (unsigned)(ao4_reach[v->reach] * 100.0f + 0.5f), us_of(c->frame) / 1000u, us_of(c->frame) % 1000u / 100u, tail);
-    if (room) text_set(3u, "X split Y swap A x2 B look L/R scn up K dn HENS %s", clip_guard ? "CLIP GUARD ON" : "CLIP GUARD OFF");
-    else text_set(3u, "X split Y swap A x2 B look L/R scn pad K,reach %s", clip_guard ? "CLIP GUARD ON" : "CLIP GUARD OFF");
+    if (room) text_set(3u, "X pair Y swap A x2 B look LT/RT div L+R sc up K dn hen GUARD %s", clip_guard ? "ON" : "OFF");
+    else text_set(3u, "X pair Y swap A x2 B look LT/RT div L+R sc pad K,reach GUARD %s", clip_guard ? "ON" : "OFF");
+    {                                       /* the effect labels: what each half shows now (ao_fx.h says where each is read from) */
+        const int sun = !scenes[v->scene].no_sun_shadow && v->look != AO4_AO_ONLY, movers = room && v->hens && v->mq;
+        fx_entry_t fl[3], fr[3];
+        const unsigned nl = ao4_fx_half(ml, sun, movers, fl), nr = ao4_fx_half(mr, sun, movers, fr);
+
+        if (hf[0].hidden) fx_format(&fx_now, fr, nr);           /* one half alone on the screen: its own effects, no L / R */
+        else if (hf[1].hidden) fx_format(&fx_now, fl, nl);
+        else fx_format_split(&fx_now, fl, nl, fr, nr);
+        text_set(4u, "%s", fx_now.line[0]);
+        text_set(5u, "%s", fx_now.line[1]);
+    }
 }
 
 /* ---- start, stop ------------------------------------------------------------------- */
@@ -714,6 +767,7 @@ static void stop(const char *stage) {
 static void view_default(view_t *v) {
     memset(v, 0, sizeof *v);
     v->split = split_first[0]; v->ki = 1u; v->hens = 1; v->mq = 1; v->reach = AO4_REACH_DEFAULT; v->look = AO4_CLAY;
+    v->div = split_middle(SPLIT_COLS);
 }
 
 typedef struct sums {
@@ -780,9 +834,11 @@ static void loop(int auto_run) {
     cost_t c, shown;
     unsigned held = ~0u, frames = 0, stage = 0;
     uint64_t t_prev = ns(), t_stage = ns();
+    split_step_t trig = { 0, 0u };
     int trig_was = 1;
 
     view_default(&v);
+    fx_live = !auto_run;
     memset(&win, 0, sizeof win);
     memset(&shown, 0, sizeof shown);
     ao4_hens_reset(&hens);
@@ -819,7 +875,8 @@ static void loop(int auto_run) {
             if ((hit & CONT_Y) && (now & CONT_DPAD_LEFT)) { clip_guard = !clip_guard; v.marks = 1; changed = 1; }     /* left held, then Y: the clip guard */
             else if (hit & CONT_Y) { v.swap = !v.swap; changed = 1; }
             if (hit & CONT_A) { v.exaggerate = !v.exaggerate; changed = 1; }
-            if (hit & CONT_B) { v.look = (v.look + 1u) % AO4_LOOKS; changed = 1; }
+            if ((hit & CONT_B) && (now & CONT_DPAD_UP)) fx_hide_chord(1, 1, &fx_hidden);                            /* up held, then B: the effect labels */
+            else if (hit & CONT_B) { v.look = (v.look + 1u) % AO4_LOOKS; changed = 1; }
             if (hit & CONT_DPAD_UP) { v.ki = (v.ki + 1u) % 3u; changed = 1; }
             if (hit & CONT_DPAD_DOWN) {     /* the room: the hens; else K down */
                 if (v.scene == SCENE_ROOM) v.hens = !v.hens;
@@ -828,11 +885,13 @@ static void loop(int auto_run) {
             }
             if (hit & CONT_DPAD_RIGHT) { v.reach = (v.reach + 1u) % AO4_REACHES; changed = 1; }
             if ((hit & CONT_DPAD_LEFT) && !(now & CONT_Y)) { v.reach = (v.reach + AO4_REACHES - 1u) % AO4_REACHES; changed = 1; }
-            {                               /* the triggers as one more button */
-                const int trig = st && (st->ltrig > 128 || st->rtrig > 128);
+            {                               /* a trigger moves the divider; both together are one more button: the next scene */
+                const int lt = st && st->ltrig > 128, rt = st && st->rtrig > 128, both = lt && rt;
+                const unsigned d = split_step(&trig, v.div, SPLIT_COLS, lt, rt);
 
-                if (trig && !trig_was) { v.scene = (v.scene + 1u) % N_SCENES; v.split = split_first[v.scene]; v.turn = 0.0f; v.lift = 0.0f; changed = 1; }
-                trig_was = trig;
+                if (d != v.div) { v.div = d; changed = 1; }
+                if (both && !trig_was) { v.scene = (v.scene + 1u) % N_SCENES; v.split = split_first[v.scene]; v.turn = 0.0f; v.lift = 0.0f; changed = 1; }
+                trig_was = both;
             }
         }
         if (changed) { memset(&win, 0, sizeof win); }
@@ -877,6 +936,8 @@ static void report(void) {
 
     suite_rev_text(rev, sizeof rev);
     say("ao4 %s AO side by side. This run's numbers; us unless said.", AO4_STR(AO4_TAG));
+    say("Effect labels: off in the measured stages, on in the live");
+    say(" view (d-pad up held + B hides them).");
     say("%s. CLAY, K 4, reach 60%%, %u s a split", rev, AO4_AUTO_S);
     say("bake at load, 64 rays a vertex: A %u ms, B %u ms", bake_ms[0], bake_ms[1]);
     if (!auto_ok) { say("THE RUN DID NOT FINISH: the lines below are of what ran"); }
@@ -992,7 +1053,7 @@ int main(void) {
             redraw = 1;
         }
         else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
-        if (redraw) { pg_draw(page % pages, "AO ao4", suite_keys_text("START live view")); redraw = 0; }
+        if (redraw) { pg_draw(page % pages, "AO ao4", suite_keys_text("START live view")); fx_page(ao4_fx_page, AO4_FX_PAGE_N); redraw = 0; }
         thd_sleep(20);
     }
     return 0;

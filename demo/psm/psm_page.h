@@ -12,7 +12,8 @@
    PG_COLS x PG_ROWS = 64 x 22 characters under a header line, all inside the title-safe area of a 640 x 480 picture
    (64 pixels in from the sides, 48 from the top and bottom: x 64 .. 575, y 48 .. 431; the older pages started at
    x 20, y 16, outside it): 1.66 times the old page of 50 x 17. PG_BIG 1 before the include goes back to the BIOS
-   font's own size (42 x 14 in the same area) if the small text does not photograph.
+   font's own size (42 x 14 in the same area) if the small text does not photograph. PG_TOP 1 before the include
+   keeps one more row free under the header line (a page is then 21 rows): psm_effects.h's label line, when it is two.
    CRC. The header of every page ends with "CRC xxxxxxxx": the CRC-32 (the zip one) of the page's content, so a
    page typed from a photograph can be checked (tools/page_crc.py). A text page's content is each of its lines as
    shown, in order, each followed by one line feed, up to its last line that is not empty. A graph page's content is
@@ -49,17 +50,20 @@
 #ifndef PG_LINES_MAX
 #define PG_LINES_MAX 900u
 #endif
+#ifndef PG_TOP
+#define PG_TOP 0u                             /* rows kept free under the header line: psm_effects.h's second label line (1) */
+#endif
 
 #if PG_BIG
 #define PG_CW 12u
 #define PG_CH 24u
 #define PG_COLS 42u
-#define PG_ROWS 14u
+#define PG_ROWS (14u - PG_TOP)
 #else
 #define PG_CW 8u
 #define PG_CH 16u
 #define PG_COLS 64u
-#define PG_ROWS 22u
+#define PG_ROWS (22u - PG_TOP)
 #endif
 #define PG_X0 64u                           /* the title-safe area: 64 in from the sides, 48 from the top and bottom */
 #define PG_Y0 48u
@@ -391,17 +395,18 @@ static uint32_t pg_page_crc(unsigned page) {
 /* Page `page` of pg_pages(): the header (title, page n/N, the keys, the page's CRC), then the text or the graph. */
 static void pg_draw(unsigned page, const char *title, const char *keys) {
     const unsigned tp = pg_text_pages();
-    char head[PG_COLS + 1u], crc[16];
+    char head[192], crc[16];
     unsigned i;
 
     vid_clear(0, 0, 0);
-    snprintf(head, sizeof head, "%s p%u/%u%s A/B %s", title, page + 1u, pg_pages() + pg_extra_pages, page >= tp && pg_nplots ? " GRAPH" : "", keys);
+    snprintf(head, sizeof head, "%.80s p%u/%u%s A/B %.80s", title, page + 1u, pg_pages() + pg_extra_pages, page >= tp && pg_nplots ? " GRAPH" : "", keys);
+    head[PG_COLS] = '\0';                   /* a long title or key line is cut at the page's width, on purpose */
     pg_text(PG_X0, PG_Y0, PG_WHITE, head);
     snprintf(crc, sizeof crc, "CRC %08lx", (unsigned long)pg_page_crc(page));
     pg_text(PG_X0 + (PG_COLS - 12u) * PG_CW, PG_Y0, PG_GREY, crc);
     if (page < tp) {
         for (i = 0; i < PG_ROWS && page * PG_ROWS + i < pg_nlines; i++)
-            pg_text(PG_X0, PG_Y0 + PG_CH * (i + 2u), PG_WHITE, pg_lines[page * PG_ROWS + i]);
+            pg_text(PG_X0, PG_Y0 + PG_CH * (i + 2u + PG_TOP), PG_WHITE, pg_lines[page * PG_ROWS + i]);
     } else if (page - tp < pg_nplots) {
         pg_plot_draw(&pg_plots[page - tp]);
     }

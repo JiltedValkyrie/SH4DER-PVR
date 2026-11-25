@@ -21,7 +21,10 @@
 
      X  OPAQUE    D-pad left  DETAIL    B  VISOR    A  SHADOW    Y  IDLE / RUN+AIM
      D-pad up  CLAY / ROOM     D-pad down  HENS (in the room)     L / R triggers  zoom out / in     stick  orbit
-     START  the pages
+     D-pad right  the effect labels (hidden / shown)     START  the pages
+
+   The effect labels (../psm_effects.h, the table in hero_fx.h): two lines over the keys in the live view, OFF in the
+   measured autorun stages (the numbers stay comparable with h1d), on the result pages under the title.
 
    Waits are polled on the timer (the render-done interrupt noted by this program's handler in front of KallistiOS's), no
    longer than LIMIT_NS. The fault catcher (../psm_fault.h) is in. Only a real console's run is evidence. */
@@ -56,7 +59,10 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "hero1"
 #define PG_LINES_MAX 120u
+#define PG_TOP 1u
 #include "../psm_page.h"
+#include "../psm_effects.h"
+#include "hero_fx.h"
 #define say pg_say
 static psm_fault_crumbs_t crumbs;
 
@@ -72,8 +78,8 @@ static unsigned us_of(uint64_t t) { return (unsigned)((t + 500u) / 1000u); }
 #define MAP_ROWS (MAP + 8u)
 #define RUN 256u
 #define TEXT_W 512u
-#define TEXT_H 64u
-#define TEXT_LINES 4u
+#define TEXT_H 128u
+#define TEXT_LINES 6u                  /* 4, 5: the effect labels */
 #define SHADOW_ARGB 0xff8c8c8cu
 #define CLAY 0.80f
 
@@ -84,6 +90,8 @@ static unsigned run_n, sent;
 static uint16_t text_px[TEXT_W * TEXT_H] __attribute__((aligned(32)));
 static char text_ln[TEXT_LINES][65];
 static int text_dirty;
+static fx_text_t fx_t;                 /* the labels' text: lines 4, 5; its spans are drawn yellow */
+static int fx_on, fx_hidden;          /* fx_on: the live view shows the labels; fx_hidden: D-pad right */
 
 static void flush(void) { if (run_n) { pvr_prim(vrun, run_n * sizeof vrun[0]); run_n = 0; } }
 
@@ -162,7 +170,8 @@ static void text_upload(void) {
             const uint8_t (*gl)[PG_CW] = pg_glyph[ch >= 32u && ch < 127u ? ch - 32u : 0u];
 
             for (y = 0; y < PG_CH; y++)
-                for (x = 0; x < PG_CW; x++) text_px[(l * 16u + y) * TEXT_W + i * 8u + x] = (uint16_t)(((gl[y][x] >> 4) << 12) | 0x0fffu);
+                for (x = 0; x < PG_CW; x++) text_px[(l * 16u + y) * TEXT_W + i * 8u + x] = (uint16_t)(((gl[y][x] >> 4) << 12) |
+                    (l >= 4u && fx_marked(&fx_t, l - 4u, i) ? 0x0fd0u : 0x0fffu));   /* a Realtime span: yellow */
         }
     pvr_txr_load(text_px, text_mem, sizeof text_px);
     text_dirty = 0;
@@ -590,6 +599,7 @@ static int frame(view_t *v, cost_t *c, float dt) {
     if (v->hero_on && v->vis) { t0 = ns(); hdr(&h_visor); send_strips(hero.visor_strip0, hero.strips, (const float (*)[3])hs, 2, 0xff909090u); flush(); c->vis = ns() - t0; }
     c->v_scr = sent;
     text_line(0u, 16.0f); text_line(1u, 34.0f); text_line(2u, 52.0f); text_line(3u, 446.0f);
+    if (fx_on && !fx_hidden && fx_t.lines > 0u) { text_line(4u, 408.0f); if (fx_t.lines > 1u) text_line(5u, 426.0f); }
     flush();
     pvr_list_finish();
     if (!scene_close()) return 0;
@@ -611,7 +621,15 @@ static void labels(const view_t *v, const cost_t *c) {
              p / 1000u, p % 1000u / 100u, a / 1000u, a % 1000u / 100u);
     text_set(2u, "TA %u v %uK  hero %u tri %u v  set %u tri  %u.%u m", c->v_scr + c->v_map, (unsigned)((c->ta_scr + c->ta_map + 512u) / 1024u),
              c->tri_hero, hero.vn, c->tri_env, (unsigned)v->dist, (unsigned)(v->dist * 10.0f) % 10u);
-    text_set(3u, "X opq <det B vis A shd Y anim ^env vhens LT/RT zoom ST pages");
+    text_set(3u, "X opq <det B vis A shd Y anim ^env vhens >fx LT/RT zoom ST pages");
+    {
+        fx_entry_t e[HERO_FX_MAX];
+        const unsigned n = hero_fx_live(v->hero_on, v->det, v->vis, v->shd, v->room, e);
+
+        memset(&fx_t, 0, sizeof fx_t);
+        if (n) fx_format(&fx_t, e, n);
+        text_set(4u, "%s", fx_t.line[0]); text_set(5u, "%s", fx_t.line[1]);
+    }
 }
 
 /* ---- the loop, the autorun ---------------------------------------------------------------------------------------- */
@@ -669,6 +687,7 @@ static void loop(int auto_run) {
     view_stage(&v, 1u);
     v.pitch = 0.28f; v.yaw = 0.6f;
     if (auto_run) { view_stage(&v, 0u); memset(auto_sum, 0, sizeof auto_sum); auto_done = 0; }
+    fx_on = !auto_run;                                      /* the labels: live view only */
     hens_reset();
     memset(&win, 0, sizeof win); memset(&shown, 0, sizeof shown);
     labels(&v, &shown); text_upload();
@@ -700,6 +719,7 @@ static void loop(int auto_run) {
             if (hit & CONT_Y) { v.clip = v.clip == HERO_IDLE ? HERO_RUN_AIM : HERO_IDLE; v.t = 0.0f; changed = 1; }
             if (hit & CONT_DPAD_UP) { v.room = !v.room; changed = 1; }
             if (hit & CONT_DPAD_DOWN) { v.hens = !v.hens; changed = 1; }
+            if (fx_hide_chord(1, (hit & CONT_DPAD_RIGHT) != 0u, &fx_hidden)) changed = 1;   /* D-pad right alone: free here */
             if (st) {
                 if (st->joyx > 24 || st->joyx < -24) v.yaw += (float)st->joyx * (1.0f / 128.0f) * dt * 1.6f;
                 if (st->joyy > 24 || st->joyy < -24) v.pitch += (float)st->joyy * (1.0f / 128.0f) * dt * 1.0f;
@@ -737,6 +757,7 @@ static void report(void) {
     suite_rev_text(rev, sizeof rev);
     say("hero1 %s: a skinned hero, each pass's cost. This run's numbers.", HERO_STR(HERO_TAG));
     say("%s. %u s a stage, the first 0.5 s not counted; ms unless said", rev, HERO_AUTO_S);
+    say("effect labels: OFF in the autorun stages, ON in the live view (D-pad right hides them)");
     say("hero: %s, %u vertices, %u triangles, %u strips, 33 bones, clips %u+%u frames", file_state == 0 ? "HERO.BIN" : "built-in (original)",
         hero.vn, hero.tris, hero.strips, hero.frames[0], hero.frames[1]);
     if (file_state < 0) say("HERO.BIN refused: %s; the built-in hero ran", hero_file_error(file_state));
@@ -806,7 +827,7 @@ int main(void) {
             held = ~0u; redraw = 1;
         }
         else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
-        if (redraw) { pg_draw(page % pages, "HERO hero1", suite_keys_text("START live view")); redraw = 0; }
+        if (redraw) { pg_draw(page % pages, "HERO hero1", suite_keys_text("START live view")); fx_page(hero_fx_page, HERO_FX_PAGE_N); redraw = 0; }
         thd_sleep(20);
     }
     return 0;

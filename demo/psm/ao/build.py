@@ -61,7 +61,7 @@ def room_data(a, out):
 
 def main():
     ap = argparse.ArgumentParser(description="Build the AO images, or the room's data.")
-    ap.add_argument("--spike", choices=("ao0", "ao4", "hen", "pd"), default="ao0")
+    ap.add_argument("--spike", choices=("ao0", "ao4", "hen", "pd", "lamp", "d1"), default="ao0")
     ap.add_argument("--tag")
     ap.add_argument("--room-only", action="store_true", help="only the room's data: room_mesh.h and room_ao.h into --out")
     ap.add_argument("--room", default=None, help="the room's folder (room_manifest.json); without it, the placeholder room")
@@ -94,7 +94,7 @@ def main():
     shz_inc = ["-I" + os.path.join(a.sh4zam, "include"), "-I" + os.path.join(ROOT, "third_party", "sh4zam-dce", "include")]
     host = [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", "-DSH4DER_CORE_NO_SH4ZAM"] + lib_inc
     room_inc = []
-    if a.spike in ("ao4", "hen"):           # the room's data and the town's hen, into <out>/room
+    if a.spike in ("ao4", "hen", "lamp", "d1"):   # the room's data and the town's hen, into <out>/room
         room = os.path.join(out, "room")
         if not a.room and not a.placeholder_room and os.path.isfile(os.path.join(HERE, "room", "export", "room_manifest.json")):
             a.room = os.path.join(HERE, "room")
@@ -103,10 +103,18 @@ def main():
             raise SystemExit("no %s: the hen is the town's (tools/bake_town.py makes it; or give --town-mesh)" % a.town_mesh)
         run("room: the town's hen", [sys.executable, os.path.join(ROOT, "demo", "psm", "hero", "tools", "hero_hens.py"), a.town_mesh, room])
         room_inc = ["-I" + room, "-DAO4_TEST_ROOM"]
-    for name in ("ao_layer_test", {"ao0": "ao0_model_test", "ao4": "ao4_scene_test", "hen": "hen_room_test", "pd": "ao_layer_test"}[a.spike]) + (("tile_cut_test",) if a.spike == "ao4" else ()):
+    # the lamp look draws its halo with the library's ring glow: sh4der_bloom.c and what it calls, on the host and in the ELF
+    lamp_src = [os.path.join(ROOT, "src", n) for n in ("sh4der_bloom.c", "sh4der_blade.c", "sh4der_core.c")] if a.spike == "lamp" else []
+    for name in ("ao_layer_test", {"ao0": "ao0_model_test", "ao4": "ao4_scene_test", "hen": "hen_room_test", "pd": "ao_layer_test", "lamp": "ao4_lamp_test", "d1": "d1_model_test"}[a.spike]) + (("tile_cut_test",) if a.spike == "ao4" else ()):
         test = os.path.join(out, name + exe)
-        run("1 host test %s (compile)" % name, host + (room_inc if name in ("ao4_scene_test", "hen_room_test") else []) + [os.path.join(HERE, "test", name + ".c"), "-o", test, "-lm"])
+        run("1 host test %s (compile)" % name, host + (room_inc if name in ("ao4_scene_test", "hen_room_test", "ao4_lamp_test") else []) + [os.path.join(HERE, "test", name + ".c")] +
+            (lamp_src if name == "ao4_lamp_test" else []) + ["-o", test, "-lm"])
         run("1 host test %s (run)" % name, [test])
+    if a.spike in ("lamp", "d1"):           # the divider's maths and the label lines
+        for name in ("psm_split_test", "psm_effects_test"):
+            test = os.path.join(out, name + exe)
+            run("1 host test %s (compile)" % name, [a.host_cc, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I" + os.path.join(HERE, ".."), os.path.join(HERE, "..", "test", name + ".c"), "-o", test])
+            run("1 host test %s (run)" % name, [test])
     if a.town_inc:
         test = os.path.join(out, "ao_layer_test_town" + exe)
         run("1 host test with the town's sink (compile)", host + ["-DPSM_HAVE_TOWN", "-DAO_TEST_TOWN"] + ["-I" + d for d in a.town_inc] +
@@ -122,7 +130,7 @@ def main():
         raise SystemExit("no SH4ZAM at %s (see AGENTS.md, or give --sh4zam)" % a.sh4zam)
     lib = os.path.join(a.sh4zam, "build", "libsh4zam.a")
     run("2 elf", kos_cc + ["-O3", "-Wall", "-Wextra", "-ffast-math", "-ffp-contract=fast", "-mfsrra", "-mfsca", "-fno-math-errno"] + lib_inc + shz_inc + room_inc[:1] +
-        ["-D%s_TAG=%s" % (a.spike.upper(), a.tag), os.path.join(HERE, "%s_spike.c" % a.spike)] + ([lib] if os.path.isfile(lib) else []) + ["-o", elf])
+        ["-D%s_TAG=%s" % (a.spike.upper(), a.tag), os.path.join(HERE, "%s_spike.c" % a.spike)] + lamp_src + ([lib] if os.path.isfile(lib) else []) + ["-o", elf])
     if a.elf_only:
         print("ELF: %s" % elf)
         return 0

@@ -40,7 +40,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
 SUITE_BUILD = os.path.join(ROOT, "demo", "psm", "suite", "build.py")
-KEYS = {"name", "file", "elf", "order", "what", "read", "build", "files", "credits", "note"}
+KEYS = {"name", "file", "elf", "order", "what", "read", "build", "files", "credits", "screen_credits", "note"}
 NEEDED = ("name", "file", "elf", "order", "what", "read")
 PRIVATE = {"TWTEX.BIN", "HERO.BIN"}         # files that are never on this disc
 RESERVED = {"MENU.BIN", "CREDITS.TXT", "1ST_READ.BIN", "IP.BIN"}
@@ -261,7 +261,11 @@ def main():
     os.makedirs(out, exist_ok=True)
     table = os.path.join(out, "demos_list.json")
     with open(table, "w", encoding="utf-8", newline="\n") as f:
-        json.dump({"note": "written by demo/demos_disc.py from %s" % os.path.relpath(a.list, ROOT), "demos": entries}, f, indent=1)
+        # the suite's build reads "tests"; every entry here is a TECH DEMO of its menu. This list's "credits" is a
+        # file's path (checked above); the suite's own "credits" key (what its CREDITS screen must name) is "screen_credits" here.
+        tests = [dict({k: e[k] for k in ("name", "file", "elf", "order", "what", "read")}, group="demos", **({"credits": e["screen_credits"]} if "screen_credits" in e else {}))
+                 for e in entries]
+        json.dump({"note": "written by demo/demos_disc.py from %s" % os.path.relpath(a.list, ROOT), "tests": tests}, f, indent=1)
     argv = [sys.executable, SUITE_BUILD, "--tag", tag, "--list", table, "--prefix", "sh4der-demos", "--title", "SH4DER-PVR DEMOS", "--out", out,
             "--cdi-dir", cdi_dir, "--mkdcdisc", a.mkdcdisc] + (["--no-image"] if a.no_image else [])
     print("== disc: %s" % " ".join(argv), flush=True)

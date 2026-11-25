@@ -1,0 +1,914 @@
+/* SH4DER-PVR: d1, a halo that fades where it meets the scene, by a camera depth map the PVR draws; Dreamcast test
+
+   demo/psm/ao/d1_spike.c
+   Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+
+   The idea (wiki/research/depth-shading-ideas.md, D1): a camera-facing glow cuts a hard line where it passes through
+   a wall. If the scene's depth behind each pixel is known, the glow can fade out there. The PVR has no depth
+   texture, so the depth is drawn: the scene once more from the camera into a small target through a ramp texture
+   looked up by depth (d1_model.h), and that target read as a BUMP texture, whose unit subtracts one number a polygon
+   (Q, the halo's own depth) from the texel and gives a level. The level goes into the frame's destination alpha and
+   the halo is blended through it.
+
+   THREE TESTS, each with its own result page and a picture held on the screen to photograph:
+     T1  the destination-alpha layers alone, no depth map. A strip of the 256 codes as a bump texture, in five bands
+         into a 320 x 240 target, read back:
+           0  CLEAR, FADE (MODULATE, black, K1 0 K3 255), SHOW     1  the same with K1 128 K3 127
+           2  CLEAR, FADE (MODULATEALPHA, black, K 0 / 255), SHOW  3  the level written as colour (REPLACE): the control
+           4  CLEAR, FADE as band 0, NO show: the backdrop's colour must be untouched
+         CLEAR is (1,1,1,0) with ZERO x DESTCOLOR (alpha to 0, colour kept); FADE adds (0,0,0,level) with ONE x ONE;
+         SHOW is white with DESTALPHA x ZERO (alpha as grey). c1 ran CLEAR, an alpha-only add and DESTALPHA on a
+         console (wiki PVR-040); what is NEW here is the bump level as that add, and K1 0 / K3 255.
+         T3 uses the first of bands 0 and 2 that reads as the model says; with neither, T3's fade is not run.
+     T2  the depth map. (a) A quad at one depth and a tilted quad through the ramp: every pixel's code against the
+         depth the SH-4 computes for it. (b) The room from the camera: the codes at the floor's vertices.
+     T3  the fade. One glow quad 0.2 m from a wall, the screen cut in two: left the plain additive glow (the hard
+         line), right four quads: CLEAR, FADE (the map as bump texture, Q = the quad's depth, depth test on), FAR (alpha
+         255 from a quad D1_FADE behind, depth test on: without it the level comes round every D1_TURN), HALO
+         (DESTALPHA x ONE). Stages: no glow; plain; the fade's alpha shown as grey; the fade; the fade without FAR.
+
+   Then the pages. START on the pages: T3 live.
+     X  right half: the fade / its alpha as grey     A  the glow's distance from the wall: 0.1, 0.2, 0.4, 0.8 m
+     B  the FAR quad on / off     LT / RT  the divider     d-pad up held + Y  the effect labels     stick  the camera
+
+   The translucent list is sent in order (autosort off): the layers depend on it. Nothing is written but PVR
+   registers and video memory; the frame buffer's write control is not touched (no 1555 threshold here). Waits are
+   polled, none longer than LIMIT_NS; the fault catcher is in; the program goes back to the suite's menu.
+   Build: python demo/psm/ao/build.py --spike d1 --tag <new tag>. NOT RUN ON A CONSOLE when this file was written:
+   every step named NEW above is untested there, and the design (d1_model.h) is an ESTIMATE until it has. */
+
+#include <kos.h>
+#include <stdarg.h>
+
+#define PSM_FAULT_IMPL
+#include "../psm_fault.h"
+#include "../psm_suite.h"
+#include "ao4_scene.h"
+#include "ao4_draw.h"
+#include "ao4_room.h"
+#include "d1_model.h"
+#include "../psm_split.h"
+
+KOS_INIT_FLAGS(INIT_DEFAULT);
+
+#ifndef D1_TAG
+#define D1_TAG untagged
+#endif
+#define D1_STR_(x) #x
+#define D1_STR(x) D1_STR_(x)
+#ifndef D1_AUTO_S
+#define D1_AUTO_S 5u                        /* seconds a stage of T3, and a picture held on the screen */
+#endif
+#define CYC_PER_MS 200006u                  /* 200.006 MHz, MEASURED (bench s2) */
+
+#define PG_PREFIX "d1"
+#define PG_LINES_MAX 120u
+#define PG_TOP 1u                           /* the effect labels of a page are two lines */
+#include "../psm_page.h"
+#include "../psm_effects.h"
+
+static const fx_entry_t d1_fx[2] = {        /* the room's baked vertex AO (ao4_light); the fade: the SH-4 sends the scene again and four quads, the PVR draws the depth map and compares */
+    { "Ambient Occlusion", FX_SH4, FX_BAKED, NULL }, { "Depth Fade", FX_BOTH, FX_REALTIME, "soft halo" },
+};
+
+#define say pg_say
+static psm_fault_crumbs_t crumbs;
+
+static void step(const char *name) {
+    psm_fault_beat(&crumbs);
+    psm_fault_stage(&crumbs, name);
+    crumbs.frame++;
+}
+
+#define LIMIT_NS 200000000ull
+static inline uint64_t ns(void) { const uint64_t n = timer_ns_gettime64(); return n - n / 1000000000ull * 2502400ull; }   /* KallistiOS's clock, its reload step taken out */
+static inline uint64_t cyc(void) { return perf_cntr_count(PRFC1); }
+static unsigned us_of(uint64_t cycles) { return (unsigned)((cycles * 1000ull + CYC_PER_MS / 2u) / CYC_PER_MS); }
+
+static void wait_ns(uint64_t t) {
+    const uint64_t t0 = ns();
+
+    while (ns() - t0 < t) { }
+}
+
+/* ---- memory, headers ----------------------------------------------------------------- */
+
+#define TW 512u                             /* the target as a texture */
+#define TH 256u
+#define MW 320u                             /* what is drawn of it: the depth map, half the screen each way */
+#define MH 240u
+#define RUN 256u
+#define TEXT_W 512u
+#define TEXT_H 128u
+#define TEXT_LINES 6u
+#define GLOW 32u
+
+static pvr_ptr_t tgt_mem, ramp_mem, strip_mem, glow_mem, text_mem;
+static pvr_poly_hdr_t h_flat, h_ramp, h_clear, h_fade_s[2], h_rep_s, h_show, h_tshow, h_text, h_dim;
+static pvr_poly_hdr_t h_room, h_clear_c, h_fade_c[2], h_far_c, h_halo_c, h_plain_c, h_show_c, h_dummy;
+static pvr_vertex_t vrun[RUN] __attribute__((aligned(32)));
+static unsigned run_n, sent;
+static uint32_t cur_oargb;
+static uint16_t tgt_ram[TW * TH] __attribute__((aligned(32)));
+static uint16_t tex16[256u * 8u] __attribute__((aligned(32)));
+static uint16_t glow_px[GLOW * GLOW] __attribute__((aligned(32)));
+static uint16_t text_px[TEXT_W * TEXT_H] __attribute__((aligned(32)));
+static char text_ln[TEXT_LINES][65];
+static int text_dirty;
+
+static ao4_scene_t room;
+static float scr[AO4_V_MAX][3];
+static uint32_t col[AO4_V_MAX];
+
+static void flush(void) {
+    if (!run_n) return;
+    pvr_prim(vrun, run_n * sizeof vrun[0]);
+    run_n = 0;
+}
+
+static inline void put(int eol, float x, float y, float z, float u, float v, uint32_t argb) {
+    pvr_vertex_t *o;
+
+    if (run_n == RUN) flush();
+    o = &vrun[run_n++];
+    o->flags = eol ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+    o->x = x; o->y = y; o->z = z; o->u = u; o->v = v; o->argb = argb; o->oargb = cur_oargb;
+    sent++;
+}
+
+static void rect(float x0, float y0, float x1, float y1, float z, float u0, float v0, float u1, float v1, uint32_t argb) {
+    put(0, x0, y1, z, u0, v1, argb);
+    put(0, x0, y0, z, u0, v0, argb);
+    put(0, x1, y1, z, u1, v1, argb);
+    put(1, x1, y0, z, u1, v0, argb);
+}
+
+/* A header, then a rectangle through it. */
+static void layer(const pvr_poly_hdr_t *h, float x0, float y0, float x1, float y1, float z, float u0, float v0, float u1, float v1, uint32_t argb, uint32_t oargb) {
+    flush();
+    pvr_prim((void *)(uintptr_t)h, sizeof *h);
+    cur_oargb = oargb;
+    rect(x0, y0, x1, y1, z, u0, v0, u1, v1, argb);
+    flush();
+    cur_oargb = 0u;
+}
+
+#define KQ(k1, k3, q) (((uint32_t)(k1) << 24) | ((uint32_t)(k3) << 8) | ((uint32_t)(q) & 255u))   /* the bump unit's K1, K2 = 0, K3 and Q: the offset colour */
+#define BLACK_A 0xff000000u                 /* the FADE's and FAR's base colour: nothing for the colour, all for alpha */
+#define CLEAR_C 0x00ffffffu                 /* the CLEAR's: the colour kept, alpha to 0 */
+
+static void bump_cxt(pvr_poly_cxt_t *c, pvr_ptr_t mem, unsigned w, unsigned h, int env) {
+    pvr_poly_cxt_txr(c, PVR_LIST_TR_POLY, PVR_TXRFMT_BUMP | PVR_TXRFMT_NONTWIDDLED, (int)w, (int)h, mem, PVR_FILTER_NEAREST);
+    c->gen.culling = PVR_CULLING_NONE; c->gen.specular = 1;      /* the offset colour carries K1, K2, K3 and Q */
+    c->txr.env = env; c->txr.alpha = PVR_TXRALPHA_ENABLE; c->txr.uv_clamp = PVR_UVCLAMP_UV;
+    c->blend.src = PVR_BLEND_ONE; c->blend.dst = PVR_BLEND_ONE;  /* (0, 0, 0, level) added: alpha alone */
+    c->depth.comparison = PVR_DEPTHCMP_ALWAYS; c->depth.write = PVR_DEPTHWRITE_DISABLE;
+}
+
+static void headers(void) {
+    static const int env[2] = { PVR_TXRENV_MODULATE, PVR_TXRENV_MODULATEALPHA };
+    pvr_poly_cxt_t c;
+    unsigned k;
+
+    pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                      /* a backdrop */
+    c.gen.culling = PVR_CULLING_NONE;
+    pvr_poly_compile(&h_flat, &c);
+    pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, 256, 8, ramp_mem, PVR_FILTER_NEAREST);
+    c.gen.culling = PVR_CULLING_NONE; c.txr.env = PVR_TXRENV_REPLACE; c.txr.uv_clamp = PVR_UVCLAMP_V;   /* the map pass: the ramp, u repeats (a turn a repeat) */
+    pvr_poly_compile(&h_ramp, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                      /* CLEAR: dst x (1, 1, 1, 0) */
+    c.gen.culling = PVR_CULLING_NONE;
+    c.blend.src = PVR_BLEND_ZERO; c.blend.dst = PVR_BLEND_DESTCOLOR;
+    c.depth.comparison = PVR_DEPTHCMP_ALWAYS; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_clear, &c);
+    c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    pvr_poly_compile(&h_clear_c, &c);
+    for (k = 0; k < 2u; k++) {                                   /* FADE: T1's strip, and T3's map inside the user clip with the depth test */
+        bump_cxt(&c, strip_mem, 256u, 8u, env[k]);
+        pvr_poly_compile(&h_fade_s[k], &c);
+        bump_cxt(&c, tgt_mem, TW, TH, env[k]);
+        c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+        c.depth.comparison = PVR_DEPTHCMP_GEQUAL;
+        pvr_poly_compile(&h_fade_c[k], &c);
+    }
+    bump_cxt(&c, strip_mem, 256u, 8u, PVR_TXRENV_REPLACE);       /* the control: the level as colour, as c4 wrote it */
+    c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ZERO;
+    pvr_poly_compile(&h_rep_s, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                      /* SHOW: white x destination alpha */
+    c.gen.culling = PVR_CULLING_NONE;
+    c.blend.src = PVR_BLEND_DESTALPHA; c.blend.dst = PVR_BLEND_ZERO;
+    c.depth.comparison = PVR_DEPTHCMP_ALWAYS; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_show, &c);
+    c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    pvr_poly_compile(&h_show_c, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                      /* FAR: (0, 0, 0, 255) added where the scene is behind it */
+    c.gen.culling = PVR_CULLING_NONE; c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ONE;
+    c.depth.comparison = PVR_DEPTHCMP_GEQUAL; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_far_c, &c);
+    pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)GLOW, (int)GLOW, glow_mem, PVR_FILTER_BILINEAR);
+    c.gen.culling = PVR_CULLING_NONE; c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    c.txr.env = PVR_TXRENV_MODULATE; c.txr.uv_clamp = PVR_UVCLAMP_UV;
+    c.blend.src = PVR_BLEND_DESTALPHA; c.blend.dst = PVR_BLEND_ONE;   /* HALO: the glow x destination alpha, added */
+    c.depth.comparison = PVR_DEPTHCMP_ALWAYS; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_halo_c, &c);
+    c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ONE;    /* the plain glow: added where it is in front of the scene */
+    c.depth.comparison = PVR_DEPTHCMP_GEQUAL;
+    pvr_poly_compile(&h_plain_c, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                      /* the room on the screen, inside the user clip */
+    c.gen.culling = PVR_CULLING_NONE; c.gen.clip_mode = PVR_USERCLIP_INSIDE;
+    pvr_poly_compile(&h_room, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                      /* the polygon before a change of clip in the translucent list */
+    c.gen.culling = PVR_CULLING_NONE; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_dummy, &c);
+    pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)TW, (int)TH, tgt_mem, PVR_FILTER_NEAREST);
+    c.gen.culling = PVR_CULLING_NONE; c.txr.env = PVR_TXRENV_REPLACE;   /* the target shown on the screen */
+    pvr_poly_compile(&h_tshow, &c);
+    pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_ARGB4444 | PVR_TXRFMT_NONTWIDDLED, (int)TEXT_W, (int)TEXT_H, text_mem, PVR_FILTER_NEAREST);
+    c.gen.culling = PVR_CULLING_NONE;
+    c.depth.comparison = PVR_DEPTHCMP_ALWAYS; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_text, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);
+    c.gen.culling = PVR_CULLING_NONE;
+    c.depth.comparison = PVR_DEPTHCMP_ALWAYS; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_dim, &c);
+}
+
+/* The user clip, with the polygon that takes its early change first (ao4_spike.c's sequence, CORE 18). */
+static void user_clip(const pvr_poly_hdr_t *dummy, const split_half_t *h) {
+    static uint32_t cmd[8] __attribute__((aligned(32)));
+
+    flush();
+    pvr_prim((void *)(uintptr_t)dummy, sizeof *dummy);
+    put(0, -64.0f, 8.0f, 0.001f, 0.0f, 0.0f, 0xff000000u);
+    put(0, -64.0f, 40.0f, 0.001f, 0.0f, 0.0f, 0xff000000u);
+    put(1, -32.0f, 8.0f, 0.001f, 0.0f, 0.0f, 0xff000000u);
+    flush();
+    cmd[0] = PVR_CMD_USERCLIP; cmd[1] = cmd[2] = cmd[3] = 0u;
+    cmd[4] = h->tx0; cmd[5] = h->ty0; cmd[6] = h->tx1; cmd[7] = h->ty1;
+    pvr_prim(cmd, sizeof cmd);
+}
+
+/* ---- the text ------------------------------------------------------------------------------- */
+
+static void text_set(unsigned line, const char *fmt, ...) {
+    char s[65];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(s, sizeof s, fmt, ap);
+    va_end(ap);
+    if (strcmp(s, text_ln[line])) { strcpy(text_ln[line], s); text_dirty = 1; }
+}
+
+static void text_upload(void) {             /* call with no render running */
+    unsigned l, i, x, y;
+
+    if (!text_dirty) return;
+    memset(text_px, 0, sizeof text_px);
+    for (l = 0; l < TEXT_LINES; l++)
+        for (i = 0; i < 64u && text_ln[l][i]; i++) {
+            const unsigned c = (unsigned char)text_ln[l][i];
+            const uint8_t (*gl)[PG_CW] = pg_glyph[c >= 32u && c < 127u ? c - 32u : 0u];
+
+            for (y = 0; y < PG_CH; y++)
+                for (x = 0; x < PG_CW; x++) text_px[(l * 16u + y) * TEXT_W + i * 8u + x] = (uint16_t)(((gl[y][x] >> 4) << 12) | 0x0fffu);
+        }
+    pvr_txr_load(text_px, text_mem, sizeof text_px);
+    text_dirty = 0;
+}
+
+static fx_text_t fx_now;
+static int fx_live, fx_hidden;
+
+/* A text line at (x, y) on a dark strip; the effect lines' Realtime words in yellow. */
+static void text_put(unsigned line, float x, float y) {
+    const unsigned n = (unsigned)strlen(text_ln[line]);
+    const float v0 = (float)(line * 16u) * (1.0f / (float)TEXT_H), v1 = (float)(line * 16u + 16u) * (1.0f / (float)TEXT_H);
+    unsigned a = 0, c;
+
+    if (!n) return;
+    flush(); pvr_prim(&h_dim, sizeof h_dim);
+    rect(x - 2.0f, y - 1.0f, x + (float)(n * 8u) + 2.0f, y + 17.0f, 10.0f, 0, 0, 0, 0, 0xa0000000u);
+    flush(); pvr_prim(&h_text, sizeof h_text);
+    for (c = 1; c <= n; c++) {
+        const int ma = line >= 4u && fx_marked(&fx_now, line - 4u, a), mc = c < n && line >= 4u && fx_marked(&fx_now, line - 4u, c);
+
+        if (c < n && ma == mc) continue;
+        rect(x + (float)(a * 8u), y, x + (float)(c * 8u), y + 16.0f, 11.0f, (float)(a * 8u) * (1.0f / (float)TEXT_W), v0, (float)(c * 8u) * (1.0f / (float)TEXT_W), v1, ma ? 0xffffdc00u : 0xffffffffu);
+        a = c;
+    }
+}
+
+/* ---- scenes on the PVR --------------------------------------------------------------- */
+
+static uint64_t last_render_ns;
+static asic_evt_handler_entry_t rd_prev;
+static volatile uint32_t rd_seen;
+static int rd_hooked;
+
+static void rd_evt(uint32_t code, void *data) {
+    (void)data;
+    if (rd_prev.hdl) rd_prev.hdl(code, rd_prev.data);
+    rd_seen = 1u;
+}
+
+static int wait_ready(void) {
+    const uint64_t t0 = ns();
+
+    while (pvr_check_ready() < 0) if (ns() - t0 > LIMIT_NS) return 0;
+    return 1;
+}
+
+/* to_target: the 320 x 242 target (two rows more than are read, as c4's passes). */
+static int scene_open(int to_target) {
+    if (!wait_ready()) return 0;
+    if (to_target) return pvr_scene_begin_rtt(tgt_mem, MW, MH + 2u, TW) >= 0;
+    pvr_scene_begin();
+    return 1;
+}
+
+static int scene_close(void) {
+    pvr_stats_t st;
+    uint64_t t0;
+    unsigned t;
+
+    flush();
+    rd_seen = 0u;
+    pvr_scene_finish();
+    if (!wait_ready()) return 0;
+    t0 = ns();
+    if (rd_hooked) {
+        while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
+    } else {
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        if (t == 20u) return 0;
+    }
+    if (pvr_get_stats(&st) < 0) return 0;
+    last_render_ns = st.rnd_last_time;
+    return 1;
+}
+
+/* ---- the target to RAM: PVR-DMA, as c4's fetch (ran on a console: wiki BUS rows of c4) --------------------------- */
+
+#define REG32(a) (*(volatile uint32_t *)(a))
+#define SB_ISTNRM   REG32(0xa05f6900)
+#define SB_PDSTAP   REG32(0xa05f7c00)
+#define SB_PDSTAR   REG32(0xa05f7c04)
+#define SB_PDLEN    REG32(0xa05f7c08)
+#define SB_PDDIR    REG32(0xa05f7c0c)
+#define SB_PDTSEL   REG32(0xa05f7c10)
+#define SB_PDEN     REG32(0xa05f7c14)
+#define SB_PDST     REG32(0xa05f7c18)
+#define SB_PDAPRO   REG32(0xa05f7c80)
+#define ISTNRM_PVR_DMA (1u << 11)
+
+static int fetch_checked, fetch_direct;
+
+/* The first `bytes` (a multiple of 32) of the target into tgt_ram. Its first use is checked against words read
+   straight from video memory; if the DMA does not end or differs, the words are read one by one from then on. */
+static void fetch(uint32_t bytes) {
+    const volatile uint16_t *src = (const volatile uint16_t *)tgt_mem;
+    uint32_t i;
+
+    if (!fetch_direct) {
+        const uint64_t t0 = ns();
+        int ended;
+
+        dcache_purge_range((uintptr_t)tgt_ram, bytes);
+        SB_PDEN = 0;
+        SB_ISTNRM = ISTNRM_PVR_DMA;
+        SB_PDAPRO = 0x6702007fu;
+        SB_PDSTAP = 0x04000000u | ((uint32_t)(uintptr_t)tgt_mem & 0x00ffffffu);
+        SB_PDSTAR = (uint32_t)(uintptr_t)tgt_ram & 0x1fffffe0u;
+        SB_PDLEN = bytes;
+        SB_PDDIR = 1;
+        SB_PDTSEL = 0;
+        SB_PDEN = 1;
+        SB_PDST = 1;
+        do { wait_ns(250000u); ended = (SB_PDST & 1u) == 0u; } while (!ended && ns() - t0 < LIMIT_NS);
+        if (!ended) SB_PDST = 0;
+        SB_PDEN = 0;
+        SB_ISTNRM = ISTNRM_PVR_DMA;
+        if (ended && !fetch_checked) {
+            fetch_checked = 1;
+            for (i = 0; i < 256u; i++) { const uint32_t k = (i * 2654435761u) % (bytes / 2u); if (tgt_ram[k] != src[k]) ended = 0; }
+            say("fetch: PVR-DMA of %u bytes %s words read from video memory", (unsigned)bytes, ended ? "matches 256" : "DIFFERS from");
+        }
+        if (ended) return;
+        fetch_direct = 1;
+        say("fetch: PVR-DMA not used from here; words read one by one");
+    }
+    for (i = 0; i < bytes / 2u; i++) tgt_ram[i] = src[i];
+}
+
+#define FETCH_BYTES (TW * 2u * (MH + 2u))   /* 247,808: a multiple of 32 */
+#define AT(x, y) tgt_ram[(y) * TW + (x)]
+#define G8(p) ((((p) >> 5) & 63u) << 2)     /* a 565 pixel's green as 0 .. 252: what a grey level reads back as, to 4 */
+
+/* The target held on the screen for D1_AUTO_S seconds with a line of text: the picture to photograph. */
+static void show_target(const char *caption) {
+    const uint64_t t0 = ns();
+
+    text_set(0u, "%s", caption);
+    text_set(1u, ""); text_set(2u, ""); text_set(3u, ""); text_set(4u, ""); text_set(5u, "");
+    text_upload();
+    while (ns() - t0 < (uint64_t)D1_AUTO_S * 1000000000ull) {
+        step("d1 show   ");
+        if (!scene_open(0)) return;
+        sent = 0;
+        pvr_list_begin(PVR_LIST_OP_POLY);
+        layer(&h_tshow, 0.0f, 0.0f, 640.0f, 480.0f, 1.0f, 0.0f, 0.0f, (float)MW / (float)TW, (float)MH / (float)TH, 0xffffffffu, 0u);
+        pvr_list_finish();
+        pvr_list_begin(PVR_LIST_TR_POLY);
+        text_put(0u, 64.0f, 52.0f);
+        flush();
+        pvr_list_finish();
+        if (!scene_close()) return;
+    }
+}
+
+/* ---- T1: the destination-alpha layers ------------------------------------------------------- */
+
+#define T1_Q 64u                            /* the strip's Q: the level's peak sits at code 64 */
+#define T1_X0 32u
+#define T1_BANDS 5u
+#define T1_Y(b) (16u + (b) * 44u)
+#define BACKDROP 0xff808080u
+static int fade_env = -1;                   /* the FADE that reads as the model says: 0 MODULATE, 1 MODULATEALPHA; -1 neither */
+
+static void t1(void) {
+    static const char *const name[T1_BANDS] = { "MODULATE K 0/255", "MODULATE K 128/127", "MODALPHA K 0/255", "REPLACE as colour", "no SHOW: backdrop" };
+    static const uint8_t k1[T1_BANDS] = { 0, 128, 0, 0, 0 }, k3[T1_BANDS] = { 255, 127, 255, 255, 255 };
+    unsigned b, i, match[T1_BANDS];
+
+    say("T1 DESTINATION ALPHA, no depth map: 256 codes, Q %u, 5 bands", T1_Q);
+    say(" CLEAR (1,1,1,0) ZEROxDESTCOLOR; FADE bump (0,0,0,level)");
+    say(" ONExONE; SHOW white DESTALPHAxZERO. Model: K1+K3 cos, >= 0.");
+    step("d1 t1     ");
+    if (!scene_open(1)) { say("T1: NO READY"); return; }
+    sent = 0;
+    pvr_list_begin(PVR_LIST_OP_POLY);
+    layer(&h_flat, 0.0f, 0.0f, (float)MW, (float)MH + 2.0f, 0.5f, 0, 0, 0, 0, BACKDROP, 0u);
+    pvr_list_finish();
+    pvr_list_begin(PVR_LIST_TR_POLY);
+    for (b = 0; b < T1_BANDS; b++) {
+        const float x0 = (float)T1_X0, x1 = (float)(T1_X0 + 256u), y0 = (float)T1_Y(b), y1 = y0 + 32.0f;
+
+        if (b == 3u) { layer(&h_rep_s, x0, y0, x1, y1, 1.0f, 0.0f, 0.5f, 1.0f, 0.5f, 0xffffffffu, KQ(k1[b], k3[b], T1_Q)); continue; }
+        layer(&h_clear, x0, y0, x1, y1, 1.0f, 0, 0, 0, 0, CLEAR_C, 0u);
+        layer(&h_fade_s[b == 2u ? 1 : 0], x0, y0, x1, y1, 1.0f, 0.0f, 0.5f, 1.0f, 0.5f, BLACK_A, KQ(k1[b], k3[b], T1_Q));
+        if (b != 4u) layer(&h_show, x0, y0, x1, y1, 1.0f, 0, 0, 0, 0, 0xffffffffu, 0u);
+    }
+    pvr_list_finish();
+    if (!scene_close()) { say("T1: NO RENDER END"); return; }
+    fetch(FETCH_BYTES);
+    for (b = 0; b < T1_BANDS; b++) {
+        unsigned lo = 255u, hi = 0u, kept = 0;
+        const unsigned y = T1_Y(b) + 16u;
+
+        match[b] = 0;
+        for (i = 0; i < 256u; i++) {
+            const unsigned g = G8(AT(T1_X0 + i, y)), e = d1_level(k1[b], k3[b], (i - T1_Q) & 255u) & ~3u;
+
+            if (g < lo) lo = g;
+            if (g > hi) hi = g;
+            match[b] += g + 4u >= e && g <= e + 4u;
+            kept += AT(T1_X0 + i, y) == AT(4u, y);          /* the backdrop beside the strip */
+        }
+        if (b == 4u) say("T1 %u %-18s backdrop kept on %u of 256 px", b, name[b], kept);
+        else say("T1 %u %-18s as model %u/256, read %u..%u", b, name[b], match[b], lo, hi);
+        if (b == 0u || b == 2u)
+            say("   codes 64 96 128 160 192 0 read %u %u %u %u %u %u", G8(AT(T1_X0 + 64u, y)), G8(AT(T1_X0 + 96u, y)), G8(AT(T1_X0 + 128u, y)), G8(AT(T1_X0 + 160u, y)),
+                G8(AT(T1_X0 + 192u, y)), G8(AT(T1_X0, y)));
+    }
+    say("   (model at those codes, K 0/255: 252 180 0 0 0 0)");
+    fade_env = match[0] >= 240u ? 0 : match[2] >= 240u ? 1 : -1;
+    say("T1 RESULT: the FADE for T3 is %s", fade_env == 0 ? "band 0, MODULATE" : fade_env == 1 ? "band 2, MODULATEALPHA" : "NONE: T3's fade is not run");
+    show_target("T1: bands 0..4 top to bottom. PASS: 0 and 2 a black-white wave");
+}
+
+/* ---- T2: the depth map ---------------------------------------------------------------------- */
+
+static void ramp_vertex(int eol, float x, float y, float depth) {
+    put(eol, x, y, sh4der_recip_pos_(depth), d1_u(depth), 0.5f, 0xffffffffu);
+}
+
+static void t2(void) {
+    const float da = 4.0f, d0 = 3.0f, d1 = 6.0f;
+    unsigned x, same = 0, bins[4] = { 0, 0, 0, 0 }, i, seen = 0, off = 0;
+    int worst = 0;
+    ao4_cam_t cam;
+
+    pg_break();
+    say("T2 DEPTH MAP: the ramp looked up by depth, read back");
+    step("d1 t2a    ");
+    if (!scene_open(1)) { say("T2a: NO READY"); return; }
+    sent = 0;
+    pvr_list_begin(PVR_LIST_OP_POLY);
+    pvr_prim(&h_ramp, sizeof h_ramp);
+    ramp_vertex(0, 0.0f, (float)MH + 2.0f, da); ramp_vertex(0, 0.0f, 0.0f, da); ramp_vertex(0, 160.0f, (float)MH + 2.0f, da); ramp_vertex(1, 160.0f, 0.0f, da);
+    ramp_vertex(0, 160.0f, (float)MH + 2.0f, d0); ramp_vertex(0, 160.0f, 0.0f, d0); ramp_vertex(0, 320.0f, (float)MH + 2.0f, d1); ramp_vertex(1, 320.0f, 0.0f, d1);
+    flush();
+    pvr_list_finish();
+    pvr_list_begin(PVR_LIST_TR_POLY);       /* this list has a bin: never left empty */
+    user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
+    pvr_list_finish();
+    if (!scene_close()) { say("T2a: NO RENDER END"); return; }
+    fetch(FETCH_BYTES);
+    for (x = 0; x < 160u; x++) same += (AT(x, 120u) & 255u) == d1_code(da) && (AT(x, 120u) >> 8) == 0u;
+    for (x = 160u; x < 320u; x++) {
+        const int d = d1_diff(AT(x, 120u) & 255u, d1_code(d1_tilt_depth(160.0f, 320.0f, d0, d1, (float)x + 0.5f)));
+        const unsigned a = (unsigned)(d < 0 ? -d : d);
+
+        bins[a == 0u ? 0 : a == 1u ? 1 : a <= 3u ? 2 : 3]++;
+        if ((int)a > (worst < 0 ? -worst : worst)) worst = d;
+    }
+    say("T2a flat quad at 4 m: %u of 160 px read code %u (high byte 0)", same, d1_code(da));
+    say("T2a tilted 3..6 m (about 4 codes a px): off by 0: %u, 1: %u,", bins[0], bins[1]);
+    say("    2-3: %u, more: %u of 160; worst %+d", bins[2], bins[3], worst);
+    show_target("T2a: left one grey-blue; right fine stripes, even across");
+
+    step("d1 t2b    ");
+    ao4_cam_at(&room, &cam, 0.0f, 0.0f, 0.0f);
+    for (i = 0; i < room.vn; i++) ao4_cam_pt(&cam, room.p[i], scr[i]);
+    if (!scene_open(1)) { say("T2b: NO READY"); return; }
+    sent = 0;
+    pvr_list_begin(PVR_LIST_OP_POLY);
+    pvr_prim(&h_ramp, sizeof h_ramp);
+    {
+        unsigned st, k;
+
+        for (st = 0, k = 0; st < room.strips; k += room.slen[st], st++)
+            for (i = 0; i < room.slen[st]; i++) {
+                const float *s = scr[room.idx[k + i]];
+
+                put(i + 1u == room.slen[st], s[0] * 0.5f, s[1] * 0.5f, s[2], sh4der_recip_pos_(s[2] * D1_TURN), 0.5f, 0xffffffffu);
+            }
+    }
+    flush();
+    pvr_list_finish();
+    pvr_list_begin(PVR_LIST_TR_POLY);
+    user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
+    pvr_list_finish();
+    if (!scene_close()) { say("T2b: NO RENDER END"); return; }
+    fetch(FETCH_BYTES);
+    memset(bins, 0, sizeof bins);
+    for (i = 0; i < room.ground_vn; i++) {  /* the floor's vertices: the pixel each lands in against its own depth */
+        const int px = (int)(scr[i][0] * 0.5f), py = (int)(scr[i][1] * 0.5f);
+        int d;
+        unsigned a;
+
+        if (px < 1 || py < 1 || px >= (int)MW - 1 || py >= (int)MH - 1 || scr[i][2] > 1.5f) { off++; continue; }
+        d = d1_diff(AT((unsigned)px, (unsigned)py) & 255u, d1_code(sh4der_recip_pos_(scr[i][2])));
+        a = (unsigned)(d < 0 ? -d : d);
+        bins[a <= 2u ? 0 : a <= 8u ? 1 : a <= 24u ? 2 : 3]++;
+        seen++;
+    }
+    say("T2b the room, %u floor vertices on the map (%u off it):", seen, off);
+    say("    code off by 0-2: %u, 3-8: %u, 9-24: %u, more: %u", bins[0], bins[1], bins[2], bins[3]);
+    say("    (a vertex is not a pixel's middle, and the floor runs up");
+    say("     to 11 codes a pixel; furniture hides some: 'more')");
+    show_target("T2b: the room as depth codes: bands that follow floor and walls");
+}
+
+/* ---- T3: the fade -------------------------------------------------------------------------- */
+
+typedef struct view {
+    unsigned stage;                         /* what the halves show: T3_ below */
+    unsigned div, wall;                     /* the divider; the glow's distance from the wall: wall_m[] */
+    int far_on;
+    float turn, lift, t;
+} view_t;
+
+enum { T3_NONE = 0, T3_PLAIN, T3_ALPHA, T3_FADE, T3_NOFAR, T3_STAGES };
+static const char *const t3_name[T3_STAGES] = { "no glow", "plain | plain", "plain | alpha", "plain | fade", "plain | no FAR" };
+static const float wall_m[4] = { 0.1f, 0.2f, 0.4f, 0.8f };
+#define GLOW_R 0.6f                         /* the glow quad's half side, metres */
+#define GLOW_C 0xffffdc9eu                  /* its colour */
+
+typedef struct cost { uint64_t frame, map_send; uint64_t pvr_map, pvr_scr; unsigned verts; int have_map; } cost_t;
+
+static int frame(const view_t *v, cost_t *c) {
+    const uint64_t c0 = cyc();
+    const int fade = (v->stage == T3_ALPHA || v->stage == T3_FADE || v->stage == T3_NOFAR) && fade_env >= 0;
+    const float centre[3] = { -3.0f + wall_m[v->wall], 1.5f, -2.25f };   /* beside the lamp, this far from the wall x = -3 */
+    split_half_t half[2];
+    ao4_cam_t cam;
+    float q[4][3], depth, zq, zfar;
+    unsigned i, k, st, sd;
+
+    memset(c, 0, sizeof *c);
+    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &half[0], &half[1]);
+    ao4_cam_at(&room, &cam, v->t, v->turn, v->lift);
+    for (i = 0; i < room.vn; i++) ao4_cam_pt(&cam, room.p[i], scr[i]);
+    for (i = 0; i < 4u; i++) {              /* the quad's corners: the camera's own right and up, so every corner has the centre's depth */
+        const float sx = (i & 1u) ? GLOW_R : -GLOW_R, sy = (i & 2u) ? GLOW_R : -GLOW_R;
+        const float p[3] = { centre[0] + cam.r[0] * sx + cam.u[0] * sy, centre[1] + cam.r[1] * sx + cam.u[1] * sy, centre[2] + cam.r[2] * sx + cam.u[2] * sy };
+
+        ao4_cam_pt(&cam, p, q[i]);
+    }
+    {
+        const float d[3] = { centre[0] - cam.e[0], centre[1] - cam.e[1], centre[2] - cam.e[2] };
+
+        depth = sh4der_dot3_(d, cam.f);
+    }
+    zq = sh4der_recip_pos_(depth); zfar = sh4der_recip_pos_(depth + D1_FADE);
+
+    if (fade && !half[1].hidden) {          /* the depth map: the room once more, through the ramp */
+        const uint64_t t0 = cyc();
+
+        if (!scene_open(1)) return 0;
+        sent = 0;
+        pvr_list_begin(PVR_LIST_OP_POLY);
+        pvr_prim(&h_ramp, sizeof h_ramp);
+        for (st = 0, k = 0; st < room.strips; k += room.slen[st], st++)
+            for (i = 0; i < room.slen[st]; i++) {
+                const float *s = scr[room.idx[k + i]];
+
+                put(i + 1u == room.slen[st], s[0] * 0.5f, s[1] * 0.5f, s[2], sh4der_recip_pos_(s[2] * D1_TURN), 0.5f, 0xffffffffu);
+            }
+        flush();
+        pvr_list_finish();
+        pvr_list_begin(PVR_LIST_TR_POLY);
+        user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
+        pvr_list_finish();
+        c->map_send = cyc() - t0;
+        if (!scene_close()) return 0;
+        c->pvr_map = last_render_ns; c->have_map = 1;
+    }
+
+    if (!scene_open(0)) return 0;
+    sent = 0;
+    pvr_list_begin(PVR_LIST_OP_POLY);
+    for (sd = 0; sd < 2u; sd++) {
+        if (half[sd].hidden) continue;
+        user_clip(&h_room, &half[sd]);
+        pvr_prim(&h_room, sizeof h_room);
+        for (st = 0, k = 0; st < room.strips; k += room.slen[st], st++)
+            for (i = 0; i < room.slen[st]; i++) {
+                const float *s = scr[room.idx[k + i]];
+
+                put(i + 1u == room.slen[st], s[0], s[1], s[2], 0.0f, 0.0f, col[room.idx[k + i]]);
+            }
+        flush();
+    }
+    pvr_list_finish();
+    pvr_list_begin(PVR_LIST_TR_POLY);
+    if (v->stage != T3_NONE && q[0][2] < 1.5f && q[1][2] < 1.5f && q[2][2] < 1.5f && q[3][2] < 1.5f) {
+        const float x0 = q[0][0] < q[3][0] ? q[0][0] : q[3][0], x1 = q[0][0] < q[3][0] ? q[3][0] : q[0][0];
+        const float y0 = q[0][1] < q[3][1] ? q[0][1] : q[3][1], y1 = q[0][1] < q[3][1] ? q[3][1] : q[0][1];   /* a rectangle on the screen: the camera's right and up are the screen's */
+
+        for (sd = 0; sd < 2u; sd++) {
+            if (half[sd].hidden) continue;
+            user_clip(&h_dummy, &half[sd]);
+            if (sd == 0u || !fade) {        /* the plain glow: the depth test cuts it where it enters the wall */
+                layer(&h_plain_c, x0, y0, x1, y1, zq, 0.0f, 0.0f, 1.0f, 1.0f, GLOW_C, 0u);
+                continue;
+            }
+            layer(&h_clear_c, x0, y0, x1, y1, zq, 0, 0, 0, 0, CLEAR_C, 0u);
+            layer(&h_fade_c[fade_env], x0, y0, x1, y1, zq, x0 * (0.5f / (float)TW), y0 * (0.5f / (float)TH), x1 * (0.5f / (float)TW), y1 * (0.5f / (float)TH), BLACK_A,
+                  KQ(0u, 255u, d1_q(depth)));
+            if (v->far_on && v->stage != T3_NOFAR) layer(&h_far_c, x0, y0, x1, y1, zfar, 0, 0, 0, 0, BLACK_A, 0u);
+            if (v->stage == T3_ALPHA) layer(&h_show_c, x0, y0, x1, y1, zq, 0, 0, 0, 0, 0xffffffffu, 0u);
+            else layer(&h_halo_c, x0, y0, x1, y1, zq, 0.0f, 0.0f, 1.0f, 1.0f, GLOW_C, 0u);
+        }
+    }
+    if (!split_at_end(v->div, SPLIT_COLS)) {
+        flush(); pvr_prim(&h_dim, sizeof h_dim);
+        rect(split_x(v->div) - 1.0f, 0.0f, split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
+    }
+    text_put(0u, 64.0f, 52.0f);
+    text_put(1u, 64.0f, 392.0f);
+    text_put(2u, 64.0f, 412.0f);
+    if (fx_live && !fx_hidden) for (i = 0; i < fx_now.lines && i < 2u; i++) text_put(4u + i, 64.0f, 372.0f - 20.0f * (float)(fx_now.lines - 1u - i));
+    flush();
+    pvr_list_finish();
+    c->verts = sent;
+    if (!scene_close()) return 0;
+    c->pvr_scr = last_render_ns;
+    c->frame = cyc() - c0;
+    return 1;
+}
+
+typedef struct sums { cost_t c; unsigned n, n_map; } sums_t;
+static sums_t auto_sum[T3_STAGES];
+static unsigned auto_done;
+
+static void sums_add(sums_t *s, const cost_t *c) {
+    s->c.frame += c->frame; s->c.pvr_scr += c->pvr_scr; s->c.verts = c->verts; s->n++;
+    if (c->have_map) { s->c.map_send += c->map_send; s->c.pvr_map += c->pvr_map; s->n_map++; }
+}
+
+static void labels(const view_t *v, const sums_t *s) {
+    const unsigned n = s->n ? s->n : 1u, nm = s->n_map ? s->n_map : 1u;
+    const int fade = v->stage >= T3_ALPHA && fade_env >= 0;
+
+    text_set(0u, "d1 %s%s  glow %u cm from the wall%s", t3_name[v->stage], v->stage >= T3_ALPHA && fade_env < 0 ? " (NO FADE: T1)" : "", (unsigned)(wall_m[v->wall] * 100.0f + 0.5f),
+             v->far_on ? "" : "  FAR OFF");
+    text_set(1u, "frame %u us  PVR screen %u  map %u us  map send %u us", us_of(s->c.frame / n), (unsigned)(s->c.pvr_scr / n / 1000u), (unsigned)(s->c.pvr_map / nm / 1000u),
+             us_of(s->c.map_send / nm));
+    text_set(2u, "X fade/alpha A wall B FAR LT/RT divider START pages");
+    fx_format(&fx_now, d1_fx, fade ? 2u : 1u);
+    text_set(4u, "%s", fx_now.line[0]);
+    text_set(5u, "%s", fx_now.line[1]);
+}
+
+/* T3's frames: the five stages (auto_run 1), or the live view until START (0). */
+static void loop(int auto_run) {
+    view_t v;
+    sums_t win;
+    cost_t c;
+    split_step_t trig = { 0, 0u };
+    unsigned held = ~0u, frames = 0;
+    uint64_t t_prev = ns(), t_stage = ns();
+
+    memset(&v, 0, sizeof v);
+    v.div = split_middle(SPLIT_COLS); v.wall = 1u; v.far_on = 1; v.stage = auto_run ? T3_NONE : T3_FADE;
+    fx_live = !auto_run;
+    memset(&win, 0, sizeof win);
+    labels(&v, &win);
+    text_upload();
+    for (;;) {
+        maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+        cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+        const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
+        const uint64_t t_now = ns();
+        const float dt = (float)(t_now - t_prev) * 1.0e-9f;
+        int changed = 0;
+
+        step("d1 t3     ");
+        t_prev = t_now; held = now;
+        if (auto_run) {
+            if (t_now - t_stage > (uint64_t)D1_AUTO_S * 1000000000ull) {
+                t_stage = t_now; auto_done = v.stage + 1u; v.stage++; changed = 1;
+                if (v.stage >= T3_STAGES) break;
+            }
+        } else {
+            const unsigned d = st ? split_step(&trig, v.div, SPLIT_COLS, st->ltrig > 128, st->rtrig > 128) : v.div;
+
+            v.t += dt < 0.1f ? dt : 0.1f;
+            if (st) {
+                if (st->joyx > 24 || st->joyx < -24) v.turn += (float)st->joyx * (1.0f / 128.0f) * dt * 1.2f;
+                if (st->joyy > 24 || st->joyy < -24) v.lift -= (float)st->joyy * (1.0f / 128.0f) * dt * 4.0f;
+                if (v.lift < -4.5f) v.lift = -4.5f;
+                if (v.lift > 7.0f) v.lift = 7.0f;
+                if (v.turn > 0.6f) v.turn = 0.6f;
+                if (v.turn < -0.6f) v.turn = -0.6f;
+            }
+            if (d != v.div) { v.div = d; changed = 1; }
+            if ((hit & CONT_START) && frames > 10u) break;
+            if (hit & CONT_X) { v.stage = v.stage == T3_FADE ? T3_ALPHA : T3_FADE; changed = 1; }
+            if (hit & CONT_A) { v.wall = (v.wall + 1u) % 4u; changed = 1; }
+            if (hit & CONT_B) { v.far_on = !v.far_on; changed = 1; }
+            if ((hit & CONT_Y) && (now & CONT_DPAD_UP)) fx_hide_chord(1, 1, &fx_hidden);
+        }
+        if (changed) memset(&win, 0, sizeof win);
+        if (!frame(&v, &c)) { say("T3 %s: NO RENDER END at frame %u (%s)", auto_run ? "auto" : "live", frames, t3_name[v.stage]); break; }
+        frames++;
+        sums_add(&win, &c);
+        if (auto_run && win.n > 2u) sums_add(&auto_sum[v.stage], &c);
+        if (changed || win.n >= 30u) {
+            labels(&v, &win);
+            if (win.n >= 30u) memset(&win, 0, sizeof win);
+            text_upload();                  /* the render is done: nothing reads the texture now */
+        }
+    }
+}
+
+static void t3_report(void) {
+    pg_plot_t *g;
+    unsigned i;
+
+    pg_break();
+    say("T3 THE FADE: one glow %u cm from a wall, left plain, right faded", (unsigned)(wall_m[1] * 100.0f + 0.5f));
+    say(" fade %u cm (a quarter turn), a turn %u cm, map %u x %u", (unsigned)(D1_FADE * 100.0f + 0.5f), (unsigned)(D1_TURN * 100.0f + 0.5f), MW, MH);
+    if (fade_env < 0) say(" T1 FOUND NO ALPHA-ONLY BUMP LAYER: stages 2..4 drew the plain glow");
+    if (auto_done < T3_STAGES) say(" THE RUN DID NOT FINISH: %u of %u stages", auto_done, (unsigned)T3_STAGES);
+    say("stage            frame  PVR scr  PVR map  map send  verts");
+    for (i = 0; i < auto_done; i++) {
+        const sums_t *s = &auto_sum[i];
+        const unsigned n = s->n ? s->n : 1u, nm = s->n_map ? s->n_map : 1u;
+
+        say("%u %-14s %6u %7u %8u %9u %6u", i, t3_name[i], us_of(s->c.frame / n), (unsigned)(s->c.pvr_scr / n / 1000u), (unsigned)(s->c.pvr_map / nm / 1000u), us_of(s->c.map_send / nm), s->c.verts);
+    }
+    if (auto_done > T3_FADE) {
+        const sums_t *a = &auto_sum[T3_PLAIN], *b = &auto_sum[T3_FADE];
+
+        say("DERIVED the fade adds to a frame: %+d us (3 - 1)", (int)us_of(b->c.frame / (b->n ? b->n : 1u)) - (int)us_of(a->c.frame / (a->n ? a->n : 1u)));
+    }
+    say("us; one run, one console. The LOOK is not on this page:");
+    say(" PASS on the screen: right of the line the glow's edge at the");
+    say(" wall is soft, the rest of it as on the left. Stage 4 (no FAR):");
+    say(" dark rings in the glow = the level comes round, as designed.");
+    g = pg_plot("d1: a frame, us", "T3 stage", "us", 1);
+    pg_cat(g, "none"); pg_cat(g, "plain"); pg_cat(g, "alpha"); pg_cat(g, "fade"); pg_cat(g, "no FAR");
+    pg_series(g, "frame"); for (i = 0; i < T3_STAGES; i++) pg_point(g, (float)i, i < auto_done ? (float)us_of(auto_sum[i].c.frame / (auto_sum[i].n ? auto_sum[i].n : 1u)) : 0.0f);
+}
+
+/* ---- start, stop --------------------------------------------------------------------------- */
+
+static int start(void) {
+    pvr_init_params_t init = pvr_default_params;
+    unsigned x, y;
+
+    init.opb_sizes[PVR_LIST_OP_POLY] = PVR_BINSIZE_16;
+    init.opb_sizes[PVR_LIST_OP_MOD] = PVR_BINSIZE_0;
+    init.opb_sizes[PVR_LIST_TR_POLY] = PVR_BINSIZE_16;
+    init.opb_sizes[PVR_LIST_TR_MOD] = PVR_BINSIZE_0;
+    init.opb_sizes[PVR_LIST_PT_POLY] = PVR_BINSIZE_0;
+    init.vertex_buf_size = 768 * 1024;
+    init.autosort_disabled = 1;             /* the layers work only in the order sent */
+    init.opb_overflow_count = 4;
+    if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return 0; }
+    pvr_set_bg_color(0.0f, 0.0f, 0.0f);
+    tgt_mem = pvr_mem_malloc(TW * TH * 2u);
+    ramp_mem = pvr_mem_malloc(sizeof tex16);
+    strip_mem = pvr_mem_malloc(sizeof tex16);
+    glow_mem = pvr_mem_malloc(sizeof glow_px);
+    text_mem = pvr_mem_malloc(sizeof text_px);
+    if (!tgt_mem || !ramp_mem || !strip_mem || !glow_mem || !text_mem) { say("video memory allocation FAIL"); pvr_shutdown(); return 0; }
+    pvr_sq_set16(tgt_mem, 0u, TW * TH * 2u, PVR_DMA_VRAM64);
+    for (y = 0; y < 8u; y++) for (x = 0; x < 256u; x++) tex16[y * 256u + x] = (uint16_t)x;     /* texel x is code x: the ramp, and T1's strip (S 0, R the code) */
+    pvr_txr_load(tex16, ramp_mem, sizeof tex16);
+    pvr_txr_load(tex16, strip_mem, sizeof tex16);
+    for (y = 0; y < GLOW; y++)              /* the glow: (1 - r)^2, black at the rim so the quad's edge does not show */
+        for (x = 0; x < GLOW; x++) {
+            const float dx = ((float)x + 0.5f) * (2.0f / (float)GLOW) - 1.0f, dy = ((float)y + 0.5f) * (2.0f / (float)GLOW) - 1.0f;
+            const float r = sh4der_sqrt_(dx * dx + dy * dy), f = r >= 1.0f ? 0.0f : (1.0f - r) * (1.0f - r);
+            const unsigned l = (unsigned)(f * 255.0f);
+
+            glow_px[y * GLOW + x] = (uint16_t)(((l >> 3) << 11) | ((l >> 2) << 5) | (l >> 3));
+        }
+    pvr_txr_load(glow_px, glow_mem, sizeof glow_px);
+    headers();
+    memset(text_ln, 0, sizeof text_ln);
+    text_dirty = 1;
+    text_upload();
+    vid_set_dithering(false);               /* a code must reach the target as it is (wiki PVR-023) */
+    rd_prev = asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_evt, NULL);
+    rd_hooked = rd_prev.hdl != NULL;
+    if (!rd_hooked) asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, NULL, NULL);
+    return 1;
+}
+
+static void stop(const char *stage) {
+    step(stage);
+    if (rd_hooked) { asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_prev.hdl, rd_prev.data); rd_hooked = 0; }
+    vid_set_dithering(true);
+    pvr_shutdown();
+}
+
+int main(void) {
+    unsigned page = 0, pages, held = ~0u, i;
+    int redraw = 1, fault_on = 0;
+    char rev[32];
+
+    suite_init();                           /* the suite disc: the menu's binary into RAM, before anything else */
+    vid_set_mode(DM_640x480, PM_RGB565);
+    pg_init();
+    perf_cntr_start(PRFC1, PMCR_ELAPSED_TIME_MODE, PMCR_COUNT_CPU_CYCLES);
+    ao4_build_room(&room);
+    ao4_light(&room, AO4_BAKED, AO4_CLAY, 0, col);
+    for (i = 0; i < room.vn; i++) {         /* the room at half its light, so a glow shows on it */
+        const uint32_t c = col[i];
+
+        col[i] = 0xff000000u | ((c >> 1) & 0x007f7f7fu);
+    }
+    suite_rev_text(rev, sizeof rev);
+    say("d1 %s: a halo that fades at the scene, by a PVR depth map.", D1_STR(D1_TAG));
+    say("%s. Three tests, a page each; this run's numbers.", rev);
+    say("Effect labels: off in the run, on in the live view.");
+    if (start()) {
+        fault_on = 1;
+        if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+        t1();
+        t2();
+        loop(1);
+        stop("auto end");
+        t3_report();
+    }
+    (void)fault_on;
+    vid_set_mode(DM_640x480, PM_RGB565);
+    for (;;) {
+        maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
+        cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+        const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
+
+        psm_fault_beat(&crumbs);
+        held = now;
+        pages = pg_pages();
+        if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
+        else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
+        else if (hit & CONT_START) {
+            if (start()) { loop(0); stop("live end"); }
+            vid_set_mode(DM_640x480, PM_RGB565);
+            held = ~0u;
+            redraw = 1;
+        }
+        else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
+        if (redraw) { pg_draw(page % pages, "D1 DEPTH FADE", suite_keys_text("START live view")); fx_page(d1_fx, 2u); redraw = 0; }
+        thd_sleep(20);
+    }
+    return 0;
+}

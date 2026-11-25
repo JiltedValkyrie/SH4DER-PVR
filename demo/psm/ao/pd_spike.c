@@ -46,6 +46,8 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define PG_PREFIX "pvr-dma"
 #define PG_LINES_MAX 60u
 #include "../psm_page.h"
+#include "../psm_effects.h"
+#include "ao_fx.h"
 #define say pg_say
 static psm_fault_crumbs_t crumbs;
 
@@ -267,7 +269,7 @@ int main(void) {
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
         else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
         else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
-        if (redraw) { pg_draw(page % pages, "PVR-DMA PROOF", suite_keys_text("A B pages")); redraw = 0; }
+        if (redraw) { pg_draw(page % pages, "PVR-DMA PROOF", suite_keys_text("A B pages")); fx_page(pd_fx_page, PD_FX_PAGE_N); redraw = 0; }
         thd_sleep(20);
     }
     return 0;
