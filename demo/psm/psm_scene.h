@@ -209,8 +209,7 @@ static inline void psm_state_default(psm_state_t *st) {
 }
 
 static inline float psm_step_(float x, float d, float lo, float hi) {
-    x += d;
-    return x < lo ? lo : x > hi ? hi : x;
+    return sh4der_clamp_(x + d, lo, hi);   /* the step, held in lo .. hi */
 }
 
 /* One frame of the pad: `held` the PSM_BTN_ bits down now, `stick` -1 .. 1, dt seconds. */
@@ -465,7 +464,7 @@ static inline void psm_frame_a_ground(psm_frame_t *f) {
         if (!f->built) continue;
         psm_xf_apply(&xf, f->gpos[i], h);                       /* the map's homogeneous point; sh4der_psm_map's rule */
         if (!sh4der_finite_(h[3]) || !(h[3] > SH4DER_PSM_TRI_EPS)) continue;
-        iw = sh4der_div_(1.0f, h[3]);
+        iw = sh4der_recip_pos_(h[3]);   /* h[3] > TRI_EPS (the guard above) */
         f->guv[i][0] = 0.5f * (h[0] * iw) + 0.5f;
         f->guv[i][1] = 0.5f * (h[1] * iw) + 0.5f;
         f->gok[i] = 1u;

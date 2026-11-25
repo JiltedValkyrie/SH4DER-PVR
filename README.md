@@ -1013,6 +1013,8 @@ int  sh4der_psm_map(const sh4der_psm_t *p, const float x[3], float *u, float *v,
 | SH4DER_PSM_RASTER_DELTA | 0.02 | Step of the texel size measure, metres |
 | SH4DER_PSM_RASTER_TEXEL_MAX | 5 | Largest texel size the bias follows, metres |
 | SH4DER_PSM_RASTER_SLOPE_MAX | 8 | Most depth a surface's slope may add across a texel in the plane compare, metres |
+| SH4DER_PSM_RASTER_STEP | 0 | 0: the running-add row fill (every target). 1: each row through sh4zam-dce's `shz_dce_tri_row_step` (needs SH4ZAM; its SH-4 form is not bit-identical and is not faster on covered texels, see KERNEL_GUIDE.md) |
+| SH4DER_PSM_RASTER_IW_MIN | 1e-18 | Smallest 1 / w that counts as a depth (the reciprocal is FSRRA of its square, which flushes to zero below about 1.1e-19) |
 
 ## The bolt effect (branching strands that re-roll)
 

@@ -166,8 +166,8 @@ static inline int sh4der_psm_cam_rows(const sh4der_psm_cam_t *cam, float zn, flo
     sh4der_norm3_(u);
     if (sh4der_len3_(r[0], r[1], r[2]) < 0.5f) return 0;
     q = sh4der_psm_q(zn, cam->zfar);
-    sx = sh4der_div_(1.0f, cam->tan_half * cam->aspect);
-    sy = sh4der_div_(1.0f, cam->tan_half);
+    sx = sh4der_recip_pos_(cam->tan_half * cam->aspect);   /* > 0: the guard above */
+    sy = sh4der_recip_pos_(cam->tan_half);
     for (i = 0; i < 3; i++) {
         out[i * 4 + 0] = r[i] * sx;
         out[i * 4 + 1] = u[i] * sy;
@@ -265,7 +265,7 @@ static inline int sh4der_psm_fit_(const float T[16], int warped, const float lig
     ext_v = 0.5f * (hi_t - lo_t) * SH4DER_PSM_MARGIN;
     if (!(ext_u > 1e-9f) || !(ext_v > 1e-9f) || !sh4der_finite_(ext_u) || !sh4der_finite_(ext_v)) return 0;
     {
-        const float iu = sh4der_div_(1.0f, ext_u), iv = sh4der_div_(1.0f, ext_v);
+        const float iu = sh4der_recip_pos_(ext_u), iv = sh4der_recip_pos_(ext_v);   /* ext > 1e-9: the guard above */
         int k;
 
         if (kind == SH4DER_PSM_UNIFORM || kind == SH4DER_PSM_ORTHO) {

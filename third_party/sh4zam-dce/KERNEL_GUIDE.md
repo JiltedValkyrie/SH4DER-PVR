@@ -105,3 +105,77 @@ Follow `shz_dce_planes.h`:
 ## 7. What a finished routine reports
 
 Per routine: one line of what it does; alignment; error bound; bit-identical yes / no; cycles E before -> after (name the baseline row of `cycles_<topic>.txt`); what the gain comes from. Also what was tried and did NOT pay, with its numbers: that is a result too. And every claim that could not be verified here (a console's timing above all).
+
+## 8. Routines written under this guide: the shadow compare (`shz_dce_shadow.h`)
+
+The first routine written to this guide after section 7: `shz_dce_shadow_compare_batch`. Its planar compare of one point is the one a shadow map needs; the library's per-point loop is what it replaces. The header's own comment has the algorithm; this section has the record.
+
+**What it does.** N points in, N lit bytes out (255 lit, 0 shadowed). Per point: one FTRV of (x, y, z, 1) through the map's matrix (in XMTRX, loaded by the caller); the sign-safe reciprocal of W; the texel size for the bias when `bias_b != 0`; the 2 x 2 solve for the depth per texel; one texel compare, or four blended (pcf). The two surface axes come in already transformed (FTRV of (t, 0), once per batch), so the per-point code makes one transform, not three.
+
+**Alignment.** Points: floats on a multiple of 4, stride a multiple of 4 and at least 12. Depth: uint16_t on a multiple of 2. g1, g2: float[4] on a multiple of 4. Output: any address, one byte a point at any stride of at least 1. XMTRX is READ, not changed: the caller loads the map's matrix; on return XMTRX still holds it (checked on the host and on the SH-4 interpreter after every batch).
+
+**Error bound.** Software back end: plain float arithmetic through SH4ZAM's public API. SH-4: the point's transform is FTRV (bound (P + |R|) x 2^-21). The divides are SH4ZAM's `shz_divf`, which is `num x shz_invf(denom)`: on the SH-4 an FSRRA reciprocal, on the software back end `1 / sqrt(x x)`. Neither is an exact division. A point within these bounds of a texel edge, a depth level or the singularity can fall the other way; the test measures that as a margin, it is not an error bound against the exact value.
+
+**Bit-identical.** `_c` against the planar loop it replaces, point for point, on the software back end. Measured:
+- strict IEEE (`-fno-fast-math -ffp-contract=off`): YES. The host test compares the two on 96,000 random points (0 differ, `shadow_test`). The scene harness (`psm_shadow_identity_test`, scratch) compares 72 configurations of the demo scene (three map sizes, warp on and off, pcf on and off, bias 0 and 1.5, three suns) plus random points (NaN, infinite, huge, both signs of W, identical and zero-length axes, the non-planar call): 18,101,592 bytes identical.
+- `-ffast-math -fno-unsafe-math-optimizations`: YES in both (0 differ in the host test; the scene harness identical).
+- plain `-ffast-math`: NOT claimed. The host test: 30 of 96,000 points differ. The scene harness: 16 of 18,101,592 bytes differ (the first at config 12, ground vertex 892). Mechanism, as far as it was followed: `-funsafe-math-optimizations` folds SH4ZAM's software reciprocal (`shz_divf` is `num * shz_invf(denom)`, and on the software back end `1 / sqrt(x x)`) differently in the two inline contexts. Disabling `-freciprocal-math` alone did not restore identity in the host test (22 differ); disabling `-funsafe-math-optimizations` did. Putting an `shz_dce_opaquef` barrier on the kernel's reciprocal moved the difference to another byte rather than removing it, so it was reverted. Not fixed. The DC build uses `-ffast-math`, but there the software back end is not used: the SH-4 is. On the SH-4: the `_sh4` form is the same C (below), so `_sh4`, `_c` and the dispatch agree bit for bit; against the planar loop run on the SH-4 interpreter they agree except (a) identical axes, where the planar loop's determinant is a rounding residual of the contracted products and not zero, and the routine takes the fallback (a test of the axes, now in the code); and (b) bytes inside a margin.
+
+**The `_sh4` form.** No hand asm. `_sh4` is the same C, and SH4ZAM's `shz_xmtrx_transform_vec4` is the FTRV instruction in the SH-4 build, so the body needs no asm of its own. Asm was not justified without console data. The divides stay sign-safe (`shz_divf`: W, the texel measure and the determinant can be negative); no fast reciprocal is used, because no denominator's sign is proven positive except the texel area, and that one is still divided.
+
+**Cycles E** (the interpreter's model, cache hits assumed; from `build/sh4zam-dce/cycles_shadow.txt`; per point). Dynamic instructions per point in brackets.
+
+| Baseline row (planar loop it replaces) | E a point |
+|---|---|
+| `-O3 -ffast-math`, pcf 1 and texel bias 1.5: `_bench_shadow_planar_before` | 634 (636) |
+| the routine, `_bench_shadow_compare` | 489 (464) |
+| `-O2 -ffast-math`, same case: planar | 677 (690) |
+| the routine | 647 (651) |
+| `-O3 -ffast-math`, pcf 0 and bias 0: planar | 270 (298) |
+| the routine | 184 (176) |
+| `-O2 -ffast-math`, same case: planar | 281 (311) |
+| the routine | 282 (320) |
+
+Loads and stores a point, `-O3` pcf 1 bias 1.5: routine 64.5 and 10.9, planar 104.3 and 40.5. The `_c` form measures 492 and 646 (`-O3` and `-O2`), within the variation of code layout of the dispatch.
+
+**Static instruction lines** (the `-S` output of the same bench file, `build/sh4zam-dce/shadow_bench_O{2,3}.s`; a routine's lines plus the out-of-line helpers it calls; setup included, so NOT per point): `-O2`: routine 189 + `plane_` 330 + `lit_` 298 + `texel_` 159 + dispatch 10 = 986; planar 43 + `before_batch` 879 = 922. `-O3`: routine 1,162 (the helpers are inlined); planar 1,202.
+
+**Where the gain comes from.** Fewer transforms and fewer copies. The planar loop does three FTRVs a point and copies each result through memory (40.5 stores a point at `-O3`, against 10.9 for the routine). The routine does one FTRV a point and reads the two axes from a block filled once a batch. The FSRRA count is the same on both sides (6 a point at `-O3`); the rest of the instruction mix differs by the transforms' products and copies. The gain is 23% at `-O3` and 4% at `-O2`; why `-O2` gains less was not examined.
+
+**What did not pay, with numbers.** The plain case (pcf 0, bias 0) at `-O2`: 282 against 281, no gain. The separate `_sh4` asm: not written, so there is no measurement of one; the `_c` and dispatch forms differ by 1 to 3 E in the table, which is the layout's noise. The identical-axes test is a per-point compare of four floats; it is not separately measured, and hoisting it per batch (the axes are per batch) was not done. A fast FSRRA reciprocal for the positive texel area was not tried (it would change bits; its gain is unmeasured). `shz_dce_gather.h` was evaluated and does not fit: its routines unpack bit-packed 3-field vertices and copy 12-byte records; the shadow's taps are 2 x 2 reads of a uint16 map with an out-of-map rule, and no interface of it covers that.
+
+**Host proxy (x86, not the SH-4, not a console).** Software back end, ns a point, best of three, `-O3`: routine 452 ns, planar 1,306 ns (pcf 1, bias 1.5); plain 446 against 1,257. The two routines' bytes are identical on the host (checked). The gap is much larger than the SH-4 model's. A likely cause is the software back end's XMTRX, which lives in thread-local state that each transform reads (the planar loop makes three transforms a point); this was not checked. Proxy only.
+
+**Not measured, and not claimed.** Any Dreamcast or emulator time (none run). Cache misses on the SH-4: the map (32 KB at 128 x 128) and the depth reads are random access; the model assumes every access hits. The SH-4 FTRV and FSRRA bits: the interpreter used the third party's bit-exact unit models (`tests/third_party/sh4_fpu_approx`, present here), which are a model of the console, not the console. The planar loop's identity on the SH-4 beyond the 1,760 SH-4 points and 150 batches of the check. The byte-identity claim for `-ffast-math` on other compilers. The cost of the scene in the demo's frame budget.
+
+**Credit.** The steps are those of the planar shadow-map compare in SH4DER-PVR (Copyright (c) 2026 Jilted Valkyrie); see README, Acknowledgments.
+
+## Entry: tri_row (shz_dce_tri_row.h, one triangle row into a 16-bit depth row)
+
+The routines: `shz_dce_tri_row_step_c` (the running-add row, unchanged, the reference), `shz_dce_tri_row_step_sh4` (the same edges by running adds; a covered texel's depth by one FIPR each, barycentric) and the dispatch `shz_dce_tri_row_step`. The BEFORE is the running-add row of the shadow raster it came from (kept as a copy in the bench, as the guide asks).
+
+Instruction counts per texel, one path at a time. Two sets, labelled differently:
+- static, for the hand-written SH-4 loop: the instructions on the path, counted from its text (the perspective covered path runs the guard, the reciprocal and the store; the rejected path is the first edge test and the advance).
+- executed, for the compiled C forms and the BEFORE: the instructions the interpreter ran per texel (sh4bench's `instrs` column, the same compiled code the cycle figures come from, built with -ffast-math -mfsrra -mfsca at -O2 and -O3).
+
+| path | BEFORE (running-add row), executed, -O3 / -O2 | C form, executed | SH-4 loop, static | SH-4 loop, executed |
+|---|---|---|---|---|
+| perspective, covered | 34.5 / 42.5 | 34 | 35 | 34 |
+| perspective, rejected | 15 / 15 | 15 | 9 | 9 |
+| flat, covered | 27 / 31 | 27 | 27 | 26 |
+| flat, rejected | 14 / 15 | 14 | 9 | 9 |
+
+Cycles, E (the interpreter's pipeline model, a texel; -O3 / -O2):
+
+| path | BEFORE | C form | SH-4 loop |
+|---|---|---|---|
+| perspective, covered | 43 / 50 | 43 / 43 | 44 / 44 |
+| perspective, rejected | 12 / 12 | 12 / 12 | 10 / 10 |
+| flat, covered | 27 / 32 | 27 / 27 | 30 / 30 |
+| flat, rejected | 11 / 12 | 11 / 11 | 10 / 10 |
+
+What the counts show, plainly: a win on the rejected texels only (12 -> 10 cycles, about 17% fewer, at both levels). On covered texels there is no win. Perspective covered is 12% fewer at -O2 but 2% more at -O3 against the BEFORE; flat covered is 6% fewer at -O2 and 11% more at -O3. The SH-4 loop has fewer instructions on the rejected path (9 against 14 to 15), and that is what the cycles show; the covered path has the same count of adds and more FIPR-and-guard work, so it does not come out ahead. A mix of 80% rejected and 20% covered, perspective, gives about 16.8 cycles a texel for the SH-4 loop against 18.2 for the C form (about 8% fewer). That mix is an assumption, not a measured share. The verdict: a modest model-level gain, adopted only behind a switch, default off, until a console measures it.
+
+Not measured, and said so: no Dreamcast and no emulator were used. Every cycle figure is the interpreter's pipeline model (E), not a console. Not measured: the real FIPR and FSRRA latencies and their pipelining, the load and store pairing with the FP unit, the cache, the branch costs, and the accuracy of FIPR and FSRRA on hardware. The checks ran the loops on the vendored bit-exact unit models in tests/third_party/sh4_fpu_approx (the runner's own models, not a console's), so the FIPR and FSRRA results are checked against that model, not the silicon.
+
+Bit identity, stated where it holds: the C form is bit-identical to the running-add row under strict IEEE flags (the host test; every texel of 20000 random triangles and the reference row for every count from 0 to 256). Under -ffast-math the contraction of the same expressions can differ (measured: 50128 texels of the same triangles, none in coverage, largest 748 units). The SH-4 loop is not bit-identical to either, by design (a dot product against running sums); its coverage is the running sums' own.

@@ -324,7 +324,7 @@ $(PSM_COW_H): $(PSM_COW_OBJ) demo/psm/tools/bake_cow.py
 	$(PYTHON) -I demo/psm/tools/bake_cow.py $(PSM_COW_OBJ) $@ --tris $(PSM_COW_TRIS)
 $(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_scene.h include/sh4der_psm.h include/sh4der_psm_raster.h include/sh4der_psm_pvr.h include/sh4der_guard.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
 	@mkdir -p $(BUILD)/psm_dc
-	$(DC_CC) $(DC_FLAGS) -Idemo/psm $(PSM_COW_FLAGS) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
+	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 $(PSM_DC_CDI): $(BUILD)/psm_dc/sh4der-psm-ab.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PSM-AB

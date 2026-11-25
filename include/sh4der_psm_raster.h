@@ -55,6 +55,9 @@
 
 #include <stdint.h>
 #include "sh4der_psm.h"
+#ifndef SH4DER_CORE_NO_SH4ZAM
+#include <sh4zam_dce/shz_dce_shadow.h>   /* SH4ZAM-DCE: the planar batch compare of sh4der_psm_raster_lit_n */
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -67,6 +70,22 @@ extern "C" {
 #define SH4DER_PSM_RASTER_DELTA      0.02f     /**< \brief Step of the texel size measure, metres. */
 #define SH4DER_PSM_RASTER_TEXEL_MAX  5.0f      /**< \brief Largest texel size the bias follows, metres. */
 #define SH4DER_PSM_RASTER_SLOPE_MAX  8.0f      /**< \brief Most depth a surface's slope may add across a texel in the plane compare, metres. */
+/** @} */
+
+/** \name Row fill
+    @{ */
+#ifndef SH4DER_PSM_RASTER_STEP
+/* The row fill. 0: the running-add row below (the default; the loop the library has always had, on every target). 1: the row
+   through sh4zam-dce's shz_dce_tri_row_step: the C form on the host (bit-identical to 0), the SH-4 loop with FIPR on the SH-4.
+   1 needs SH4ZAM: under SH4DER_CORE_NO_SH4ZAM the dce header is not included and the row is the running-add loop. */
+#define SH4DER_PSM_RASTER_STEP 0
+#endif
+#if SH4DER_PSM_RASTER_STEP == 1 && !defined(SH4DER_CORE_NO_SH4ZAM)
+#include <sh4zam_dce/shz_dce_tri_row.h>
+#endif
+/** \brief The smallest 1 / w that counts as a depth. Below it the texel stores depth 1. Set at or above 1.1e-19: the reciprocal is
+    FSRRA of its square, and a square below 2^-126 is flushed to zero on the SH-4 (FPSCR.DN), which would make the depth infinite. */
+#define SH4DER_PSM_RASTER_IW_MIN 1.0e-18f
 /** @} */
 
 /** \brief A shadow map being filled or read. */
@@ -181,10 +200,10 @@ static inline void sh4der_psm_raster_px_(sh4der_psm_raster_t *r, const float *s0
     e0x = s1[1] - s2[1];
     e1x = s2[1] - s0[1];
     e2x = s0[1] - s1[1];
-    inv = sh4der_div_(1.0f, area);
+    inv = sh4der_recip_pos_(area);
     flat = s0[2] == s1[2] && s1[2] == s2[2];
     if (flat) {                                                /* one w: the depth itself is affine, no divide a texel */
-        const float w = sh4der_div_(1.0f, s0[2]);
+        const float w = sh4der_recip_pos_(s0[2]);
 
         a0 = a1 = a2 = 0.0f;
         k0 = s0[3] * w * inv; k1 = s1[3] * w * inv; k2 = s2[3] * w * inv;
@@ -192,6 +211,24 @@ static inline void sh4der_psm_raster_px_(sh4der_psm_raster_t *r, const float *s0
         a0 = s0[2] * inv; a1 = s1[2] * inv; a2 = s2[2] * inv;
         k0 = s0[3] * inv; k1 = s1[3] * inv; k2 = s2[3] * inv;
     }
+#if SH4DER_PSM_RASTER_STEP == 1 && !defined(SH4DER_CORE_NO_SH4ZAM)
+    {
+        shz_dce_tri_row_t tri;
+
+        (void)x; (void)dwx; (void)dkx;
+        tri.step[0] = e0x; tri.step[1] = e1x; tri.step[2] = e2x; tri.step[3] = -SH4DER_PSM_RASTER_EDGE_EPS;
+        tri.kw[0] = k0; tri.kw[1] = k1; tri.kw[2] = k2; tri.kw[3] = 0.0f;
+        tri.iw[0] = a0; tri.iw[1] = a1; tri.iw[2] = a2; tri.iw[3] = SH4DER_PSM_RASTER_IW_MIN;
+        for (y = y0; y < y1; y++) {
+            const float px = (float)x0 + 0.5f, py = (float)y + 0.5f;
+            const float edge[3] = { (s1[0] - px) * (s2[1] - py) - (s2[0] - px) * (s1[1] - py),
+                                    (s2[0] - px) * (s0[1] - py) - (s0[0] - px) * (s2[1] - py),
+                                    (s0[0] - px) * (s1[1] - py) - (s1[0] - px) * (s0[1] - py) };
+
+            shz_dce_tri_row_step(r->depth + (size_t)y * r->size + x0, (unsigned)(x1 - x0), edge, &tri, !flat);
+        }
+    }
+#else
     dwx = e0x * a0 + e1x * a1 + e2x * a2;
     dkx = e0x * k0 + e1x * k1 + e2x * k2;
     for (y = y0; y < y1; y++) {
@@ -206,13 +243,14 @@ static inline void sh4der_psm_raster_px_(sh4der_psm_raster_t *r, const float *s0
             if (e0 >= -SH4DER_PSM_RASTER_EDGE_EPS && e1 >= -SH4DER_PSM_RASTER_EDGE_EPS && e2 >= -SH4DER_PSM_RASTER_EDGE_EPS) {
                 float q = kw;
 
-                if (!flat) q = iw > 1e-30f ? kw * sh4der_recip_pos_(iw) : 0.0f;
+                if (!flat) q = iw > SH4DER_PSM_RASTER_IW_MIN ? kw * sh4der_recip_pos_(iw) : 0.0f;
                 q = sh4der_clamp_(q, 1.0f, 65535.0f);
                 if ((uint16_t)q > row[x]) row[x] = (uint16_t)q;
             }
             e0 += e0x; e1 += e1x; e2 += e2x; iw += dwx; kw += dkx;
         }
     }
+#endif
 }
 
 /* Clip a polygon (X, Y, K, W) to -W <= X <= W, -W <= Y <= W. `a` holds the input and is used as scratch; the result is
@@ -423,7 +461,7 @@ static inline float sh4der_psm_raster_texel_(const sh4der_psm_raster_t *r, const
     area = u1 * v2 - v1 * u2;
     if (area < 0.0f) area = -area;
     if (!(area > 1e-12f)) return 1e30f;
-    return sqrtf(sh4der_div_(delta * delta, area));
+    return sh4der_sqrt_(sh4der_div_(delta * delta, area));   /* area > 1e-12 (above): the root's argument is positive */
 }
 
 /** \brief A receiver mesh: `n` world positions at `stride` bytes -> one byte each at `out_stride` bytes, 255 lit .. 0
@@ -432,13 +470,36 @@ static inline float sh4der_psm_raster_texel_(const sh4der_psm_raster_t *r, const
     there (b 0 skips that measure); with NULL axes through `sh4der_psm_raster_lit` with a bias of a. Put the byte in the
     vertex colour. Under SH4ZAM the map's matrix is loaded into XMTRX once and each transform is one FTRV, and XMTRX
     holds that matrix afterwards (a caller that keeps its own matrix there loads it again before it transforms anything
-    else). Plain C otherwise, the same arithmetic. */
+    else). Plain C otherwise, the same arithmetic.
+    The planar batch under SH4ZAM is SH4ZAM-DCE's `shz_dce_shadow_compare_batch` (third_party/sh4zam-dce, header
+    shz_dce_shadow.h): the two axes are transformed once per call (FTRV of (t, 0)), the points one FTRV each, and the
+    kernel reads XMTRX and does not change it, so XMTRX holds the map's matrix on return exactly as before. Its `_c`
+    form is byte-identical to the per-point loop below on the software back end in strict builds and with
+    -fno-unsafe-math-optimizations; under plain -ffast-math it is not (see shz_dce_shadow.h). On the SH-4 see that
+    header too. The
+    loop below stays for the plain C build (SH4DER_CORE_NO_SH4ZAM) and for the non-planar case. */
 static inline void sh4der_psm_raster_lit_n(const sh4der_psm_raster_t *r, const float *pos, unsigned stride, unsigned n,
                                            const float t1[3], const float t2[3], float a, float b, int pcf,
                                            uint8_t *out, unsigned out_stride) {
     const int planar = t1 && t2;
     unsigned i;
 
+#ifndef SH4DER_CORE_NO_SH4ZAM
+    if (planar) {
+        shz_dce_shadow_map_t map;
+        float g1[4], g2[4];
+
+        map.depth = r->depth; map.size = r->size; map.key_scale = r->key_scale;
+        map.slope_max = SH4DER_PSM_RASTER_SLOPE_MAX; map.bias_a = a; map.bias_b = b;
+        map.texel_max = SH4DER_PSM_RASTER_TEXEL_MAX; map.texel_step = SH4DER_PSM_RASTER_DELTA;
+        map.w_eps = SH4DER_PSM_TRI_EPS; map.pcf = pcf;
+        sh4der_psm_raster_load_(r);
+        sh4der_psm_raster_fwd_(r, t1, 0.0f, g1);       /* the surface's axes, once a batch */
+        sh4der_psm_raster_fwd_(r, t2, 0.0f, g2);
+        shz_dce_shadow_compare_batch(out, out_stride, pos, stride, n, &map, g1, g2);
+        return;
+    }
+#endif
     if (planar) sh4der_psm_raster_load_(r);
     for (i = 0; i < n; i++) {
         const float *x = (const float *)((const char *)pos + (size_t)i * stride);

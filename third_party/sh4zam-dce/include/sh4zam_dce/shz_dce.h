@@ -26,5 +26,7 @@
 #include "shz_dce_sqrt.h"
 #include "shz_dce_trig.h"
 #include "shz_dce_atan2.h"
+#include "shz_dce_shadow.h"
+#include "shz_dce_tri_row.h"
 
 #endif /* SHZ_DCE_H */
