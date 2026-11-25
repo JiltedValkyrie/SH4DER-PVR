@@ -19,17 +19,17 @@ Every mapping on this page and on [GPU Gems depth techniques](gems-depth-techniq
 |---|---|---|---|---|
 | CMP | c4 compare | A depth code from a map, per pixel, against one Q a polygon; bands on slanted receivers | Map pass 3.3 ms through the whole tile list, 375 us cut to 20 tiles; mask pass 5.0-9.1 ms by band width, 3.76 ms cut to 80 tiles | PVR-092, PVR-100 |
 | RAMP | Ramp texture | A per-pixel function of an interpolated coordinate: a depth code by 1/(2z), or any 1-D curve | Within 1 code with 8 sub-steps; one textured pass | PVR-095, PVR-006 |
-| BUMP | Bump unit | A per-pixel level from a texel and one light (or Q) a polygon | As the mask line above | PVR-045, PVR-096 |
+| BUMP | Bump unit | A per-pixel level from a texel and one light (or Q) a polygon; at window 32 the console passes differences 99 to 157, measured at boot | As the mask line above | PVR-045, PVR-096, PVR-102 |
 | TILE | Tile-list cut | A target rendered through only the tiles it covers | Map 3,312 → 375 us; mask 6,130 → 3,760 us | PVR-092, PVR-093 |
 | FOG | Table fog | Per-pixel blend toward one colour by 1/w, 128 entries | Nothing on the SH-4 until the table changes | PVR-049 |
-| PT | Punch-through | Texture alpha × vertex alpha ≥ one reference: a per-pixel cut | 3.3-4.3 ms a full-screen 4444 layer | PVR-060, PVR-064, PVR-006 |
+| PT | Punch-through | Texture alpha × vertex alpha ≥ one reference: a per-pixel cut; with the bump level as the alpha it gives the same mask as the 1555 route | 3.3-4.3 ms a full-screen 4444 layer; as a mask route 14-18 % dearer than 1555 (7.2-7.9 ms for a 320 × 240 mask) | PVR-060, PVR-064, PVR-006, PVR-105 |
 | TR | Translucent layer | A blended layer | 3.1 ms full screen at 640 × 480; 0.77 ms at 320 × 240 on a 3.2 ms target floor | PVR-002, PVR-004 |
 | DA | Destination alpha | The frame keeps an alpha that later blends read (DESTALPHA, INVDESTALPHA) | A compare in destination alpha worked (c1); the library's trail pass uses it as a column mask | PVR-040; `src/sh4der_trail.c:127-151` |
 | MV | Modifier volume | Exact inside/outside per pixel, in hardware | Cost did not show in one test | PVR-044 |
 | RTT | Render to texture | A pass into a 16-bit target, textured in the next pass | 3.2 ms floor a pass through the whole list | PVR-004, PVR-020, PVR-021 |
 | READ | Frame read | The SH-4 reads pixels back | PVR-DMA 36-38 MB/s; cached 38.7 MB/s; uncached 7.5 MB/s | BUS-021, BUS-051, SH4-040, SH4-041 |
 | VTX | Vertices | Every extra mesh copy | 142 ns a vertex in store-queue runs; 260 ns one at a time | BUS-003, BUS-001 |
-| SH4 | SH-4 per-vertex maths | Any function written into colour, alpha or UV | FIPR 38.1 cycles a point, FTRV 16.6, in the cache | SH4-017, SH4-020 |
+| SH4 | SH-4 per-vertex maths | Any function written into colour, alpha or UV | FIPR 38.1 cycles a point, FTRV 16.6, in the cache; a ray through a 64 × 64 height grid 22 cycles a cell + 71-74 a ray; a proxy test 138 cycles a pair | SH4-017, SH4-020, SH4-052, SH4-055 |
 
 **What the PVR cannot do** (FACT unless marked): read the depth buffer (it stays on chip per tile, PVR-083); offset a texture coordinate per pixel from another texture (no dependent read: the bump unit gives a level, not an offset); use a rendered colour as a texture coordinate (so no colour lookup table on the frame); 3-D textures; float targets.
 
