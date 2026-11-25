@@ -70,7 +70,7 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
     if (st->buttons & CONT_DPAD_LEFT) pad |= CTL_LEFT;
     if (st->buttons & CONT_DPAD_RIGHT) pad |= CTL_RIGHT;
     {
-        const uint32_t now = ctl_map(pad);
+        const uint32_t now = ctl_map(pad, ctl_when(demo_info_on()));
         in->pressed = now & ~*held;
         *held = now;
     }

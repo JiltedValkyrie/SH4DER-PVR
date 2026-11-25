@@ -9,7 +9,7 @@ enum {
     DEMO_BTN_MORE    = 1u << 2,    /* F0 up */
     DEMO_BTN_LESS    = 1u << 3,    /* F0 down */
     DEMO_BTN_INFO    = 1u << 4,    /* debug overlay + target thumbnail on / off */
-    DEMO_BTN_AUTO    = 1u << 5,    /* slow camera orbit on / off: no key (the autorun's orbit stages set it, demo_auto_set) */
+    DEMO_BTN_RESTART = 1u << 5,    /* DRIVE: the car back at the start, the clock and the laps from 0 (A, overlay closed) */
     DEMO_BTN_TOD     = 1u << 6,    /* time of day: AUTO -> DAY -> NIGHT -> PAUSE */
     DEMO_BTN_LAMP_UP = 1u << 7,    /* night gain of the reflection up */
     DEMO_BTN_LAMP_DN = 1u << 8,    /* and down */
@@ -41,6 +41,7 @@ void demo_init(void);
 void demo_update(const demo_input_t *in, float dt);
 void demo_draw(const demo_stats_t *st);
 int  demo_reflect_on(void);
+int  demo_info_on(void);           /* the overlay is open (DRIVE: the tech keys are live, controls.h ctl_when) */
 
 /* The autorun (main.c, PL4NAR_AUTORUN): set a stage, read what the last frame drew. */
 typedef struct demo_counts {

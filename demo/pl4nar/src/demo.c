@@ -176,7 +176,7 @@ static unsigned   s_refused;                      /* models refused for size: lo
 /* x, z, h: the car in the street's frame (z along it, x across, h from its direction). On the new map z is s along
    the loop and x the offset across it. wx, wz, wh: the car in the world; wcam: the camera's yaw before the orbit. */
 static struct { float x, z, h, v, cam_h, orbit, clock, wx, wz, wh, wcam; } s_car;
-#ifdef PL4NAR_HILLS
+#if defined(PL4NAR_HILLS) || defined(PL4NAR_DRIVE)
 static int      s_reflect = 1, s_info = 0, s_auto;  /* the overlay off at boot: its text costs (START shows it) */
 #else
 static int      s_reflect = 1, s_info = 1, s_auto;
@@ -281,6 +281,12 @@ static void tile_cut_size(unsigned *cw, unsigned *ch) {
 #endif
 
 int demo_reflect_on(void) { return s_reflect; }
+int demo_info_on(void) { return s_info; }
+#ifdef PL4NAR_DRIVE
+/* DRIVE's laps (the map: a lap is the loop's start line crossed forward; the street has none). */
+static unsigned s_laps;                            /* laps done since the start */
+static float    s_lap_t0, s_lap_last, s_lap_best;  /* the clock at the last crossing; the last lap and the best, 0: none */
+#endif
 
 /* The split: the reflection layer drawn inside the left half's user clip only, the right half the flat paint. */
 static int          s_split;
@@ -425,7 +431,7 @@ void demo_init(void) {
     add_prop(&mdl_van_body, &mdl_van_wheels, 6.7f, 262.0f, 0.0f);
     add_prop(&mdl_police_body, &mdl_police_wheels, -6.7f, 330.0f, 3.1416f);
 #endif
-    s_car.x = -2.0f; s_car.z = 8.0f; s_car.h = 0.0f; s_car.v = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.clock = 0.0f;
+    s_car.x = -2.0f; s_car.z = 8.0f; s_car.h = 0.0f; s_car.v = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.clock = 0.0f;   /* the start (DRIVE's restart too) */
 #ifdef PL4NAR_HILLS
     hills_init();
     {
@@ -449,7 +455,6 @@ void demo_update(const demo_input_t *in, float dt) {
     float rate;
     if (in->pressed & DEMO_BTN_REFLECT) s_reflect = !s_reflect;
     if (in->pressed & DEMO_BTN_INFO) s_info = !s_info;
-    if (in->pressed & DEMO_BTN_AUTO) s_auto = !s_auto;
     if (in->pressed & DEMO_BTN_MORE) s_f0 = shz_fminf(s_f0 + 0.02f, 0.60f);
     if (in->pressed & DEMO_BTN_LESS) s_f0 = shz_fmaxf(s_f0 - 0.02f, 0.02f);
     if (in->pressed & DEMO_BTN_LAMP_UP) s_lamp_gain = shz_fminf(s_lamp_gain + 0.25f, 4.0f);
@@ -506,6 +511,24 @@ void demo_update(const demo_input_t *in, float dt) {
 #else
     if (s_car.z >= PERIOD) s_car.z -= PERIOD;
     if (s_car.z < 0.0f)    s_car.z += PERIOD;
+#endif
+#if defined(PL4NAR_DRIVE) && defined(PL4NAR_MAP)
+    {   /* a lap: the start line (s 0) crossed forward; backward over it takes the lap back, with no time */
+        static float prev_z = 8.0f;
+        if (prev_z > MAP_LOOP_LEN * 0.75f && s_car.z < MAP_LOOP_LEN * 0.25f) {
+            const float t = s_car.clock - s_lap_t0;
+            if (s_laps) { s_lap_last = t; if (s_lap_best <= 0.0f || t < s_lap_best) s_lap_best = t; }   /* the first crossing ends the run up from s 8 */
+            s_laps++; s_lap_t0 = s_car.clock;
+        } else if (prev_z < MAP_LOOP_LEN * 0.25f && s_car.z > MAP_LOOP_LEN * 0.75f && s_laps) s_laps--;
+        prev_z = (in->pressed & DEMO_BTN_RESTART) ? 8.0f : s_car.z;
+    }
+#endif
+#ifdef PL4NAR_DRIVE
+    if (in->pressed & DEMO_BTN_RESTART) {          /* the car as demo_init puts it; the hour, the keys' settings and the traffic stay */
+        s_car.x = -2.0f; s_car.z = 8.0f; s_car.h = 0.0f; s_car.v = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.clock = 0.0f;
+        s_laps = 0u; s_lap_t0 = s_lap_last = s_lap_best = 0.0f;
+        HILLS_SNAP();
+    }
 #endif
     s_car.cam_h = shz_lerpf(s_car.cam_h, s_car.h, shz_saturatef(3.5f * dt));
     s_car.orbit += (in->orbit * 1.8f + (s_auto ? 0.35f : 0.0f)) * dt;
@@ -1774,8 +1797,24 @@ static void overlay(const demo_stats_t *st) {
     /* game HUD: timer, two bars, speed, map */
     snprintf(t, sizeof t, "%u:%02u.%02u", cs / 6000u, (cs / 100u) % 60u, cs % 100u);
     hud_text(24.0f, 20.0f, 2.0f, 0xffffffffu, t);
+#ifdef PL4NAR_DRIVE
+#ifdef PL4NAR_MAP
+    {   /* DRIVE: the lap, the last and the best under the clock */
+        const unsigned l = (unsigned)(s_lap_last * 100.0f), b = (unsigned)(s_lap_best * 100.0f);
+        size_t o = (size_t)snprintf(t, sizeof t, "LAP %u", s_laps ? s_laps : 1u);
+        if (s_lap_last > 0.0f) o += (size_t)snprintf(t + o, sizeof t - o, "  LAST %u:%02u.%02u", l / 6000u, (l / 100u) % 60u, l % 100u);
+        if (s_lap_best > 0.0f) (void)snprintf(t + o, sizeof t - o, "  BEST %u:%02u.%02u", b / 6000u, (b / 100u) % 60u, b % 100u);
+        hud_text(24.0f, 56.0f, 1.0f, 0xffffffffu, t);
+    }
+#endif
+    if (!s_info) {                                     /* one line of keys, from controls.h: the drive set */
+        unsigned from = 0u;
+        if (ctl_hud_line(t, 76u, &from, CTL_W_DRIVE)) hud_text(24.0f, 456.0f, 1.0f, 0xffc0c0c0u, t);
+    }
+#else
     hud_bar(24.0f, 58.0f, 150.0f, 10.0f, 0.18f, 0xffd04030u, "BODY");
     hud_bar(24.0f, 86.0f, 150.0f, 10.0f, shz_saturatef(0.30f + 0.2f * shz_sinf(s_car.clock * 0.7f)), 0xff3070e0u, "HEAT");
+#endif
     snprintf(t, sizeof t, "%3u km/h", (unsigned)kmh);
     hud_text(500.0f, 430.0f, 2.0f, 0xffffffffu, t);
 #ifndef PL4NAR_MAP
@@ -1823,13 +1862,16 @@ static void overlay(const demo_stats_t *st) {
     {
         gfx_cut_stats_t cs;
         gfx_tile_cut_stats(&cs);
-        if (cs.failed) hud_text(24.0f, 300.0f, 1.0f, 0xffff6060u, "TILE CUT FAILED: PVR restarted, cut off");
+        if (cs.failed) hud_text(24.0f, 150.0f, 1.0f, 0xffff6060u, "TILE CUT FAILED: PVR restarted, cut off");   /* under the thumbnail */
     }
 #endif
     if (!s_info) return;
     {
         const unsigned tw = s_sizes[s_size][0], th = s_sizes[s_size][1];
-        float y = 328.0f;
+        unsigned keys = 0u, from = 0u;
+        float y;
+        while (ctl_hud_line(t, 76u, &from, CTL_W_TECH)) keys++;
+        y = 380.0f - 16.0f * (float)(5u + keys);    /* the block ends above the effect labels (y 386) and the speed (430) */
         snprintf(t, sizeof t, "FPS %u.%u  CPU %u.%02u ms  PVR %u.%02u ms", (unsigned)(st->fps_x10 / 10u), (unsigned)(st->fps_x10 % 10u),
                  (unsigned)(st->cpu_us / 1000u), (unsigned)((st->cpu_us % 1000u) / 10u), (unsigned)(st->pvr_us / 1000u), (unsigned)((st->pvr_us % 1000u) / 10u));
         hud_text(24.0f, y, 1.0f, 0xffffffffu, t); y += 16.0f;
@@ -1849,10 +1891,7 @@ static void overlay(const demo_stats_t *st) {
         snprintf(t, sizeof t, "%s  TIME %s  SUN %s  clock %u.%02u  lamps %u%%  night gain %u.%02u", s_low ? "LOOK 64x64 16col" : "LOOK full", s_tod_name[s_tod_mode], s_sun_name[s_sun_mode],
                  (unsigned)s_tod, (unsigned)(s_tod * 100.0f) % 100u, (unsigned)(s_lamp * 100.0f), (unsigned)s_lamp_gain, (unsigned)(s_lamp_gain * 100.0f + 0.5f) % 100u);
         hud_text(24.0f, y, 1.0f, 0xffffe0a0u, t); y += 16.0f;
-        {   /* the keys, from controls.h: what read_pad does, no other text */
-            unsigned from = 0u;
-            while (ctl_hud_line(t, 76u, &from)) { hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, t); y += 16.0f; }
-        }
+        for (from = 0u; ctl_hud_line(t, 76u, &from, CTL_W_TECH); y += 16.0f) hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, t);   /* the keys, from controls.h: what read_pad does */
         if (s_reflect) {                                  /* the target itself, top centre: what the mirrored camera sees */
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS

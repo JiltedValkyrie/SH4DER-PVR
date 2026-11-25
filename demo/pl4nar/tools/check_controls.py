@@ -7,15 +7,16 @@
 
 src/controls.h is what the pad read (read_pad through ctl_map) and the HUD's key lines use, so a README that matches it
 says what the code does. A row of controls.h is a CTL_ROW( line; the README's table is the first table under
-"## Controls" (Keys | Action | Builds). Standard library only.
+"## Controls" (Keys | Action | Builds | When). Standard library only.
 """
 import os
 import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROW = re.compile(r'^CTL_ROW\(([^,]+),\s*([^,]+),\s*([^,]+),\s*"([^"]*)",\s*"([^"]*)",\s*(NULL|"[^"]*")\)\s*$')
+ROW = re.compile(r'^CTL_ROW\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*"([^"]*)",\s*"([^"]*)",\s*(NULL|"[^"]*")\)\s*$')
 BUILDS = {"CTL_B_STREET": "street", "CTL_B_MAP": "map", "CTL_B_HILLS": "hills"}
+WHEN = {"CTL_W_ALL": "always", "CTL_W_DRIVE": "drive", "CTL_W_TECH": "tech"}
 
 
 def builds_text(expr):
@@ -32,7 +33,7 @@ def code_rows(text):
             m = ROW.match(line.strip())
             if not m:
                 raise ValueError("a CTL_ROW line this check cannot read: " + line)
-            rows.append((m.group(4), m.group(5), builds_text(m.group(3))))
+            rows.append((m.group(5), m.group(6), builds_text(m.group(3)), WHEN[m.group(4).strip()]))
     return rows
 
 
@@ -58,8 +59,8 @@ def readme_rows(text):
 
 
 def table(rows):
-    out = ["| Keys | Action | Builds |", "|---|---|---|"]
-    out += ["| **%s** | %s | %s |" % r for r in rows]
+    out = ["| Keys | Action | Builds | When |", "|---|---|---|---|"]
+    out += ["| **%s** | %s | %s | %s |" % r for r in rows]
     return "\n".join(out)
 
 
@@ -74,14 +75,15 @@ def compare(code, readme):
 
 
 def self_test():
-    h = 'CTL_ROW(CTL_X, DEMO_BTN_REFLECT, CTL_B_ALL, "X", "reflection on / off", "X reflect")\n' \
-        'CTL_ROW(CTL_B | CTL_Y, DEMO_BTN_TILES, CTL_B_MAP | CTL_B_HILLS, "B + Y", "tiles", NULL)\n'
+    h = 'CTL_ROW(CTL_X, DEMO_BTN_REFLECT, CTL_B_ALL, CTL_W_TECH, "X", "reflection on / off", "X reflect")\n' \
+        'CTL_ROW(CTL_B | CTL_Y, DEMO_BTN_TILES, CTL_B_MAP | CTL_B_HILLS, CTL_W_ALL, "B + Y", "tiles", NULL)\n'
     c = code_rows(h)
-    assert c == [("X", "reflection on / off", "all"), ("B + Y", "tiles", "map, hills")], c
-    md = "## Controls\n\n" + table(c) + "\n\nmore\n\n## Cost\n| a | b | c |\n"
+    assert c == [("X", "reflection on / off", "all", "tech"), ("B + Y", "tiles", "map, hills", "always")], c
+    md = "## Controls\n\n" + table(c) + "\n\nmore\n\n## Cost\n| a | b | c | d |\n"
     assert readme_rows(md) == c
     assert not compare(c, readme_rows(md))
     assert compare(c, readme_rows(md.replace("tiles |", "tile |")))
+    assert compare(c, readme_rows(md.replace("| tech |", "| always |")))
     print("SELF_TEST_OK")
 
 

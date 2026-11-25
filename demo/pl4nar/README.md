@@ -17,11 +17,13 @@ Status, plainly. **Proven:** it compiles for the host and for the Dreamcast on t
 ```sh
 python demo/pl4nar/build.py --sh4zam /path/to/sh4zam --rtt              # the map (the default)
 python demo/pl4nar/build.py --sh4zam /path/to/sh4zam --rtt --street     # the first street layout
+python demo/pl4nar/build.py --sh4zam /path/to/sh4zam --rtt --tech       # TECH DEMO, the measuring autorun
+python demo/pl4nar/build.py --sh4zam /path/to/sh4zam --rtt --hills      # DRIVE on the map with the hills
 ```
 
 Run it in a shell with the KallistiOS environment sourced. One command goes from a clean checkout to a disc image. It:
 
-- checks the credits table;
+- checks the credits table, and the Controls table below against `src/controls.h`;
 - fetches the CC0 art (`fetch_table.json`; nothing third-party is in this repository);
 - builds the coupe, the street furniture and the overhead structures from numbers;
 - cuts the stock models to the budget in Blender (headless);
@@ -29,14 +31,20 @@ Run it in a shell with the KallistiOS environment sourced. One command goes from
 - lays out the loop (`tools/map.py`) and bakes its ambient occlusion (`tools/map_ao.c`);
 - compiles, and writes the image.
 
-The two builds never share a folder:
+Two layouts (the map, `--street`) and two programs, from one source, never share a folder:
+
+- **DRIVE** (the default): free driving. The HUD shows the time, the lap with the last and best lap time (the map), the speed, and one line of keys; START opens the tech overlay, and with it the tech keys (the Controls table's When column).
+- **TECH DEMO** (`--tech`): the measuring autorun. It runs its stages and then shows its result pages.
+- `--hills` (the map only) adds the hills.
 
 | | generated | objects and ELF | image |
 |---|---|---|---|
-| map (default) | `build/gen_map` | `build/map` | `out/pl4nar-map-b<N>.cdi` |
-| `--street` | `build/gen` | `build/` | `out/pl4nar-demo-b<N>.cdi` |
+| map, DRIVE (default) | `build/gen_map` | `build/map_drive` | `out/pl4nar-drive-map-b<N>.cdi` |
+| map, `--tech` | `build/gen_map` | `build/map_tech` | `out/pl4nar-tech-map-b<N>.cdi` |
+| map, `--hills` (and `--tech`) | `build/gen_map` | `build/map_hills_drive` (`_tech`) | `out/pl4nar-drive-map-hills-b<N>.cdi` (`pl4nar-tech-`) |
+| `--street` (and `--tech`) | `build/gen` | `build/street_drive` (`_tech`) | `out/pl4nar-drive-street-b<N>.cdi` (`pl4nar-tech-`) |
 
-An image is never overwritten. A generated `.obj` that is already there is kept. Leave `--rtt` out on a KallistiOS without `pvr_scene_begin_rtt`: the target is then 1024 pixels wide (that path is compiled, not yet run). From the library's root, `make pl4nar-demo SH4ZAM=... PL4NAR_ARGS="--rtt"` runs the same script (add `--street` there for the old layout).
+An image is never overwritten. A generated `.obj` that is already there is kept. Leave `--rtt` out on a KallistiOS without `pvr_scene_begin_rtt`: the target is then 1024 pixels wide (that path is compiled, not yet run). From the library's root, `make pl4nar-demo SH4ZAM=... PL4NAR_ARGS="--rtt"` runs the same script (add `--street`, `--tech` or `--hills` there).
 
 Needs:
 
@@ -45,7 +53,7 @@ Needs:
 - **for the map, a host C compiler**: `HOST_CC`, else `gcc`, `cc` or `clang` on the PATH. `tools/map_ao.c` runs on your machine at build time, so `kos-cc` will not do. Without one, the map build refuses before it does anything; `--street` does not need it;
 - the map's occlusion step also builds SH4ZAM's software matrix code (`source/sw/shz_xmtrx_sw.c` in the `--sh4zam` checkout) for the host.
 
-Before the first real run, `python demo/pl4nar/build.py --dry-run [--street] [--rtt]` prints the steps (ten for the map, seven for `--street`), which tools it can and cannot find (the host compiler included), the credits check and the state of the fetch table. It fetches, writes and builds nothing (`tools/test_build_dry.py` checks this for both builds).
+Before the first real run, `python demo/pl4nar/build.py --dry-run [--street] [--rtt]` prints the steps (eleven for the map, eight for `--street`), which tools it can and cannot find (the host compiler included), the credits check and the state of the fetch table. It fetches, writes and builds nothing (`tools/test_build_dry.py` checks this for both builds).
 
 The fetch table is not pinned yet: the first run needs `--pin`, which prints each pack's sha256 to put in `fetch_table.json`. The two Kenney packs have no stable direct link: the script says where to download them by hand.
 
@@ -53,32 +61,33 @@ To put these effects into another engine, follow `AGENT_WORKFLOW.md`. See `CREDI
 
 ## Controls
 
-The table is `src/controls.h`, the table the pad is read through and the HUD's key lines come from; `python tools/check_controls.py` fails when this one differs from it. Builds: street (`--street`), map (the default), hills (the map built with `PL4NAR_HILLS`).
+The table is `src/controls.h`, the table the pad is read through and the HUD's key lines come from; `python tools/check_controls.py` fails when this one differs from it. Builds: street (`--street`), map (the default), hills (the map built with `PL4NAR_HILLS`). When: DRIVE (the game program, `build.py` without `--tech`) has two key sets, the drive keys while the overlay is closed and the tech keys while START has it open; "always" is both. Every other program (the live view, the autorun) has the tech keys all the time.
 
-| Keys | Action | Builds |
-|---|---|---|
-| **stick or D-pad left / right** | steer | all |
-| **RT** | engine | all |
-| **LT** | brake, then reverse | all |
-| **X** | reflection on / off | all |
-| **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | all |
-| **A** | textures: low (64 x 64, 16 colours, the start) or full | all |
-| **D-pad up** | F0 (the reflection's strength) up | all |
-| **D-pad down** | F0 down | all |
-| **START** | the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills | all |
-| **B + stick** | the camera round the car | all |
-| **B + LT / RT** | move the split's divider (with the split on) | all |
-| **B + X** | the split: the reflection on the left of a divider only | all |
-| **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | all |
-| **B + D-pad up** | the reflection's night gain up | all |
-| **B + D-pad down** | the night gain down | all |
-| **B + D-pad right** | the sun: FIXED, SWEEP (to DAY unless NIGHT), HOLD | all |
-| **B + D-pad left** | baked occlusion on / off | map, hills |
-| **B + Y** | car shadow tiles on / off (off: blob discs) | map |
-| **B + Y** | car shadow: on the ground mesh, one flat quad, off (blob discs) in turn | hills |
-| **B + START** | the effect labels shown / hidden | map, hills |
+| Keys | Action | Builds | When |
+|---|---|---|---|
+| **stick or D-pad left / right** | steer | all | always |
+| **RT** | engine | all | always |
+| **LT** | brake, then reverse | all | always |
+| **X** | reflection on / off | all | tech |
+| **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | all | tech |
+| **A** | textures: low (64 x 64, 16 colours, the start) or full | all | tech |
+| **A** | restart: the car at the start, stopped; the clock and the laps from 0 | all | drive |
+| **D-pad up** | F0 (the reflection's strength) up | all | tech |
+| **D-pad down** | F0 down | all | tech |
+| **START** | the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills and in DRIVE | all | always |
+| **B + stick** | the camera round the car | all | always |
+| **B + LT / RT** | move the split's divider (with the split on) | all | always |
+| **B + X** | the split: the reflection on the left of a divider only | all | tech |
+| **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | all | tech |
+| **B + D-pad up** | the reflection's night gain up | all | tech |
+| **B + D-pad down** | the night gain down | all | tech |
+| **B + D-pad right** | the sun: FIXED, SWEEP (to DAY unless NIGHT), HOLD | all | tech |
+| **B + D-pad left** | baked occlusion on / off | map, hills | tech |
+| **B + Y** | car shadow tiles on / off (off: blob discs) | map | tech |
+| **B + Y** | car shadow: on the ground mesh, one flat quad, off (blob discs) in turn | hills | tech |
+| **B + START** | the effect labels shown / hidden | map, hills | tech |
 
-In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick and B + LT / RT change no work and mark nothing). No key ends the autorun. The tile cut and the small tile set have no key: they are autorun stages only.
+In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick and B + LT / RT change no work and mark nothing). No key ends the autorun: it runs every stage, then shows its result pages, and a key pressed during a stage only marks it. The tile cut and the small tile set have no key: they are autorun stages only.
 
 ## Cost
 

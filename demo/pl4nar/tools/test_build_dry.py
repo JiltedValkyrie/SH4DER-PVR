@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """build.py --dry-run: for both builds (the map, the default; --street) it names the steps, reports the tools, runs the
-credits check, and touches nothing.
+credits and controls checks, and touches nothing.
 
     python demo/pl4nar/tools/test_build_dry.py
 
@@ -30,8 +30,8 @@ def dry(*extra):
     return subprocess.run([sys.executable, os.path.join(ROOT, "build.py"), "--dry-run"] + list(extra), capture_output=True, text=True)
 
 
-STREET = ("1 credits", "2 fetch", "3 coupe", "4 lod", "5 bake", "6 make", "7 image")
-MAP = ("1 credits", "2 fetch", "3 coupe", "3b structures", "4 lod", "5 bake", "5b map", "5c map_ao", "6 make", "7 image")
+STREET = ("1 credits", "1b controls", "2 fetch", "3 coupe", "4 lod", "5 bake", "6 make", "7 image")
+MAP = ("1 credits", "1b controls", "2 fetch", "3 coupe", "3b structures", "4 lod", "5 bake", "5b map", "5c map_ao", "6 make", "7 image")
 
 
 class DryRun(unittest.TestCase):
@@ -45,6 +45,7 @@ class DryRun(unittest.TestCase):
         self.assertEqual(sum(1 for ln in lines if ln[8:9].isdigit()), len(want), "no step more than " + ", ".join(want))
         self.assertEqual(lines[-1], "DRY_RUN_OK")
         self.assertIn("CREDITS_OK", r.stdout)
+        self.assertIn("CONTROLS_OK", r.stdout)
         self.assertIn("SH4ZAM MISSING", r.stdout)                  # a missing tool is reported, not an error
         self.assertIn(image, r.stdout)                             # no image folder yet: the first number
         self.assertEqual(tree(), before)                           # nothing fetched, written or built
@@ -52,13 +53,19 @@ class DryRun(unittest.TestCase):
         return r.stdout
 
     def test_map_steps_and_nothing_written(self):
-        out = self.steps((), MAP, "pl4nar-map-b1.cdi")
+        out = self.steps((), MAP, "pl4nar-drive-map-b1.cdi")
         self.assertIn("the map (default)", out)
-        self.assertIn("MAP=1 GEN=build/gen_map BUILD=build/map", out)
+        self.assertIn("BUILD=build/map_drive MAP=1 GEN=build/gen_map EXTRA=-DPL4NAR_DRIVE", out)
         self.assertIn("host cc", out)                              # found or MISSING: either way it is named
 
+    def test_tech_hills_names(self):
+        out = self.steps(("--tech", "--hills"), MAP, "pl4nar-tech-map-hills-b1.cdi")
+        self.assertIn("BUILD=build/map_hills_tech MAP=1 GEN=build/gen_map EXTRA=-DPL4NAR_HILLS AUTORUN=1", out)
+        self.assertIn("volume PL4NAR-TECH-H", out)
+        self.assertNotIn("PL4NAR_DRIVE", out)
+
     def test_street_steps_and_nothing_written(self):
-        out = self.steps(("--street",), STREET, "pl4nar-demo-b1.cdi")
+        out = self.steps(("--street",), STREET, "pl4nar-drive-street-b1.cdi")
         self.assertIn("the street (--street)", out)
         self.assertNotIn("MAP=1", out)
         self.assertNotIn("host cc", out)

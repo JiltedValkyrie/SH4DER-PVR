@@ -1,5 +1,6 @@
 /* controls.h against the hand-written pad read it replaced (main.c before the table), every pad state, one build a
- * compile (-DPL4NAR_MAP, -DPL4NAR_MAP -DPL4NAR_HILLS, or neither); and the HUD's key lines fit the screen.
+ * compile (-DPL4NAR_MAP, -DPL4NAR_MAP -DPL4NAR_HILLS, or neither; each with or without -DPL4NAR_DRIVE): the tech set is
+ * the old read exactly; DRIVE's drive set is the restart (A) and the overlay (START) alone. The HUD's key lines fit.
  * Bits an older build set but never acted on (tiles, AO and the labels on the street) are left out of the comparison. */
 #include <stdio.h>
 #include "controls.h"
@@ -27,10 +28,23 @@ int main(void) {
     uint32_t p, bad = 0u;
     unsigned from = 0u, lines = 0u;
     char t[96];
-    for (p = 0; p < 512u; p++)
-        if ((ctl_map(p) & acted) != (old_map(p) & acted)) { if (bad++ < 8u) printf("pad %03x: table %05x, old %05x\n", (unsigned)p, (unsigned)ctl_map(p), (unsigned)old_map(p)); }
-    while (ctl_hud_line(t, 76u, &from)) { printf("hud: %s\n", t); lines++; if (strlen(t) > 75u) bad++; }
+    for (p = 0; p < 512u; p++) {
+        const uint32_t tech = ctl_map(p, ctl_when(1)), drive = ctl_map(p, CTL_W_DRIVE);
+        const uint32_t want = ((p & CTL_A) && !(p & CTL_B) ? DEMO_BTN_RESTART : 0u) | ((p & CTL_START) && !(p & CTL_B) ? DEMO_BTN_INFO : 0u);
+        if ((tech & acted) != (old_map(p) & acted)) { if (bad++ < 8u) printf("pad %03x: tech %05x, old %05x\n", (unsigned)p, (unsigned)tech, (unsigned)old_map(p)); }
+        if (drive != want) { if (bad++ < 8u) printf("pad %03x: drive %05x, want %05x\n", (unsigned)p, (unsigned)drive, (unsigned)want); }
+    }
+#ifndef PL4NAR_DRIVE
+    if (ctl_when(0) != CTL_W_TECH) { printf("the tech keys must be live always outside DRIVE\n"); bad++; }
+#else
+    if (ctl_when(0) != CTL_W_DRIVE || ctl_when(1) != CTL_W_TECH) { printf("DRIVE's key sets swapped\n"); bad++; }
+#endif
+    while (ctl_hud_line(t, 76u, &from, CTL_W_TECH)) { printf("hud: %s\n", t); lines++; if (strlen(t) > 75u) bad++; }
     if (lines > 3u) { printf("more than three HUD key lines\n"); bad++; }
+    from = 0u;
+    if (!ctl_hud_line(t, 76u, &from, CTL_W_DRIVE)) bad++;
+    printf("drive hud: %s\n", t);
+    if (ctl_hud_line(t, 76u, &from, CTL_W_DRIVE)) { printf("DRIVE's keys take more than one line\n"); bad++; }
     printf(bad ? "CONTROLS_TEST FAIL (%u)\n" : "CONTROLS_TEST_OK build %u\n", bad ? (unsigned)bad : (unsigned)CTL_BUILD);
     return bad != 0u;
 }
