@@ -39,6 +39,7 @@ wiki/
     <effect>.md              one page an effect: blade, holo, bloom, water, look, frame, taa, glow, warp, trail,
                              lens, focus, visor, torch, guard, bump, sss, uvwarp, spark, bolt, motes, pl4nar,
                              pool, psm, ao, ca, shafts, sh4dow-dc, deform, mist, rise, film, cloudvolume, core
+    names.md                 what each module and demo actually is (the technique), other names, the proposed plain names and how old names keep working
   limits/
     budgets.md               frame budget by unit: SH-4 ms, PVR ms, TA vertices, VRAM, RAM, sound RAM
     frame-budget.md          practices that keep the frame rate: which side bounds a frame, measured feature costs, what to do, the default look

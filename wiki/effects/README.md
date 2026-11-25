@@ -15,6 +15,8 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 - **v0.50**: runs on screen on the demo disc.
 - **v0.10**: passes its maths tests.
 
+**Names.** Many names here come from a first use, not the technique. [Names](names.md) gives what each module actually is, the other names people search for, and the plain names proposed for the owner.
+
 "Console-measured cost" means one of our own console runs timed the effect itself. A size worked out from the code does not count, and nor does an emulator figure.
 
 | Effect | What it does | Version | Console-measured cost |

@@ -31,9 +31,9 @@ It goes in the header's top comment, after the copyright lines and before the lo
 
 | Line | What goes in it | Rule |
 |---|---|---|
-| Start with | The settings a new client starts from: the macro names and their values, a target size, a pool size | A macro's value is written exactly as the macro and the README tuning table give it. If one changes, change all three in the same edit. Write `NAME = value`, never a `#define` line, so no tool can read the comment as a definition. |
+| Start with | The settings a new client starts from: the macro names and their values, a target size, a pool size | Use the macro's full name (`SH4DER_PL4NAR_REACH`, not `REACH`), and write its value exactly as the macro and the README tuning table give it. If one changes, change all three in the same edit. Write `NAME = value`, never a `#define` line: `tools/check_tuning.py` reads any line that starts with `#define`, even inside a comment. |
 | Cost | SH-4 and PVR time for the stated case, or the bytes where the bytes are the cost | Only a number the ledger holds, with its row. A number from a related feature (a full-screen layer for a glow) is an ESTIMATE and says what it is from. No number: "not measured". MEASURED and ESTIMATE never share a number. |
-| Status | PROVEN or ADVISED, as [frame budget](frame-budget.md) uses them | PROVEN only where a MEASURED row backs the start settings. Otherwise ADVISED, and name the test that would measure it. An emulator result is never MEASURED. |
+| Status | PROVEN or ADVISED, as [frame budget](frame-budget.md) uses them | PROVEN only where a MEASURED row backs the start settings. A difference worked out from two MEASURED stage means is DERIVED, and so is a per-vertex cost from a count read in the code: say so. Otherwise ADVISED, and name the test that would measure it. An emulator result is never MEASURED. A label that depends on an open owner's call (the client rule in maturity) says so. |
 | Do | One or two practices from [frame budget](frame-budget.md) section 3 that apply to this header | Each with its number and its status. Typical ones: cut a render target pass to its own tiles; give a shadow a maximum distance with a fade; the cheapest version first; limit per-vertex work to the vertices that need it. |
 | Do not | One or two things that break the effect or cost the most | Take them from the header's own pitfalls, AGENTS.md's call order or the ledger. |
 | Maturity | The part's label and version | Copy it from [maturity](../status/maturity.md); update it at each re-rank. |
@@ -43,7 +43,7 @@ Wording follows the ledger's rules: no game or engine names; "we know of no earl
 ## Keeping it true
 
 - **After every console run**, the re-rank of [maturity](../status/maturity.md) also checks the RECOMMENDED block of each header it moves: the cost line, the status and the maturity line.
-- **The tuning tables.** README says a test checks every header's tuning macros against README's tables (README:1267, AGENTS.md:86). No such test exists in this tree today (no test, tool or make rule reads README.md; the sentence is in the first commit). So a comment block breaks no test. Until a test exists, the block's values are kept equal to the macros by hand.
+- **The tuning tables.** `tools/check_tuning.py` checks README's tuning tables against the headers' numeric `SH4DER_*` macros (DIFFERS, MISSING, STALE, UNREADABLE, each with file:line). No make target or test runs it yet; it is to join `make test` (README:1267 and AGENTS.md:86 say no test checks the tables yet). It does not read the RECOMMENDED block, so the block's values are kept equal to the macros by hand. The block must hold no line that starts with `#define`: the checker would take it for a macro.
 - **A header's own STATUS line** must agree with the block. Where a console run has since measured something the STATUS line calls unrun, the STATUS line is updated in the same edit.
 
 ## Example
