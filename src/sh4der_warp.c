@@ -47,18 +47,66 @@ static void warp_cxt_(pvr_poly_cxt_t *c, pvr_list_t list, pvr_ptr_t tex, int env
     }
 }
 
-/* Write one grid vertex with pvr_prim: the point (x, y) scaled by sx, sy to the screen, with its texture sample (u, v).
-   It follows the header that the caller has already sent on the same list. */
-static void warp_vtx_(const sh4der_warp_vtx_t *p, float sx, float sy, float z, uint32_t argb, uint32_t flags) {
-    pvr_vertex_t v = { 0 };
-    v.flags = flags;
-    v.x = p->x * sx;
-    v.y = p->y * sy;
-    v.z = z;
-    v.u = p->u;
-    v.v = p->v;
-    v.argb = argb;
-    pvr_prim(&v, sizeof(v));
+/* How the mesh and the pixelate pass reach the tile accelerator. Either way a strip's vertices are built in a small
+   block in RAM (one row of the grid, 2.6 KB, on a multiple of 32). 0: the block goes in one store-queue run. 1: each
+   vertex of the block by its own pvr_prim. One switch a pass; the defaults are what one console measured (one run,
+   2026-11-25, demo/psm/bench/NOTES.md "Hardware result h2", test 7):
+     the mesh, 2,460 vertices:        914 ns a vertex by pvr_prim, 973 ns by runs  -> pvr_prim
+     the pixelate pass, 1,200 vertices: 366 ns a vertex by pvr_prim, 241 ns by runs  -> runs
+   Why the mesh loses by runs is not known (an open row in those notes). SH4DER_WARP_SEND_PRIM, when defined, sets
+   both passes (the bench builds this file once each way with it). */
+#ifdef SH4DER_WARP_SEND_PRIM
+#ifndef SH4DER_WARP_MESH_SEND_PRIM
+#define SH4DER_WARP_MESH_SEND_PRIM SH4DER_WARP_SEND_PRIM
+#endif
+#ifndef SH4DER_WARP_PIXEL_SEND_PRIM
+#define SH4DER_WARP_PIXEL_SEND_PRIM SH4DER_WARP_SEND_PRIM
+#endif
+#endif
+#ifndef SH4DER_WARP_MESH_SEND_PRIM
+#define SH4DER_WARP_MESH_SEND_PRIM 1
+#endif
+#ifndef SH4DER_WARP_PIXEL_SEND_PRIM
+#define SH4DER_WARP_PIXEL_SEND_PRIM 0
+#endif
+
+#define WARP_BLOCK_ (2u * (SH4DER_WARP_FINE_X + 1u))             /* one row of the fine grid as a strip */
+static pvr_vertex_t warp_block_[WARP_BLOCK_] __attribute__((aligned(32)));
+
+/* Send n ready vertices. They follow the header that the caller has already sent on the same list. prim (a constant
+   at every call): 1 a pvr_prim a vertex, 0 one store-queue run. */
+static inline void warp_send_(const pvr_vertex_t *v, unsigned n, int prim) {
+    if (prim) {
+        unsigned i;
+        for (i = 0; i < n; i++)
+            pvr_prim((void *)&v[i], sizeof(v[i]));
+    } else if (n)
+        pvr_sq_load(NULL, v, n * sizeof(*v), PVR_DMA_TA);
+}
+
+/* Fill one grid vertex: the point (x, y) scaled by sx, sy to the screen, with its texture sample (u, v). */
+static void warp_vtx_(pvr_vertex_t *v, const sh4der_warp_vtx_t *p, float sx, float sy, float z, uint32_t argb, uint32_t flags) {
+    v->flags = flags;
+    v->x = p->x * sx;
+    v->y = p->y * sy;
+    v->z = z;
+    v->u = p->u;
+    v->v = p->v;
+    v->argb = argb;
+    v->oargb = 0u;
+}
+
+/* Fill one corner of a flat quad: frame pixel (fx, fy) scaled to the screen, the UV (u, v). last sets EOL on the
+   vertex, which ends the strip. */
+static void warp_fill_(pvr_vertex_t *p, float fx, float fy, float u, float v, float sx, float sy, float z, uint32_t argb, int last) {
+    p->flags = last ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+    p->x = fx * sx;
+    p->y = fy * sy;
+    p->z = z;
+    p->u = u;
+    p->v = v;
+    p->argb = argb;
+    p->oargb = 0u;
 }
 
 /* Write one corner of a flat quad with pvr_prim: frame pixel (fx, fy) scaled to the screen, the UV (u, v). last sets
@@ -77,7 +125,8 @@ static void warp_corner_(float fx, float fy, float u, float v, float sx, float s
 
 /** \brief The warp: the frame drawn through an nx x ny grid (nx, ny <= the fine grid), opaque, as triangle strips, one per row.
     z: the depth (ALWAYS). argb: the vertex colour (white: the texture as it is). About 2 (nx + 1) ny vertices, 2 nx ny triangles.
-    OP list, texture env REPLACE, bilinear. Writes one header, then the strips, with pvr_prim. */
+    OP list, texture env REPLACE, bilinear. Writes one header with pvr_prim, then each strip from its block (warp_send_,
+    SH4DER_WARP_MESH_SEND_PRIM). */
 void sh4der_warp_draw_mesh(pvr_ptr_t tex, const sh4der_warp_frame_t *f, unsigned nx, unsigned ny, float sx, float sy, float z, uint32_t argb) {
     static sh4der_warp_vtx_t rows[2][SH4DER_WARP_FINE_X + 1];   /* two rows of the grid: 1.3 KB of RAM */
     pvr_poly_cxt_t c;
@@ -92,9 +141,10 @@ void sh4der_warp_draw_mesh(pvr_ptr_t tex, const sh4der_warp_frame_t *f, unsigned
     for (j = 0; j < ny; j++) {
         sh4der_warp_row(f, nx, ny, j + 1u, rows[(j + 1u) & 1u]);
         for (i = 0; i <= nx; i++) {
-            warp_vtx_(&rows[j & 1u][i], sx, sy, z, argb, PVR_CMD_VERTEX);
-            warp_vtx_(&rows[(j + 1u) & 1u][i], sx, sy, z, argb, i == nx ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX);
+            warp_vtx_(&warp_block_[2u * i], &rows[j & 1u][i], sx, sy, z, argb, PVR_CMD_VERTEX);
+            warp_vtx_(&warp_block_[2u * i + 1u], &rows[(j + 1u) & 1u][i], sx, sy, z, argb, i == nx ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX);
         }
+        warp_send_(warp_block_, 2u * (nx + 1u), SH4DER_WARP_MESH_SEND_PRIM);
     }
 }
 
@@ -127,13 +177,14 @@ void sh4der_warp_draw_blur(pvr_ptr_t tex, unsigned k, float strength, float cx, 
 
 /** \brief The pixelate pass: each block (SH4DER_WARP_PIXEL_CELL) drawn flat with its centre texel, point sampled, opaque.
     4 vertices a block, (FRAME_W / CELL) (FRAME_H / CELL) blocks: 300 quads at 16 px, 1200 at 8 px.
-    OP list, texture env REPLACE, point sampled (PVR_FILTER_NONE). One header, then one strip per block. */
+    OP list, texture env REPLACE, point sampled (PVR_FILTER_NONE). One header, then one strip per block, sent a
+    block of vertices at a time (warp_send_, SH4DER_WARP_PIXEL_SEND_PRIM). */
 void sh4der_warp_draw_pixel(pvr_ptr_t tex, float sx, float sy, float z) {
     const unsigned c_px = SH4DER_WARP_PIXEL_CELL;
     const unsigned bw = SH4DER_WARP_FRAME_W / c_px, bh = SH4DER_WARP_FRAME_H / c_px;
     pvr_poly_cxt_t c;
     pvr_poly_hdr_t hdr;
-    unsigned bx, by, q;
+    unsigned bx, by, q, n = 0;
     warp_cxt_(&c, PVR_LIST_OP_POLY, tex, PVR_TXRENV_REPLACE, 0, PVR_FILTER_NONE);
     pvr_poly_compile(&hdr, &c);
     pvr_prim(&hdr, sizeof(hdr));
@@ -142,9 +193,14 @@ void sh4der_warp_draw_pixel(pvr_ptr_t tex, float sx, float sy, float z) {
             float uv[2];
             const float x0 = (float)(bx * c_px), y0 = (float)(by * c_px), x1 = x0 + (float)c_px, y1 = y0 + (float)c_px;
             sh4der_warp_pixel_uv(bx, by, uv);
+            if (n + 4u > WARP_BLOCK_) {
+                warp_send_(warp_block_, n, SH4DER_WARP_PIXEL_SEND_PRIM);
+                n = 0;
+            }
             for (q = 0; q < 4u; q++)
-                warp_corner_((q & 1u) ? x1 : x0, (q & 2u) ? y1 : y0, uv[0], uv[1], sx, sy, z, 0xffffffffu, q == 3u);
+                warp_fill_(&warp_block_[n++], (q & 1u) ? x1 : x0, (q & 2u) ? y1 : y0, uv[0], uv[1], sx, sy, z, 0xffffffffu, q == 3u);
         }
+    warp_send_(warp_block_, n, SH4DER_WARP_PIXEL_SEND_PRIM);
 }
 
 /** \brief The dither: the tile (sh4der_warp_dither_tile, 8 x 8 ARGB4444, loaded twiddled with pvr_txr_load) multiplied over the

@@ -29,6 +29,13 @@ One run on one console, read from photos of the result pages (`logs/benchmarks/P
 
 A line is 32 bytes. MB is a million bytes.
 
+**Corrected by h2.** `bufa` and `bufb` of this image are exactly 1 MB apart (its ELF: `bufb` at 8c14a480, `bufa` at
+8c24a480), a multiple of the 16 KB operand cache, so in the three copy lines and the three transform lines above
+the source and the destination fought for the same cache entries. h2 ran the same work with the destination 8 KB
+off: memcpy of 4 KB in the cache 398.0 MB/s (46.6 on this placing), mat_transform 13.16 cycles a vertex (38.67 on
+this placing). The six lines are numbers of this test's placing, not of the routines. The store-queue line is not
+touched (a store queue does not write through the cache).
+
 ### Group 1: PVR
 
 | Line | Console |
@@ -104,14 +111,14 @@ SH-4
 - A miss on a read costs about 15 cycles a line over a hit (18.41 - 3.17). A write that misses costs 41.91; the
   same write after the allocate instruction costs 16.24. Allocate saves about 26 cycles a line where the whole line
   will be written.
-- **memcpy is slow, and not because of memory.** 43.2 MB/s is 4.6 cycles a byte; in the cache it is 46.5 MB/s, the
-  same. A miss is 15 cycles in 32 bytes, half a cycle a byte: it cannot be the limit. So this memcpy is a
-  byte-at-a-time loop for these arguments (reading; the routine was not opened). The store queue copies the same
-  megabyte 3.4 times faster, measured.
-- mat_transform costs 38.7 cycles a vertex against 80.9 for plain C: 2.09 times, measured. Out of the cache it
-  loses only 4 cycles a vertex, far under two misses a line; the routine probably asks for lines ahead (not
-  checked).
-- Town a3's SH-4 frame is 157.5 cycles a vertex (lead's figures). The bare transform is a quarter of that.
+- WRONG, withdrawn (h2): "memcpy is slow, and not because of memory; it is a byte-at-a-time loop". It was because
+  of memory: the test's own placing (see the correction under the table). On a clean placing memcpy moves 4 KB in
+  the cache at 398.0 MB/s and 1 MB at 63.4 MB/s, the rate of a 32-bit loop, held there by a read miss and a write
+  miss a line; shz_memcpy does the megabyte at 131.6 MB/s and the store queue at 149.7.
+- WRONG, withdrawn (h2): "mat_transform costs 38.7 cycles a vertex" and the ratio to plain C drawn from it. In the
+  cache, on a clean placing, mat_transform is 13.16 cycles a vertex. The 80.9 of plain C was taken on the same bad
+  placing and has not been taken again.
+- Town a3's SH-4 frame is 157.5 cycles a vertex (lead's figures). The bare transform is under a tenth of that.
 - The table twiddle is 1,504 us for 32 KB; the bit loop is 8.4 times slower, measured.
 
 PVR
@@ -143,14 +150,16 @@ DMA and the bus
   "took 11 us" and "took 40 us" are one batch of the loop (256 steps), after which the copy was already over. A
   512 KB burst takes 4.3 ms when timed from before its start (the DMAC lines). So the SH-4 did not run while the
   burst ran: it came back from starting the copy when the copy was done. The 96 % and 100 % are of nothing.
-  Reading from two tests; a test with its clock before the start is needed to state it as measured.
-- **Cycle steal runs beside the SH-4.** Register-only work kept 90 %, work that misses the cache kept 45 %, and the
-  copy ran at 96 to 125 MB/s. That is a copy 2.2 to 2.9 times memcpy's rate while the SH-4 keeps most of its time.
-- **The PVR-DMA figure depends on how often its status is read.** 512 KB took 14,775 us with the status polled all
-  the time, 13,746 us polled every 11 us, 9,595 us polled every 40 us (54.6 MB/s). The status register is on the
-  same bus the transfer uses. So the 35 MB/s of route AB's spikes (s2, s3) was held down by my own polling loop,
-  and the real rate is 55 MB/s or more. Reading from three lines; a test that polls once a millisecond, or waits
-  for the interrupt, would give the rate.
+  Reading from two tests; a test with its clock before the start is needed to state it as measured. MEASURED in
+  h2: the call that starts a 512 KB burst came back after 4,325 us and the copy was over 11 us later.
+- **Cycle steal runs beside the SH-4.** Register-only work kept 90 % (84 % in h2), work that misses the cache kept
+  45 %, and the copy ran at 96 to 125 MB/s. ("2.2 to 2.9 times memcpy's rate" stood here; memcpy's rate was the
+  bad placing's. Against h2's 63.4 MB/s it is 1.5 to 2.0 times.)
+- WRONG, withdrawn (h2): "the PVR-DMA figure depends on how often its status is read; the real rate is 55 MB/s or
+  more". h2 ended the same 512 KB by its interrupt, with no status read at all: 13,742 us, 38.1 MB/s, the same as
+  the 13,746 us here beside the register loop. Reading the status all the time costs 7 % (14,775). The one quick
+  run, 9,595 us, was the one where the SH-4 was reading RAM with a cache miss a read while the DMA ran. Why that
+  should speed a PVR-DMA up is not known, and it has been seen once.
 - The same holds in part for the DMAC cycle steal: 5,445 us polled all the time, 4,182 us beside the register
   loop.
 - A PVR render does not slow the SH-4 (99 %, 100 %).
@@ -169,7 +178,303 @@ OC-RAM
 ### Not measured
 
 - The TA's own DMA vertex mode. Translucent sorting off against on.
-- AICA: the ARM7, sound RAM, G2 DMA, the DSP.
-- A burst copy timed from before its start. PVR-DMA with rare polling.
-- A word loop and a 64-bit loop against memcpy.
+- AICA: the ARM7, the DSP. (Sound RAM and G2 DMA: h2.)
+- Any second console, any second run.
+
+## Hardware result h2
+
+`bench_h2.c`, built by `python demo/psm/bench/build.py --src bench_h2.c --tag h2`. One run on one console, read
+from photos of the result pages (`logs/benchmarks/psm-bench-h2/PXL_20261125_072052571.jpg` to `..072218093.jpg`,
+14 photos). Every number is from those photos: MEASURED, once. Nothing was repeated, so there is no spread to
+give. All four groups ran to the end; nothing hung and no wait reached its limit.
+
+Where a test has a source and a destination in RAM, "8 KB off" means the destination is half the operand cache
+from the source at equal offsets (no cache entry shared) and "1 MB off" means exactly 1 MB (every entry shared:
+h1's placing).
+
+### Ledger
+
+One line a fact, in the form of `wiki/STRUCTURE.md`. The photos, all in `logs/benchmarks/psm-bench-h2/`, by the
+page they show: p1 `PXL_20261125_072052571`, p2 `..072055579`, p3 `..072059336`, p4 `..072106285`, p5 `..072109498`,
+p6 `..072117232`, p7 `..072120744`, p8 `..072123111` (group 1); p9 `..072146021`, p10 `..072149994`, p11 `..072157611`
+(group 2); p12 `..072202636`, p13 `..072210079`, p14 `..072218093` (groups 3 and 4). The test is the line of
+`bench_h2.c`'s result pages that prints the number; for an ESTIMATE or an OPEN row it is the test that would
+settle it. No row mixes a measured number with an estimated one.
+
+| Claim | Status | Photo | Test |
+|---|---|---|---|
+| The KOS ns timer steps by 560 ns at least; 1 ms is 200,176 CPU cycles. | MEASURED 2026-11-25, 1 console, 1 run | p1 | h2 group 1, timer line |
+| A register-only loop runs 23,449 turns a ms with nothing beside it (the base of every "loop" percentage). | MEASURED 2026-11-25, 1 console, 1 run | p1 | h2 group 1, register loop line |
+| FIPR and FTRV gave the same bits for all 16,384 four-term sums. | MEASURED 2026-11-25, 1 console, 1 run | p2 | h2 test 1, "FTRV against FIPR" |
+| Against the exact sum, FIPR and FTRV missed the nearest float 2,421 times of 16,384 (worst 1.24 units); the plain sum 6,511 times (worst 1.71 units). A unit is 2^-24 of the sum of the four products' sizes. | MEASURED 2026-11-25, 1 console, 1 run | p1, p2 | h2 test 1, the three count lines |
+| A 4-term row for 256 points in the cache costs 72.43 cycles a point as a plain sum, 38.10 by FIPR, 16.58 by FTRV with the matrix already in XMTRX. | MEASURED 2026-11-25, 1 console, 1 run | p2 | h2 test 1, cycles line |
+| Loading XMTRX costs 15.01 cycles by `shz_xmtrx_load_4x4`, 18.05 by `mat_load`. | MEASURED 2026-11-25, 1 console, 1 run | p2 | h2 test 2, load line |
+| `mat_transform`, 256 vectors in the cache, out 8 KB off: 13.16 cycles a vertex. A C loop of `shz_xmtrx_transform_vec4` and `shz_invf_fsrra` on the same job: 28.67. | MEASURED 2026-11-25, 1 console, 1 run | p2 | h2 test 2, "out 8 KB from in" |
+| The same two with out exactly 1 MB off (h1's placing): 38.67 and 77.07 cycles a vertex. | MEASURED 2026-11-25, 1 console, 1 run | p2 | h2 test 2, "out 1 MB from in" |
+| The two routines' results differ in 340 of 768 numbers, by 2 ulp at most. | MEASURED 2026-11-25, 1 console, 1 run | p2 | h2 test 2, "the two results" |
+| 16,384 vectors not in the cache: `mat_transform` 43.77 cycles a vertex, the SH4ZAM C loop 57.30. | MEASURED 2026-11-25, 1 console, 1 run | p2 | h2 test 2, "not in the cache" |
+| `shz_dce_pvr_project`, 128 PVR vertices in the cache: 21.15 cycles a vertex; its C form 43.19; the bytes the same. 16,384 not in the cache: 58.09 and 74.07. | MEASURED 2026-11-25, 1 console, 1 run | p2, p3 | h2 test 2, PVR vertex lines |
+| 1 MB RAM to RAM, destination 8 KB off: memcpy 63.4 MB/s, a 32-bit loop 63.4, shz_memcpy 131.6, shz_memcpy8 86.9, shz_memcpy32 130.6, shz_memcpy64 130.3, shz_memcpy128 130.3, sq_cpy 149.7, shz_sq_memcpy32 150.1. | MEASURED 2026-11-25, 1 console, 1 run | p3 | h2 test 3, first table |
+| The same with the destination exactly 1 MB off: memcpy 12.8 MB/s, a 32-bit loop 13.2, shz_memcpy32 130.9. | MEASURED 2026-11-25, 1 console, 1 run | p3, p4 | h2 test 3, "dst exactly 1 MB" |
+| 4 KB in the cache: memcpy 398.0 MB/s 8 KB off and 46.6 at 1 MB off; shz_memcpy 589.3 and 129.8; shz_memcpy8 552.6 and 92.9. | MEASURED 2026-11-25, 1 console, 1 run | p4 | h2 test 3, 4 KB lines |
+| 15,000 vertices into the TA: 260 ns a vertex by `pvr_prim`, 142 ns in one store-queue run, by `pvr_sq_load` and by `shz_sq_memcpy32` alike. | MEASURED 2026-11-25, 1 console, 1 run | p4 | h2 test 4 |
+| Texture upload: 512 KB at 216.4 MB/s by `pvr_txr_load`, 218.1 by `shz_sq_memcpy32`; 32 KB at 145.5 and 110.1. All read back right. | MEASURED 2026-11-25, 1 console, 1 run | p4, p5 | h2 test 5 |
+| Video memory read from its uncached address: a 32-bit loop 7.5 MB/s, memcpy 7.2 to 7.5, shz_memcpy32 7.0 to 7.1, shz_memcpy8 6.7 to 6.8, a 16-bit loop 3.7; the same at 32, 128 and 512 KB. | MEASURED 2026-11-25, 1 console, 1 run | p5, p6 | h2 test 6, reader rows |
+| PVR-DMA from video memory, ended by its interrupt (event 0x000b), timed from before its start: 37.6, 37.8, 38.1 MB/s at 32, 128, 512 KB. | MEASURED 2026-11-25, 1 console, 1 run | p5, p6 | h2 test 6, PVR-DMA rows |
+| The warp mesh (2,460 vertices) takes 914 ns a vertex sent by `pvr_prim` and 973 ns sent a strip a store-queue run: the run form is 6 % slower. | MEASURED 2026-11-25, 1 console, 1 run | p7 | h2 test 7, mesh lines |
+| The warp pixel pass (1,200 vertices) takes 366 ns a vertex by `pvr_prim` and 241 ns by runs. | MEASURED 2026-11-25, 1 console, 1 run | p7 | h2 test 7, pixel pass lines |
+| The mesh's maths alone is 632 us of its 2,250 us. | MEASURED 2026-11-25, 1 console, 1 run | p7 | h2 test 7, last line |
+| A DMAC burst of 512 KB (channel 1, RAM to RAM) holds the SH-4: the call that starts it came back after 4,325 us and the copy was over 11 us later. | MEASURED 2026-11-25, 1 console, 1 run | p7, p8 | h2 test 8, burst lines |
+| The same in cycle steal: the call came back after 537 us, the copy ended 4,236 us later, the register loop kept 84 % of its rate. | MEASURED 2026-11-25, 1 console, 1 run | p8 | h2 test 8, cycle steal lines |
+| Video memory read through the operand cache (0x84...): shz_memcpy32 38.6 to 38.7 MB/s, a 32-bit loop 29.6 to 30.3, the loop with a prefetch 30.2 to 30.9; all read back right. | MEASURED 2026-11-25, 1 console, 1 run | p9, p10 | h2 group 2, reader rows |
+| `dcache_inval_range` over 512 KB takes 492 us. | MEASURED 2026-11-25, 1 console, 1 run | p10 | h2 group 2, invalidate line |
+| 8 KB of video memory read through the cache, rewritten by the store queue and read again: 238 of 256 lines came back old. After `dcache_inval_range`: none. | MEASURED 2026-11-25, 1 console, 1 run | p10 | h2 group 2, stale test |
+| 32 KB to sound RAM by `spu_memload_sq`: 7.5 MB/s. 32 KB from sound RAM by `spu_memread`: 2.5 MB/s. | MEASURED 2026-11-25, 1 console, 1 run | p12 | h2 group 3, first two lines |
+| G2 DMA (channel 0) RAM to sound RAM: 5.7 MB/s at 4, 32, 128 and 512 KB; the register loop kept 99 to 100 %; both ends of each copy right. | MEASURED 2026-11-25, 1 console, 1 run | p12, p13 | h2 group 3, "to sound RAM by DMA" |
+| G2 DMA sound RAM to RAM: 4.9 to 5.0 MB/s at the same sizes; the loop kept 98 to 99 %; every copy right. | MEASURED 2026-11-25, 1 console, 1 run | p12, p13 | h2 group 3, "to RAM by DMA" |
+| One G2 DMA moved 32 KB from sound RAM straight into texture memory in 6,511 us; all 32,768 bytes read back as the sound RAM's. | MEASURED 2026-11-25, 1 console, 1 run | p14 | h2 group 4 |
+| h1's `bufb` is at 8c14a480 and its `bufa` at 8c24a480: exactly 1 MB apart, so every operand-cache entry is shared. | FACT: the symbol table of `build/psm_bench/psm-bench-h1.elf` (`sh-elf-nm`) | - | h2 tests 2 and 3, the "1 MB" lines, reproduce h1's 38.70 and 46.5 |
+| A cached read of 512 KB with its invalidate first is 14,028 us, 2 % over PVR-DMA's 13,742. | ESTIMATE: the sum of two measured lines (13,536 + 492), never timed as one | p10 | a line that times invalidate + read together |
+| shz_memcpy32 does not care about the placing because it holds a whole line in registers and allocates the destination line without reading it. | ESTIMATE: a reading of its source and of the two rates (130.6, 130.9) | p3, p4 | - |
+| Why h1 copied 1 MB by memcpy at 43.2 MB/s when h2 gives 63.4 (8 KB off) and 12.8 (1 MB off). | OPEN | h1 photos; p3 | h2's copy with the destination 1 MB BELOW the source, both on a multiple of 128 |
+| Why the mesh is slower by store-queue runs when the pixel pass and the bare TA test are quicker. | OPEN | p7 | the fill and the send timed apart, and the run's size varied |
+| Why h1's one PVR-DMA beside a cache-missing loop took 9,595 us when every other 512 KB run takes 13,742 to 14,775. | OPEN | h1 photos | h1's "beside" test again with the DMA ended by interrupt, 8 times |
+| Whether `pvr_txr_load` is quicker than `shz_sq_memcpy32` at 32 KB (225 against 297 us, one sample each). | OPEN | p4 | the 32 KB upload 16 times each, least and mean |
+| Plain C against `mat_transform` on a clean placing (h1's 80.93 was on the bad one). | OPEN | - | h2 test 2 with a plain C row |
+
+### Group 1
+
+| Line | Console |
+|---|---|
+| timer | least step 560 ns; 1 ms = 200,176 cycles |
+| SH-4 register loop alone | 23,449 a ms |
+
+1 Rounding: 4,096 points x 4 sums, (x, y, z, w) x a 4 x 4, against the exact sum taken in double on the console.
+A unit is 2^-24 of the sum of the four products' sizes.
+
+| Way | Not the nearest float, of 16,384 | Largest distance | Largest error | Cycles a point, 256 in the cache |
+|---|---|---|---|---|
+| plain sum (what `sh4der_psm.h` was) | 6,511 | 20,368 ulp | 1.71 units | 72.43 |
+| FIPR, `shz_mat4x4_transform_vec4` (what it is now) | 2,421 | 3,984 ulp | 1.24 units | 38.10 |
+| FTRV, `shz_xmtrx_transform_vec4` | 2,421 | 3,984 ulp | 1.24 units | 16.58 |
+
+FIPR against the plain sum: 6,043 of 16,384 differ, by 16,384 ulp at most. FTRV against FIPR: 0 differ.
+
+2 The transform.
+
+| Line | Console |
+|---|---|
+| load XMTRX | `mat_load` 18.05 cycles, `shz_xmtrx_load_4x4` 15.01 |
+| 256 vectors in the cache, out 8 KB off | `mat_transform` 13.16 cycles a vertex; the same work on SH4ZAM in a C loop (FTRV, 1 / w by FSRRA) 28.67 |
+| the same, out 1 MB off | 38.67; 77.07 |
+| the two results | 340 of 768 numbers differ, by 2 ulp at most |
+| 16,384 vectors not in the cache | `mat_transform` 43.77; the SH4ZAM loop 57.30 |
+| 128 PVR vertices in the cache | `shz_dce_pvr_project` 21.15 cycles a vertex; its C form 43.19; the bytes the same |
+| 16,384 PVR vertices not in the cache | 58.09; C form 74.07 |
+
+3 Copies, RAM to RAM. 1 MB, the destination out of the cache before each, every copy checked ("right" on all).
+
+| Routine | 8 KB off | 1 MB off |
+|---|---|---|
+| memcpy | 16,531 us, 63.4 MB/s | 81,789 us, 12.8 MB/s |
+| shz_memcpy | 7,965 us, 131.6 MB/s | |
+| shz_memcpy8 | 12,056 us, 86.9 MB/s | |
+| shz_memcpy32 | 8,026 us, 130.6 MB/s | 8,009 us, 130.9 MB/s |
+| shz_memcpy64 | 8,043 us, 130.3 MB/s | |
+| shz_memcpy128 | 8,044 us, 130.3 MB/s | |
+| a 32-bit loop | 16,520 us, 63.4 MB/s | 79,356 us, 13.2 MB/s |
+| sq_cpy | 7,001 us, 149.7 MB/s | |
+| shz_sq_memcpy32 | 6,982 us, 150.1 MB/s | |
+
+4 KB that stays in the cache, 256 copies:
+
+| Routine | 8 KB off | 1 MB off |
+|---|---|---|
+| memcpy | 398.0 MB/s | 46.6 MB/s |
+| shz_memcpy | 589.3 MB/s | 129.8 MB/s |
+| shz_memcpy8 | 552.6 MB/s | 92.9 MB/s |
+
+4 Vertices into the TA, 15,000 of them, the sending alone.
+
+| Way | Console |
+|---|---|
+| `pvr_prim` a vertex | 3,906 us, 260 ns a vertex, 122.8 MB/s |
+| `pvr_sq_load`, one run | 2,145 us, 142 ns a vertex, 223.8 MB/s |
+| `shz_sq_memcpy32` through a locked store queue, one run | 2,144 us, 142 ns a vertex, 223.9 MB/s |
+
+5 Texture uploads, each read back right.
+
+| Size | `pvr_txr_load` | `shz_sq_memcpy32` |
+|---|---|---|
+| 32 KB | 225 us, 145.5 MB/s | 297 us, 110.1 MB/s |
+| 512 KB | 2,422 us, 216.4 MB/s | 2,403 us, 218.1 MB/s |
+
+6 Video memory to RAM, the block at a437a920 (uncached address). Every row came back right.
+
+| Reader | 32 KB | 128 KB | 512 KB |
+|---|---|---|---|
+| memcpy | 4,320 us, 7.5 MB/s | 17,343 us, 7.5 MB/s | 71,860 us, 7.2 MB/s |
+| a 16-bit loop | 8,624 us, 3.7 MB/s | 34,613 us, 3.7 MB/s | 138,391 us, 3.7 MB/s |
+| a 32-bit loop | 4,319 us, 7.5 MB/s | 17,357 us, 7.5 MB/s | 69,357 us, 7.5 MB/s |
+| shz_memcpy8 (64-bit moves) | 4,813 us, 6.8 MB/s | 19,391 us, 6.7 MB/s | 77,728 us, 6.7 MB/s |
+| shz_memcpy32 | 4,644 us, 7.0 MB/s | 18,433 us, 7.1 MB/s | 73,735 us, 7.1 MB/s |
+| PVR-DMA, ended by its interrupt, timed from before its start | 869 us, 37.6 MB/s | 3,461 us, 37.8 MB/s | 13,742 us, 38.1 MB/s |
+| quickest SH-4 read / PVR-DMA (the page's own line) | 4.96 | 5.01 | 5.04 |
+
+7 The warp (`src/sh4der_warp.c` compiled both ways into the one program), the draw call alone, least / mean of 8
+frames, the two ways in turn.
+
+| Pass | A `pvr_prim` a vertex | A strip a store-queue run | PVR render |
+|---|---|---|---|
+| mesh 40 x 30, 2,460 vertices | 2,250 / 2,275 us, 914 ns a vertex | 2,394 / 2,442 us, 973 ns a vertex | 6,466 / 6,503 us |
+| pixel pass, 1,200 vertices | 440 / 440 us, 366 ns a vertex | 290 / 293 us, 241 ns a vertex | 3,184 / 3,183 us |
+
+The mesh's maths alone (31 rows of `sh4der_warp_row`): 632 us.
+
+8 The DMAC, channel 1, 512 KB RAM to RAM, the clock started before the start call.
+
+| Mode | The start call came back after | The copy was done after that | Register loop in that second time | Copy |
+|---|---|---|---|---|
+| burst | 4,325 us | 11 us | 23,357 a ms (99 % of alone) | right |
+| cycle steal | 537 us | 4,236 us | 19,884 a ms (84 % of alone) | right |
+
+### Group 2: video memory through the operand cache
+
+The same block at its cached address, 8437a920. The first line read through the cache was right. Every row came
+back right. The times do not hold the invalidate that a reader must do first.
+
+| Reader | 32 KB | 128 KB | 512 KB |
+|---|---|---|---|
+| a 32-bit loop | 1,079 us, 30.3 MB/s | 4,419 us, 29.6 MB/s | 17,489 us, 29.9 MB/s |
+| the loop with a prefetch two lines ahead | 1,059 us, 30.9 MB/s | 4,331 us, 30.2 MB/s | 17,315 us, 30.2 MB/s |
+| shz_memcpy32 | 846 us, 38.7 MB/s | 3,389 us, 38.6 MB/s | 13,536 us, 38.7 MB/s |
+| quickest SH-4 read / PVR-DMA (the page's own line) | 0.97 | 0.97 | 0.98 |
+
+| Line | Console |
+|---|---|
+| `dcache_inval_range` over the 512 KB | 492 us |
+| 8 KB read, rewritten behind the cache by the store queue, read again | 238 of 256 lines old, 18 new |
+| after `dcache_inval_range` | 0 old, 256 new |
+
+### Group 3: G2 DMA, channel 0, RAM and sound RAM
+
+| Line | Console |
+|---|---|
+| 32 KB to sound RAM, `spu_memload_sq` | 4,355 us, 7.5 MB/s |
+| 32 KB from sound RAM, `spu_memread` (register reads) | 12,616 us, 2.5 MB/s, right |
+
+By DMA, timed from before the start to the interrupt, with the register loop's rate beside it:
+
+| Size | To sound RAM | Loop | Both ends | To RAM | Loop | Copy |
+|---|---|---|---|---|---|---|
+| 4 KB | 714 us, 5.7 MB/s | 23,300 a ms (99 %) | right | 821 us, 4.9 MB/s | 23,346 a ms (99 %) | right |
+| 32 KB | 5,681 us, 5.7 MB/s | 23,527 a ms (100 %) | right | 6,510 us, 5.0 MB/s | 23,184 a ms (98 %) | right |
+| 128 KB | 22,715 us, 5.7 MB/s | 23,383 a ms (99 %) | right | 26,025 us, 5.0 MB/s | 23,399 a ms (99 %) | right |
+| 512 KB | 90,816 us, 5.7 MB/s | 23,429 a ms (99 %) | right | 104,066 us, 5.0 MB/s | 23,438 a ms (99 %) | right |
+
+### Group 4: sound RAM to texture memory in one G2 DMA
+
+| Line | Console |
+|---|---|
+| 32 KB sound RAM to texture memory | ended after 6,511 us, 5.0 MB/s |
+| the texture's bytes afterwards | 32,768 of 32,768 are the sound RAM's; 93 are also what was there before |
+
+(The 93 are bytes where the two random fills happen to agree; 128 would be the mean.)
+
+### Readings
+
+These are what I take from the numbers. Where a reading rests on more than the number itself it says so.
+
+Rounding
+- On this console FIPR and FTRV gave the same bits for all 16,384 sums.
+- Both were nearer the exact sum than the plain sum the compiler made: 2,421 results off the nearest float against
+  6,511, and a worst error of 1.24 units against 1.71. So the change of `sh4der_psm.h` to FIPR lost no accuracy on
+  these points; it gained some. The large ulp figures are points whose terms cancel; the unit is the fair measure.
+- FIPR took 38.10 cycles a point against the plain sum's 72.43. FTRV with the matrix already in XMTRX took 16.58:
+  where XMTRX is free, a header that loads the matrix once and uses FTRV does the row in under half of FIPR's
+  time. `sh4der_psm.h` does not do that today (it leaves XMTRX alone).
+
+The transform
+- **h1's transform lines were the placing's.** 13.16 cycles a vertex on a clean placing, 38.67 on h1's; h1 had
+  38.70.
+- **KallistiOS's `mat_transform` is 2.18 times quicker than a C loop over SH4ZAM's calls** (13.16 against 28.67),
+  in the cache. Out of the cache 43.77 against 57.30. The results agree to 2 ulp (a divide against FSRRA). A C loop
+  of `shz_xmtrx_transform_vec4` and `shz_invf_fsrra` waits out each vertex's FTRV and FSRRA before it starts the
+  next. So a loop written that way breaks the library's own "no slow code" rule wherever `mat_transform` would do.
+  A batch routine for `sh4zam-dce` that keeps two vertices in flight is the answer proposed; it has not been on a
+  console, so it has no number here.
+- `shz_dce_pvr_project`: 21.15 cycles a vertex against 43.19 for its C form, 2.04 times, the bytes the same. The
+  model said 19.5 and 39. Out of the cache 58.09 against 74.07: there the misses, not the kernel, set the pace
+  (a line read and a line written a vertex).
+- Loading XMTRX: 15.01 cycles by SH4ZAM, 18.05 by KallistiOS.
+
+Copies
+- **The placing is the largest effect in the table.** memcpy of 4 KB in the cache: 398.0 MB/s 8 KB off, 46.6 MB/s
+  1 MB off, 8.5 times. Of 1 MB: 63.4 against 12.8. Code that copies or transforms between two buffers must not
+  have them a multiple of 16 KB apart.
+- shz_memcpy32 does not care: 130.6 and 130.9 MB/s. It reads a whole line into registers and allocates the
+  destination's line without reading it, so the two lines never need to be in the cache together. (Reading from
+  its source and the two numbers.)
+- On a clean placing memcpy does 1 MB at the rate of a 32-bit loop (63.4 MB/s both): a read miss and a write miss a
+  line. shz_memcpy doubles that (131.6); the store queue is 14 % above that again (149.7, 150.1), and KallistiOS's
+  and SH4ZAM's store-queue copies are the same speed.
+- h1's "memcpy 1 MB 43.2 MB/s" is reproduced by neither placing here (63.4, 12.8). h1's destination was 1 MB below
+  its source and both on a multiple of 128 bytes; here it is 1 MB above and on a multiple of 32. Not explained.
+
+The TA and uploads
+- A store-queue run takes 142 ns a vertex against 260 by `pvr_prim`, 1.83 times, as in h1 (144 and 264). SH4ZAM's
+  store-queue copy and KallistiOS's are the same to a microsecond in 2 ms.
+- Uploads: the same at 512 KB. At 32 KB `pvr_txr_load` took 225 us and the SH4ZAM route 297; one sample each, not
+  explained.
+
+Video memory to RAM
+- **Read through the cache with shz_memcpy32, the SH-4 fetches video memory as fast as PVR-DMA does**: 38.7 MB/s
+  against 37.6 to 38.1. With the invalidate that must come first (492 us for 512 KB) the 512 KB read is 14,028 us
+  against the DMA's 13,742: the same within 2 %.
+- From the uncached address the best the SH-4 does is 7.5 MB/s (a 32-bit loop), a fifth of PVR-DMA; SH4ZAM's
+  copies gain nothing there (7.0, 6.7). A 16-bit loop, which is what a frame read by pixels is, does 3.7 MB/s:
+  PVR-DMA is 10.1 times that at 512 KB (138,391 / 13,742). That is the size of the old "9.3 times": true of the
+  16-bit loop, 5.0 against the best uncached read, 1.0 against the cached one.
+- The cached read needs care, and the test shows why: after the block was rewritten behind the cache, 238 of 256
+  lines read back old. After `dcache_inval_range` none did. A reader must invalidate the range before every read
+  of new contents, and must never write through that address.
+- What still tells them apart is who is busy: the cached read holds the SH-4 for the whole 13.5 ms; PVR-DMA left
+  the register loop 96 % of its rate in h1.
+- PVR-DMA's rate is 38 MB/s whether its end is waited for by interrupt or polled every 11 us (h1). See the
+  correction under h1.
+
+The warp
+- The pixel pass gained: 290 us against 440, 241 ns a vertex against 366. The 125 ns saved a vertex is the TA
+  test's saving (118).
+- The mesh did not: 2,394 us by runs against 2,250 by `pvr_prim`, 6 % slower, with the same block size (82
+  vertices a call against the pixel pass's 80) and the same code building the block either way. Not explained.
+  Until it is, the mesh's change is not a gain on this console and the claim "a strip in one run is quicker" holds
+  for the pixel pass only.
+- The maths is 632 us of the mesh's 2,250: filling and sending is the larger part.
+
+The DMAC
+- **A burst holds the SH-4 for the whole copy**: the call that starts it came back 4,325 us later with the copy all
+  but done. MEASURED now; it was a reading in h1. The "99 %" beside it is of the last 11 us and says nothing.
+- Cycle steal gave the call back after 537 us and finished 4,236 us later with the register loop at 84 %.
+
+G2
+- **G2 DMA runs at 5.7 MB/s to sound RAM and 5.0 MB/s back**, at every size from 4 KB to 512 KB, and leaves the
+  SH-4 98 to 100 % of its register loop. Sega's 11.3 and 14.4 MB/s ("simulation optimums") are about twice what
+  this console did.
+- The DMA toward the SH-4 works with KallistiOS's settings for channel 0 (it was not known to).
+- For writing, the store queue (`spu_memload_sq`) is quicker than the DMA, 7.5 against 5.7 MB/s, but the SH-4 does
+  it. For reading back, the DMA is twice `spu_memread` (5.0 against 2.5 MB/s) and does not hold the SH-4.
+- **Sound RAM to texture memory in one G2 DMA works**: 32 KB in 6,511 us, every byte right, with the texture's
+  address given as 0x04000000 + its offset. KallistiOS's note that the protection register admits system memory
+  only does not describe what this console did.
+- So a 128 x 128 map of 16 bits (32 KB) made in sound RAM costs 6.5 ms to bring to RAM or to a texture; 512 KB
+  costs 104 ms. The plan's table (`../OFFLOAD_PLAN.md`, Q2) used Sega's rates and is about twice too hopeful.
+
+### Not measured
+
+- The ARM7 and the DSP (no ARM compiler here; see `../ARM7_TOOLCHAIN_NOTES.md`).
+- The TA's own DMA vertex mode. Translucent sorting off against on.
+- Plain C against `mat_transform` on a clean placing.
+- Why the mesh's store-queue send is slower, why h1's 1 MB memcpy was 43.2 MB/s, why a PVR-DMA ran quicker beside
+  a loop that misses the cache.
 - Any second console, any second run.
