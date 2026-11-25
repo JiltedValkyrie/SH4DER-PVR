@@ -123,6 +123,15 @@ static const struct { float t; unsigned key; } s_tod_knot[7] = { { 0.0f, 0u }, {
 static const char *const s_tod_name[4] = { "AUTO", "DAY", "NIGHT", "PAUSE" };
 static float    s_tod = 0.10f;                    /* the clock */
 static unsigned s_tod_mode;                       /* 0 AUTO, 1 DAY, 2 NIGHT, 3 PAUSE */
+/* The sun's sweep (B + D-pad right): FIXED is the old sun (azimuth 34.8 degrees, its two scales below); SWEEP takes the
+   azimuth from one diagonal (45) to the other (225) and back, SUN_SWEEP_S a whole loop, at the hour's elevation; HOLD
+   stops it where it is. Everything lit or shadowed reads s_sun each frame: the models, the boxes, the tiles, the disc. */
+#define SUN_SWEEP_S 26.0f
+#define SUN_AZ0 45.0f
+#define SUN_AZ1 225.0f
+static const char *const s_sun_name[3] = { "FIXED", "SWEEP", "HOLD" };
+static unsigned s_sun_mode;                       /* 0 FIXED, 1 SWEEP, 2 HOLD */
+static float    s_sun_ph;                         /* 0 .. 1: the sweep's loop */
 static uint32_t s_light = 0xffffffffu, s_sunc = 0xfffffcecu, s_sun_sky = 0xff6e9cccu, s_road_col = 0xffffffffu;
 static float    s_night, s_lamp;                  /* 0 day .. 1 night; the lamps' ramp */
 static unsigned s_lamp_k;                         /* s_lamp as 0 .. 256 */
@@ -311,6 +320,11 @@ void demo_update(const demo_input_t *in, float dt) {
     if (in->pressed & DEMO_BTN_LAMP_DN) s_lamp_gain = shz_fmaxf(s_lamp_gain - 0.25f, 0.5f);
     if (in->pressed & DEMO_BTN_LOOK) s_low = !s_low;
     if (in->pressed & DEMO_BTN_TOD) s_tod_mode = (s_tod_mode + 1u) % 4u;
+    if (in->pressed & DEMO_BTN_SUN) {
+        s_sun_mode = (s_sun_mode + 1u) % 3u;
+        if (s_sun_mode == 1u && s_tod_mode != 2u) s_tod_mode = 1u;   /* a sweep wants the sun up: to DAY (NIGHT stays as asked) */
+    }
+    if (s_sun_mode == 1u) { s_sun_ph += dt * (1.0f / SUN_SWEEP_S); if (s_sun_ph >= 1.0f) s_sun_ph -= 1.0f; }
     if (s_tod_mode == 0u) s_tod += dt * (1.0f / 45.0f);
     else if (s_tod_mode < 3u) {                    /* DAY, NIGHT: the clock runs the short way round to that hour, 0.55 of a turn in 1.6 s */
         float d = (s_tod_mode == 1u ? 0.15f : 0.70f) - s_tod;
@@ -403,7 +417,13 @@ static void tod_eval(void) {
     s_night = shz_lerpf(a->night, b->night, f);
     elev = shz_lerpf(a->elev, b->elev, f);
     sc = shz_sincosf_deg(elev);
-    s_sun[0] = 0.5702f * sc.cos; s_sun[1] = sc.sin; s_sun[2] = 0.8214f * sc.cos;              /* hand: two scales */
+    if (s_sun_mode == 0u) { s_sun[0] = 0.5702f * sc.cos; s_sun[1] = sc.sin; s_sun[2] = 0.8214f * sc.cos; }   /* hand: two scales */
+    else {                                         /* SWEEP / HOLD: there and back, a triangle wave, eased at the ends */
+        const float tri = s_sun_ph < 0.5f ? 2.0f * s_sun_ph : 2.0f - 2.0f * s_sun_ph;
+        const float e = tri * tri * (3.0f - 2.0f * tri);
+        const shz_sincos_t az = shz_sincosf_deg(shz_lerpf(SUN_AZ0, SUN_AZ1, e));
+        s_sun[0] = az.sin * sc.cos; s_sun[1] = sc.sin; s_sun[2] = az.cos * sc.cos;
+    }
     s_sun_sky = dome_at(elev);
     s_road_col = lit(grey(shz_fmaf(s_dif, s_sun[1], s_amb) * (1.0f / 0.87f)));               /* the flat ground: 1 at noon */
     s_lamp = shz_saturatef((s_night - 0.3f) * 2.5f);
@@ -1336,11 +1356,11 @@ static void overlay(const demo_stats_t *st) {
             snprintf(t, sizeof t, "tris %u", (unsigned)s_tris_main);
             hud_text(24.0f, y, 1.0f, 0xffff9080u, t); y += 16.0f;
         }
-        snprintf(t, sizeof t, "%s  TIME %s  clock %u.%02u  lamps %u%%  night gain %u.%02u", s_low ? "LOOK 64x64 16col" : "LOOK full", s_tod_name[s_tod_mode], (unsigned)s_tod, (unsigned)(s_tod * 100.0f) % 100u,
-                 (unsigned)(s_lamp * 100.0f), (unsigned)s_lamp_gain, (unsigned)(s_lamp_gain * 100.0f + 0.5f) % 100u);
+        snprintf(t, sizeof t, "%s  TIME %s  SUN %s  clock %u.%02u  lamps %u%%  night gain %u.%02u", s_low ? "LOOK 64x64 16col" : "LOOK full", s_tod_name[s_tod_mode], s_sun_name[s_sun_mode],
+                 (unsigned)s_tod, (unsigned)(s_tod * 100.0f) % 100u, (unsigned)(s_lamp * 100.0f), (unsigned)s_lamp_gain, (unsigned)(s_lamp_gain * 100.0f + 0.5f) % 100u);
         hud_text(24.0f, y, 1.0f, 0xffffe0a0u, t); y += 16.0f;
         hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "RT gas  LT brake  stick steer  B+stick camera  B+UP/DOWN night gain"); y += 16.0f;
-        hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "X reflect  Y time  A look  B+A size  UP / DOWN F0  START info");
+        hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "X reflect  Y time  B+RIGHT sun  A look  B+A size  UP / DOWN F0  START info");
         if (s_reflect) {                                  /* the target itself, top centre: what the mirrored camera sees */
 #ifdef PL4NAR_MAP
             const float w = 256.0f, h = 64.0f, x = 192.0f, y0 = 14.0f;  /* the mirror and its shadow tiles */

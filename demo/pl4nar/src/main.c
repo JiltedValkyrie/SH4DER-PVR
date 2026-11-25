@@ -64,6 +64,7 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
     if (st->buttons & CONT_DPAD_UP)   now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_UP : DEMO_BTN_MORE;
     if (st->buttons & CONT_DPAD_DOWN) now |= (st->buttons & CONT_B) ? DEMO_BTN_LAMP_DN : DEMO_BTN_LESS;
     if ((st->buttons & CONT_DPAD_LEFT) && (st->buttons & CONT_B)) now |= DEMO_BTN_AO;
+    if ((st->buttons & CONT_DPAD_RIGHT) && (st->buttons & CONT_B)) now |= DEMO_BTN_SUN;
     if (st->buttons & CONT_START)     now |= (st->buttons & CONT_B) ? DEMO_BTN_FX : DEMO_BTN_INFO;
     in->pressed = now & ~*held;
     *held = now;

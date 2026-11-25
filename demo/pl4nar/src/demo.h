@@ -17,7 +17,8 @@ enum {
     DEMO_BTN_SPLIT   = 1u << 10,   /* the split: the reflection layer on the left of a divider only (B + X) */
     DEMO_BTN_FX      = 1u << 11,   /* the effect labels shown / hidden (B + START) */
     DEMO_BTN_TILES   = 1u << 12,   /* the new map: car shadow tiles on / off, blobs only (B + Y) */
-    DEMO_BTN_AO      = 1u << 13    /* the new map: baked occlusion on / off (B + D-pad left) */
+    DEMO_BTN_AO      = 1u << 13,   /* the new map: baked occlusion on / off (B + D-pad left) */
+    DEMO_BTN_SUN     = 1u << 14    /* the sun: FIXED -> SWEEP (azimuth, one diagonal to the other) -> HOLD (B + D-pad right) */
 };
 
 typedef struct demo_input {
