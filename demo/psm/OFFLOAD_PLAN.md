@@ -10,7 +10,7 @@ The SH-4 cache sizes are 8 KB of instruction cache and 16 KB of operand cache. F
 
 ## The answer in one paragraph
 
-The AICA is a slow island: the ARM7 sees only sound RAM, and everything crosses the 16-bit G2 bus. Sega's own table puts AICA DMA at 11.3 to 14.4 MB/s. A per-frame shadow map through sound RAM therefore costs more than the SH-4 spends making it, and it does not fit. What fits is **background work with no frame deadline that ends in a small table**: the static town's sun shadow on the ground, rebaked by the ARM7 when the clock moves the sun, and brought back by G2 DMA with no SH-4 time. The DSP does not fit any shadow work. The largest win available is on the SH-4 itself: the vertex send path (item 1 below). It needs no new chip.
+The AICA is a slow island: the ARM7 sees only sound RAM, and everything crosses the 16-bit G2 bus. Sega's own table puts AICA DMA at 11.3 to 14.4 MB/s; our console measured 5.0 to 5.7 MB/s (h2). A per-frame shadow map through sound RAM therefore costs more than the SH-4 spends making it, and it does not fit. What fits is **background work with no frame deadline that ends in a small table**: the static town's sun shadow on the ground, rebaked by the ARM7 when the clock moves the sun, and brought back by G2 DMA with no SH-4 time. The DSP does not fit any shadow work. The largest win available is on the SH-4 itself: the vertex send path (item 1 below). It needs no new chip.
 
 ## Ranked list
 
@@ -19,8 +19,8 @@ The AICA is a slow island: the ARM7 sees only sound RAM, and everything crosses 
 | 1 | Vertex send path: prepared 32-byte vertices sent in long store-queue runs (or by ch2 DMA), with record layout and prefetch | SH-4 (+ ch2 DMA) | **Yes** | TA feed for 28,699 vertices: 7.5 ms one at a time against 4.1 ms in one SQ run (MEASURED rates, h1); the frame gain after the extra build writes is an UNMEASURED GUESS of 1.5 to 3 ms | Town a3 boot view, one frame sent both ways, timed with the existing cost line |
 | 2 | Static ground sun-shadow map, rebaked by the ARM7 when the sun moves; the SH-4 samples it per ground vertex (or uses it as a texture) | ARM7 + G2 DMA | **Yes, as background** | Takes the static casters out of the per-frame map. Per-frame SH-4 shadow work is then the movers only, which matches the hybrid two-map plan. The size of the saving is an UNMEASURED GUESS | Item B2 below: ARM7 loop over 32 KB, then a 16 KB G2 DMA back, both timed |
 | 3 | Sound RAM as storage for data used rarely (the other scene's meshes, MAP SIZE 512's buffers while it is not chosen) | Sound RAM + G2 DMA | **Yes, as storage** | Up to about 2 MB of main RAM kept free in this demo (no sound driver loaded, see Q2) | One 512 KB G2 DMA each way, timed |
-| 4 | Small per-frame tables from the ARM7 (under about 4 KB, for example a light-direction table) | ARM7 + G2 DMA | Marginal | 0.28 to 0.36 ms of G2 time for 4 KB (DOC rate), running beside the SH-4 | As B2, at 4 KB |
-| — | Per-frame shadow map through sound RAM (any size) | G2 | **No** | 32 KB costs 2.3 to 2.9 ms each way at the DOC rate. Route B builds its map in RAM already, so sound RAM only adds a trip | — |
+| 4 | Small per-frame tables from the ARM7 (under about 4 KB, for example a light-direction table) | ARM7 + G2 DMA | Marginal | 0.28 to 0.36 ms of G2 time for 4 KB at Sega's rate (FACT); 0.82 ms measured back to RAM (h2, MEASURED), running beside the SH-4 | As B2, at 4 KB |
+| — | Per-frame shadow map through sound RAM (any size) | G2 | **No** | 32 KB costs 2.3 to 2.9 ms each way at Sega's rate (FACT); measured 5.7 ms in and 6.5 ms back (h2, MEASURED). Route B builds its map in RAM already, so sound RAM only adds a trip | — |
 | — | ARM7 rasterising the map, or running the warp or perspective maths | ARM7 | **No** | No FPU and no main-RAM access. The warp maths is one matrix a frame (microseconds on the SH-4) | — |
 | — | ARM7 twiddling the map for the bump-unit compare | ARM7 | **No** | The round trip (2 x 2.3 to 2.9 ms for 32 KB) is longer than the SH-4's table twiddle (1,504 us for 32 KB, MEASURED) | — |
 | — | AICA DSP for any of it | DSP | **No** | See Q3 | — |
@@ -44,7 +44,7 @@ The AICA is a slow island: the ARM7 sees only sound RAM, and everything crosses 
 - **Rate.**
   - FACT (SH4 access table): Sega gives 11.3 and 14.4 MB/s for AICA-DMA between wave memory and system or texture memory, as "simulation optimums". The text extract is garbled, so I cannot say which number belongs to which direction.
   - FACT (SysArc §1.3): the ceiling is the G2 bus, 16 bits at 25 MHz (50 MB/s).
-  - UNMEASURED: nothing in this repo has timed a G2 DMA.
+  - MEASURED (h2, 2026-11-25, one console): 5.7 MB/s to sound RAM and 4.9 to 5.0 MB/s back, the same at 4 KB and at 512 KB. That is about half Sega's figures. See Q2.
 - **Rules that bear on it.**
   - FACT (SysArc §4.2.2.3): an SH-4 read of the AICA "sometimes take[s] 16 µs, during which time the CPU bus, the internal bus (Root Bus) and the G2 bus come to a complete stop".
   - FACT (SysArc §4.2.2.3): writes must be at most 8 in a row, then wait for the buffer.
@@ -62,7 +62,7 @@ The AICA is a slow island: the ARM7 sees only sound RAM, and everything crosses 
 
 ## Q2. Moving a shadow map from sound RAM, and what fits there
 
-Times for one G2 DMA. The ranges use Sega's 11.3 to 14.4 MB/s (FACT, simulation optimums). The ceiling column is the 50 MB/s bus limit (FACT, the bus spec). KB = 1,024 bytes. None of these were timed on a console.
+Times for one G2 DMA. The ranges use Sega's 11.3 to 14.4 MB/s (FACT, simulation optimums). The ceiling column is the 50 MB/s bus limit (FACT, the bus spec). KB = 1,024 bytes. These rows are Sega's rates, not timings; the console's are below.
 
 | Map | 8-bit | Sega rate | ceiling | 16-bit | Sega rate | ceiling |
 |---|---|---|---|---|---|---|
@@ -70,6 +70,17 @@ Times for one G2 DMA. The ranges use Sega's 11.3 to 14.4 MB/s (FACT, simulation 
 | 128 x 128 | 16 KB | 1.14–1.45 ms | 0.33 ms | 32 KB | 2.28–2.90 ms | 0.66 ms |
 | 256 x 256 | 64 KB | 4.55–5.80 ms | 1.31 ms | 128 KB | 9.10–11.60 ms | 2.62 ms |
 | 512 x 512 | 256 KB | 18.2–23.2 ms | 5.24 ms | 512 KB | 36.4–46.4 ms | 10.5 ms |
+
+Bench h2 then timed it (MEASURED 2026-11-25, one console, one run; `bench/NOTES.md` "Hardware result h2", groups 3 and 4). G2 DMA ran at 5.7 MB/s into sound RAM and 4.9 to 5.0 MB/s back, about half Sega's figures, at every size. The table above is therefore optimistic by about 2x. Measured times at the sizes h2 ran:
+
+| Bytes | Map it fits | RAM to sound RAM | sound RAM to RAM |
+|---|---|---|---|
+| 4 KB | 64 x 64, 8-bit | 714 us | 821 us |
+| 32 KB | 128 x 128, 16-bit | 5,681 us | 6,510 us |
+| 128 KB | 256 x 256, 16-bit | 22,715 us | 26,025 us |
+| 512 KB | 512 x 512, 16-bit | 90,816 us | 104,066 us |
+
+During each copy an SH-4 register loop kept 98 to 100 % of its rate. One G2 DMA moved 32 KB from sound RAM straight into texture memory in 6,511 us (5.0 MB/s), with every byte right.
 
 For comparison, all MEASURED (h1):
 
@@ -134,7 +145,7 @@ Verdict:
 
 - UNMEASURED GUESS: a 4 x 3 transform per element in 13-bit coefficients is about 12 multiplies and 6 memory steps, so roughly 9 elements a sample, about 6,600 a frame.
 - 13-bit coefficients give 1/4,096 steps, too coarse for clip space.
-- The data still crosses G2 both ways: about 158 KB a frame for 6,600 vertices at 12 bytes in and out, which is 11 to 14 ms at the Sega rate.
+- The data still crosses G2 both ways: about 158 KB a frame for 6,600 vertices at 12 bytes in and out, which is 11 to 14 ms at the Sega rate (FACT) and about 30 ms at h2's measured 5.0 to 5.7 MB/s (ESTIMATE from MEASURED rates).
 - The SH-4 does the same transform in 1.3 ms. MEASURED rate: 38.7 cycles a vertex (`mat_transform`).
 - It would also take the DSP from audio effects.
 - **Does not fit.**
@@ -232,8 +243,8 @@ Each runs on a real Dreamcast and prints one line a number. Senior's h2 plans th
 | B0 | Item 1 | Town a3 boot view. Send the frame with `pvr_dr` per vertex, then from prepared records by `shz_sq_memcpy32`. Print SH-4 ms for each, with the existing `pvr_get_stats` line. No new chip. |
 | B1 | The ARM7's real speed | Load a 200-byte ARM loop (a sum over 32 KB of sound RAM, then a write of a done word). Time it from the SH-4 by polling the done word **once a millisecond** (a G2 read stalls the buses, Q1). Print instructions a second. Needs the ARM toolchain. |
 | B2 | Item 2's data path | SH-4 to sound RAM, 32 KB by `spu_dma_transfer`; ARM7 inverts it; ARM7 raises its SH-4 interrupt; G2 DMA back 16 KB, started by that interrupt or by the SH-4. Print each leg in us and check the bytes. |
-| B3 | The G2 rate | `g2_dma_transfer` to and from sound RAM at 4, 32, 128 and 512 KB, waiting on the semaphore (no polling). Print MB/s each way, and an SH-4 register loop's rate beside it (the h1 "beside" test, with its clock started **before** the DMA). |
-| B4 | Sound RAM to VRAM directly | One G2 DMA of 32 KB from wave memory to a texture address. Print us and show the texture. |
+| B3 | The G2 rate (done: h2, see Q2) | `g2_dma_transfer` to and from sound RAM at 4, 32, 128 and 512 KB, waiting on the semaphore (no polling). Print MB/s each way, and an SH-4 register loop's rate beside it (the h1 "beside" test, with its clock started **before** the DMA). |
+| B4 | Sound RAM to VRAM directly (done: h2, 6,511 us for 32 KB) | One G2 DMA of 32 KB from wave memory to a texture address. Print us and show the texture. |
 
 B3 needs no ARM code and answers Q1 and Q2 with numbers. It is the one to run first if only one runs.
 

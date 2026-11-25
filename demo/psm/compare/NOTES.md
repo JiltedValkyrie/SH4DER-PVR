@@ -242,3 +242,43 @@ console result: it is the design and what the host MODEL says. The console's pag
   into a 512-wide texture, the 1555 texture's alpha bit through a bilinear filter.
 - The asm projection's cycle count is an estimate until page 5 prints (19.5 E a vertex against 39).
 - The interrupt form of test 7 uses event code 0x000b (the PVR-DMA end bit); KallistiOS has no name for it.
+
+## Hardware result c4: the live view, pages 6 and 7 (pages 0 to 5 not photographed)
+
+Image `demo/psm/out/cdi/psm-c4-c4.cdi`, one console, 2026-11-25. Photos in `logs/benchmarks/c4e/` (`PXL_20261125_070703610`
+to `..074650392`; a name below is its last digits). The owner went to the live view first; of the result pages only
+the last two were photographed. One line a fact, in the form of `wiki/STRUCTURE.md`; a row marked "seen" is what a
+photo of the live view shows, with no number behind it. The ESTIMATE rows are the host model's and say what c4b
+changes; no c4b image exists.
+
+| Claim | Status | Photo | Test |
+|---|---|---|---|
+| The whole chain draws: the map from the sun, the bump compare into a 1555 mask, the mask as a shadow layer on the screen, with the sun moved live. | MEASURED 2026-11-25, 1 console (seen on the photo, not counted) | `..070848079`, `..071055705` | c4 live view |
+| At b0 = 1.5 the lit ground shows a regular grid of shadow dots (acne), and dots along outlines. | MEASURED 2026-11-25, 1 console (seen on the photo, not counted) | `..070703610` | c4 live view, default settings; page 3 would give the least b0 with none |
+| With b0 raised in the live view the ground is clean at sun 150 / 26. | MEASURED 2026-11-25, 1 console (seen on the photo, not counted) | `..070848079` | c4 live view, X / Y |
+| With the sun square to the boxes, thin false shadow lines run from their bases across the ground. | MEASURED 2026-11-25, 1 console (seen on the photo, not counted) | `..070855125`, `..071118010` | c4 live view |
+| A wall that the sun only grazes shows blocks of false shadow (a comb down the box's side, a smear under the slab's top). | MEASURED 2026-11-25, 1 console (seen on the photo, not counted) | `..071110100` | c4 live view |
+| Shadow edges are stair steps the size of a map texel; at a low sun they are several screen pixels long on the ground. | MEASURED 2026-11-25, 1 console (seen on the photo, not counted) | `..070905851`, `..070955284` | c4 live view |
+| Live frame at sun 150 / 26, b0 1.75, bands 2 codes wide, layer on: 1,288 vertices; SH-4 fit + cut + faces 1,404 us, projection 857 us; PVR map 3,314 us, mask 6,137 us, screen 9,941 us; frame 39,933 us (it waits for the picture's turn). | MEASURED 2026-11-25, 1 console, 1 run | `..074645426` | c4 page 6, first LIVE line |
+| Live frame at sun 91 / 34, b0 5.25, bands 1 code wide, layer on: 2,192 vertices; SH-4 fit + cut + faces 2,272 us, projection 1,459 us; PVR map 3,236 us, mask 10,171 us, screen 9,947 us; frame 49,929 us. | MEASURED 2026-11-25, 1 console, 1 run | `..074645426` | c4 page 6, second LIVE line |
+| PVR-DMA of 512 KB ended by its interrupt: 14,510 us, 36.1 MB/s, the copy right. (Bench h2 on the same console: 13,742 us.) | MEASURED 2026-11-25, 1 console, 1 run | `..074541020` | c4 test 7, last line |
+| The tile list can be ended early for a small target: the map pass renders in 375 us with a 20-tile list against 3,312 us with the whole list (3,311 again after), the picture the same all three times. | MEASURED 2026-11-25, 1 console, 1 run | `..074650392` | c4 TILES map line |
+| The mask pass: 3,760 us with an 80-tile list against 6,130 us whole (6,140 again), the picture the same all three times. | MEASURED 2026-11-25, 1 console, 1 run | `..074650392` | c4 TILES mask line |
+| The two tile tables (at 0f8448 and 4f8448, 1,806 words each) read back as saved after the test: 0 words differ. | MEASURED 2026-11-25, 1 console, 1 run | `..074650392` | c4 TILES restore line |
+| Pages 0 to 5 of c4 (ramp, window, bias, scene counts, cost, punch-through) have no photo yet. | OPEN | - | the c4 image's pages 0 to 5, photographed |
+| c4b rules (bias = b0 + half a band + a WHOLE texel of slope, b0 3.0; faces whose bias leaves under 4 codes of window are not compared: drawn lit, kept in the map ungrown): 0 acne on a face's own pixels and 0 on a face behind over 360 suns x 3 elevations, where c4's rules gave 170 and 44 at the worst sun. | ESTIMATE: host model `c4_model.h`, 320 x 240 mask against a ray to the sun | - | `test/c4_model_test.c` `kinds()`; on the console: c4b page 3 and page 4 |
+| The same rules, false shadow from a nearer face at five suns (150, 177, 174, 93, 96 deg at 26.5): 513, 220, 161, 277, 435 pixels, where c4's gave 634, 925, 733, 1,623, 1,247. | ESTIMATE: host model `c4_model.h`, 320 x 240 mask against a ray to the sun | - | `test/c4_model_test.c` `chain()` |
+| Their price: real shadow missed 13, 11, 1, 21, 22 pixels (c4: 4, 2, 1, 367, 129), and at suns 93 and 96 about 864 and 868 pixels of shadow cast ON a grazed wall are not drawn. | ESTIMATE: host model `c4_model.h`, 320 x 240 mask against a ray to the sun | - | the same |
+| A band cutter that lets a band level fall on a face corner emits triangles of three equal corners (105 over 360 suns x 3 band widths, because the light fit puts the ground's near corner exactly 7.5 codes in); snapping levels within 1e-3 code to the corner gives 0. | ESTIMATE: host model `c4_model.h`, 320 x 240 mask against a ray to the sun | - | `test/c4_model_test.c` `bands()`, the equal-corner check |
+| The dot grid is the bump level table of the chip differing from the cosine the Q values were made from (windows 1 to 3 codes narrower at w 32 by a third party's reading of the hardware). | REPORTED: `../POLLY2_NOTES.md` "Spike c4 checked against skmp's rules" (cite only) | - | c4b: measure the window's own edges at boot from strips of known codes, and set Q from them |
+
+What the cost lines say, as readings: the screen pass is 9.9 ms with the layer whatever the sun; the mask pass grows
+with the band count (6.1 ms at 1,288 vertices, 10.2 ms at 2,192); the SH-4's whole share is 2.3 ms and 3.7 ms. The
+frame times (39.9 and 49.9 ms) are longer than the work because the frame waits for the picture's turn (the page's
+own words): 49.9 ms is three pictures at 60 a second. Why the other is 39.9 and neither 33.4 nor 50.0 is not known;
+a mean over frames of two and of three pictures would give it. The work, PVR and SH-4 together, is 21.7 ms and
+27.1 ms (sums of the measured lines above).
+
+The tile lines are the first sign that a small target need not pay for the whole screen's tile list: the 128 x 128
+map is 16 tiles and rendered in 375 us with a list of 20. The mask (320 x 240, 80 tiles of 32 x 32 hold 320 x 256)
+did not gain as much: 3,760 us. Nothing was changed for good: the tables read back as saved.
