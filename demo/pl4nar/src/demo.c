@@ -111,7 +111,11 @@ static uint32_t s_haze = 0xffc4ced6u;
 #define COL_HEAD     0x00fff0c8u   /* headlights */
 #define COL_TAIL     0x00d81818u
 #define LAMP_NEAR    60.0f         /* street lamps light the road and glow within this of the car */
+#ifdef PL4NAR_WET
+#define LAMP_MIRROR  90.0f         /* the wet road: the road carries the lamps far up the street */
+#else
 #define LAMP_MIRROR  40.0f         /* and are drawn in the mirror pass within this */
+#endif
 #define LAMP_HEAD_Y  7.45f
 #define LAMP_ARM     2.6f          /* the lamp head hangs this far out over the road */
 #define COL_ASPHALT  0xff383836u
@@ -142,8 +146,20 @@ static const tod_key_t s_tod_key[3] = {
 };
 static const struct { float t; unsigned key; } s_tod_knot[7] = { { 0.0f, 0u }, { 0.35f, 0u }, { 0.45f, 1u }, { 0.55f, 2u }, { 0.85f, 2u }, { 0.93f, 1u }, { 1.0f, 0u } };
 static const char *const s_tod_name[4] = { "AUTO", "DAY", "NIGHT", "PAUSE" };
+#ifdef PL4NAR_WET
+#ifdef PL4NAR_MAP
+#error "the wet road is the street's (a straight flat road): not with PL4NAR_MAP"
+#endif
+static float    s_tod = 0.70f;                    /* the wet road: night, always (Y is the rain there) */
+static unsigned s_tod_mode = 2u;
+static unsigned s_rain = 2u;                       /* the rain key (Y in this build) */
+static int      s_wet_streak = 1;                  /* the stretch on (the autorun's "no stretch" stage turns it off) */
+static uint32_t s_wet_cpu_us;
+void demo_auto_rain(unsigned rain, int streak) { s_rain = rain % 3u; s_wet_streak = streak; }
+#else
 static float    s_tod = 0.10f;                    /* the clock */
 static unsigned s_tod_mode;                       /* 0 AUTO, 1 DAY, 2 NIGHT, 3 PAUSE */
+#endif
 /* The sun's sweep (B + D-pad right): FIXED is the old sun (azimuth 34.8 degrees, its two scales below); SWEEP takes the
    azimuth from one diagonal (45) to the other (225) and back, SUN_SWEEP_S a whole loop, at the hour's elevation; HOLD
    stops it where it is. Everything lit or shadowed reads s_sun each frame: the models, the boxes, the tiles, the disc. */
@@ -188,7 +204,11 @@ static float    s_f0 = 0.25f;                      /* paint F0: 0.05 is physical
 #else
 static float    s_f0 = 0.14f;                      /* paint F0: 0.05 is physical, the default leans on the clear coat */
 #endif
+#ifdef PL4NAR_WET
+static const uint16_t s_sizes[3][2] = { { 256, 128 }, { 128, 64 }, { 64, 32 } };   /* the wet road: 128 x 64 at the start */
+#else
 static const uint16_t s_sizes[3][2] = { { 256, 128 }, { 128, 64 }, { 512, 256 } };
+#endif
 static uint32_t s_refl_cpu_us, s_tris_main, s_tris_refl;
 
 /* per pass */
@@ -319,7 +339,11 @@ void demo_auto_place(float z, float x, float v) {
     demo_place(0.0f);
 }
 void demo_counts(demo_counts_t *c) {
+#ifdef PL4NAR_WET
+    c->tris_main = s_tris_main; c->tris_refl = s_tris_refl; c->lookup_us = s_pv_ok ? s_refl_cpu_us + (s_rain && s_reflect ? s_wet_cpu_us : 0u) : 0u;
+#else
     c->tris_main = s_tris_main; c->tris_refl = s_tris_refl; c->lookup_us = s_pv_ok ? s_refl_cpu_us : 0u;
+#endif
     c->tw = s_sizes[s_size][0]; c->th = s_sizes[s_size][1]; c->target_bytes = gfx_reflect_bytes();
     c->night = s_night; c->refl_ok = s_pv_ok; c->draw_back = DRAW_BACK; c->draw_fwd = DRAW_FWD;
 #ifdef PL4NAR_MAP
@@ -432,6 +456,9 @@ void demo_init(void) {
     add_prop(&mdl_police_body, &mdl_police_wheels, -6.7f, 330.0f, 3.1416f);
 #endif
     s_car.x = -2.0f; s_car.z = 8.0f; s_car.h = 0.0f; s_car.v = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.clock = 0.0f;   /* the start (DRIVE's restart too) */
+#ifdef PL4NAR_WET
+    s_size = 1u;                                   /* the wet road: 128 x 64 at the start; B+A cycles 64 x 32, 256 x 128 */
+#endif
 #ifdef PL4NAR_HILLS
     hills_init();
     {
@@ -460,7 +487,9 @@ void demo_update(const demo_input_t *in, float dt) {
     if (in->pressed & DEMO_BTN_LAMP_UP) s_lamp_gain = shz_fminf(s_lamp_gain + 0.25f, 4.0f);
     if (in->pressed & DEMO_BTN_LAMP_DN) s_lamp_gain = shz_fmaxf(s_lamp_gain - 0.25f, 0.5f);
     if (in->pressed & DEMO_BTN_LOOK) s_low = !s_low;
+#ifndef PL4NAR_WET
     if (in->pressed & DEMO_BTN_TOD) s_tod_mode = (s_tod_mode + 1u) % 4u;
+#endif
     if (in->pressed & DEMO_BTN_SUN) {
         s_sun_mode = (s_sun_mode + 1u) % 3u;
         if (s_sun_mode == 1u && s_tod_mode != 2u) s_tod_mode = 1u;   /* a sweep wants the sun up: to DAY (NIGHT stays as asked) */
@@ -476,6 +505,9 @@ void demo_update(const demo_input_t *in, float dt) {
     if (s_tod >= 1.0f) s_tod -= 1.0f;
     if (s_tod < 0.0f) s_tod += 1.0f;
     if (in->pressed & DEMO_BTN_SPLIT) s_split = !s_split;
+#ifdef PL4NAR_WET
+    if (in->pressed & DEMO_BTN_RAIN) s_rain = (s_rain + 1u) % 3u;
+#endif
     if (in->pressed & DEMO_BTN_FX) s_fx_hidden = !s_fx_hidden;
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
@@ -736,6 +768,132 @@ static void draw_road(void) {
     }
 }
 #else
+#ifdef PL4NAR_WET
+/* The wet road (a one-off, the street at night in rain): the road in front of the camera is a grid in the plane, each
+   vertex looked up in the mirror pass's target (sh4der_pl4nar_flat) and drawn in ONE opaque pass with GFX_MAT_WET:
+   texel x the reflection's share (vertex colour) + the asphalt's own tone (offset colour). It replaces the road's
+   texture there; past the grid the road is as dry. Rain: 0 dry (no grid), 1 damp, 2 wet. The streak: v pulled toward
+   the horizon's row, so a lamp's image runs toward the viewer. The speckle: a texel of jitter a vertex, new 15 times a
+   second (rain on the film). */
+#define WET_COLS     7u            /* x -12 .. 12 m, 4 m apart: the sidewalks' edges, the kerbs, the lanes */
+#define WET_ROWS     36u
+#define WET_ROW0     1.5f          /* m: the first row's spacing, then x WET_GROW a row */
+#define WET_GROW     1.12f
+static const float s_wet_gain[3]    = { 0.0f, 1.0f, 2.2f };     /* the reflection's share x the Fresnel (WET_ROAD, f0 raised) */
+static const float s_wet_stretch[3] = { 1.0f, 1.5f, 2.6f };     /* v toward the horizon: 1 none */
+static const float s_wet_dark[3]    = { 1.0f, 0.75f, 0.5f };    /* the asphalt's own tone kept: water darkens it */
+static uint32_t wet_hash(uint32_t a, uint32_t b) {
+    uint32_t h = a * 0x9e3779b1u ^ (b + 0x7f4a7c15u) * 0x85ebca77u;
+    h ^= h >> 15; h *= 0x2c1b3c6du; h ^= h >> 12;
+    return h;
+}
+
+/* The road's texture from za to zb only (the dry road round the grid), tiles cut at the ends. */
+static void road_span(float za, float zb) {
+    gfx_vert_t q[4];
+    const float z_first = ROAD_TILE * shz_floorf((s_camz - DRAW_BACK) * (1.0f / ROAD_TILE));
+    unsigned i, b;
+    for (i = 0; i < (unsigned)((DRAW_BACK + DRAW_FWD) / ROAD_TILE) + 1u; i++) {
+        const float z0 = shz_fmaxf(z_first + ROAD_TILE * (float)i, za), z1 = shz_fminf(z_first + ROAD_TILE * (float)(i + 1u), zb);
+        const float v0 = (z0 - z_first) * (1.0f / ROAD_TILE), v1 = (z1 - z_first) * (1.0f / ROAD_TILE);
+        if (z1 <= z0) continue;
+        gfx_xform(&q[0], shz_vec3_init(-BLD_X, 0.0f, z1)); q[0].u = 1.0f; q[0].v = v1;
+        gfx_xform(&q[1], shz_vec3_init(BLD_X, 0.0f, z1));  q[1].u = 0.0f; q[1].v = v1;
+        gfx_xform(&q[2], shz_vec3_init(BLD_X, 0.0f, z0));  q[2].u = 0.0f; q[2].v = v0;
+        gfx_xform(&q[3], shz_vec3_init(-BLD_X, 0.0f, z0)); q[3].u = 1.0f; q[3].v = v0;
+        for (b = 0; b < 4u; b++) { q[b].argb = s_road_col; haze_tex(&q[b]); }
+        quad(q);
+    }
+}
+
+/* The grid from z0 (in front of the camera) to *z1 (on a tile's edge, so the dry road meets it without overlap). */
+static void wet_grid(float z0, float *z1) {
+    static float pos[WET_ROWS][WET_COLS][3];
+    static gfx_vert_t gv[WET_ROWS][WET_COLS];
+    sh4der_pl4nar_material_t mat = sh4der_pl4nar_preset(SH4DER_PL4NAR_WET_ROAD);
+    const float us = gfx_reflect_u_scale(), iw = shz_invf((float)s_sizes[s_size][0]), ih = shz_invf((float)s_sizes[s_size][1]);
+    const float k = s_wet_streak ? shz_invf(s_wet_stretch[s_rain]) : 1.0f, gain = s_wet_gain[s_rain];
+    const uint32_t tick = (uint32_t)(s_car.clock * 15.0f);
+    const uint64_t t0 = plat_us();
+    float z = z0, dz = WET_ROW0, vh;
+    unsigned r, c, rows;
+    mat.f0 = 0.15f;                                   /* the preset's 0.02 is water head on; wet asphalt at night wants more (tuned by eye on the host) */
+    for (rows = 0; rows < WET_ROWS; rows++) {
+        if (rows == WET_ROWS - 1u) z = ROAD_TILE * shz_ceilf(z * (1.0f / ROAD_TILE));   /* the last row on a tile's edge */
+        for (c = 0; c < WET_COLS; c++) { pos[rows][c][0] = -12.0f + 4.0f * (float)c; pos[rows][c][1] = 0.0f; pos[rows][c][2] = z; }
+        z += dz; dz *= WET_GROW;
+    }
+    *z1 = pos[WET_ROWS - 1u][0][2];
+    sh4der_pl4nar_begin(&s_pv);                       /* XMTRX = the reflection view until VP_LOAD */
+    {   /* the horizon's row in the target: a point far down the road */
+        const float far[3] = { s_car.wx, 0.0f, s_camz + 5000.0f };
+        sh4der_pl4nar_sample_t smp;
+        (void)sh4der_pl4nar_flat(&s_pv, far, &mat, &smp);
+        vh = smp.v;
+    }
+    for (r = 0; r < WET_ROWS; r++)
+        for (c = 0; c < WET_COLS; c++) {
+            sh4der_pl4nar_sample_t smp;
+            gfx_vert_t *o = &gv[r][c];
+            const uint32_t h = wet_hash(c * 64u + (uint32_t)(pos[r][c][2] * 0.5f), tick);
+            const float side = c == 0u || c == WET_COLS - 1u ? 0.4f : 1.0f;     /* the sidewalks hold less water */
+            float a;
+            (void)sh4der_pl4nar_flat(&s_pv, pos[r][c], &mat, &smp);
+            o->u = shz_saturatef(shz_fmaf((float)(h & 255u) - 127.5f, 0.5f * (1.0f / 128.0f) * iw, smp.u)) * us;   /* hand: a jitter of half a texel */
+            o->v = shz_saturatef(shz_fmaf(smp.v - vh, k, vh) + ((float)((h >> 8) & 255u) - 127.5f) * (0.3f / 128.0f) * ih);
+            a = shz_saturatef(smp.fresnel * gain * side);
+            o->argb = grey(a);
+#ifdef WET_SHOW                                       /* host check only: the target at full strength, no asphalt */
+            o->argb = 0xffffffffu; (void)a;
+#endif
+            {
+                const uint32_t base = gfx_scale(gfx_mod(c == 0u || c == WET_COLS - 1u ? 0xff5a5a58u : COL_ASPHALT, s_road_col),
+                                                (unsigned)(s_wet_dark[s_rain] * 256.0f));
+                o->oargb = base;
+#ifdef WET_SHOW
+                o->oargb = 0u; (void)base;
+#endif
+            }
+        }
+    VP_LOAD();
+    for (r = 0; r < WET_ROWS; r++)
+        for (c = 0; c < WET_COLS; c++) {
+            gfx_vert_t *o = &gv[r][c];
+            const float u = o->u, v = o->v;
+            const uint32_t argb = o->argb, base = o->oargb;
+            gfx_xform(o, shz_vec3_init(pos[r][c][0], 0.0f, pos[r][c][2]));
+            o->u = u; o->v = v;
+            {   /* the haze, as haze_tex: the texel's share fades, the offset goes from the asphalt to the haze */
+                const unsigned t = (unsigned)(shz_saturatef((o->w - HAZE_START) * HAZE_INV) * (float)s_haze_max);
+                o->argb = gfx_scale(argb, 256u - t);
+                o->oargb = gfx_mix(base, COL_HAZE, t);
+            }
+        }
+    gfx_bind(GFX_MAT_WET);
+    for (r = 0; r + 1u < WET_ROWS; r++)
+        for (c = 0; c + 1u < WET_COLS; c++) {
+            const gfx_vert_t q[4] = { gv[r + 1u][c], gv[r + 1u][c + 1u], gv[r][c + 1u], gv[r][c] };
+            quad(q);
+        }
+    s_wet_cpu_us = (uint32_t)(plat_us() - t0);
+}
+
+static void draw_road(void) {
+    gfx_vert_t q[4];
+    unsigned i, b;
+    VP_LOAD();
+    if (s_rain && s_pv_ok && s_reflect) {
+        const float z0 = s_camz + 1.0f;               /* in front of the camera: a vertex behind it has no lookup */
+        float z1;
+        wet_grid(z0, &z1);
+        gfx_bind(s_low ? GFX_MAT_P_ROAD : GFX_MAT_ROAD);
+        road_span(s_camz - DRAW_BACK, z0);
+        road_span(z1, s_camz + DRAW_FWD + ROAD_TILE);
+    } else {
+        gfx_bind(s_low ? GFX_MAT_P_ROAD : GFX_MAT_ROAD);
+        road_span(s_camz - DRAW_BACK, s_camz + DRAW_FWD + ROAD_TILE);
+    }
+#else
 static void draw_road(void) {
     gfx_vert_t q[4];
     const float z_first = ROAD_TILE * shz_floorf((s_camz - DRAW_BACK) * (1.0f / ROAD_TILE));
@@ -751,6 +909,7 @@ static void draw_road(void) {
         for (b = 0; b < 4u; b++) { q[b].argb = s_road_col; haze_tex(&q[b]); }
         quad(q);
     }
+#endif
     gfx_bind(GFX_MAT_FLAT);                           /* cross streets: plain asphalt out to the closing buildings */
     for (b = 0; b <= NBLOCK; b++) {
         const float zc = wrap_z((float)b * BLOCK);
@@ -1419,9 +1578,52 @@ static void draw_lamps(int what) {
             const float c[3] = { hx, 0.03f, z };
             fan(p, sh4der_pool_disc(c, ux, uz, 10u, COL_LAMP, 0.60f * s_lamp, p), 1);
         } else if (what == 1) halo(hx, LAMP_HEAD_Y, z, 2.2f, COL_LAMP, s_lamp);
+#ifdef PL4NAR_WET
+        else halo(hx, -LAMP_HEAD_Y, z, 3.0f, COL_LAMP, s_lamp);    /* the wet road: a wider glow, the streak's source */
+#else
         else halo(hx, -LAMP_HEAD_Y, z, 1.5f, COL_LAMP, s_lamp);
+#endif
     }
 }
+
+#ifdef PL4NAR_WET
+/* The wet road's extra lights (GFX_MAT_GLOW bound): a red sign and a blue sign on the facades, once a PERIOD; mirror 1:
+   in the mirror pass, the signs and the car's own four lamps at their mirrored height, so the road carries them. */
+static void wet_lights(int mirror) {
+    static const struct { float x, y, z; uint32_t rgb; } sign[2] = { { -BLD_X + 0.3f, 5.5f, 60.0f, 0x00ff3020u }, { BLD_X - 0.3f, 4.5f, 150.0f, 0x002a60ffu } };
+    unsigned i;
+    for (i = 0; i < 2u; i++) {
+        const float z = wrap_z(sign[i].z);
+        if (z < s_camz - 10.0f || z > s_camz + LAMP_MIRROR) continue;
+        halo(sign[i].x, mirror ? -sign[i].y : sign[i].y, z - 0.8f, mirror ? 2.2f : 1.3f, sign[i].rgb, 1.0f);   /* two glows: a bar */
+        halo(sign[i].x, mirror ? -sign[i].y : sign[i].y, z + 0.8f, mirror ? 2.2f : 1.3f, sign[i].rgb, 1.0f);
+    }
+    if (mirror) {
+        const shz_sincos_t hc = shz_sincosf(s_car.wh);
+        int s;
+        for (s = -1; s <= 1; s += 2) {
+            const float side = 0.62f * (float)s;
+            halo(shz_fmaf(hc.sin, 2.40f, shz_fmaf(hc.cos, side, s_car.wx)), -0.60f, shz_fmaf(hc.cos, 2.40f, shz_fmaf(-hc.sin, side, s_car.wz)), 0.45f, COL_HEAD, s_lamp);
+            halo(shz_fmaf(hc.sin, -2.42f, shz_fmaf(hc.cos, side, s_car.wx)), -0.60f, shz_fmaf(hc.cos, -2.42f, shz_fmaf(-hc.sin, side, s_car.wz)), 0.35f, COL_TAIL, s_lamp);
+        }
+    }
+}
+
+/* Rain over the picture: thin falling streaks, screen space (GFX_MAT_HUD, translucent), stateless (slot, time). */
+static void wet_rain(void) {
+    static const unsigned count[3] = { 0u, 40u, 110u };
+    const float t = s_car.clock;
+    unsigned i;
+    gfx_bind(GFX_MAT_HUD);
+    for (i = 0; i < count[s_rain]; i++) {
+        const uint32_t h = wet_hash(i, 0x51u);
+        const float len = 14.0f + (float)(h & 15u), speed = 900.0f + (float)((h >> 4) & 255u);
+        const float span = 480.0f + len, f = shz_fmaf(t, speed, (float)((h >> 20) & 511u));
+        const float x = (float)((h >> 12) % 640u), y = f - span * shz_floorf(f * shz_invf(span)) - len;   /* hand: f mod span */
+        gfx_quad2d(x, y, x + 1.0f, y + len, 9.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0x40c8d4e4u);
+    }
+}
+#endif
 
 /* The car's own lights: two wedges on the road ahead (GFX_MAT_ADD), then four halos (GFX_MAT_GLOW). */
 static void draw_car_lights(int halos) {
@@ -1858,6 +2060,14 @@ static void overlay(const demo_stats_t *st) {
         }
     }
 #endif
+#ifdef PL4NAR_WET
+    if (!s_fx_hidden) {                               /* the effect's label over the speed */
+        static const char *const rain[3] = { "DRY", "DAMP", "WET" };
+        hud_text(64.0f, 386.0f, 1.0f, 0xffc8c8c8u, "Wet Road Reflection: SH-4 lookup, PVR one opaque pass");
+        snprintf(t, sizeof t, "RAIN %s  streak %s  target %ux%u", rain[s_rain], s_wet_streak ? "on" : "off", (unsigned)s_sizes[s_size][0], (unsigned)s_sizes[s_size][1]);
+        hud_text(64.0f, 404.0f, 1.0f, 0xffffdc00u, t);
+    }
+#endif
 #ifdef PL4NAR_HILLS
     {
         gfx_cut_stats_t cs;
@@ -1983,6 +2193,9 @@ void demo_draw(const demo_stats_t *st) {
                 gfx_bind(GFX_MAT_GLOW);
                 gfx_cull(GFX_CULL_NONE);
                 draw_lamps(2);
+#ifdef PL4NAR_WET
+                wet_lights(1);
+#endif
             }
             s_tris_refl = gfx_tris_sent();
             gfx_reflect_end();
@@ -2014,6 +2227,10 @@ void demo_draw(const demo_stats_t *st) {
     gfx_bind(GFX_MAT_GLOW);
     draw_lamps(1);
     draw_car_lights(1);
+#ifdef PL4NAR_WET
+    wet_lights(0);
+    wet_rain();
+#endif
     s_tris_main = gfx_tris_sent();
     overlay(st);
     gfx_frame_end();

@@ -208,6 +208,7 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
         memset(&s_hdr[GFX_MAT_REFLECT], 0, sizeof s_hdr[0]);
         memset(&s_hdr[GFX_MAT_REFLECT_ADD], 0, sizeof s_hdr[0]);
         memset(&s_hdr[GFX_MAT_SHADOW], 0, sizeof s_hdr[0]);
+        memset(&s_hdr[GFX_MAT_WET], 0, sizeof s_hdr[0]);
         return -1;
     }
     sh4der_pl4nar_layer_header(&s_rt, &s_hdr[GFX_MAT_REFLECT], 0u);
@@ -225,6 +226,14 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
         c.blend.src = PVR_BLEND_DESTCOLOR; c.blend.dst = PVR_BLEND_ZERO;
         c.depth.write = PVR_DEPTHWRITE_DISABLE;
         pvr_poly_compile(&s_hdr[GFX_MAT_SHADOW], &c);
+        /* the wet road: the target itself in the opaque list, texel x vertex colour (the reflection's share) + offset
+           colour (the asphalt's own tone and the haze): one pass where the road was, no layer over it */
+        pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)s_rt.pitch, (int)s_rt.h, (pvr_ptr_t)s_rt.tex, PVR_FILTER_BILINEAR);
+        c.gen.culling = PVR_CULLING_NONE;
+        c.gen.specular = PVR_SPECULAR_ENABLE;
+        c.txr.env = PVR_TXRENV_MODULATE;
+        c.txr.uv_clamp = PVR_UVCLAMP_UV;
+        pvr_poly_compile(&s_hdr[GFX_MAT_WET], &c);
     }
     return 0;
 }

@@ -18,7 +18,8 @@ enum {
     DEMO_BTN_FX      = 1u << 11,   /* the effect labels shown / hidden (B + START) */
     DEMO_BTN_TILES   = 1u << 12,   /* the new map: car shadow tiles on / off, blobs only (B + Y) */
     DEMO_BTN_AO      = 1u << 13,   /* the new map: baked occlusion on / off (B + D-pad left) */
-    DEMO_BTN_SUN     = 1u << 14    /* the sun: FIXED -> SWEEP (azimuth, one diagonal to the other) -> HOLD (B + D-pad right) */
+    DEMO_BTN_SUN     = 1u << 14,   /* the sun: FIXED -> SWEEP (azimuth, one diagonal to the other) -> HOLD (B + D-pad right) */
+    DEMO_BTN_RAIN    = 1u << 15    /* the wet road build: the rain DRY -> DAMP -> WET (Y there) */
 };
 
 typedef struct demo_input {
@@ -41,7 +42,10 @@ void demo_init(void);
 void demo_update(const demo_input_t *in, float dt);
 void demo_draw(const demo_stats_t *st);
 int  demo_reflect_on(void);
-int  demo_info_on(void);           /* the overlay is open (DRIVE: the tech keys are live, controls.h ctl_when) */
+int  demo_info_on(void);
+#ifdef PL4NAR_WET
+void demo_auto_rain(unsigned rain, int streak);    /* the wet road: rain 0 dry, 1 damp, 2 wet; streak 0: the stretch off */
+#endif           /* the overlay is open (DRIVE: the tech keys are live, controls.h ctl_when) */
 
 /* The autorun (main.c, PL4NAR_AUTORUN): set a stage, read what the last frame drew. */
 typedef struct demo_counts {

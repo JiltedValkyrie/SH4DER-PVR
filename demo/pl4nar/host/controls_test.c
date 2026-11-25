@@ -20,7 +20,9 @@ static uint32_t old_map(uint32_t p) {                /* main.c's read_pad, as it
 }
 
 int main(void) {
-#ifdef PL4NAR_MAP
+#if defined(PL4NAR_WET)                            /* Y is the rain there: checked below */
+    const uint32_t acted = ~(uint32_t)(DEMO_BTN_TILES | DEMO_BTN_AO | DEMO_BTN_FX | DEMO_BTN_TOD | DEMO_BTN_RAIN);
+#elif defined(PL4NAR_MAP)
     const uint32_t acted = ~0u;
 #else
     const uint32_t acted = ~(uint32_t)(DEMO_BTN_TILES | DEMO_BTN_AO | DEMO_BTN_FX);
@@ -34,6 +36,9 @@ int main(void) {
         if ((tech & acted) != (old_map(p) & acted)) { if (bad++ < 8u) printf("pad %03x: tech %05x, old %05x\n", (unsigned)p, (unsigned)tech, (unsigned)old_map(p)); }
         if (drive != want) { if (bad++ < 8u) printf("pad %03x: drive %05x, want %05x\n", (unsigned)p, (unsigned)drive, (unsigned)want); }
     }
+#ifdef PL4NAR_WET
+    if (ctl_map(CTL_Y, CTL_W_TECH) != DEMO_BTN_RAIN) { printf("the wet road's Y is not the rain\n"); bad++; }
+#endif
 #ifndef PL4NAR_DRIVE
     if (ctl_when(0) != CTL_W_TECH) { printf("the tech keys must be live always outside DRIVE\n"); bad++; }
 #else

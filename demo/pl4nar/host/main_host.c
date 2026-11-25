@@ -55,6 +55,13 @@ int main(int argc, char **argv) {
     shot(dir, n++, &st);
     in.pressed = DEMO_BTN_LOOK; demo_update(&in, 0.0f);
     shot(dir, n++, &st);
+#ifdef PL4NAR_WET
+    in.pressed = DEMO_BTN_LOOK; demo_update(&in, 0.0f);
+    in.pressed = DEMO_BTN_RAIN; demo_update(&in, 0.0f);   /* WET -> DRY */
+    shot(dir, n++, &st);
+    in.pressed = DEMO_BTN_RAIN; demo_update(&in, 0.0f);   /* DAMP */
+    shot(dir, n++, &st);
+#endif
     printf("frames %d\n", n);
     return 0;
 }

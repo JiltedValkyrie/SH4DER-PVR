@@ -124,18 +124,26 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
 };
 #elif defined(PL4NAR_MAP)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0, 0, 0.0f }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f },
-    { "on 256 day split", 1, 0, 1, 0, 0, 0, 1, 0.0f }, { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f },
-    { "off night",        0, 0, 2, 0, 0, 0, 0, 0.0f }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f },
-    { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f }, { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f },
-    { "on 256 day lod30", 1, 0, 1, 0, 0, 0, 0, 30.0f }, { "off day lod30",    0, 0, 1, 0, 0, 0, 0, 30.0f }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0, 0, 0.0f, 0, 0 }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f, 0, 0 },
+    { "on 256 day split", 1, 0, 1, 0, 0, 0, 1, 0.0f, 0, 0 }, { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
+    { "off night",        0, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
+    { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f, 0, 0 },
+    { "on 256 day lod30", 1, 0, 1, 0, 0, 0, 0, 30.0f, 0, 0 }, { "off day lod30",    0, 0, 1, 0, 0, 0, 0, 30.0f, 0, 0 }
+};
+#elif defined(PL4NAR_WET)
+#define WET_STAGE(rain, streak) ((unsigned)(rain) | ((streak) ? 0u : 4u))   /* in the sun field: the rain, 4 = the streak off */
+static const stage_t stages[] = {                  /* the wet road: size 0 256x128, 1 128x64, 2 64x32; night (tod 2) throughout */
+    { "wet 128x64",       1, 1, 2, 0, 0, 0, 0, 0.0f, WET_STAGE(2, 1), 0 }, { "damp 128x64",      1, 1, 2, 0, 0, 0, 0, 0.0f, WET_STAGE(1, 1), 0 },
+    { "dry 128x64",       1, 1, 2, 0, 0, 0, 0, 0.0f, WET_STAGE(0, 1), 0 }, { "wet no streak",    1, 1, 2, 0, 0, 0, 0, 0.0f, WET_STAGE(2, 0), 0 },
+    { "wet 256x128",      1, 0, 2, 0, 0, 0, 0, 0.0f, WET_STAGE(2, 1), 0 }, { "wet 64x32",        1, 2, 2, 0, 0, 0, 0, 0.0f, WET_STAGE(2, 1), 0 },
+    { "off (no layer)",   0, 1, 2, 0, 0, 0, 0, 0.0f, WET_STAGE(0, 1), 0 }
 };
 #else
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0, 0.0f }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0, 0.0f },
-    { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f },
-    { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f }, { "off night",        0, 0, 2, 0, 0, 0, 0, 0.0f }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f },
-    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f }
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
+    { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
+    { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "off night",        0, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
+    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f, 0, 0 }
 };
 #endif
 #define STAGES (sizeof stages / sizeof stages[0])
@@ -165,7 +173,12 @@ static void report(void) {
     pg_say("pl4m %s: the new map (loop, overpass, strips, traffic), each stage's cost.", STR(PL4M_TAG));
 #endif
 #else
+#ifdef PL4NAR_WET
+    pg_say("pl4m %s: the wet road (the street at night in rain), each stage's cost.", STR(PL4M_TAG));
+    pg_say("look = the car's lookup AND the wet grid's (252 vertices, one opaque pass)");
+#else
     pg_say("pl4m %s: the street demo as it is, each stage's cost.", STR(PL4M_TAG));
+#endif
 #endif
     pg_say("%s. settle %u s, count %u s a stage, 1 frame in %u sampled", rev, AUTO_SETTLE_S, AUTO_COUNT_S, AUTO_SAMPLE);
     pg_say("draw back %u / fwd %u m, RTT %s, car %u m/s, this run's numbers", (unsigned)c.draw_back, (unsigned)c.draw_fwd,
@@ -221,6 +234,8 @@ static void report(void) {
     pg_say("16: the overlay on (one text pass); 17: the car stands, traffic");
     pg_say("crosses the fade band: whole to %u m, gone at %u m", 40u, 50u);
     pg_say("17 us a tile is one point (PVR-156), not a rule");
+    pg_say("cut SH-4 cost: 3.9 ms in another program (d1-c, PVR-192),");
+    pg_say("not yet measured here; the cut is off by default");
     {
         gfx_cut_stats_t cs;
         gfx_tile_cut_stats(&cs);
@@ -278,6 +293,9 @@ int main(int argc, char **argv) {
     demo_auto_place(AUTO_Z, AUTO_X, AUTO_V(0));
 #else
     demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
+#endif
+#ifdef PL4NAR_WET
+    demo_auto_rain(stages[0].sun & 3u, !(stages[0].sun & 4u));
 #endif
     psm_fault_stage(&crumbs, stages[0].name);
     t_stage = timer_us_gettime64();
@@ -383,6 +401,9 @@ int main(int argc, char **argv) {
             demo_auto_place(AUTO_Z, AUTO_X, AUTO_V(stage));
 #else
             demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
+#endif
+#ifdef PL4NAR_WET
+            demo_auto_rain(stages[stage].sun & 3u, !(stages[stage].sun & 4u));
 #endif
             psm_fault_stage(&crumbs, stages[stage].name);
             t_stage = t_prev = timer_us_gettime64();

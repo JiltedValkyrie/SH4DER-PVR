@@ -61,7 +61,7 @@ To put these effects into another engine, follow `AGENT_WORKFLOW.md`. See `CREDI
 
 ## Controls
 
-The table is `src/controls.h`, the table the pad is read through and the HUD's key lines come from; `python tools/check_controls.py` fails when this one differs from it. Builds: street (`--street`), map (the default), hills (the map built with `PL4NAR_HILLS`). When: DRIVE (the game program, `build.py` without `--tech`) has two key sets, the drive keys while the overlay is closed and the tech keys while START has it open; "always" is both. Every other program (the live view, the autorun) has the tech keys all the time.
+The table is `src/controls.h`, the table the pad is read through and the HUD's key lines come from; `python tools/check_controls.py` fails when this one differs from it. Builds: street (`--street`), map (the default), hills (the map built with `PL4NAR_HILLS`), wet (the street built with `PL4NAR_WET`: the wet road one-off, night only). When: DRIVE (the game program, `build.py` without `--tech`) has two key sets, the drive keys while the overlay is closed and the tech keys while START has it open; "always" is both. Every other program (the live view, the autorun) has the tech keys all the time.
 
 | Keys | Action | Builds | When |
 |---|---|---|---|
@@ -69,7 +69,8 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **RT** | engine | all | always |
 | **LT** | brake, then reverse | all | always |
 | **X** | reflection on / off | all | tech |
-| **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | all | tech |
+| **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | street, map, hills | tech |
+| **Y** | the rain: DRY, DAMP, WET in turn (night always) | wet | tech |
 | **A** | textures: low (64 x 64, 16 colours, the start) or full | all | tech |
 | **A** | restart: the car at the start, stopped; the clock and the laps from 0 | all | drive |
 | **D-pad up** | F0 (the reflection's strength) up | all | tech |
@@ -78,7 +79,8 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **B + stick** | the camera round the car | all | always |
 | **B + LT / RT** | move the split's divider (with the split on) | all | always |
 | **B + X** | the split: the reflection on the left of a divider only | all | tech |
-| **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | all | tech |
+| **B + A** | the target's size: 128 x 64 (the start), 64 x 32, 256 x 128 in turn | wet | tech |
+| **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | street, map, hills | tech |
 | **B + D-pad up** | the reflection's night gain up | all | tech |
 | **B + D-pad down** | the night gain down | all | tech |
 | **B + D-pad right** | the sun: FIXED, SWEEP (to DAY unless NIGHT), HOLD | all | tech |
@@ -87,7 +89,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **B + Y** | car shadow: on the ground mesh, one flat quad, off (blob discs) in turn | hills | tech |
 | **B + START** | the effect labels shown / hidden | map, hills | tech |
 
-In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick and B + LT / RT change no work and mark nothing). No key ends the autorun: it runs every stage, then shows its result pages, and a key pressed during a stage only marks it. The tile cut and the small tile set have no key: they are autorun stages only.
+In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick and B + LT / RT change no work and mark nothing). No key ends the autorun: it runs every stage, then shows its result pages, and a key pressed during a stage only marks it. The tile cut and the small tile set have no key: they are autorun stages only, and the cut is off by default. Its cost: the PVR side of a map pass fell 5.1 -> 1.4 ms but the SH-4 side rose 3.9 ms, measured in another program (d1-c, PVR-192, one console), not yet measured here; nothing more is built on it until the cause is found.
 
 ## Cost
 

@@ -15,7 +15,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROW = re.compile(r'^CTL_ROW\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*"([^"]*)",\s*"([^"]*)",\s*(NULL|"[^"]*")\)\s*$')
-BUILDS = {"CTL_B_STREET": "street", "CTL_B_MAP": "map", "CTL_B_HILLS": "hills"}
+BUILDS = {"CTL_B_STREET": "street", "CTL_B_MAP": "map", "CTL_B_HILLS": "hills", "CTL_B_WET": "wet"}
 WHEN = {"CTL_W_ALL": "always", "CTL_W_DRIVE": "drive", "CTL_W_TECH": "tech"}
 
 
@@ -23,7 +23,7 @@ def builds_text(expr):
     if expr.strip() == "CTL_B_ALL":
         return "all"
     names = [BUILDS[p.strip()] for p in expr.split("|")]
-    return ", ".join(n for n in ("street", "map", "hills") if n in names)
+    return ", ".join(n for n in ("street", "map", "hills", "wet") if n in names)
 
 
 def code_rows(text):

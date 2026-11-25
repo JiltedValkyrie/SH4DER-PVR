@@ -120,6 +120,7 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
     s_tex[GFX_MAT_REFLECT].rgba = s_rt_rgba; s_tex[GFX_MAT_REFLECT].w = (int)w; s_tex[GFX_MAT_REFLECT].h = (int)h;
     s_tex[GFX_MAT_REFLECT_ADD] = s_tex[GFX_MAT_REFLECT];
     s_tex[GFX_MAT_SHADOW] = s_tex[GFX_MAT_REFLECT];
+    s_tex[GFX_MAT_WET] = s_tex[GFX_MAT_REFLECT];
     return 0;
 }
 unsigned gfx_be_reflect_bytes(void) { return (unsigned)(s_rt.w * s_rt.h * 2); }
@@ -202,7 +203,7 @@ void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
                 const int sh = (2 - k) * 8;
                 off[k] = (pa * (float)((a->oargb >> sh) & 255u) + pb * (float)((b->oargb >> sh) & 255u) + pc * (float)((c->oargb >> sh) & 255u)) * (1.0f / 255.0f);
             }
-            if (tx) texel(tx, pa * a->u + pb * b->u + pc * c->u, pa * a->v + pb * b->v + pc * c->v, refl || s_mat == GFX_MAT_FONT || s_mat == GFX_MAT_GLOW,
+            if (tx) texel(tx, pa * a->u + pb * b->u + pc * c->u, pa * a->v + pb * b->v + pc * c->v, refl || s_mat == GFX_MAT_FONT || s_mat == GFX_MAT_GLOW || s_mat == GFX_MAT_WET,
                           s_mat != GFX_MAT_FONT && !tx->nearest, t);
             alpha = 1.0f;
             if (s_translucent) alpha = s_mat == GFX_MAT_GLOW ? 1.0f : col[0] * (s_mat == GFX_MAT_FONT ? t[3] : 1.0f);

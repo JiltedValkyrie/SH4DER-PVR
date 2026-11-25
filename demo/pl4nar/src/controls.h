@@ -21,14 +21,17 @@ enum {                                     /* the pad, as read_pad gives it (Kal
 #define CTL_B_STREET 1u                    /* the first street (no PL4NAR_MAP) */
 #define CTL_B_MAP    2u                    /* the map, flat */
 #define CTL_B_HILLS  4u                    /* the map with PL4NAR_HILLS */
-#define CTL_B_ALL    7u
+#define CTL_B_WET    8u                    /* the street with PL4NAR_WET (the wet road one-off) */
+#define CTL_B_ALL    15u
 #define CTL_W_DRIVE  1u                    /* DRIVE with the overlay closed */
 #define CTL_W_TECH   2u                    /* DRIVE with the overlay open; every other program always */
 #define CTL_W_ALL    3u
 #if defined(PL4NAR_DRIVE) && defined(PL4NAR_AUTORUN)
 #error "PL4NAR_DRIVE is the game program, PL4NAR_AUTORUN the measuring one: one of them"
 #endif
-#if defined(PL4NAR_HILLS)
+#if defined(PL4NAR_WET)
+#define CTL_BUILD CTL_B_WET
+#elif defined(PL4NAR_HILLS)
 #define CTL_BUILD CTL_B_HILLS
 #elif defined(PL4NAR_MAP)
 #define CTL_BUILD CTL_B_MAP
@@ -44,7 +47,8 @@ CTL_ROW(CTL_STICK | CTL_LEFT | CTL_RIGHT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "stick
 CTL_ROW(CTL_RT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "RT", "engine", "RT gas")
 CTL_ROW(CTL_LT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "LT", "brake, then reverse", "LT brake")
 CTL_ROW(CTL_X, DEMO_BTN_REFLECT, CTL_B_ALL, CTL_W_TECH, "X", "reflection on / off", "X reflect")
-CTL_ROW(CTL_Y, DEMO_BTN_TOD, CTL_B_ALL, CTL_W_TECH, "Y", "time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE", "Y time")
+CTL_ROW(CTL_Y, DEMO_BTN_TOD, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "Y", "time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE", "Y time")
+CTL_ROW(CTL_Y, DEMO_BTN_RAIN, CTL_B_WET, CTL_W_TECH, "Y", "the rain: DRY, DAMP, WET in turn (night always)", "Y rain")
 CTL_ROW(CTL_A, DEMO_BTN_LOOK, CTL_B_ALL, CTL_W_TECH, "A", "textures: low (64 x 64, 16 colours, the start) or full", "A look")
 CTL_ROW(CTL_A, DEMO_BTN_RESTART, CTL_B_ALL, CTL_W_DRIVE, "A", "restart: the car at the start, stopped; the clock and the laps from 0", "A restart")
 CTL_ROW(CTL_UP, DEMO_BTN_MORE, CTL_B_ALL, CTL_W_TECH, "D-pad up", "F0 (the reflection's strength) up", "UP/DOWN F0")
@@ -53,7 +57,8 @@ CTL_ROW(CTL_START, DEMO_BTN_INFO, CTL_B_ALL, CTL_W_ALL, "START", "the overlay (t
 CTL_ROW(CTL_B | CTL_STICK, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "B + stick", "the camera round the car", "B+stick camera")
 CTL_ROW(CTL_B | CTL_LT | CTL_RT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "B + LT / RT", "move the split's divider (with the split on)", NULL)
 CTL_ROW(CTL_B | CTL_X, DEMO_BTN_SPLIT, CTL_B_ALL, CTL_W_TECH, "B + X", "the split: the reflection on the left of a divider only", "B+X split")
-CTL_ROW(CTL_B | CTL_A, DEMO_BTN_SIZE, CTL_B_ALL, CTL_W_TECH, "B + A", "the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64)", "B+A size")
+CTL_ROW(CTL_B | CTL_A, DEMO_BTN_SIZE, CTL_B_WET, CTL_W_TECH, "B + A", "the target's size: 128 x 64 (the start), 64 x 32, 256 x 128 in turn", "B+A size")
+CTL_ROW(CTL_B | CTL_A, DEMO_BTN_SIZE, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "B + A", "the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64)", "B+A size")
 CTL_ROW(CTL_B | CTL_UP, DEMO_BTN_LAMP_UP, CTL_B_ALL, CTL_W_TECH, "B + D-pad up", "the reflection's night gain up", "B+UP/DOWN night gain")
 CTL_ROW(CTL_B | CTL_DOWN, DEMO_BTN_LAMP_DN, CTL_B_ALL, CTL_W_TECH, "B + D-pad down", "the night gain down", NULL)
 CTL_ROW(CTL_B | CTL_RIGHT, DEMO_BTN_SUN, CTL_B_ALL, CTL_W_TECH, "B + D-pad right", "the sun: FIXED, SWEEP (to DAY unless NIGHT), HOLD", "B+RIGHT sun")
