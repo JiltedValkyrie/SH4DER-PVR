@@ -4,7 +4,7 @@
  * ../../psm/tools/ao_bake_core.h (64 cosine rays, a hit at t takes 1 - t / R of a ray).
  *   1. A byte a vertex of every map model: the model's own triangles and the ground under it (a 60 m square at y = 0),
  *      reach AOB_R (2.5 m). Instances share their model's bytes: the map's neighbours are not seen.
- *   2. The road: a 2 m grid across the loop's band (lat -9 .. 9 m) every 2 m along it, against every instance, reach
+ *   2. The road: a 2 m grid across the loop's band (lat -12 .. 12 m, the sidewalks too) every 2 m along it, against every instance, reach
  *      10 m (the scene is baked at a scale of AOB_R / 10, so the core is used as it is). Only the rows near a place that
  *      darkens are kept: the demo draws them as multiplied patches over the road.
  * Plain C (host). */
@@ -18,8 +18,10 @@
 
 #define ROAD_R     10.0f                    /* the road's reach, m */
 #define ROAD_STEP  2.0f
-#define ROAD_COLS  10u                      /* lat -9 .. 9 */
-#define ROAD_KEEP  250u                     /* a row is kept when a byte is under this (or a neighbour row's is) */
+#define ROAD_COLS  13u                      /* lat -12 .. 12: the asphalt and both sidewalks */
+#define ROAD_LAT0  (-12.0f)
+#define ROAD_KEEP  250u                     /* a row is kept when a byte is under this (or a neighbour row's is); the demo
+                                               skips a quad whose four corners are all at or over it (MAP_AOG_OPEN) */
 #define ROAD_INSIDE 64u                     /* under it, a road point is taken to be inside a solid (open ground under a deck bakes about 130 .. 200) */
 #define GROUND_H   30.0f
 
@@ -92,7 +94,7 @@ int main(int argc, char **argv) {
         if (!road || !keep) return 2;
         for (i = 0; i < rows; i++)
             for (m = 0; m < ROAD_COLS; m++) {
-                const map_pose_t q = map_at((float)i * ROAD_STEP, -9.0f + ROAD_STEP * (float)m);
+                const map_pose_t q = map_at((float)i * ROAD_STEP, ROAD_LAT0 + ROAD_STEP * (float)m);
                 const float pt[3] = { q.x * k, 0.0f, q.z * k };
                 int in;
                 road[i * ROAD_COLS + m] = aob_byte(aob_at(&b, pt, up, &in));
@@ -120,7 +122,7 @@ int main(int argc, char **argv) {
     for (i = 0; i < rows; i++) kept += keep[i];
     fprintf(fh, "/* tools/map_ao.c: the new map's baked occlusion. Generated: do not edit. */\n#ifndef MAP_AO_GEN_H\n#define MAP_AO_GEN_H\n#include <stdint.h>\n#include \"map_gen.h\"\n");
     fprintf(fh, "extern const uint8_t *const map_model_ao[MAP_MODELS];   /* a byte a vertex (255 open) */\n");
-    fprintf(fh, "#define MAP_AOG_COLS %uu\n#define MAP_AOG_ROWS %uu\n", ROAD_COLS, kept);
+    fprintf(fh, "#define MAP_AOG_COLS %uu\n#define MAP_AOG_ROWS %uu\n#define MAP_AOG_OPEN %.4ff\n", ROAD_COLS, kept, ROAD_KEEP / 255.0f);
     fprintf(fh, "extern const float map_aog[MAP_AOG_ROWS][MAP_AOG_COLS][3];   /* the road's kept rows: x, z, byte / 255 */\n");
     fprintf(fh, "extern const uint8_t map_aog_join[MAP_AOG_ROWS];             /* 1: this row joins the one before (a patch goes on) */\n#endif\n");
     fprintf(fc, "/* tools/map_ao.c: the new map's baked occlusion. Generated: do not edit. */\n#include \"map_ao_gen.h\"\n");
@@ -141,7 +143,7 @@ int main(int argc, char **argv) {
             prev = i;
             fprintf(fc, " {");
             for (m = 0; m < ROAD_COLS; m++) {
-                const map_pose_t q = map_at((float)i * ROAD_STEP, -9.0f + ROAD_STEP * (float)m);
+                const map_pose_t q = map_at((float)i * ROAD_STEP, ROAD_LAT0 + ROAD_STEP * (float)m);
                 fprintf(fc, "%s{%.3ff,%.3ff,%.4ff}", m ? "," : "", q.x, q.z, road[i * ROAD_COLS + m] / 255.0f);
             }
             fprintf(fc, "},\n");

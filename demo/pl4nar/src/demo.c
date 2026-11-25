@@ -24,6 +24,7 @@
 #include "map_ao_gen.h"                            /* tools/map_ao.c: a byte a model vertex, the road's patches */
 #define MAP_DRAW     300.0f        /* drawn round the camera, m */
 #define MAP_MIRROR   140.0f        /* mirrored round the camera */
+#define MAP_AO_DRAW  120.0f        /* the road's occlusion patches round the camera: past it the haze has them */
 #define MAP_CAP_NIGHT 0.50f        /* the layer's alpha at night at most: the strips over the paint keep its colour */
 #define TILE_N       8u            /* car shadow tiles: 4 x 2 in the right half of the reflection target */
 #define TILE_M       10.0f         /* a tile's side on the ground, m */
@@ -662,7 +663,7 @@ static void draw_props(int reflect_pass) {
 }
 
 /* The road's baked occlusion: the kept rows of tools/map_ao.c's 2 m grid, multiplied over the road (GFX_MAT_MUL) at
-   1 cm. A patch is a run of joined rows; a quad is drawn when its first corner is within MAP_DRAW. XMTRX = s_vp. */
+   1 cm. A patch is a run of joined rows; a row is drawn within MAP_AO_DRAW, a quad when a corner darkens. XMTRX = s_vp. */
 static void draw_road_ao(void) {
     static gfx_vert_t row[2][MAP_AOG_COLS];
     unsigned r, c, cur = 0;
@@ -671,7 +672,7 @@ static void draw_road_ao(void) {
     gfx_bind(GFX_MAT_MUL);
     for (r = 0; r < MAP_AOG_ROWS; r++) {
         const float dx = map_aog[r][0][0] - s_camx, dz = map_aog[r][0][1] - s_camz;
-        if (dx * dx + dz * dz > MAP_DRAW * MAP_DRAW) { prev = 0; continue; }     /* hand: scalar products */
+        if (dx * dx + dz * dz > MAP_AO_DRAW * MAP_AO_DRAW) { prev = 0; continue; }     /* hand: scalar products */
         cur ^= 1u;
         for (c = 0; c < MAP_AOG_COLS; c++) {
             const unsigned g = (unsigned)(map_aog[r][c][2] * 255.0f);
@@ -680,6 +681,8 @@ static void draw_road_ao(void) {
         }
         if (!prev || !map_aog_join[r]) { prev = 1; continue; }
         for (c = 0; c + 1u < MAP_AOG_COLS; c++) {
+            if (map_aog[r - 1u][c][2] >= MAP_AOG_OPEN && map_aog[r - 1u][c + 1u][2] >= MAP_AOG_OPEN &&
+                map_aog[r][c][2] >= MAP_AOG_OPEN && map_aog[r][c + 1u][2] >= MAP_AOG_OPEN) continue;   /* nothing to darken */
             gfx_tri(&row[cur ^ 1u][c], &row[cur ^ 1u][c + 1u], &row[cur][c + 1u]);
             gfx_tri(&row[cur ^ 1u][c], &row[cur][c + 1u], &row[cur][c]);
         }
@@ -765,6 +768,8 @@ static void draw_player(void) {
         const float us = gfx_reflect_u_scale();
 #ifdef PL4NAR_MAP
         const float umax = 1.0f - shz_invf((float)s_sizes[s_size][0]);   /* a mirror texel short of the tiles */
+        const shz_sincos_t fsc = shz_sincosf(s_car.wh);                   /* the car's forward (sin, cos) */
+        const float fs = fsc.sin, fc = fsc.cos;
 #endif
         paint.f0 = s_f0; glass.f0 = s_f0 + 0.10f;
         paint.reach = glass.reach = s_reach;
@@ -785,6 +790,11 @@ static void draw_player(void) {
 #endif
             o->argb = sh4der_pl4nar_argb(&smp, mat);
 #ifdef PL4NAR_MAP
+            if (shz_fmaf(s_wsn[i][0], fs, s_wsn[i][2] * fc) < -0.5f) {     /* a face turned back (the rear deck, the bumper):
+                                                                          the target magnifies a few texels over it */
+                const unsigned a = ((o->argb >> 24) * 102u) >> 8;          /* x 0.4 */
+                o->argb = (o->argb & 0x00ffffffu) | (a << 24);
+            }
             {   /* at night the layer's alpha is capped: a strip on the deck keeps the paint's red under it */
                 const unsigned cap = (unsigned)(shz_lerpf(1.0f, MAP_CAP_NIGHT, s_night) * 255.0f);
                 if ((o->argb >> 24) > cap) o->argb = (o->argb & 0x00ffffffu) | (cap << 24);

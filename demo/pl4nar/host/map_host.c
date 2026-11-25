@@ -111,7 +111,13 @@ int main(int argc, char **argv) {
         demo_auto_ao(1);
         snprintf(p, sizeof p, "%s/%02u_noao.ppm", dir, k); gfx_host_save(p, 0);
         demo_auto_split(0);
-        if (f) fprintf(f, "%02u %s\n", k, s->name);
+        if (f) {                                    /* the screen scene's triangles (reflection on), AO on and off */
+            demo_counts_t c;
+            unsigned on;
+            demo_draw(&st); demo_counts(&c); on = c.tris_main;
+            demo_auto_ao(0); demo_draw(&st); demo_counts(&c); demo_auto_ao(1);
+            fprintf(f, "%02u %s (screen tris, reflection on: AO on %u, off %u)\n", k, s->name, on, c.tris_main);
+        }
     }
     if (f) fclose(f);
     printf("MAP_HOST_OK %u shots, lap %s\n", k, bad ? "FAIL" : "OK");
