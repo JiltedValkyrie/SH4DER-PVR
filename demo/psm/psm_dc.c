@@ -32,8 +32,10 @@
    THE TOWN (the SCENE row; the image boots into it, 14:00, the first view): a market square of the Modular Village kit (CC0)
    with a church tower, people and hens as placeholder blocks, the sun on a clock (TIME, TIME SPEED; D-pad left / right a
    quarter of an hour). demo/psm/psm_town.h is its logic, demo/psm/tools/bake_town.py its mesh. The models go as strips; the
-   casters are their own low meshes, culled an object at a time against the map's square. Sky and fog come from one table
-   (psm_look_at), so a later look row changes numbers, not this file.
+   casters are their own low meshes, culled an object at a time against the map's square. With the air on (state atmos: the
+   town's default, the later LOOK row's slot) the sky is a textured band with a cap, hills and a treeline ring the town
+   (demo/psm/psm_sky.h, the texture baked by demo/psm/tools/bake_sky.py from a CC0 Poly Haven sky), and the fog is quadratic
+   from 0.43 to 1 x DRAW DISTANCE in the colour of the band's horizon. Off, the sky and fog come from psm_look_at as before.
 
    The cost label reads "--" until the console has measured a second. Nothing in it comes from a host.
 
@@ -50,6 +52,7 @@
 #include "sh4der_guard.h"
 #include "psm_scene.h"
 #include "psm_mapsrc.h"
+#include "psm_sky.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -77,15 +80,18 @@ static int route3;                        /* the route of three: psm_input knows
 static char ln_now[PSM_HUD_LINES][PSM_HUD_COLS + 1u];     /* the lines this frame, and the lines on the texture */
 static char ln_prev[PSM_HUD_LINES][PSM_HUD_COLS + 1u];
 
-static pvr_ptr_t target_mem, text_mem, inset_mem, checker_mem;
+static pvr_ptr_t target_mem, text_mem, inset_mem, checker_mem, sky_mem;
 static unsigned target_size;              /* 0: no target (never made, or no video memory) */
-static pvr_poly_hdr_t hdr_ground, hdr_model, hdr_ground_fog, hdr_model_fog, hdr_flat, hdr_layer, hdr_text, hdr_dim, hdr_inset_a, hdr_inset_b;
+static pvr_poly_hdr_t hdr_sky, hdr_skycol, hdr_ground, hdr_model, hdr_ground_fog, hdr_model_fog, hdr_flat, hdr_layer, hdr_text, hdr_dim, hdr_inset_a, hdr_inset_b;
 static int hdr_target_ok;                 /* hdr_layer and hdr_inset_a are compiled for the current target */
 static unsigned ta_v;                     /* vertices sent this frame, counted where they are sent */
 static unsigned map_tris, layer_v;        /* route A: triangles into the target, vertices of the ground layer */
 static int rtt_refused_shown;
 static float fog_dist;                    /* the distance the fog table was made for (0: none yet) */
-static float sky_now[3] = { -1.0f, -1.0f, -1.0f }, fog_now[3];   /* the sky and fog colours set on the PVR (psm_look_at) */
+static float sky_now[3] = { -1.0f, -1.0f, -1.0f }, fog_now[3];   /* the sky and fog colours set on the PVR */
+static int fog_atmos = -1;                /* the fog table's shape on the PVR: 0 linear, 1 quadratic (-1: none yet) */
+static psm_sky_out_t sky;                 /* this frame's sky band, cap and hills, in send order */
+static unsigned sky_v;                    /* their vertices sent this frame */
 
 /* ---- small helpers --------------------------------------------------------- */
 
@@ -135,6 +141,21 @@ static void make_headers(void) {
     pvr_poly_compile(&hdr_model, &c);
     c.gen.fog_type = PVR_FOG_TABLE;
     pvr_poly_compile(&hdr_model_fog, &c);
+
+    if (sky_mem) {                                          /* the sky band: its texture times the vertex colour (the warm side), */
+        pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_TWIDDLED, PSM_SKY_W, PSM_SKY_H, sky_mem, PVR_FILTER_BILINEAR);
+        c.gen.culling = PVR_CULLING_NONE;                    /* its foot in vertex fog (the offset colour's alpha) */
+        c.gen.shading = PVR_SHADE_GOURAUD;
+        c.gen.fog_type = PVR_FOG_VERTEX;
+        c.gen.specular = 1;
+        c.txr.env = PVR_TXRENV_MODULATE;
+        c.txr.uv_clamp = PVR_UVCLAMP_V;                     /* u goes round, v stops at the band's edges */
+        pvr_poly_compile(&hdr_sky, &c);
+    }
+    pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                 /* the cap and the hills: vertex colour, no fog */
+    c.gen.culling = PVR_CULLING_NONE;
+    c.gen.shading = PVR_SHADE_GOURAUD;
+    pvr_poly_compile(&hdr_skycol, &c);
 
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                 /* the map pass: flat, no culling (a caster is seen from either side) */
     c.gen.culling = PVR_CULLING_NONE;
@@ -210,22 +231,61 @@ static void ground_texture(void) {
     pvr_txr_load(checker_px, checker_mem, sizeof checker_px);
 }
 
-/* The sky (the PVR's background) and the fog table's colour at the scene's clock, set when they change; the fog table's
-   ramp when the draw distance changes. */
+/* The background and the fog colour, set when they change; the fog table's ramp when the draw distance or its shape changes.
+   With the air on, both are the band's horizon fog (psm_sky_build ran this frame) and the ramp is quadratic from 0.43 D;
+   off, the scene's table (psm_look_at) and the linear ramp from 0.75 D. The vertex fog of the band's foot takes the same colour. */
 static void look_update(void) {
-    float sky[3], fog[3];
+    float bg[3], fog[3];
+    const int atmos = state.atmos && sky_mem;
 
-    psm_look_at(&scene, state.clock, sky, fog);
-    if (fabsf(sky[0] - sky_now[0]) + fabsf(sky[1] - sky_now[1]) + fabsf(sky[2] - sky_now[2]) > 1.0f / 512.0f) {
-        pvr_set_bg_color(sky[0], sky[1], sky[2]);
-        memcpy(sky_now, sky, sizeof sky_now);
+    psm_look_at(&scene, state.clock, bg, fog);
+    if (atmos) { memcpy(bg, sky.fog, sizeof bg); memcpy(fog, sky.fog, sizeof fog); }
+    if (fabsf(bg[0] - sky_now[0]) + fabsf(bg[1] - sky_now[1]) + fabsf(bg[2] - sky_now[2]) > 1.0f / 512.0f) {
+        pvr_set_bg_color(bg[0], bg[1], bg[2]);
+        memcpy(sky_now, bg, sizeof sky_now);
     }
-    if (frame.dist > 0.0f && (frame.dist != fog_dist || fabsf(fog[0] - fog_now[0]) + fabsf(fog[1] - fog_now[1]) + fabsf(fog[2] - fog_now[2]) > 1.0f / 512.0f)) {
-        pvr_fog_table_color(1.0f, fog[0], fog[1], fog[2]);  /* DRAW DISTANCE: the fog table, made again only when it changes */
-        pvr_fog_table_linear(frame.dist * PSM_DIST_FADE, frame.dist);
-        fog_dist = frame.dist;
+    if (fabsf(fog[0] - fog_now[0]) + fabsf(fog[1] - fog_now[1]) + fabsf(fog[2] - fog_now[2]) > 1.0f / 512.0f) {
+        pvr_fog_table_color(1.0f, fog[0], fog[1], fog[2]);
+        pvr_fog_vertex_color(fog[0], fog[1], fog[2]);
         memcpy(fog_now, fog, sizeof fog_now);
     }
+    if (frame.dist > 0.0f && (frame.dist != fog_dist || atmos != fog_atmos)) {   /* DRAW DISTANCE: the ramp, made again on a change */
+        if (atmos) {
+            float tbl[129];
+
+            psm_fog_table(frame.dist, tbl);
+            pvr_fog_far_depth(frame.dist);
+            pvr_fog_table_custom(tbl);
+        } else
+            pvr_fog_table_linear(frame.dist * PSM_DIST_FADE, frame.dist);
+        fog_dist = frame.dist; fog_atmos = atmos;
+    }
+}
+
+/* sky vertices i0 .. i1 - 1 as psm_sky_build put them (offset colour included: the band's vertex fog) */
+static void sky_send(unsigned i0, unsigned i1) {
+    unsigned i;
+
+    for (i = i0; i < i1; i++) {
+        const psm_skyv_t *v = &sky.v[i];
+        pvr_vertex_t *o = pvr_dr_target();
+
+        o->flags = sky.eol[i] ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+        o->x = v->x; o->y = v->y; o->z = v->z;
+        o->u = v->u; o->v = v->v;
+        o->argb = v->argb;
+        o->oargb = v->oargb;
+        pvr_dr_commit(o);
+        ta_v++; sky_v++;
+    }
+}
+
+/* The sky band, then the cap and the hills, into the opaque list before the ground. */
+static void sky_draw(void) {
+    sky_v = 0;
+    if (!state.atmos || !sky_mem) return;
+    if (sky.n_band && header(&hdr_sky)) sky_send(0u, sky.n_band);
+    if (sky.n_cap + sky.n_hill && header(&hdr_skycol)) sky_send(sky.n_band, sky.n_band + sky.n_cap + sky.n_hill);
 }
 
 /* The SCENE row changed: the other scene, its walk, its ground; the frame's cached positions and placement are old. */
@@ -246,6 +306,9 @@ static int load(void) {
     inset_mem = pvr_mem_malloc(sizeof inset_px);
     checker_mem = pvr_mem_malloc(sizeof checker_px);
     if (!text_mem || !inset_mem || !checker_mem) return 0;
+    sky_mem = pvr_mem_malloc(PSM_SKY_W * PSM_SKY_H * 2u);  /* 256 KB; none: the town draws without the air */
+    if (sky_mem) pvr_txr_load_ex(psm_sky_px, sky_mem, PSM_SKY_W, PSM_SKY_H, PVR_TXRLOAD_16BPP);   /* twiddled on the way */
+    else printf("psm: no video memory for the sky band (%u KB)\n", PSM_SKY_W * PSM_SKY_H * 2u / 1024u);
     memset(inset_px, 0, sizeof inset_px);
     pvr_txr_load(inset_px, inset_mem, sizeof inset_px);
     memset(text_px, 0, sizeof text_px);
@@ -523,11 +586,12 @@ int main(void) {
     /* the rings' vertices are the whole ground lattice; a frame sends the window the view covers (psm_window_half) */
     printf("psm: %u rings, %u ground vertices in the rings (a frame sends its view's window), %u model vertices, %u model triangles,"
            " %u caster triangles in %u objects\n", scene.rows, scene.rows * (PSM_COLS + 1u), scene.mvn, scene.mtn, scene.ctn, scene.con);
-    printf("psm: VRAM free %lu KB (after load; %lu after pvr_init), vertex buffers 2 x %u KB, textures %u KB (text %u, inset %u, ground %u);"
-           " route A's target %u KB at %u from the free\n", (unsigned long)(pvr_mem_available() / 1024u), (unsigned long)(vram0 / 1024u),
-           (unsigned)(PSM_VTX_BUDGET * 32u / 1024u), (unsigned)((sizeof text_px + sizeof inset_px + sizeof checker_px + 1023u) / 1024u),
+    printf("psm: VRAM free %lu KB (after load; %lu after pvr_init), vertex buffers 2 x %u KB, textures %u KB (text %u, inset %u, ground %u,"
+           " sky %u%s); route A's target %u KB at %u from the free\n", (unsigned long)(pvr_mem_available() / 1024u), (unsigned long)(vram0 / 1024u),
+           (unsigned)(PSM_VTX_BUDGET * 32u / 1024u),
+           (unsigned)((sizeof text_px + sizeof inset_px + sizeof checker_px + (sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u : 0u) + 1023u) / 1024u),
            (unsigned)(sizeof text_px / 1024u), (unsigned)(sizeof inset_px / 1024u), (unsigned)((sizeof checker_px + 1023u) / 1024u),
-           MAP_MAX * MAP_MAX * 2u / 1024u, MAP_MAX);
+           sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u / 1024u : 0u, PSM_SKY_HAVE ? "" : " stand-in", MAP_MAX * MAP_MAX * 2u / 1024u, MAP_MAX);
     previous = win_t0 = timer_us_gettime64();
     for (;;) {
         const uint64_t now = timer_us_gettime64();
@@ -548,6 +612,7 @@ int main(void) {
         t0 = timer_us_gettime64();
         psm_frame_setup(&frame, &scene, &state);
         psm_place_geo(&frame, &scene);       /* the screen placement first: route B compares only the model vertices it sends */
+        if (state.atmos && sky_mem) psm_sky_build(&sky, &frame, &state);   /* the band, the cap, the hills and the fog colour */
         t1 = timer_us_gettime64();
         win_us[0] += t1 - t0;
         if (state.route == PSM_ROUTE_B) {
@@ -597,6 +662,7 @@ int main(void) {
         }
         pvr_scene_begin();
         pvr_list_begin(PVR_LIST_OP_POLY);
+        sky_draw();
         ground(0);
         models();
         pvr_list_finish();

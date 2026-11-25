@@ -104,6 +104,7 @@
 #define PSM_DIST_STEPS   22u          /* DRAW DISTANCE: 5 .. 50 m by 5, to 200 by 25, to 500 by 50; one step more is INFINITE */
 #define PSM_DIST_INF     PSM_DIST_STEPS
 #define PSM_DIST_FADE    0.75f        /* the fog starts at this share of the distance and is whole at it */
+#define PSM_FOG_START    0.43f        /* with the air on (state atmos, demo/psm/psm_sky.h): the quadratic fog starts here */
 
 /* hold to repeat (the menu's values, the sun's azimuth, the warp's near plane): one step on the press, then after the delay
    8 a second, rising to 30 a second at 2 s held; by time held, not by frames */
@@ -538,6 +539,8 @@ typedef struct psm_state {
     int freeze;          /* START + B: the people and the hens stand still */
     float cast_t;        /* the cast's clock, seconds */
     unsigned tpreset;    /* the town's last preset */
+    int atmos;           /* 1: the sky band, the hills and the quadratic fog (demo/psm/psm_sky.h, TOWN_LOOK.md section 3); the town's
+                            default, and the slot the LOOK row will set (LAUNCH 0, LATE 1) */
 } psm_state_t;
 
 /* What the program reads from the controller: the PSM_BTN_ bits held, the stick -1 .. 1 (y down positive), the triggers 0 .. 1. */
@@ -567,6 +570,8 @@ static inline void psm_state_default(psm_state_t *st) {
 #include "psm_town.h"
 
 /* The draw distance in metres, 0 for INFINITE. */
+/* the share of DRAW DISTANCE where the fog starts: linear from 0.75 (the field), quadratic from 0.43 with the air on */
+static inline float psm_fog_start(const psm_state_t *st) { return st->atmos ? PSM_FOG_START : PSM_DIST_FADE; }
 static inline float psm_dist(const psm_state_t *st) { return st->dist_i < PSM_DIST_STEPS ? (float)psm_dist_m[st->dist_i] : 0.0f; }
 
 /* 1 for a row whose change is a value that steps (it repeats when held), 0 for a toggle (one change a press). */
@@ -587,6 +592,7 @@ static inline float psm_wrap_360_(float a) {
 
 /* The camera and the sun a scene starts with: the town's first view, or the field's origin and its preset's sun. */
 static inline void psm_scene_enter(psm_state_t *st) {
+    st->atmos = st->scene;
     if (st->scene) { psm_town_preset_set(st, 0u); return; }
     st->x = st->z = st->yaw = 0.0f;
     st->pitch = PSM_PITCH;
@@ -644,7 +650,7 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
         case PSM_ROW_CASTERS: return st->movers_only ? (st->scene ? "movers only (people, hens)" : "movers only (cows)") : "all";
         case PSM_ROW_DIST:
             if (st->dist_i >= PSM_DIST_INF) return "INF: no cut, no fog";
-            snprintf(buf, cap, "%u m, fog from %u", (unsigned)psm_dist_m[st->dist_i], (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
+            snprintf(buf, cap, "%u m, fog from %u", (unsigned)psm_dist_m[st->dist_i], (unsigned)(psm_dist_m[st->dist_i] * psm_fog_start(st) + 0.5f));
             return buf;
         case PSM_ROW_SIZE: snprintf(buf, cap, "%u x %u", psm_map_sizes[st->size_i % PSM_MAP_SIZES], psm_map_sizes[st->size_i % PSM_MAP_SIZES]); return buf;
         case PSM_ROW_PCF: return st->pcf ? "2 x 2 (route B)" : "1 texel (route B)";
@@ -1366,10 +1372,10 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
     PSM_LINE_(8, "%s: %s   (D-pad row/change, B close)", psm_row_name[st->row % PSM_ROWS], psm_row_value(st, st->row % PSM_ROWS, v, sizeof v));
     if (st->scene && st->dist_i >= PSM_DIST_INF) PSM_LINE_(10, "DIST INF   people (8), hens (4): PLACEHOLDER blocks");
     else if (st->scene) PSM_LINE_(10, "DIST %u m, fog from %u   people, hens: PLACEHOLDER", (unsigned)psm_dist_m[st->dist_i],
-                                  (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
+                                  (unsigned)(psm_dist_m[st->dist_i] * psm_fog_start(st) + 0.5f));
     else if (st->dist_i >= PSM_DIST_INF) PSM_LINE_(10, "DIST INF: no cut, no fog   map casters: all distances");
     else PSM_LINE_(10, "DIST %u m: cut, fog from %u m   map casters: all distances", (unsigned)psm_dist_m[st->dist_i],
-                   (unsigned)(psm_dist_m[st->dist_i] * PSM_DIST_FADE + 0.5f));
+                   (unsigned)(psm_dist_m[st->dist_i] * psm_fog_start(st) + 0.5f));
     PSM_LINE_(9, "%s", st->menu ? "D-pad row/change  A change  B/START close  stick look"
                                 : st->scene ? "stick look YAXB walk  Up route  START map  Dn menu  L/R time"
                                 : "stick look YAXB walk  Up route  START map  Dn menu  L/R sun");

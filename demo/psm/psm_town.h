@@ -339,6 +339,7 @@ static inline void psm_town_preset_set(psm_state_t *st, unsigned k) {
 static inline void psm_state_town(psm_state_t *st) {
     psm_state_default(st);
     st->scene = 1;
+    st->atmos = 1;
     st->tspeed = 1u;
     psm_town_preset_set(st, 0u);
 }

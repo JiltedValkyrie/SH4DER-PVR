@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../demo/psm/psm_scene.h"
+#include "../demo/psm/psm_sky.h"
 
 static int fails;
 #define CHECK(c) do { if (!(c)) { fails++; fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
@@ -430,7 +431,8 @@ static unsigned model_verts(const psm_frame_t *f, const psm_scene_t *s) {
 
 static void budget(void) {
     psm_state_t st;
-    unsigned p, q, step, worst = 0, worst_m = 0, worst_p = 0, views = 0, tris_worst = 0;
+    static psm_sky_out_t sky;
+    unsigned p, q, step, worst = 0, worst_m = 0, worst_p = 0, views = 0, tris_worst = 0, worst_sky = 0;
 
     for (p = 0; p < PSM_TOWN_PRESETS; p++)
         for (q = 0; q < 3u; q++)
@@ -449,15 +451,116 @@ static void budget(void) {
                 psm_place(&frame, &scene);
                 m = model_verts(&frame, &scene);
                 for (i = 0; i < scene.mtn; i++) t += frame.mtri[i] != 0u;
+                psm_sky_build(&sky, &frame, &st);
                 n = ground_verts(&frame, 0) + ground_verts(&frame, 1) + m + 4u * (2u * PSM_HUD_LINES + 1u);
+                n += sky.n_band + sky.n_cap + sky.n_hill;                       /* the air (state atmos, the town's default) */
+                if (sky.n_band + sky.n_cap + sky.n_hill > worst_sky) worst_sky = sky.n_band + sky.n_cap + sky.n_hill;
                 if (n > worst) { worst = n; worst_p = p; }
                 if (m > worst_m) worst_m = m;
                 if (t > tris_worst) tris_worst = t;
                 views++;
             }
-    printf("  vertices a frame, worst of %u views (6 presets x 3 pitches x 24 headings, route A's layer counted): %u (models %u at most,"
-           " %u model triangles at most) of %u (%u KB at 32 B); worst at preset %u\n", views, worst, worst_m, tris_worst, PSM_VTX_BUDGET, worst * 32u / 1024u, worst_p);
-    CHECK(worst < PSM_VTX_BUDGET);
+    printf("  vertices a frame, worst of %u views (6 presets x 3 pitches x 24 headings, route A's layer and the air counted): %u (models %u at most,"
+           " %u model triangles at most, the air %u at most) of %u (%u KB at 32 B); worst at preset %u\n", views, worst, worst_m, tris_worst,
+           worst_sky, PSM_VTX_BUDGET, worst * 32u / 1024u, worst_p);
+    CHECK(worst < PSM_VTX_BUDGET && worst_sky < PSM_SKY_OUT_MAX);
+}
+
+/* ---- the air: the quadratic fog, the band, the cap and the hills --------------------------------------------------- */
+static void air(void) {
+    static psm_sky_out_t sky;
+    float tbl[129], worst = 0.0f, d;
+    unsigned p, q, step, k, bad = 0, strips = 0, cut = 0, n, views = 0;
+    psm_state_t st;
+
+    /* the fog: TOWN_LOOK.md's numbers at D = 70, and the table against the curve it stands for */
+    CHECK(psm_fog_at(70.0f, 30.0f) == 0.0f && fabsf(psm_fog_at(70.0f, 40.0f) - 0.0616f) < 0.002f && psm_fog_at(70.0f, 70.0f) == 1.0f);
+    for (k = 0; k < 4u; k++) {
+        const float dist = k == 0u ? 5.0f : k == 1u ? 20.0f : k == 2u ? 70.0f : 500.0f;
+
+        psm_fog_table(dist, tbl);
+        CHECK(tbl[0] == 1.0f && tbl[128] == 0.0f);
+        for (n = 1; n < 129u; n++) bad += tbl[n] > tbl[n - 1u];               /* from the far depth inward: never thicker */
+        for (d = 0.02f * dist; d <= dist; d += 0.005f * dist) {
+            const float e = fabsf(psm_fog_table_at(tbl, dist, d) - psm_fog_at(dist, d));
+
+            if (e > worst) worst = e;
+        }
+    }
+    printf("  fog: quadratic 0.43 D .. D; at D 70 the tower (40 m) %.3f, the hall (26 m) %.3f; the table's worst against the curve %.4f\n",
+           psm_fog_at(70.0f, 40.0f), psm_fog_at(70.0f, 26.0f), worst);
+    CHECK(bad == 0u && worst < 0.02f);
+
+    /* the sky's u turn: the HDR's sun column faces the sun at any azimuth */
+    for (k = 0; k < 36u; k++) {
+        const float az = 10.0f * (float)k, u = psm_sky_u(az, psm_sky_u_off(az));
+
+        bad += fabsf((u - floorf(u)) - PSM_SKY_SUN_U) > 1e-4f && fabsf((u - floorf(u)) - PSM_SKY_SUN_U) < 1.0f - 1e-4f;
+    }
+    CHECK(bad == 0u);
+
+    /* every view of the budget: the strips are whole, every vertex finite and in front, the on-screen ones behind the town */
+    for (p = 0; p < PSM_TOWN_PRESETS; p++)
+        for (q = 0; q < 3u; q++)
+            for (step = 0; step < 24u; step++) {
+                unsigned run = 0;
+
+                psm_state_town(&st);
+                psm_town_preset_set(&st, p);
+                st.pitch = q == 0u ? st.pitch : q == 1u ? -PSM_PITCH_UP : PSM_PITCH_DOWN;
+                st.yaw = (float)step * 0.261799f;
+                psm_frame_setup(&frame, &scene, &st);
+                psm_sky_build(&sky, &frame, &st);
+                n = sky.n_band + sky.n_cap + sky.n_hill;
+                for (k = 0; k < n; k++) {
+                    const psm_skyv_t *v = &sky.v[k];
+                    const int on = v->x >= 0.0f && v->x <= PSM_SCR_W && v->y >= 0.0f && v->y <= PSM_SCR_H;
+
+                    bad += !sh4der_finite_(v->x) || !sh4der_finite_(v->y) || !(v->z > 0.0f) || !(v->z <= 1.0f / (1.01f * PSM_NEAR) + 1e-3f);
+                    bad += on && v->z > 1.0f / 150.0f;                       /* on screen: the air is past 150 m */
+                    run++;
+                    if (sky.eol[k]) { bad += run < 3u; run = 0; strips++; }
+                    bad += (k + 1u == sky.n_band || k + 1u == sky.n_band + sky.n_cap || k + 1u == n) && !sky.eol[k];   /* a run ends with its header's part */
+                }
+                cut += sky.cut;
+                views++;
+            }
+    printf("  air: %u views, %u strips sent, %u triangles cut at the near plane, 0 bad expected: %u\n", views, strips, cut, bad);
+    CHECK(bad == 0u);
+
+    {                                                                         /* the cut on its own: one corner behind, a quad of 4 */
+        psm_skyp_t t[3];
+        unsigned m = 0, i;
+
+        memset(t, 0, sizeof t);
+        memset(&sky, 0, sizeof sky);
+        t[0].clip[0] = -1.0f; t[0].clip[2] = 2.0f; t[0].u = 0.0f; t[0].c[0] = 1.0f;
+        t[1].clip[0] = 1.0f;  t[1].clip[2] = 2.0f; t[1].u = 1.0f; t[1].c[0] = 1.0f;
+        t[2].clip[1] = 1.0f;  t[2].clip[2] = -1.0f; t[2].u = 0.5f; t[2].c[0] = 0.0f;
+        for (i = 0; i < 3u; i++) { t[i].scr[2] = 1.0f / t[i].clip[2]; }
+        CHECK(psm_sky_tri_(&sky, &m, &t[0], &t[1], &t[2]) == 2u && m == 4u && sky.eol[3] && !sky.eol[2]);
+        for (i = 0; i < m; i++) CHECK(sky.v[i].z > 0.0f && sky.v[i].z <= 1.0f / (1.01f * PSM_NEAR) + 1e-4f);
+        t[0].clip[2] = t[1].clip[2] = -0.5f;
+        m = 0;
+        CHECK(psm_sky_tri_(&sky, &m, &t[0], &t[1], &t[2]) == 0u && m == 0u);   /* wholly behind: nothing */
+    }
+
+    /* the boot view and the head-on view: the fog colour (TOWN_LOOK.md's pictures: (115, 122, 128) facing north, (153, 156, 146) head-on) */
+    psm_state_town(&st);
+    psm_frame_setup(&frame, &scene, &st);
+    psm_sky_build(&sky, &frame, &st);
+    printf("  air at the boot view (%s): band %u, cap %u, hills %u vertices; fog (%u, %u, %u)", PSM_SKY_HAVE ? "the HDR" : "the stand-in",
+           sky.n_band, sky.n_cap, sky.n_hill, (unsigned)(sky.fog[0] * 255.0f + 0.5f), (unsigned)(sky.fog[1] * 255.0f + 0.5f), (unsigned)(sky.fog[2] * 255.0f + 0.5f));
+    CHECK(sky.n_band > 0u && sky.n_cap == 0u && sky.n_hill > 0u);          /* the view's top is at el 26: no cap */
+    st.pitch = -PSM_PITCH_UP;
+    psm_frame_setup(&frame, &scene, &st);
+    psm_sky_build(&sky, &frame, &st);
+    CHECK(sky.n_cap > 0u && sky.n_hill == 0u);                            /* looking up: the cap, no hills */
+    st.pitch = 4.0f * 0.01745329f;
+    psm_town_preset_set(&st, 3u);
+    psm_frame_setup(&frame, &scene, &st);
+    psm_sky_build(&sky, &frame, &st);
+    printf("; head-on 16:00 fog (%u, %u, %u)\n", (unsigned)(sky.fog[0] * 255.0f + 0.5f), (unsigned)(sky.fog[1] * 255.0f + 0.5f), (unsigned)(sky.fog[2] * 255.0f + 0.5f));
 }
 
 /* ---- the readout -------------------------------------------------------------------------------------------------- */
@@ -487,6 +590,7 @@ int main(void) {
     cull();
     receivers();
     budget();
+    air();
     readout();
     if (fails) { printf("psm_town_test: %d FAILED\n", fails); return 1; }
     printf("psm_town_test: ok\n");

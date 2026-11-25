@@ -135,13 +135,21 @@ $(BUILD)/psm_mapsrc_test: test/psm_mapsrc_test.c demo/psm/psm_mapsrc.h demo/psm/
 # not. The kit's props are cut by third_party/dc-forerunner/tools/lod/qem_decimate.py, imported from there.
 PSM_TOWN_ZIP  = demo/psm/assets/_dl/modular_village_collection.zip
 PSM_TOWN_H    = $(BUILD)/psm_town/psm_town_mesh.h
-PSM_TOWN_DEPS = demo/psm/psm_scene.h demo/psm/psm_town.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h $(PSM_TOWN_H)
+# Its air (demo/psm/psm_sky.h): the sky band's texture, baked by demo/psm/tools/bake_sky.py from the Poly Haven sky (CC0,
+# fetch_table.json) when it has been fetched, a gradient stand-in when not.
+PSM_SKY_HDR   = demo/psm/assets/_dl/kloofendal_48d_partly_cloudy_puresky_2k.hdr
+PSM_SKY_H     = $(BUILD)/psm_sky/psm_sky_tex.h
+PSM_TOWN_DEPS = demo/psm/psm_scene.h demo/psm/psm_town.h demo/psm/psm_sky.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h $(PSM_TOWN_H) $(PSM_SKY_H)
+PSM_TOWN_INC  = -DPSM_HAVE_TOWN -I$(BUILD)/psm_town -I$(BUILD)/psm_sky
 $(PSM_TOWN_H): demo/psm/tools/bake_town.py $(wildcard $(PSM_TOWN_ZIP))
 	@mkdir -p $(BUILD)/psm_town
 	$(PYTHON) -I demo/psm/tools/bake_town.py $(if $(wildcard $(PSM_TOWN_ZIP)),$(PSM_TOWN_ZIP),-) $@ --json $(BUILD)/psm_town/psm_town_mesh.json
+$(PSM_SKY_H): demo/psm/tools/bake_sky.py $(wildcard $(PSM_SKY_HDR))
+	@mkdir -p $(BUILD)/psm_sky
+	$(PYTHON) -I demo/psm/tools/bake_sky.py $(if $(wildcard $(PSM_SKY_HDR)),$(PSM_SKY_HDR),-) $@ --json $(BUILD)/psm_sky/psm_sky_tex.json
 $(BUILD)/psm_town_test: test/psm_town_test.c $(PSM_TOWN_DEPS) $(SRC) $(HDR)
 	@mkdir -p $(BUILD)
-	$(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -I$(BUILD)/psm_town -Iinclude -I$(SH4DOW)/include $(filter %.c,$^) -lm -o $@
+	$(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM $(PSM_TOWN_INC) -Iinclude -I$(SH4DOW)/include $(filter %.c,$^) -lm -o $@
 $(BUILD)/bolt_test: test/bolt_test.c
 $(BUILD)/motes_test: test/motes_test.c
 $(BUILD)/deform_test: test/deform_test.c
@@ -283,9 +291,9 @@ test-dc: $(addprefix $(BUILD)/,$(addsuffix .elf,$(TESTS)))
 $(BUILD)/shz/psm_town_test: test/psm_town_test.c $(PSM_TOWN_DEPS) $(SRC) $(HDR)
 	@$(PYTHON) tools/check_sh4zam.py $(SH4ZAM)
 	@mkdir -p $(BUILD)/shz
-	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f -DPSM_HAVE_TOWN -I$(BUILD)/psm_town -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include $(DCE_INC) $(filter %.c,$^) $(SH4ZAM)/source/sw/shz_xmtrx_sw.c -lm -o $@
+	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f $(PSM_TOWN_INC) -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include $(DCE_INC) $(filter %.c,$^) $(SH4ZAM)/source/sw/shz_xmtrx_sw.c -lm -o $@
 $(BUILD)/psm_town_test.elf: test/psm_town_test.c $(PSM_TOWN_DEPS) $(BUILD)/libsh4der_core.a
-	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -DSH4DER_TEST_TOL=0.0005f -DPSM_HAVE_TOWN -I$(BUILD)/psm_town $< $(BUILD)/libsh4der_core.a -o $@
+	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -DSH4DER_TEST_TOL=0.0005f $(PSM_TOWN_INC) $< $(BUILD)/libsh4der_core.a -o $@
 $(BUILD)/%.elf: test/%.c $(BUILD)/libsh4der_core.a
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -DSH4DER_TEST_TOL=0.0005f $< $(BUILD)/libsh4der_core.a -o $@
 
@@ -348,7 +356,7 @@ $(PSM_COW_H): $(PSM_COW_OBJ) demo/psm/tools/bake_cow.py
 	$(PYTHON) -I demo/psm/tools/bake_cow.py $(PSM_COW_OBJ) $@ --tris $(PSM_COW_TRIS)
 $(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h $(PSM_TOWN_DEPS) include/sh4der_psm.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
 	@mkdir -p $(BUILD)/psm_dc
-	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) -DPSM_HAVE_TOWN -I$(BUILD)/psm_town demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
+	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 $(PSM_DC_CDI): $(BUILD)/psm_dc/sh4der-psm-ab.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PSM-AB
