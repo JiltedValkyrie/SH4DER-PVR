@@ -20,7 +20,7 @@ An invented market square in an English town of about 1420, at 52.2° N, on a Se
 
 ### Console numbers
 
-Eight HUD photos, one console, 2026-11-25: `logs/benchmarks/older/PXL_20261125_070114152.jpg` to `..070131888.jpg`. All show the same view: camera x 0.7, z −3.5, heading 50°, pitch −17°, 14:18 at ×1, sun 219°/25°, map 256 × 256, draw distance INF, all casters, 8 people and 4 hens. No build tag is visible on screen.
+Eight HUD photos, one console, 2026-11-25: `logs/benchmarks/older/PXL_20261125_070114152.jpg` to `..070131888.jpg`, one row each in the [PVR ledger](../hardware/ledger-pvr.md#town-scene-hud-photos) (PVR-108 to PVR-115). All show the same view: camera x 0.7, z −3.5, heading 50°, pitch −17°, 14:18 to 14:19 at ×1, sun 219°/25° (218°/25° on the first photo), map 256 × 256, draw distance INF, all casters, 8 people and 4 hens. No build tag is visible on screen.
 
 | Route | Map | SH-4 ms | PVR ms | TA vertices | fps | Triangles drawn |
 |---|---|---|---|---|---|---|
@@ -31,11 +31,11 @@ Eight HUD photos, one console, 2026-11-25: `logs/benchmarks/older/PXL_20261125_0
 | AB stub (SH-4 fill, 1 frame late) | uniform | 87.3 | 7.2 | 15,142 | 8 | 1,058 of 1,162 |
 | AB stub | PSM | 87.9 | 7.0 | 15,142 | 8 | 840 of 1,162 |
 
-All MEASURED as the HUD printed them, one run.
+All MEASURED as the HUD printed them, one run; every value in the table is read straight from the HUD (PVR ms is `pvr_get_stats` on one sampled frame a second; SH-4 ms the sum of four timed parts). Ranges are over the two photos of each route and map: route A PVR-108 to PVR-111, route B PVR-112 and PVR-113, the AB stub PVR-114 and PVR-115.
 
 What the table shows:
 
-- **Route A's PVR time (15.9 ms) is about 8.8 ms above route B's (7.1 ms).** That is the map pass plus the full-screen shadow layer. The layer alone is about 3.1 ms (PVR-002); the rest is OPEN.
+- **Route A's PVR time (15.9 ms) is about 8.8 ms above route B's (7.1 ms; the difference is arithmetic).** That is the map pass plus the full-screen shadow layer. The layer alone is about 3.1 ms (PVR-002); the rest is OPEN.
 - **Route B's SH-4 time (40-44 ms) does not fit 30 fps** in this view.
 - **The AB stub is not route AB.** It fills the map on the SH-4 in place of the PVR, so its 87 ms says nothing about the real route.
 - **Route A runs at 18 fps although neither side is near 55 ms.** Where the frame goes is OPEN.
@@ -44,7 +44,7 @@ What the table shows:
 
 Shadow texels a pixel at 4 / 10 / 25 / 60 m, from the same photos:
 
-- route A uniform: 24.8 / 7.0 / 1.8 / 0.5; route A PSM: 13.6 / 5.2 / 2.4 / 1.5;
+- route A uniform: 24.7-24.8 / 7.0 / 1.8 / 0.5; route A PSM: 13.6-13.7 / 5.2 / 2.4 / 1.5;
 - route B uniform: 29.1 / 8.2 / 2.2 / 0.6; route B PSM: 3.3 / 2.2 / 1.8 / 1.6.
 
 The PSM spreads the map's texels much more evenly with distance.

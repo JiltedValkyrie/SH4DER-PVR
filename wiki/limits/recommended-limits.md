@@ -28,10 +28,10 @@ These are faults the console showed and an emulator hid. Break them and the cons
 
 | Limit | Kind | Backing |
 |---|---|---|
-| Send long meshes in store-queue runs, not `pvr_prim` per vertex: 142 against 260 ns a vertex. **But measure your own mesh:** the warp's mesh ran 6 % slower by runs (973 against 914 ns), for a reason not yet known, so the warp now sends its mesh by `pvr_prim` and its pixelate pass by runs. | PROVEN (TA test, warp pixelate pass); the exception is OPEN | BUS-003, BUS-004 |
+| Send long meshes in store-queue runs, not `pvr_prim` per vertex: 142 against 260 ns a vertex. **But measure your own mesh:** the warp's mesh ran 6 % slower by runs (973 against 914 ns), for a reason not yet known, so the warp now sends its mesh by `pvr_prim` and its pixelate pass by runs. | PROVEN (TA test, warp pixelate pass); the exception is OPEN | BUS-001, BUS-003, BUS-004 |
 | Never place a copy's or a transform's source and destination a multiple of 16 KB apart. It cost up to 8.5 times; c4b's projection ran 2.2 times faster once its arrays were placed apart. | PROVEN | SH4-031, SH4-032, SH4-046, SH4-048 |
 | Copy RAM to RAM with `shz_sq_memcpy32` or `sq_cpy` (150 MB/s), or `shz_memcpy` (132), not `memcpy` (63). | PROVEN | SH4-030 |
-| Use `mat_transform`, not a C loop of single SH4ZAM calls (13.16 against 28.67 cycles a vertex). Our `shz_dce_xmtrx_project_point3_batch` is 5.8 % slower than `mat_transform` in the cache and 7.3 % out of it: it has no measured gain. | PROVEN (one run each) | SH4-022, SH4-050 |
+| Use `mat_transform`, not a C loop of single SH4ZAM calls (13.16 against 28.67 cycles a vertex). Our `shz_dce_xmtrx_project_point3_batch` is 5.8 % slower than `mat_transform` in the cache and 7.3 % out of it: it has no measured gain. | PROVEN (one run each) | SH4-020, SH4-022, SH4-050 |
 | Do not put a lookup grid in OC-RAM in a frame that also transforms vertices: the RAM cache halves, the vertices cost 6.8 % more, and the interleaved slice was slower overall. | PROVEN (one run) | SH4-054, SH4-012 |
 | A burst DMAC copy holds the SH-4 for the whole copy. For a background copy use cycle steal (84 % of the SH-4 left). | PROVEN | BUS-031, BUS-032 |
 
@@ -42,7 +42,7 @@ These are faults the console showed and an emulator hid. Break them and the cons
 | Never read video memory pixel by pixel through the uncached address in a hot loop (3.7 MB/s). Use PVR-DMA (38 MB/s), or the cached address with `dcache_inval_range` first (38.7 MB/s). | PROVEN | SH4-040, SH4-041, BUS-021 |
 | Invalidate before every cached read of video memory; without it 238 of 256 lines read stale. Never write through that address. | PROVEN | SH4-006 |
 | Copy a map to RAM before random reads: 20,000 scattered reads took 12.9 ms from video memory, 2.8 ms from RAM. | PROVEN | SH4-042 |
-| Do not move per-frame data through sound RAM: 5.0-5.7 MB/s, so 32 KB costs 6.5 ms. Sound RAM suits data made once or rarely. | PROVEN | AICA-020, AICA-021 |
+| Do not move per-frame data through sound RAM: 5.0-5.7 MB/s, so 32 KB costs 6.5 ms. Sound RAM suits data made once or rarely. | PROVEN (the rates; 6.5 ms is arithmetic on them, and one 32 KB copy to texture memory measured 6,511 us) | AICA-020, AICA-021, AICA-023 |
 
 ## Render targets
 
@@ -72,10 +72,10 @@ These are faults the console showed and an emulator hid. Break them and the cons
 | c4 chain: make Q from the window edges measured at boot, not from a cosine table. With them the ground showed 0 acne at every b0 from 0 to 3; with the cosine it needed b0 1.5. | PROVEN (ground alone, one sun, one run) | PVR-102, PVR-103 |
 | c4 chain: keep b0 at 3.0 with the measured edge until lower values are tested in a scene; both scenes showed 0 acne there. | ADVISED | Test: Q57 (b0 0 to 1.5 with the measured edge, three suns) |
 | c4 chain mask: use the 1555 route; punch-through gives the same pixels but costs 14 to 18 % more PVR time. Use punch-through only where its alpha test is needed (for example to join compares, Q58). | PROVEN (cost, two suns, one run); the join ADVISED | PVR-105 |
-| Budget a ray through a height grid at 22 cycles a cell plus 74 a ray, not the thesis's 12 to 16 plus 30. | PROVEN (one run) | SH4-052 |
-| **Do not cast shadows to infinity.** In the town at draw distance INF with all casters, route A ran at 18 fps and route B at 13-14. Limit casters to the shadow map's square, and set a shadow draw distance. | PROVEN that INF with all casters misses 30 fps in that view; the remedy is ADVISED | Town photos (see [scenes](scenes.md)). Test: sweep the demo's CASTERS and DRAW DISTANCE rows and log SH-4, PVR and fps. |
-| Route B (SH-4 depth map) cost 40-44 ms of SH-4 time in the town view: do not use it for a whole town at 30 fps. | PROVEN (one view) | Town photos |
-| Shadow map at most 256 × 256 for route AB: 512 × 512 needs 14.8 ms of download alone and does not render past row 479. | PROVEN | PVR-026, BUS-021 |
+| Budget a ray through a height grid at 22 cycles a cell plus 74 a ray, not the thesis's 12 to 16 plus 30. | PROVEN (one run; the two constants are the page's fit to MEASURED cycles a ray) | SH4-052 |
+| **Do not cast shadows to infinity.** In the town at draw distance INF with all casters, route A ran at 18 fps and route B at 13-14. Limit casters to the shadow map's square, and set a shadow draw distance. | PROVEN that INF with all casters misses 30 fps in that view (one run, HUD photos; PVR-108 to PVR-113); the remedy is ADVISED | Town photos (see [scenes](scenes.md)). Test: sweep the demo's CASTERS and DRAW DISTANCE rows and log SH-4, PVR and fps. |
+| Route B (SH-4 depth map) cost 40-44 ms of SH-4 time in the town view: do not use it for a whole town at 30 fps. | PROVEN (one view, one run) | PVR-112, PVR-113 ([scenes](scenes.md)) |
+| Shadow map at most 256 × 256 for route AB: 512 × 512 needs 13.7 ms of download alone by its interrupt (14.8 ms polled) and does not render past row 479. | PROVEN | PVR-026, BUS-021 |
 | **sh4dow-dc: shade only the first N characters within R metres of the camera.** N and R are not yet known. | **OPEN** | See the bench request below. |
 | Drop sh4dow-dc's foot cones past 20 units of camera distance (they fade from 18). | ADVISED (the library's default, not measured) | `sh4dow-dc/README.md:207` |
 
