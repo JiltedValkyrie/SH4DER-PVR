@@ -28,7 +28,7 @@ DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC ships in this repository: the soft shadows, and the column feather every effect here uses
 SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test bolt_test motes_test deform_test mist_test rise_test film_test cloudvolume_test matchlight_scene_test
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test psm_fault_test bolt_test motes_test deform_test mist_test rise_test film_test cloudvolume_test matchlight_scene_test
 
 .PHONY: test test-shz dc test-dc demo clean pl4nar-demo psm-demo check-sh4zam
 
@@ -87,6 +87,7 @@ test: $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/psm_scene_test
 	$(BUILD)/psm_mapsrc_test
 	$(BUILD)/psm_town_test
+	$(BUILD)/psm_fault_test
 	$(BUILD)/bolt_test
 	$(BUILD)/motes_test
 	$(BUILD)/deform_test
@@ -130,6 +131,7 @@ $(BUILD)/psm_raster_test: test/psm_raster_test.c include/sh4der_psm_raster.h
 $(BUILD)/psm_pvr_test: test/psm_pvr_test.c include/sh4der_psm_pvr.h include/sh4der_psm_raster.h
 $(BUILD)/psm_scene_test: test/psm_scene_test.c demo/psm/psm_scene.h demo/psm/psm_town.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h
 $(BUILD)/psm_mapsrc_test: test/psm_mapsrc_test.c demo/psm/psm_mapsrc.h demo/psm/psm_scene.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h
+$(BUILD)/psm_fault_test: test/psm_fault_test.c demo/psm/psm_fault.h
 # The town (demo/psm/psm_town.h) needs its mesh: demo/psm/tools/bake_town.py writes it into the build folder, from the
 # Modular Village zip (CC0, demo/psm/fetch_table.json) when demo/psm/tools/fetch.py has fetched it, from stand-in boxes when
 # not. The kit's props are cut by third_party/dc-forerunner/tools/lod/qem_decimate.py, imported from there.
@@ -139,7 +141,7 @@ PSM_TOWN_H    = $(BUILD)/psm_town/psm_town_mesh.h
 # fetch_table.json) when it has been fetched, a gradient stand-in when not.
 PSM_SKY_HDR   = demo/psm/assets/_dl/kloofendal_48d_partly_cloudy_puresky_2k.hdr
 PSM_SKY_H     = $(BUILD)/psm_sky/psm_sky_tex.h
-PSM_TOWN_DEPS = demo/psm/psm_scene.h demo/psm/psm_town.h demo/psm/psm_sky.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h $(PSM_TOWN_H) $(PSM_SKY_H)
+PSM_TOWN_DEPS = demo/psm/psm_scene.h demo/psm/psm_town.h demo/psm/psm_sky.h demo/psm/psm_send.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h $(PSM_TOWN_H) $(PSM_SKY_H)
 PSM_TOWN_INC  = -DPSM_HAVE_TOWN -I$(BUILD)/psm_town -I$(BUILD)/psm_sky
 $(PSM_TOWN_H): demo/psm/tools/bake_town.py $(wildcard $(PSM_TOWN_ZIP))
 	@mkdir -p $(BUILD)/psm_town
@@ -192,6 +194,7 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/psm_scene_test
 	$(BUILD)/shz/psm_mapsrc_test
 	$(BUILD)/shz/psm_town_test
+	$(BUILD)/shz/psm_fault_test
 	$(BUILD)/shz/bolt_test
 	$(BUILD)/shz/motes_test
 	$(BUILD)/shz/deform_test
@@ -354,7 +357,7 @@ psm-dc: $(PSM_DC_CDI)
 $(PSM_COW_H): $(PSM_COW_OBJ) demo/psm/tools/bake_cow.py
 	@mkdir -p $(BUILD)/psm_dc
 	$(PYTHON) -I demo/psm/tools/bake_cow.py $(PSM_COW_OBJ) $@ --tris $(PSM_COW_TRIS)
-$(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h $(PSM_TOWN_DEPS) include/sh4der_psm.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
+$(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h demo/psm/psm_fault.h $(PSM_TOWN_DEPS) include/sh4der_psm.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
 	@mkdir -p $(BUILD)/psm_dc
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 $(PSM_DC_CDI): $(BUILD)/psm_dc/sh4der-psm-ab.elf

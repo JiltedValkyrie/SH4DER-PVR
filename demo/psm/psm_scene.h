@@ -708,6 +708,32 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
         default: return "?";
     }
 }
+/* A row's value as one whole number, for the fault catcher's breadcrumbs (psm_fault_menu): the field the row sets, the
+   fractional ones in thousandths (biases), hundredths (warp near) or minutes (time). */
+static inline int32_t psm_row_int(const psm_state_t *st, int row) {
+    switch (row) {
+        case PSM_ROW_ROUTE: return st->route;
+        case PSM_ROW_MAP: return st->warp;
+        case PSM_ROW_CASTERS: return st->movers_only;
+        case PSM_ROW_DIST: return (int32_t)st->dist_i;
+        case PSM_ROW_SIZE: return (int32_t)psm_map_size(st);
+        case PSM_ROW_FILTER_A: return st->filter_a;
+        case PSM_ROW_PCF: return st->pcf;
+        case PSM_ROW_BIAS_A: return (int32_t)(st->bias_a * 1000.0f);
+        case PSM_ROW_BIAS_B: return (int32_t)(st->bias_b * 1000.0f);
+        case PSM_ROW_WARP_NEAR: return (int32_t)(st->warp_near * 100.0f);
+        case PSM_ROW_AZIMUTH: return (int32_t)st->az;
+        case PSM_ROW_ELEVATION: return (int32_t)st->el;
+        case PSM_ROW_INSET: return st->inset;
+        case PSM_ROW_READOUT: return st->readout;
+        case PSM_ROW_PRESET: return (int32_t)(st->scene ? st->tpreset : st->preset);
+        case PSM_ROW_INVY: return st->invert_y;
+        case PSM_ROW_SCENE: return st->scene;
+        case PSM_ROW_TIME: return (int32_t)(st->clock * 60.0f);
+        case PSM_ROW_TSPEED: return (int32_t)st->tspeed;
+        default: return 0;
+    }
+}
 
 /* One frame of the pad, torchwalk's single-stick scheme. The stick looks (yaw, pitch). Menu closed: Y / A held walk forward /
    back, X / B strafe left / right; D-pad down opens the menu, up flips the route, left / right turn the sun; a tap of START flips
@@ -1311,7 +1337,7 @@ static inline unsigned psm_clip_near(const psm_frame_t *f, const psm_scene_t *s,
 
 /* ---- the readout ------------------------------------------------------------- */
 
-#define PSM_HUD_LINES 11u
+#define PSM_HUD_LINES 12u           /* lines 0 .. 10 psm_hud, 11 the frame and the vertex buffer (psm_send.h, psm_dc.c) */
 #define PSM_HUD_COLS  64u            /* characters a line (a 512 texel line of the 8 x 16 font) */
 #define PSM_TEXT_W    512u           /* the text texture: sixteen lines of the 8 x 16 font, ten used, ARGB1555 */
 #define PSM_TEXT_H    256u

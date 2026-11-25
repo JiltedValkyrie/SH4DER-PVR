@@ -55,6 +55,8 @@
 #include "psm_scene.h"
 #include "psm_mapsrc.h"
 #include "psm_sky.h"
+#define PSM_FAULT_IMPL
+#include "psm_fault.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -88,42 +90,50 @@ static pvr_ptr_t target_mem, text_mem, inset_mem, checker_mem, sky_mem;
 static unsigned target_size;              /* 0: no target (never made, or no video memory) */
 static pvr_poly_hdr_t hdr_sky, hdr_skycol, hdr_ground, hdr_model, hdr_ground_fog, hdr_model_fog, hdr_flat, hdr_layer, hdr_text, hdr_dim, hdr_inset_a, hdr_inset_b;
 static int hdr_target_ok;                 /* hdr_layer and hdr_inset_a are compiled for the current target */
-static unsigned ta_v;                     /* vertices sent this frame, counted where they are sent */
+static unsigned ta_v;                     /* vertices sent this frame (the map pass and the scene), counted where they are sent */
 static unsigned map_tris, layer_v;        /* route A: triangles into the target, vertices of the ground layer */
 static int rtt_refused_shown;
 static float fog_dist;                    /* the distance the fog table was made for (0: none yet) */
 static float sky_now[3] = { -1.0f, -1.0f, -1.0f }, fog_now[3];   /* the sky and fog colours set on the PVR */
 static int fog_atmos = -1;                /* the fog table's shape on the PVR: 0 linear, 1 quadratic (-1: none yet) */
 static psm_sky_out_t sky;                 /* this frame's sky band, cap and hills, in send order */
-static unsigned sky_v;                    /* their vertices sent this frame */
 
-/* ---- small helpers --------------------------------------------------------- */
+static unsigned frame_no;                 /* frames sent since boot: the heartbeat */
+static psm_fault_crumbs_t fault_crumbs;   /* psm_fault.h: what the frame was doing, on the report if it faults or hangs */
+static uint32_t vbuf_used, vbuf_max;      /* KallistiOS's vertex buffer bytes: the last frame registered, the largest */
+static int look_pending;                  /* the fog colour or table changed: written once the PVR is idle (look_apply) */
+static unsigned shed_now;                 /* SHED this frame (psm_send_plan): 0 everything sent */
+static uint32_t est_now;                  /* this frame's parameter bytes, estimated (psm_send.h) */
 
-static inline void vert(uint32_t flags, float x, float y, float z, float u, float v, uint32_t argb) {
-    pvr_vertex_t *o = pvr_dr_target();
+/* ---- what is sent (psm_send.h walks it; the host test walks the same) ------- */
 
-    o->flags = flags;
-    o->x = x; o->y = y; o->z = z;
-    o->u = u; o->v = v;
-    o->argb = argb;
-    o->oargb = 0u;
-    pvr_dr_commit(o);
-    ta_v++;
-}
+static void send_hdr_(int kind);
+#define PSM_SINK_HDR(kind) send_hdr_(kind)
+#define PSM_SINK_VTX(eol, X, Y, Z, U, V, ARGB, OARGB) do {         \
+        pvr_vertex_t *o_ = pvr_dr_target();                        \
+        o_->flags = (eol) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;    \
+        o_->x = (X); o_->y = (Y); o_->z = (Z);                     \
+        o_->u = (U); o_->v = (V);                                  \
+        o_->argb = (ARGB); o_->oargb = (OARGB);                    \
+        pvr_dr_commit(o_);                                         \
+    } while (0)
+#include "psm_send.h"
 
-/* A header the list can take, or nothing: a header that was never compiled is "end of list" to the tile accelerator. */
-static int header(const pvr_poly_hdr_t *h) {
-    if (!sh4der_poly_hdr_ok((const uint32_t *)h)) return 0;
-    pvr_prim((void *)h, sizeof *h);
-    return 1;
-}
+static const pvr_poly_hdr_t *const hdr_tab[PSM_HK_N] = {
+    &hdr_sky, &hdr_skycol, &hdr_ground, &hdr_ground_fog, &hdr_layer, &hdr_model, &hdr_model_fog, &hdr_flat,
+    &hdr_text, &hdr_dim, &hdr_inset_a, &hdr_inset_b
+};
+static psm_sink_t sink;
 
-static void quad(const pvr_poly_hdr_t *h, float x, float y, float w, float ht, float z, float u0, float v0, float u1, float v1, uint32_t argb) {
-    if (!header(h)) return;
-    vert(PVR_CMD_VERTEX, x, y, z, u0, v0, argb);
-    vert(PVR_CMD_VERTEX, x + w, y, z, u1, v0, argb);
-    vert(PVR_CMD_VERTEX, x, y + ht, z, u0, v1, argb);
-    vert(PVR_CMD_VERTEX_EOL, x + w, y + ht, z, u1, v1, argb);
+static void send_hdr_(int kind) { pvr_prim((void *)hdr_tab[kind], sizeof(pvr_poly_hdr_t)); }
+
+/* The headers the lists can take this frame: a header that was never compiled is "end of list" to the tile accelerator, so
+   its part is not sent (psm_sink_hdr). */
+static void hdr_ok_fill(uint8_t ok[PSM_HK_N]) {
+    unsigned k;
+
+    for (k = 0; k < PSM_HK_N; k++) ok[k] = (uint8_t)sh4der_poly_hdr_ok((const uint32_t *)hdr_tab[k]);
+    if (!sky_mem) ok[PSM_HK_SKY] = 0;
 }
 
 /* ---- load ------------------------------------------------------------------ */
@@ -237,9 +247,13 @@ static void ground_texture(void) {
     pvr_txr_load(checker_px, checker_mem, sizeof checker_px);
 }
 
-/* The background and the fog colour, set when they change; the fog table's ramp when the draw distance or its shape changes.
-   With the air on, both are the band's horizon fog (psm_sky_build ran this frame) and the ramp is quadratic from 0.43 D;
-   off, the scene's table (psm_look_at) and the linear ramp from 0.75 D. The vertex fog of the band's foot takes the same colour. */
+/* The background colour, set when it changes (KallistiOS keeps it and puts it in the background polygon when a render
+   starts: safe at any time). The fog colour and the fog table's ramp are PVR registers the render reads, so a change is only
+   noted here (look_pending) and written by look_apply once the PVR is idle. With the air on, both colours are the band's
+   horizon fog (psm_sky_build ran this frame) and the ramp is quadratic from 0.43 D; off, the scene's table (psm_look_at)
+   and the linear ramp from 0.75 D. The vertex fog of the band's foot takes the same colour. */
+static float fog_want[3];
+
 static void look_update(void) {
     float bg[3], fog[3];
     const int atmos = state.atmos && sky_mem;
@@ -250,11 +264,19 @@ static void look_update(void) {
         pvr_set_bg_color(bg[0], bg[1], bg[2]);
         memcpy(sky_now, bg, sizeof sky_now);
     }
-    if (fabsf(fog[0] - fog_now[0]) + fabsf(fog[1] - fog_now[1]) + fabsf(fog[2] - fog_now[2]) > 1.0f / 512.0f) {
-        pvr_fog_table_color(1.0f, fog[0], fog[1], fog[2]);
-        pvr_fog_vertex_color(fog[0], fog[1], fog[2]);
-        memcpy(fog_now, fog, sizeof fog_now);
-    }
+    memcpy(fog_want, fog, sizeof fog_want);
+    if (fabsf(fog[0] - fog_now[0]) + fabsf(fog[1] - fog_now[1]) + fabsf(fog[2] - fog_now[2]) > 1.0f / 512.0f) look_pending = 1;
+    if (frame.dist > 0.0f && (frame.dist != fog_dist || atmos != fog_atmos)) look_pending = 1;
+}
+
+/* The fog registers, written with no render running: call straight after pvr_wait_render_done. */
+static void look_apply(void) {
+    const int atmos = state.atmos && sky_mem;
+
+    if (!look_pending) return;
+    pvr_fog_table_color(1.0f, fog_want[0], fog_want[1], fog_want[2]);
+    pvr_fog_vertex_color(fog_want[0], fog_want[1], fog_want[2]);
+    memcpy(fog_now, fog_want, sizeof fog_now);
     if (frame.dist > 0.0f && (frame.dist != fog_dist || atmos != fog_atmos)) {   /* DRAW DISTANCE: the ramp, made again on a change */
         if (atmos) {
             float tbl[129];
@@ -266,32 +288,7 @@ static void look_update(void) {
             pvr_fog_table_linear(frame.dist * PSM_DIST_FADE, frame.dist);
         fog_dist = frame.dist; fog_atmos = atmos;
     }
-}
-
-/* sky vertices i0 .. i1 - 1 as psm_sky_build put them (offset colour included: the band's vertex fog) */
-static void sky_send(unsigned i0, unsigned i1) {
-    unsigned i;
-
-    for (i = i0; i < i1; i++) {
-        const psm_skyv_t *v = &sky.v[i];
-        pvr_vertex_t *o = pvr_dr_target();
-
-        o->flags = sky.eol[i] ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
-        o->x = v->x; o->y = v->y; o->z = v->z;
-        o->u = v->u; o->v = v->v;
-        o->argb = v->argb;
-        o->oargb = v->oargb;
-        pvr_dr_commit(o);
-        ta_v++; sky_v++;
-    }
-}
-
-/* The sky band, then the cap and the hills, into the opaque list before the ground. */
-static void sky_draw(void) {
-    sky_v = 0;
-    if (!state.atmos || !sky_mem) return;
-    if (sky.n_band && header(&hdr_sky)) sky_send(0u, sky.n_band);
-    if (sky.n_cap + sky.n_hill && header(&hdr_skycol)) sky_send(sky.n_band, sky.n_band + sky.n_cap + sky.n_hill);
+    look_pending = 0;
 }
 
 /* The SCENE row changed: the other scene, its walk, its ground; the frame's cached positions and placement are old. */
@@ -372,6 +369,8 @@ static int pad(float dt) {
         in.rt = (float)st->rtrig * (1.0f / 255.0f);
     }
     in.held = held;
+    psm_fault_frame(&fault_crumbs, frame_no, held, (unsigned)state.scene, (unsigned)state.route);
+    psm_fault_stage(&fault_crumbs, "input");
     {
         const int route_before = state.route;
 
@@ -379,83 +378,18 @@ static int pad(float dt) {
         state.route = psm_ab_route_step(&route3, route_before, state.route);   /* A, B, AB (stub) */
         if (state.route != route_before) psm_mapsrc_reset(&mapsrc);          /* a route change: route AB starts with no map */
     }
+    psm_fault_menu(&fault_crumbs, state.menu, (unsigned)state.row, psm_row_int(&state, state.row));
+    psm_fault_camera(&fault_crumbs, state.x, PSM_EYE_H, state.z, state.yaw * 57.29578f, -state.pitch * 57.29578f);
     return held != before;
-}
-
-/* ---- the frame's vertices ---------------------------------------------------- */
-
-/* The ground as strips, a ring at a time, a strip broken where a cell cannot be sent (psm_cell_ok: the flags psm_place
-   made). layer 0: the ground texture, lit. layer 1: route A's multiply layer, the map target's coordinates, white. Returns the
-   vertices sent. One header for the run of strips, as sh4der_spark.c and sh4der_bump.h send theirs. */
-static unsigned ground(int layer) {
-    const unsigned before = ta_v;
-    unsigned r, c;
-
-    if (!header(layer ? &hdr_layer : frame.dist > 0.0f ? &hdr_ground_fog : &hdr_ground)) return 0;
-    for (r = 0; r + 1u < frame.grows; r++) {
-        c = 0;
-        while (c + 1u < frame.gcols) {
-            unsigned end, k;
-
-            if (!psm_cell_ok(&frame, r, c, layer)) { c++; continue; }
-            end = psm_run_end(&frame, r, c, layer);
-            for (k = c; k <= end; k++) {                    /* spokes c .. end: the outer ring's vertex, then the inner's */
-                const unsigned o = (r + 1u) * frame.gcols + k, i = r * frame.gcols + k;
-
-                if (layer) {
-                    vert(PVR_CMD_VERTEX, frame.gscr[o][0], frame.gscr[o][1], frame.gscr[o][2], frame.guv[o][0], frame.guv[o][1], 0xffffffffu);
-                    vert(k == end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, frame.gscr[i][0], frame.gscr[i][1], frame.gscr[i][2], frame.guv[i][0], frame.guv[i][1], 0xffffffffu);
-                } else {
-                    vert(PVR_CMD_VERTEX, frame.gscr[o][0], frame.gscr[o][1], frame.gscr[o][2], frame.gpos[o][0] * scene.ground_uv, frame.gpos[o][2] * scene.ground_uv, frame.gcol[o]);
-                    vert(k == end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, frame.gscr[i][0], frame.gscr[i][1], frame.gscr[i][2], frame.gpos[i][0] * scene.ground_uv, frame.gpos[i][2] * scene.ground_uv, frame.gcol[i]);
-                }
-            }
-            c = end;
-        }
-    }
-    return ta_v - before;
-}
-
-/* The models: the runs of strip triangles psm_place passed (in front, with area) as strips, and those across the near plane
-   cut there. */
-static void models(void) {
-    unsigned i, k, end;
-
-    if (!header(frame.dist > 0.0f ? &hdr_model_fog : &hdr_model)) return;
-    for (i = 0; i < scene.mtn; i++) {
-        const unsigned a = scene.mt[i][0], b = scene.mt[i][1];
-
-        if (frame.mtri[i] == 2u) {
-            psm_cv_t cv[4];
-            const unsigned n = psm_clip_near(&frame, &scene, i, cv);
-
-            for (k = 0; k < n; k++) vert(k + 1u == n ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, cv[k].x, cv[k].y, cv[k].iw, 0.0f, 0.0f, cv[k].argb);
-            continue;
-        }
-        if (!frame.mtri[i]) continue;
-        end = psm_model_run_end(&frame, &scene, i);         /* i .. end: one strip, the first's corners 0 and 1, then each one's 2 */
-        vert(PVR_CMD_VERTEX, frame.mscr[a][0], frame.mscr[a][1], frame.mscr[a][2], 0.0f, 0.0f, frame.mcol[a]);
-        vert(PVR_CMD_VERTEX, frame.mscr[b][0], frame.mscr[b][1], frame.mscr[b][2], 0.0f, 0.0f, frame.mcol[b]);
-        for (k = i; k <= end; k++) {
-            const unsigned e = scene.mt[k][2];
-
-            vert(k == end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX, frame.mscr[e][0], frame.mscr[e][1], frame.mscr[e][2], 0.0f, 0.0f, frame.mcol[e]);
-        }
-        i = end;
-    }
 }
 
 /* ---- route A's map pass -------------------------------------------------------- */
 
-/* The casters into the target: white first (far), each caster triangle in the shadow's colour (nearer; the scene's ambient
-   over its full light, so the layer's multiply leaves the ambient), then a white frame one texel wide (nearest), so a lookup
-   clamped past the map's edge reads lit. A caster object off the map's square (frame.con) is not clipped or sent. Returns 1
-   when the pass ran. */
+/* The casters into the target (psm_send_map: white, the casters in the shadow's colour, a white frame one texel wide), its own
+   scene. Returns 1 when the pass ran. */
 static int map_pass(void) {
     static sh4der_psm_pvr_vtx_t out[SH4DER_PSM_PVR_MAX_TRIS][3];
-    const float n = (float)target_size;
-    const uint32_t grey = psm_pack_rgb(frame.shadow_rgb[0], frame.shadow_rgb[1], frame.shadow_rgb[2]), white = 0xffffffffu;
-    unsigned i, j, k, t;
+    uint8_t ok[PSM_HK_N];
 
     map_tris = 0;
     if (!target_mem || !hdr_target_ok) return 0;
@@ -464,33 +398,14 @@ static int map_pass(void) {
         if (!rtt_refused_shown) { rtt_refused_shown = 1; printf("psm: pvr_scene_begin_rtt refused a %u target\n", target_size); }
         return 0;
     }
+    hdr_ok_fill(ok);
+    psm_sink_reset(&sink, 1, 0, 0u, NULL);
+    memcpy(sink.hdr_ok, ok, sizeof ok);
     pvr_list_begin(PVR_LIST_OP_POLY);
-    quad(&hdr_flat, 0.0f, 0.0f, n, n, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, white);
-    if (frame.built && header(&hdr_flat)) {
-        for (j = 0; j < scene.con; j++)
-            for (i = scene.co[j].t0; i < scene.co[j].t0 + scene.co[j].tn; i++) {
-                if (!psm_caster_on(&scene, i, state.movers_only)) continue;     /* CASTERS: movers only leaves the static ones out */
-                frame.tris++;
-                if (!frame.con[j]) continue;                                  /* the object is off the map's square */
-                t = psm_pvr_tris_h(frame.ma[scene.ct[i][0]], frame.ma[scene.ct[i][1]], frame.ma[scene.ct[i][2]], target_size, out);
-                for (k = 0; k < t; k++) {
-                    const float area = (out[k][1].x - out[k][0].x) * (out[k][2].y - out[k][0].y) - (out[k][2].x - out[k][0].x) * (out[k][1].y - out[k][0].y);
-
-                    if (!(area > 1.0e-3f || area < -1.0e-3f)) continue;       /* no area in the map: not sent */
-                    vert(PVR_CMD_VERTEX, out[k][0].x, out[k][0].y, 1.0f, 0.0f, 0.0f, grey);
-                    vert(PVR_CMD_VERTEX, out[k][1].x, out[k][1].y, 1.0f, 0.0f, 0.0f, grey);
-                    vert(PVR_CMD_VERTEX_EOL, out[k][2].x, out[k][2].y, 1.0f, 0.0f, 0.0f, grey);
-                    map_tris++;
-                }
-            }
-    }
-    frame.drawn = map_tris;
-    quad(&hdr_flat, 0.0f, 0.0f, n, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
-    quad(&hdr_flat, 0.0f, n - 1.0f, n, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
-    quad(&hdr_flat, 0.0f, 0.0f, 1.0f, n, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
-    quad(&hdr_flat, n - 1.0f, 0.0f, 1.0f, n, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, white);
+    map_tris = psm_send_map(&sink, &frame, &scene, &state, target_size, out);
     pvr_list_finish();
     pvr_scene_finish();
+    ta_v += sink.verts;
     return 1;
 }
 
@@ -501,6 +416,11 @@ static int map_pass(void) {
 static int text_pending(void) {
     if (state.route == PSM_ROUTE_AB) psm_ab_hud(&state, &frame, &cost, &mapsrc, ln_now);
     else psm_hud(&state, &frame, &cost, ln_now);
+    {
+        const psm_diag_t d = { frame_no, est_now, vbuf_used, vbuf_max, PSM_TA_VBUF, shed_now };
+
+        psm_diag_line(&d, ln_now);
+    }
     return memcmp(ln_prev, ln_now, sizeof ln_prev) != 0;
 }
 
@@ -539,36 +459,6 @@ static void inset_update(void) {
     pvr_txr_load(inset_px, inset_mem, sizeof inset_px);
 }
 
-/* One line of the text texture at (x, y) on screen, on a dark strip. */
-static void text_line(unsigned line, float x, float y) {
-    const float v0 = (float)(line * 16u) * (1.0f / (float)TEXT_H), v1 = (float)(line * 16u + 16u) * (1.0f / (float)TEXT_H);
-
-    quad(&hdr_dim, x - 4.0f, y - 1.0f, (float)TEXT_W + 8.0f, 18.0f, 900.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0x90000000u);
-    quad(&hdr_text, x, y, (float)TEXT_W, 16.0f, 1000.0f, 0.0f, v0, 1.0f, v1, 0xffffffffu);
-}
-
-static void hud(int a_drawn) {
-    const float base = 420.0f;               /* the cost label's line: the split goes under it, clear of a TV's overscan */
-    unsigned i;
-
-    text_line(0u, 16.0f, 24.0f);
-    text_line(9u, 16.0f, 42.0f);                                                /* the controls: always on */
-    if (state.menu) text_line(8u, 16.0f, 64.0f);                               /* the menu's row */
-    text_line(1u, 16.0f, base - (state.readout ? 5.0f * 18.0f : 18.0f));        /* texel over pixel: always on */
-    if (state.readout) {
-        for (i = 2; i < 6u; i++) text_line(i, 16.0f, base - (float)(6u - i) * 18.0f);
-        text_line(10u, 16.0f, base - 6.0f * 18.0f);                          /* the draw distance */
-    }
-    text_line(6u, 16.0f, base);
-    if (state.split) text_line(7u, 16.0f, base + 18.0f);
-    if (state.inset) {
-        const float x = PSM_SCR_W - 16.0f - (float)INSET, y = 290.0f - (float)INSET;
-
-        if (state.route != PSM_ROUTE_A) quad(&hdr_inset_b, x, y, (float)INSET, (float)INSET, 1000.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0xffffffffu);
-        else if (a_drawn) quad(&hdr_inset_a, x, y, (float)INSET, (float)INSET, 1000.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0xffffffffu);
-    }
-}
-
 /* ---- the PVR's time ------------------------------------------------------------ */
 
 /* The PVR's render time of the scene just finished. pvr_get_stats reports the last render to finish, and a render is
@@ -591,13 +481,15 @@ int main(void) {
     unsigned win_frames = 0, hud_tick = HUD_EVERY;
     size_t vram0;
 
-    /* PSM_VTX_BUDGET vertices of 32 B: the host test holds the worst frame (the ground strips and the layer at the widest
-       window, the models, the text) under it. KallistiOS sizes two vertex buffers with this value (one a frame,
-       pvr_buffers.c), 2 MB of video memory */
-    init.vertex_buf_size = PSM_VTX_BUDGET * 32;
-    init.opb_overflow_count = 4;
+    /* PSM_TA_VBUF bytes of the TA's parameters a frame: psm_send_plan counts each frame against it before sending and sheds
+       far parts past PSM_TA_SHARE (psm_send.h); the host test holds the worst view under it. KallistiOS makes two of them
+       (one a frame, pvr_buffers.c) and puts the background polygon after the last vertex. The tile bins: KallistiOS's
+       default 16-word blocks for the two lists, PSM_OPB_EXTRA times that again as the overflow pool */
+    init.vertex_buf_size = PSM_TA_VBUF;
+    init.opb_overflow_count = PSM_OPB_EXTRA;
     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
+    psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
     vram0 = pvr_mem_available();
     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
     /* the rings' vertices are the whole ground lattice; a frame sends the window the view covers (psm_window_half) */
@@ -605,7 +497,7 @@ int main(void) {
            " %u caster triangles in %u objects\n", scene.rows, scene.rows * (PSM_COLS + 1u), scene.mvn, scene.mtn, scene.ctn, scene.con);
     printf("psm: VRAM free %lu KB (after load; %lu after pvr_init), vertex buffers 2 x %u KB, textures %u KB (text %u, inset %u, ground %u,"
            " sky %u%s); route A's target %u KB at %u from the free\n", (unsigned long)(pvr_mem_available() / 1024u), (unsigned long)(vram0 / 1024u),
-           (unsigned)(PSM_VTX_BUDGET * 32u / 1024u),
+           (unsigned)(PSM_TA_VBUF / 1024u),
            (unsigned)((sizeof text_px + sizeof inset_px + sizeof checker_px + (sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u : 0u) + 1023u) / 1024u),
            (unsigned)(sizeof text_px / 1024u), (unsigned)(sizeof inset_px / 1024u), (unsigned)((sizeof checker_px + 1023u) / 1024u),
            sky_mem ? PSM_SKY_W * PSM_SKY_H * 2u / 1024u : 0u, PSM_SKY_HAVE ? "" : " stand-in", PSM_MAP_MAX_A * PSM_MAP_MAX_A * 2u / 1024u, PSM_MAP_MAX_A);
@@ -622,6 +514,8 @@ int main(void) {
 
         previous = now;
         if (dt > 0.1f) dt = 0.1f;
+        frame_no++;
+        psm_fault_beat(&fault_crumbs);
         pad_edge = pad(dt);
         if (state.scene != scene.town) scene_switch();     /* the SCENE row */
         map_buffers();                                     /* MAP SIZE 512 on B / AB: its RAM while chosen */
@@ -631,16 +525,19 @@ int main(void) {
         /* the SH-4's work, in the label's parts. B: build, clear, casters, receivers. A: build, clip (the map pass), uv.
            A wait for the PVR is the PVR's time: it is taken between two parts, in none of them. */
         t0 = timer_us_gettime64();
+        psm_fault_stage(&fault_crumbs, "setup");
         psm_frame_setup(&frame, &scene, &state);
         psm_place_geo(&frame, &scene);       /* the screen placement first: route B compares only the model vertices it sends */
         if (state.atmos && sky_mem) psm_sky_build(&sky, &frame, &state);   /* the band, the cap, the hills and the fog colour */
         t1 = timer_us_gettime64();
         win_us[0] += t1 - t0;
+        psm_fault_stage(&fault_crumbs, "map");
         if (state.route == PSM_ROUTE_B) {
             b_ok = psm_frame_b_begin(&frame, &scene, psm_mapbuf_depth(&mapbuf, 0u, depth_map));
             t2 = timer_us_gettime64();
             if (b_ok) psm_frame_b_casters(&frame, &scene, state.movers_only);
             t3 = timer_us_gettime64();
+            psm_fault_stage(&fault_crumbs, "compare");
             if (b_ok) psm_frame_b_receivers(&frame, &scene, &state);
             else psm_frame_unshadowed(&frame, &scene);
             win_us[1] += t2 - t1; win_us[2] += t3 - t2; win_us[3] += timer_us_gettime64() - t3;
@@ -653,6 +550,7 @@ int main(void) {
             map = psm_frame_ab_fill(&frame, &scene, &mapsrc);
             t3 = timer_us_gettime64();
             b_ok = map != NULL;
+            psm_fault_stage(&fault_crumbs, "compare");
             if (b_ok) psm_frame_ab_compare(&frame, &scene, &state, map);
             else psm_frame_unshadowed(&frame, &scene);
             win_us[2] += t3 - t1; win_us[3] += timer_us_gettime64() - t3;
@@ -670,29 +568,54 @@ int main(void) {
         }
         psm_colour(&frame, &scene);          /* the colours: this frame's, after the lit and the lookup */
         look_update();
+        {                                    /* SHED: the frame counted before it is sent; far parts dropped past 90 % */
+            uint8_t ok[PSM_HK_N];
 
+            hdr_ok_fill(ok);
+            shed_now = psm_send_plan(&sink, &frame, &scene, &state, state.atmos && sky_mem ? &sky : NULL, a_drawn, ok, PSM_TA_VBUF);
+            est_now = sink.bytes + PSM_TA_BKG;
+        }
+
+        psm_fault_stage(&fault_crumbs, "text");
         pvr_wait_ready();
-        if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text and the inset: uploaded when they changed, after the last render */
+        if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text, the inset and the fog registers: written when they changed, after the last render */
             hud_tick = 0;
             want_text = text_pending();
             want_inset = state.inset && state.route != PSM_ROUTE_A && b_ok;
-            if (want_text || want_inset) {
+            if (want_text || want_inset || look_pending) {
                 pvr_wait_render_done();
+                look_apply();
                 if (want_text) text_upload();
                 if (want_inset) inset_update();
             }
         }
+        psm_fault_stage(&fault_crumbs, "world");
+        {
+            const unsigned shed = shed_now;
+            uint8_t ok[PSM_HK_N];
+
+            memcpy(ok, sink.hdr_ok, sizeof ok);
+            psm_sink_reset(&sink, 1, 0, shed, NULL);
+            memcpy(sink.hdr_ok, ok, sizeof ok);
+        }
         pvr_scene_begin();
         pvr_list_begin(PVR_LIST_OP_POLY);
-        sky_draw();
-        ground(0);
-        models();
+        psm_send_op(&sink, &frame, &scene, state.atmos && sky_mem ? &sky : NULL);
         pvr_list_finish();
         pvr_list_begin(PVR_LIST_TR_POLY);
-        if (a_drawn) layer_v = ground(1);
-        hud(a_drawn);
+        layer_v = psm_send_tr(&sink, &frame, &scene, &state, a_drawn, frame_no);
         pvr_list_finish();
+        psm_fault_stage(&fault_crumbs, "finish");
         pvr_scene_finish();
+        ta_v += sink.verts;
+        psm_fault_counts(&fault_crumbs, sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG] + sink.kv[PSM_HK_LAYER],
+                         sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG], sink.verts - sink.kv[PSM_HK_GROUND] - sink.kv[PSM_HK_GROUND_FOG]
+                         - sink.kv[PSM_HK_LAYER] - sink.kv[PSM_HK_MODEL] - sink.kv[PSM_HK_MODEL_FOG], sink.verts - 2u * sink.strips);
+        {
+            pvr_stats_t vs;                  /* KallistiOS's own reading of the buffer: the last frame registered, the largest */
+
+            if (pvr_get_stats(&vs) == 0) { vbuf_used = (uint32_t)vs.vtx_buffer_used; vbuf_max = (uint32_t)vs.vtx_buffer_used_max; }
+        }
         if (sample) rnd_scr = render_wait();
         win_frames++;
         win_rnd_ns += rnd_rtt + rnd_scr;

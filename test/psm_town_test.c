@@ -7,8 +7,9 @@
    boxes when not; the counts printed say which). The sun on the story's day against TOWN_STORY.md's table; the mesh (strips,
    casters in objects, movers); the cast's walks and the hens; the clock, the presets and the pad; the walk; the caster cull
    against the map's square (a culled object draws no texel: the map with the cull is the map without it, byte for byte; the
-   tower out of view is kept and shades); the fit's slab by route; the receivers on the sent vertices only; the vertices a
-   frame against the buffer; the readout. Nothing here is a console measurement.
+   tower out of view is kept and shades); the fit's slab by route; the receivers on the sent vertices only; the vertices and the
+   TA's parameter bytes a frame through psm_dc.c's own walks (psm_send.h) against the buffer, and a sweep from the a3 crash's
+   camera and over the walk area (strips, end flags, headers, coordinates, tile bins); the readout. Nothing here is a console measurement.
 */
 
 #include <math.h>
@@ -16,6 +17,7 @@
 #include <string.h>
 #include "../demo/psm/psm_scene.h"
 #include "../demo/psm/psm_sky.h"
+#include "../demo/psm/psm_send.h"
 
 static int fails;
 #define CHECK(c) do { if (!(c)) { fails++; fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
@@ -394,76 +396,186 @@ static void receivers(void) {
 }
 
 /* ---- the vertices a frame --------------------------------------------------------------------------------------- */
-static unsigned ground_verts(const psm_frame_t *f, int layer) {
-    unsigned r, c, n = 0;
+/* What psm_dc.c sends, through its own walks (demo/psm/psm_send.h): the opaque list (the air, the ground, the models), the
+   translucent one (route A's layer, the readout, the inset, the heartbeat), and route A's map pass, its own scene. The
+   bytes are the TA's parameter bytes as psm_send.h estimates them; the console's own reading is the readout's line 11. */
+static psm_sky_out_t vsky;
+static psm_bins_t vbins;
+static sh4der_psm_pvr_vtx_t vmap[SH4DER_PSM_PVR_MAX_TRIS][3];
 
-    for (r = 0; r + 1u < f->grows; r++) {
-        c = 0;
-        while (c + 1u < f->gcols) {
-            unsigned end;
+typedef struct view_count {
+    psm_sink_t k;               /* the scene at the frame's SHED */
+    uint32_t bytes0;            /* the scene at SHED 0 */
+    unsigned shed, map_v;
+    uint32_t map_bytes;
+    psm_bin_use_t bins;
+} view_count_t;
 
-            if (!psm_cell_ok(f, r, c, layer)) { c++; continue; }
-            end = psm_run_end(f, r, c, layer);
-            n += 2u * (end - c + 1u);
-            c = end;
-        }
+/* one view as psm_dc.c makes it: the setup, the placement, the air, the route's work, the colours, then the plan and the send */
+static void view_count(psm_state_t *st, view_count_t *vc, int chk) {
+    const int a = st->route == PSM_ROUTE_A;
+    uint8_t ok[PSM_HK_N];
+    psm_sink_t m;
+
+    psm_frame_setup(&frame, &scene, st);
+    psm_place_geo(&frame, &scene);
+    psm_sky_build(&vsky, &frame, st);
+    psm_frame_unshadowed(&frame, &scene);
+    memset(vc, 0, sizeof *vc);
+    if (a) {
+        psm_frame_a_casters(&frame, &scene);
+        psm_sink_reset(&m, 0, chk, 0u, NULL);
+        psm_send_map(&m, &frame, &scene, st, frame.size, vmap);
+        vc->map_v = m.verts; vc->map_bytes = m.bytes;
+        if (chk) CHECK(m.bad_short == 0u && m.bad_open == 0u && m.bad_coord == 0u);
+        psm_frame_a_ground(&frame);
     }
-    return n;
-}
+    psm_colour(&frame, &scene);
+    memset(ok, 1, sizeof ok);
+    if (!a) ok[PSM_HK_LAYER] = ok[PSM_HK_INSET_A] = 0;
+    psm_send_plan(&vc->k, &frame, &scene, st, &vsky, a, ok, PSM_TA_VBUF);
+    vc->shed = vc->k.shed;
+    if (vc->shed) {
+        psm_sink_t z;
 
-/* the model vertices psm_dc.c's models() sends: a strip a run (psm_model_run_end), a cut triangle its 3 or 4 */
-static unsigned model_verts(const psm_frame_t *f, const psm_scene_t *s) {
-    psm_cv_t cv[4];
-    unsigned i, n = 0;
+        psm_sink_reset(&z, 0, 0, 0u, NULL);
+        memcpy(z.hdr_ok, ok, sizeof ok);
+        psm_send_op(&z, &frame, &scene, &vsky);
+        psm_send_tr(&z, &frame, &scene, st, a, 0u);
+        vc->bytes0 = z.bytes + PSM_TA_BKG;
+    } else
+        vc->bytes0 = vc->k.bytes + PSM_TA_BKG;
+    if (chk) {                                        /* the frame as sent, checked: strips, ends, coordinates, the bins */
+        const unsigned shed = vc->shed;
 
-    for (i = 0; i < s->mtn; i++) {
-        if (f->mtri[i] == 2u) { n += psm_clip_near(f, s, i, cv); continue; }
-        if (f->mtri[i] != 1u) continue;
-        {
-            const unsigned e = psm_model_run_end(f, s, i);
-
-            n += e - i + 3u;
-            i = e;
-        }
+        psm_sink_reset(&vc->k, 0, 1, shed, &vbins);
+        memcpy(vc->k.hdr_ok, ok, sizeof ok);
+        psm_send_op(&vc->k, &frame, &scene, &vsky);
+        psm_send_tr(&vc->k, &frame, &scene, st, a, 0u);
+        psm_bins_use(&vbins, &vc->bins);
     }
-    return n;
 }
 
 static void budget(void) {
     psm_state_t st;
-    static psm_sky_out_t sky;
-    unsigned p, q, step, worst = 0, worst_m = 0, worst_p = 0, views = 0, tris_worst = 0, worst_sky = 0;
+    view_count_t vc;
+    unsigned p, q, step, route, views = 0, worst_v = 0, worst_sky = 0, worst_map_v = 0, sheds = 0, worst_p = 0, worst_h = 0, worst_q = 0;
+    uint32_t worst_b = 0, worst_b0 = 0;
 
-    for (p = 0; p < PSM_TOWN_PRESETS; p++)
-        for (q = 0; q < 3u; q++)
-            for (step = 0; step < 24u; step++) {
-                unsigned n, m, i, t = 0;
+    for (route = 0; route < 2u; route++)
+        for (p = 0; p < PSM_TOWN_PRESETS; p++)
+            for (q = 0; q < 3u; q++)
+                for (step = 0; step < 24u; step++) {
+                    psm_state_town(&st);
+                    psm_town_preset_set(&st, p);
+                    st.route = (int)route;
+                    st.pitch = q == 0u ? st.pitch : q == 1u ? -PSM_PITCH_UP : PSM_PITCH_DOWN;
+                    st.yaw = (float)step * 0.261799f;
+                    psm_town_update(&scene, &st, 0.0f);
+                    view_count(&st, &vc, 0);
+                    if (vsky.n_band + vsky.n_cap + vsky.n_hill > worst_sky) worst_sky = vsky.n_band + vsky.n_cap + vsky.n_hill;
+                    if (vc.k.verts > worst_v) worst_v = vc.k.verts;
+                    if (vc.bytes0 > worst_b0) { worst_b0 = vc.bytes0; worst_p = p; worst_h = step * 15u; worst_q = q; }
+                    if (vc.k.bytes + PSM_TA_BKG > worst_b) worst_b = vc.k.bytes + PSM_TA_BKG;
+                    if (vc.map_v > worst_map_v) worst_map_v = vc.map_v;
+                    sheds += vc.shed != 0u;
+                    views++;
+                }
+    printf("  a frame through psm_dc.c's walks, %u views (2 routes x 6 presets x 3 pitches x 24 headings): at most %u vertices, the TA's"
+           " parameters (estimate) %u KB with nothing shed (preset %u, hdg %u, pitch row %u), %u KB as sent, %u views shed; the air %u"
+           " vertices at most; route A's map pass (its own scene) %u vertices at most; buffer %u KB, SHED past %u KB\n",
+           views, worst_v, (unsigned)(worst_b0 / 1024u), worst_p, worst_h, worst_q, (unsigned)(worst_b / 1024u), sheds, worst_sky, worst_map_v,
+           PSM_TA_VBUF / 1024u, (unsigned)(PSM_TA_VBUF * PSM_TA_SHARE / 1024.0f));
+    CHECK(worst_b <= (uint32_t)(PSM_TA_VBUF * PSM_TA_SHARE) && worst_sky < PSM_SKY_OUT_MAX);
+}
 
-                psm_state_town(&st);
-                psm_town_preset_set(&st, p);
-                st.warp = 1;
-                st.pitch = q == 0u ? st.pitch : q == 1u ? -PSM_PITCH_UP : PSM_PITCH_DOWN;
-                st.yaw = (float)step * 0.261799f;
-                psm_town_update(&scene, &st, 0.0f);
-                psm_frame_setup(&frame, &scene, &st);
-                psm_frame_unshadowed(&frame, &scene);
-                psm_frame_a_ground(&frame);
-                psm_place(&frame, &scene);
-                m = model_verts(&frame, &scene);
-                for (i = 0; i < scene.mtn; i++) t += frame.mtri[i] != 0u;
-                psm_sky_build(&sky, &frame, &st);
-                n = ground_verts(&frame, 0) + ground_verts(&frame, 1) + m + 4u * (2u * PSM_HUD_LINES + 1u);
-                n += sky.n_band + sky.n_cap + sky.n_hill;                       /* the air (state atmos, the town's default) */
-                if (sky.n_band + sky.n_cap + sky.n_hill > worst_sky) worst_sky = sky.n_band + sky.n_cap + sky.n_hill;
-                if (n > worst) { worst = n; worst_p = p; }
-                if (m > worst_m) worst_m = m;
-                if (t > tris_worst) tris_worst = t;
-                views++;
+/* The a3 crash's camera (the owner's photo: route A, MAP 256 UNIFORM, 14:00, DIST INF, CAM x -1.7 z -11.8 story, so world
+   z 11.8, hdg 337, pitch -10 on the readout) turned through 360 degrees a degree at a time, at readout pitches -10, 0 and +20:
+   every strip of 3 or more vertices with its end flag, no header inside a strip or without a vertex (psm_send.h sends a
+   header with its first vertex), every coordinate finite and in front, the frame under PSM_TA_SHARE of the buffer as sent,
+   the tile bins inside KallistiOS's overflow pool. Then the walk area on a 4 m grid, 12 headings, the same three pitches. */
+static void sweep(void) {
+    static const int pitch_deg[3] = { -10, 0, 20 };
+    psm_state_t st;
+    view_count_t vc;
+    unsigned q, h, bad = 0, views = 0, sheds = 0, worst_h = 0, worst_q = 0, worst_v = 0, worst_tile[2] = { 0, 0 }, worst_extra = 0, pool = 0;
+    uint32_t worst_b0 = 0, worst_b = 0;
+    float worst_xy = 0.0f, x, z;
+
+    for (q = 0; q < 3u; q++)
+        for (h = 0; h < 360u; h++) {
+            psm_state_town(&st);
+            st.route = PSM_ROUTE_A; st.warp = 0;
+            st.x = -1.7f; st.z = 11.8f;
+            st.yaw = (float)h * 0.01745329f;
+            st.pitch = -(float)pitch_deg[q] * 0.01745329f;
+            psm_town_update(&scene, &st, 0.0f);
+            view_count(&st, &vc, 1);
+            bad += vc.k.bad_short + vc.k.bad_open + vc.k.bad_coord + (vc.k.hdrs > vc.k.strips);
+            bad += vc.k.bytes + PSM_TA_BKG > (uint32_t)(PSM_TA_VBUF * PSM_TA_SHARE);
+            bad += vc.bins.extra_blocks > vc.bins.pool_blocks;
+            sheds += vc.shed != 0u;
+            if (vc.bytes0 > worst_b0) { worst_b0 = vc.bytes0; worst_h = h; worst_q = q; }
+            if (vc.k.bytes + PSM_TA_BKG > worst_b) worst_b = vc.k.bytes + PSM_TA_BKG;
+            if (vc.k.verts > worst_v) worst_v = vc.k.verts;
+            if (vc.k.max_xy > worst_xy) worst_xy = vc.k.max_xy;
+            if (vc.bins.worst_tile[0] > worst_tile[0]) worst_tile[0] = vc.bins.worst_tile[0];
+            if (vc.bins.worst_tile[1] > worst_tile[1]) worst_tile[1] = vc.bins.worst_tile[1];
+            if (vc.bins.extra_blocks > worst_extra) worst_extra = vc.bins.extra_blocks;
+            pool = vc.bins.pool_blocks;
+            if (h == 337u && q == 0u)
+                printf("  the a3 view (hdg 337, pitch -10, route A uniform): %u vertices (ground %u, layer %u, models %u, air %u, text %u),"
+                       " %u strips; the TA's parameters %u KB (estimate) of %u, SHED %u; map pass %u vertices %u KB\n", vc.k.verts,
+                       vc.k.kv[PSM_HK_GROUND] + vc.k.kv[PSM_HK_GROUND_FOG], vc.k.kv[PSM_HK_LAYER], vc.k.kv[PSM_HK_MODEL] + vc.k.kv[PSM_HK_MODEL_FOG],
+                       vc.k.kv[PSM_HK_SKY] + vc.k.kv[PSM_HK_SKYCOL], vc.k.kv[PSM_HK_TEXT] + vc.k.kv[PSM_HK_DIM] + vc.k.kv[PSM_HK_INSET_A],
+                       vc.k.strips, (unsigned)((vc.k.bytes + PSM_TA_BKG) / 1024u), PSM_TA_VBUF / 1024u, vc.shed, vc.map_v, (unsigned)(vc.map_bytes / 1024u));
+            views++;
+        }
+    printf("  sweep from the a3 camera, %u views (360 headings x pitch -10, 0, +20): %u faults; at most %u vertices; the TA's parameters"
+           " %u KB with nothing shed (hdg %u, pitch %d), %u KB as sent, %u views shed; largest |x| or |y| sent %.0f; tile bins at most %u"
+           " (opaque) and %u (translucent) entries in one tile, %u of %u overflow blocks\n", views, bad, worst_v, (unsigned)(worst_b0 / 1024u),
+           worst_h, pitch_deg[worst_q], (unsigned)(worst_b / 1024u), sheds, worst_xy, worst_tile[0], worst_tile[1], worst_extra, pool);
+    CHECK(bad == 0u);
+
+    views = 0; bad = 0; sheds = 0; worst_b0 = 0; worst_b = 0; worst_extra = 0;
+    {
+        float wx = 0.0f, wz = 0.0f;
+        unsigned wh = 0, wq = 0;
+
+        for (x = scene.x0; x <= scene.x1; x += 4.0f)
+            for (z = scene.z0; z <= scene.z1; z += 4.0f) {
+                unsigned o, inside = 0;
+
+                for (o = 0; o < scene.obn; o++) {
+                    const float dx = x - scene.obst[o][0], dz = z - scene.obst[o][1];
+
+                    inside |= dx * dx + dz * dz < scene.obst[o][2] * scene.obst[o][2];
+                }
+                if (inside) continue;
+                for (q = 0; q < 3u; q++)
+                    for (h = 0; h < 360u; h += 30u) {
+                        psm_state_town(&st);
+                        st.route = PSM_ROUTE_A;
+                        st.x = x; st.z = z;
+                        st.yaw = (float)h * 0.01745329f;
+                        st.pitch = -(float)pitch_deg[q] * 0.01745329f;
+                        psm_town_update(&scene, &st, 0.0f);
+                        view_count(&st, &vc, 1);
+                        bad += vc.k.bad_short + vc.k.bad_open + vc.k.bad_coord + (vc.k.hdrs > vc.k.strips);
+                        bad += vc.k.bytes + PSM_TA_BKG > (uint32_t)(PSM_TA_VBUF * PSM_TA_SHARE);
+                        bad += vc.bins.extra_blocks > vc.bins.pool_blocks;
+                        sheds += vc.shed != 0u;
+                        if (vc.bytes0 > worst_b0) { worst_b0 = vc.bytes0; wx = x; wz = z; wh = h; wq = q; }
+                        if (vc.k.bytes + PSM_TA_BKG > worst_b) worst_b = vc.k.bytes + PSM_TA_BKG;
+                        if (vc.bins.extra_blocks > worst_extra) worst_extra = vc.bins.extra_blocks;
+                        views++;
+                    }
             }
-    printf("  vertices a frame, worst of %u views (6 presets x 3 pitches x 24 headings, route A's layer and the air counted): %u (models %u at most,"
-           " %u model triangles at most, the air %u at most) of %u (%u KB at 32 B); worst at preset %u\n", views, worst, worst_m, tris_worst,
-           worst_sky, PSM_VTX_BUDGET, worst * 32u / 1024u, worst_p);
-    CHECK(worst < PSM_VTX_BUDGET && worst_sky < PSM_SKY_OUT_MAX);
+        printf("  the walk area on a 4 m grid, %u views (12 headings x 3 pitches, route A): %u faults; the TA's parameters %u KB with"
+               " nothing shed (story x %.0f z %.0f, hdg %u, pitch %d), %u KB as sent, %u views shed; %u of %u overflow bin blocks at most\n",
+               views, bad, (unsigned)(worst_b0 / 1024u), wx, -wz, wh, pitch_deg[wq], (unsigned)(worst_b / 1024u), sheds, worst_extra, pool);
+    }
+    CHECK(bad == 0u);
 }
 
 /* ---- the air: the quadratic fog, the band, the cap and the hills --------------------------------------------------- */
@@ -590,6 +702,7 @@ int main(void) {
     cull();
     receivers();
     budget();
+    sweep();
     air();
     readout();
     if (fails) { printf("psm_town_test: %d FAILED\n", fails); return 1; }
