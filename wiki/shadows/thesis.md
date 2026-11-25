@@ -9,7 +9,7 @@ sources: [demo/psm/THESIS_SH4_SHADOWS.md, demo/psm/GPU_GEMS_NOTES.md]
 **What you will learn:** the idea in `demo/psm/THESIS_SH4_SHADOWS.md`, its predictions, and which have evidence.
 **For:** anyone deciding whether to build it, and anyone writing a test for it.
 
-**Status:** a design document, draft of 2026-11-25 (`THESIS_SH4_SHADOWS.md:3`). Its ray bench, ray1, ran on one console on 2026-11-25 and tested P1, P2 and P9 ([SH-4 ledger](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9), SH4-051 to SH4-055). The rest of the design is not built.
+**Status:** a design document, draft of 2026-11-25 (`THESIS_SH4_SHADOWS.md:3`). Its ray bench ran twice on one console on 2026-11-25, ray1 and ray2, and tested P1, P2 and P9 ([SH-4 ledger](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9), SH4-051 to SH4-055; [ray2](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test), SH4-056 to SH4-066). ray2 also measured the ray-triangle test that the exact-triangle part needs: 33 cycles a test prepared for the sun, 62 for any direction (SH4-066). The rest of the design is not built.
 
 ## The idea, in plain words
 
@@ -34,15 +34,15 @@ These rest on the step and set-up costs that ray1 overturned (P1 below; errata O
 
 | # | Prediction | Test | Evidence |
 |---|---|---|---|
-| P1 | One grid step costs 12-16 cycles; set-up about 30 | bench | **overturned** by ray1 (one run): about 22 cycles a step and 71 to 74 to set up, on both suns and both grids (SH4-052) |
-| P2 | One batch keeps the grid in the cache | bench | **mixed** (ray1, one run): batching beats interleaving with the vertex transform by 89 to 117 cycles a ray (SH4-053); the predicted cold cost of at most 18 us was 46 to 47 us (the other purged arrays may hold the rest, ESTIMATE); OC-RAM made the interleaved slice slower (SH4-054). The stand-ins cost less at 16:00 than at 14:00, so 5.9's 16:00 figure is untested (Q63) |
+| P1 | One grid step costs 12-16 cycles; set-up about 30 | bench | **overturned** by ray1 and again by ray2 (two runs, twelve fits): 22.07 to 22.21 cycles a step and 70.88 to 76.04 to set up, on both suns and both grids (SH4-052, SH4-059) |
+| P2 | One batch keeps the grid in the cache | bench | **mixed** (ray1 and ray2): batching beats interleaving with the vertex transform by 89 to 164 cycles a ray, a spread between the runs that is OPEN (SH4-053, SH4-062, Q68); the predicted cold cost of at most 18 us was 46 to 47 us in both runs (the other purged arrays may hold the rest, ESTIMATE), and 0 with the grid in OC-RAM; OC-RAM made the interleaved slice slower in both runs (SH4-054, SH4-063). The stand-ins cost less at 16:00 than at 14:00, so 5.9's 16:00 figure is untested (Q63) |
 | P3 | A 2 ms slice follows a sun at ×60 at 14:00 but not 16:00 | console | none |
 | P4 | The interval variant matches a fresh ray cast | host, then console | none |
 | P5 | It agrees with route B's `lit_plane` | host | none |
 | P6 | A step-texture overlay draws an edge at half lit | console | none |
 | P7 | Punch-through does not threshold vertex alpha | console | **overturned** by spike c4 test 6 (one run): vertex alpha 128 drew 2,048 of 32,768, so the tested alpha is texture × vertex (PVR-064). c1's "every pixel drawn" was the ONE/ZERO blend (PVR-061), not a sign about vertex alpha |
 | P8 | Culling unseen groups saves time in proportion to their share | host, console | none |
-| P9 | Proxies for 8 people and 4 hens cost less than one slice | bench | **stands** (ray1, one run): 312 us a pass, 15.6 % of a 2 ms slice; but 137.87 cycles a pair, above the thesis's 15 to 100 (SH4-055, errata O12) |
+| P9 | Proxies for 8 people and 4 hens cost less than one slice | bench | **stands** (ray1 and ray2): 312 us a pass, 15.6 % of a 2 ms slice; but 137.80 to 137.87 cycles a pair, above the thesis's 15 to 100 (SH4-055, SH4-064, errata O12) |
 | P10 | The frame model explains the town HUD's frame rate | console | none |
 
 The bench that tests P1, P2 and P9:

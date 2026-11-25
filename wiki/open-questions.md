@@ -30,6 +30,7 @@ Each item names the page it comes from. When a test settles one, move the answer
 | Q54 | Use a tile list cut to a target's covered tiles in the library's target passes (saves 2.9 ms on a 128 × 128 map in c4) | Build it into a target pass and time it | PVR-092, PVR-093 |
 | Q55 | Town TOWN-001 (a3 HUD): the photo's file name | Owner gives it; until then it is MEASURED by relay | errata O5 |
 | Q10 | Town TA line: why KOS's "last frame" reads 56 K to 966 K for the same view | Log `pvr_get_stats` beside the estimate each frame | VID-011 |
+| Q66 | Town: the HUD is missing at the TOWN-001 start view (the busiest view) until the camera moves, in every town image (owner's report via lead, 2026-11-25; seen, no photo). Candidates, none tested: (1) the TA vertex buffer full, so the end of the translucent list is lost, and the text is sent last in it with autosort off (`demo/psm/psm_dc.c:531`); KOS's largest frame read 100 % of the 1,024 KB buffer in every town photo while the demo's estimate read 68 % (VID-011); (2) the tile-bin overflow pool used up (`opb_overflow_count` 4, `demo/psm/psm_send.h:53`), so the last polygons in busy tiles are dropped; (3) the text texture not uploaded at boot (it is written only when the lines change, every 20 frames, `psm_dc.c:622-631`). May share a cause with the crash (TOWN-004, TOWN-009, Q33b) | At the start view, log over serial each frame: the estimate, `pvr_get_stats` used and largest, the text's vertex count, SHED. Then, at the same view, one change at a time: the text sent first in the translucent list; SHED 3 forced (route A's layer dropped); the vertex buffer raised to 1,536 KB; `opb_overflow_count` raised to 8. The HUD back with a change names the cause | VID-011, K6, TOWN-001, TOWN-009 |
 
 
 Q53 in one picture:
@@ -62,9 +63,9 @@ Q53 in one picture:
 | Q25 | h1's 43.2 MB/s memcpy | Rerun h1's exact placing | SH4-034 |
 | Q26 | Plain C 4 × 4 against `mat_transform` on a clean placing | Bench line | SH4-024 |
 | Q27 | SH4ZAM trig accuracy on the console's own back end | The trig probe on a console | SH4-019 |
-| Q61 | ray1's CLOCK.2 printed about 1.03 GHz (1,027,528 cycles in 1,000,320 ns) on a stock 200 MHz console: a bench reading artefact, not a hardware fact. Which read is wrong, and why? Do not use the figure | Read `bench_ray.c`'s CLOCK.2 against SH4-001's method; rerun CLOCK | SH4-051 |
-| Q62 | ray1's ns column disagrees with its cycles on P1.4 n 48 (+10.8 %) and P1.2 n 12 (+611 ns); every other row agrees within 0.01 %. No ray1 ns figure is ledgered until this is settled | Repeat P1.4 (and P1.2) | SH4-051 |
-| Q63 | ray1's slice of 1,024 stand-in receivers cost less at 16:00 than at 14:00 (539.68 against 554.19 cycles a ray), where the thesis expects about twice. What is the stand-ins' mean n at each sun, and what is the town's real receivers' mean n at 16:00? | Host count of the mean n for the same 1,024 stand-ins, then for the town's vertices | SH4-053, errata O11 |
+| Q67 | ray2: the clock read pair at the start of a timed row (gap a) takes 1,200 to 1,600 ns, at the end (gap b) 800 to 1,200 ns. Why is gap a about 400 ns longer? | Time each read alone, then the pair in both orders, with the cycle counter | SH4-061 |
+| Q68 | The same rays and the same slice spread from run to run: P1.2a / b / c up to 2.3 % (SH4-060); the interleaved slice 1.7 to 2.2 % longer in ray2 than in ray1, the interleaving extra 117 / 89 → 164 / 132 cycles a ray (SH4-062). Placing of the two images, interrupts, or the cache's state? | Count interrupts in the timed run; compare the two images' map files (array addresses modulo 16 KB); run one image twice from a cold boot | SH4-060, SH4-062 |
+| Q63 | ray1's slice of 1,024 stand-in receivers cost less at 16:00 than at 14:00 (539.68 against 554.19 cycles a ray; ray2 the same, 539.57 against 554.27, SH4-062), where the thesis expects about twice. What is the stand-ins' mean n at each sun, and what is the town's real receivers' mean n at 16:00? | Host count of the mean n for the same 1,024 stand-ins, then for the town's vertices | SH4-053, errata O11 |
 
 ## 4. Sound chip
 

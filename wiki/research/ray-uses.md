@@ -6,7 +6,7 @@ sources: [wiki/hardware/ledger-sh4.md, wiki/hardware/ledger-aica.md, wiki/resear
 ---
 # Ray uses beyond shadows
 
-**What you will learn:** what else the town's grid rays can do besides sun shadows: sound, AI sight, culling, picking, projectiles, ground probes, wind and occlusion. For each use: how many rays a frame it needs, what that costs by our measured ray rows, what the sound chip side needs, and the test that would prove it.
+**What you will learn:** what else the town's grid rays can do besides sun shadows: sound, AI sight, culling, picking, projectiles, ground probes, wind and occlusion. For each use: how many rays a frame it needs, what that costs by our measured ray and ray-triangle rows, what the sound chip side needs, and the test that would prove it.
 **For:** anyone planning the game side of a scene that already has the height grid, and the owner choosing the next ray spike. Research, not a recipe.
 
 **Status: ideas only.** Nothing on this page was built or run as a use. Every cost is **DERIVED** (arithmetic on MEASURED rows) and every use is **ESTIMATE** or **OPEN** until it has its own console row.
@@ -18,6 +18,8 @@ sources: [wiki/hardware/ledger-sh4.md, wiki/hardware/ledger-aica.md, wiki/resear
 | [SH4-052](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9) | A ray through the 64 × 64 byte grid, in the cache: about 22 cycles a cell (C_step 22.07 to 22.21) and 71 to 74 to set up a ray. Whole rays: n 1 = 94, n 8 = 248, n 24 = 602, n 48 = 1,133, n 64 = 1,486 cycles | **ray(n) ≈ 74 + 22.2 n cycles**; the whole-ray figures where n matches |
 | [SH4-053](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9) | A slice of 1,024 receivers batched: 540 to 563 cycles a ray; a cold grid adds 46 to 47 us a slice; mixing the rays into the vertex transform adds 89 to 117 cycles a ray | The cost of a sun ray from a real receiver; the cold-start and mixing penalties |
 | [SH4-055](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9) | Receiver against character proxy: 137.87 cycles a pair with early outs | Tests against movers, which the grid does not hold |
+| [SH4-059](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test) | ray2's repeat of the grid walk: eight more fits, C_step 22.09 to 22.20, C_setup 70.99 to 76.04 | The same line holds over two runs |
+| [SH4-066](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test) | A ray against a triangle, no divide, 96 triangles in the cache: 33.16 cycles a test prepared for one direction, 62.49 any direction, with early outs | Group D |
 
 The grid ([`ray_kernels.h:8-13`](../../demo/psm/bench/ray_kernels.h)): 64 × 64 cells of 1.5 m (96 m a side), one byte of caster height a cell in steps of 28 m / 255 (`TOWN_RAY_H`, the tower's roof, [`town_ray_data.h:19`](../../demo/psm/town_ray_data.h)). A rising ray stops when it clears 28 m or leaves the grid. The cell test is conservative: a cell blocks if its height is above the ray's height where the ray enters it. At 200 MHz, 1 ms is 200,000 cycles.
 
@@ -60,11 +62,29 @@ These rays run from one point to another (an eye to a target, a source to a list
 |---|---|---|---|---|---|---|---|---|
 | RU12 | **Footstep and ground probes** | The ground height under a foot (and, with a second byte grid, the material: cobbles, grass, snow). Footstep sound choice, foot placement, a dust puff | 12 movers × 2 feet = 24 | 24 × 94 = 2,256, an upper bound (a whole 1-cell ray, SH4-052) | 0.011 | A key-on a step: the sample by material, level and pan from RU7 | Host: heights under a walk against the grid; the material grid is a new table, not measured | ESTIMATE |
 
+## Group D: rays against triangles (ray2's test)
+
+ray2 timed a shadow ray against triangles with no divide ([SH4-066](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test)): **33.16 cycles a test** when every ray shares one direction and each triangle is prepared once for it (64 bytes a triangle), **62.49** for any direction, both with early outs and 96 triangles in the cache. Triangles hold what the grid cannot: overhangs, arches, inside spaces, movers' own shapes. A ray's cost is its tests × the cycles a test. How many triangles a ray must test depends on bins that are not built or measured; the town's host count is 18 tests for a model vertex's ray (TOWN-060), and the bench's own scene 89.2. All rows ESTIMATE.
+
+| # | Use | What it gives | Rays a frame | Tests a ray | Cycles a frame (DERIVED) | ms | Sound chip side | Test that would prove it | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| RU13 | **Picking and aim against a mover's mesh** | The exact part hit (head, arm, a hen's wing), after the grid (RU9) and a bounding sphere say the ray is near | 1 to 2 | ≤ 100 (a whole small mesh) | 2 × 100 × 62.49 = 12,498 | 0.062 | A hit sound by part | Host: the part hit against a reference; console timed | ESTIMATE |
+| RU14 | **Bullets against movers' meshes** | Hits on people and hens, which the grid does not hold; the grid (RU10) handles buildings | 32 near a mover | 18 | 32 × 18 × 62.49 = 35,994 | 0.18 | As RU10 | Host: hits against a reference stepper | ESTIMATE |
+| RU15 | **Sound occlusion with triangles** | RU7 inside spaces, under arches and overhangs, through a doorway: what the height grid gets wrong | 16 sources × 3 at 15 Hz | 18 | 48 × 18 × 62.49 = 53,991; 13,498 a frame over 4 frames | 0.27; 0.067 a frame | As RU7 | As RU7, in a scene with an arch or a room | ESTIMATE |
+| RU16 | **Rain and snow cover** (prepared form) | Which ground points lie under eaves, awnings and arches: dry patches in rain, bare ground in snow, no splashes there. Rain falls in one direction, so every ray shares it, as the sun's do. Feeds the deform grid (`sh4der_deform.h`: snow only where it falls), a wet-ground darkening, and splash spawns (sparks, motes) | 0 a frame; 6,305 ground points (TOWN-066) at load or when the wind turns the rain | 18 | 6,305 × 18 × 33.16 = 3.76 M once | 18.8 once | Rain on a roof against rain on the ground: two loops, a level each by cover under the listener | Host: the cover map against a picture of the town; the bake timed once on a console | ESTIMATE |
+| RU17 | **Static lamp occlusion** | A street lamp's pool (`sh4der_pool.h`) cut by a wall or a cart: rays from ground points to the lamp. Every ray has its own direction, so any-direction tests; a static lamp and static casters bake once | 0 a frame; 200 ground points a lamp at load | 18 | 200 × 18 × 62.49 = 225k a lamp | 1.1 a lamp, once | — | Host picture; one lamp's bake timed | ESTIMATE |
+
+**What triangles do not pay for.** Contact darkening round a mover from its own triangles: 18 tests × 33.16 = 597 cycles a receiver, against 137.80 for a receiver-proxy pair ([SH4-064](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test)). Keep the proxies for movers (X6, [X10](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25)); use triangles for static shapes the grid cannot hold.
+
+**The bake.** The sun bake (TOWN-063) moves from an assumed 50 cycles a test to 33.16 measured with the prepared form: about 28 ms a sun with the proxies' test count, 96 ms with the screen mesh's (host counts; `RAY2_RESULTS_junior.md:116-133`). Rain has its own direction, so RU16 prepares the triangles again: the unit of work is one prepare a direction, shared by every use with that direction.
+
+**Caveat.** 33 and 62 cycles are for 96 triangles in the cache. The town's 1,162 triangles prepared are 74 KB, more than the 16 KB operand cache: bin them and keep a ray's bins together, or measure the misses (TOWN-085).
+
 ## A frame of game rays, added up
 
 One frame of a game that runs RU1, RU7, RU8, RU9, RU10 (projectiles), RU6 and RU12 together, all from the rows above: 2,412 + 17,832 + 11,888 + 2,972 + 5,210 + 6,756 + 2,256 = **49,326 cycles, about 0.25 ms** (DERIVED, ESTIMATE). Add a cold start of at most about 0.05 ms (SH4-053). That is 0.44 % of the town's 55.6 ms frame at 18 fps ([PVR-108](../hardware/ledger-pvr.md#town-scene-hud-photos)) and 1.5 % of a 16.7 ms frame at 60 fps. RU11's culling adds up to 0.48 ms; RU3 to RU5 are the shading uses and have their own budgets.
 
-Where to run them: batched in one block, not mixed into the vertex transform (mixing cost 89 to 117 cycles a ray, SH4-053; [X9](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25)). If the render-done wait can be cut ([X4](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25), [Q53](../open-questions.md)), they fit in that gap.
+Where to run them: batched in one block, not mixed into the vertex transform (mixing cost 89 to 164 cycles a ray over two runs, SH4-053, SH4-062; [X9](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25)). If the render-done wait can be cut ([X4](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25), [Q53](../open-questions.md)), they fit in that gap.
 
 ## The sound chip side
 

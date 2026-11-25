@@ -202,11 +202,20 @@ Each console result is checked for uses beyond the question it answered. Every i
 | X11 | **A sun projector fitted by the PSM** | Cloud shadows crossing the town, a leaf or window pattern from the sun, with even detail near and far | PVR-113 (PSM map: 3.3 / 2.2 / 1.8 / 1.6 texels a pixel at 4 / 10 / 25 / 60 m), PVR-112 (uniform: 29.1 / 8.2 / 2.2 / 0.6) | `sh4der_psm.h`'s warped matrix and `sh4der_psm_pvr_uv` per vertex project a pattern texture; one multiply layer over the receivers (3.1 ms full screen, PVR-002) | The per-vertex coordinate error (`sh4der_psm_pvr_uv_error`) on the town's ground cells is OPEN | ESTIMATE |
 | X12 | **A placing pool for every effect buffer** | Any effect with a source and a destination array: ocean, pl4nar lookup, sss, mist | SH4-048 (the projection 2.2 times faster once its arrays were placed apart), SH4-031, SH4-032 | One pool with offsets that are never a multiple of 16 KB apart, checked at build time as c4b does | Time one effect before and after | ESTIMATE |
 
+From ray2 (2026-11-25):
+
+| # | Idea | What it is for | Rests on (MEASURED) | Mechanism and cost (arithmetic) | Test | Status |
+|---|---|---|---|---|---|---|
+| X13 | **One prepared direction for every parallel-ray effect** | The sun bake, rain and snow cover (dry under eaves, bare under arches), a fixed key light's shadows on static props, wind shelter against triangles | SH4-066 (33.16 cycles a test prepared for one direction, against 62.49 for any) | Every ray sharing a direction gets the prepared form: work out the direction's part once a triangle (64 bytes), keep it while the direction holds. Rain cover over the town's 6,305 ground points: about 18.8 ms once ([ray uses](ray-uses.md) RU16) | Host cover map; one bake timed | ESTIMATE |
+| X14 | **Pace animation and sound by the cycle counter or the vblank, not the KOS ns/us clock** | Smooth panning, audio scheduling, replays, input timing | SH4-057 (the ns clock jumps 2,502,321 ns at each reload, about once a second) | The demos take each frame's dt from `timer_us_gettime64` (`demo/main.c:916-920`, `demo/cloudvolume.c:685-688`). If that clock shares the step (ESTIMATE: it reads the same timer), one frame a second gets a dt 2.5 ms long, a 15 % longer step at 60 fps: a faint judder once a second | Log dt each frame over 10 s on a console; look for a +2.5 ms frame once a second | OPEN |
+| X15 | **Triangles only where the grid fails** | Picking a mover's part, bullets on movers, sound through arches and rooms, a lamp's pool cut by a wall | SH4-066, SH4-064 | Grid first (22 cycles a cell), triangles after (33 to 62 a test), proxies for movers (138 a pair, cheaper than their triangles). [ray uses](ray-uses.md) RU13 to RU17 | As each RU row | ESTIMATE |
+
 **Results with no use found elsewhere** (dead ends kept on record):
 
 - OC-RAM for a grid (SH4-054): slower once vertices run beside it, and warm it was 0.9-1.1 % slower even alone. It only removes a 46 us cold start.
-- The dce batch transform (SH4-050): slower than `mat_transform` for every mesh.
-- ray1's clock lines (SH4-051): a bench artefact.
+- The dce batch transform (SH4-050, SH4-065): slower than `mat_transform` for every mesh, in both runs.
+- ray1's clock lines (SH4-051): a bench artefact, explained by ray2 (SH4-056, SH4-057); the explanation itself gave X14.
+- OC-RAM in ray2 (SH4-063): a cold grid costs 0 there, but nothing else uses that yet.
 - c4b's slower band cut (SH4-049): no lesson until its cause is known (Q64).
 
 ## What to test first

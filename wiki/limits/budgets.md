@@ -34,11 +34,13 @@ A frame can be longer than its work. In the c4 live view most of the frame was w
 | SH-4 → TA: one vertex by `pvr_prim` | 260 ns | BUS-001 |
 | SH-4 → TA: one vertex in a store-queue run | 142 ns | BUS-003 |
 | SH-4: `mat_transform`, a vertex in the cache | 13.16 cycles (0.066 us) | SH4-020 |
-| SH-4: `mat_transform` with 1/w, out of the cache | 42.86 cycles | SH4-050 |
+| SH-4: `mat_transform` with 1/w, out of the cache | 42.86 cycles (two runs) | SH4-050, SH4-065 |
 | SH-4: `shz_dce_pvr_project`, a vertex in the cache | 21.15 cycles | SH4-023 |
 | SH-4: `shz_dce_pvr_project`, arrays too large for the cache, placed apart | 58.1 to 61.7 cycles | SH4-023, SH4-048 |
-| SH-4: a ray through a 64 × 64 height grid in the cache | about 22 cycles a cell + 71 to 74 a ray | SH4-052 |
-| SH-4: a moving proxy against one receiver, with early outs | 137.87 cycles | SH4-055 |
+| SH-4: a ray through a 64 × 64 height grid in the cache | about 22 cycles a cell + 71 to 76 a ray (two runs) | SH4-052, SH4-059 |
+| SH-4: a moving proxy against one receiver, with early outs | 137.80 to 137.87 cycles (two runs) | SH4-055, SH4-064 |
+| SH-4: a ray against a triangle, in the cache, early outs | 33.16 cycles prepared for one direction; 62.49 any direction | SH4-066 |
+| SH-4: one `timer_ns_gettime64` call | 92 cycles | SH4-056 |
 | SH-4: copy 1 MB, store queue | 6.98 ms (150 MB/s) | SH4-030 |
 | Upload 512 KB texture, ch2 DMA | 1.05 ms | BUS-011 |
 | Video memory → RAM, 32 KB, PVR-DMA | 0.87 ms | BUS-021 |
