@@ -27,6 +27,7 @@
 #ifndef AB_MODEL_H
 #define AB_MODEL_H
 
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -262,6 +263,30 @@ static inline unsigned ab_best_offset(const ab_test_t *t, int bits, const uint16
         }
     }
     return best;
+}
+
+/* ---- a caster stand-in (s3's cost test, s4's send and render tests) ----------------- */
+
+#define AB_BALL_STACKS 20u
+#define AB_BALL_SEGS 23u
+#define AB_BALL_STRIP (2u * (AB_BALL_SEGS + 1u))          /* vertices a strip: 48, 46 triangles */
+#define AB_BALL_VERTS (AB_BALL_STACKS * AB_BALL_STRIP)    /* 960 */
+#define AB_BALL_TRIS (AB_BALL_STACKS * (AB_BALL_STRIP - 2u))   /* 920, the cow's count in the demo */
+
+/* Vertex i (0 .. AB_BALL_VERTS - 1) of a ball in the middle of a size x size target, radius `frac` x size: 20 strips
+   of 46 triangles round it, ring by ring. The rings stop short of the poles and the columns are a quarter step off the axis, so no triangle is without area on the target (s3's ball had 40 that were edge-on). Its
+   depth k runs 0.3 .. 0.7 and its texture coordinate is u = 0.25 / k (the 16-bit ramp: v = 1024 u). Front and back are
+   both there, as a caster's are. Returns 1 when the vertex ends its strip. */
+static inline int ab_ball_vertex(unsigned i, unsigned size, float frac, float xyz[3], float uv[2]) {
+    const unsigned st = i / AB_BALL_STRIP, j = i % AB_BALL_STRIP, sg = j / 2u, e = j & 1u;
+    const float c = 0.5f * (float)size, rad = frac * (float)size;
+    const float phi = 6.2831853f * ((float)sg + 0.25f) / (float)AB_BALL_SEGS;   /* a quarter step off: no two columns line up on the target */
+    const float th = 3.1415927f * (0.08f + 0.84f * (float)(st + 1u - e) / (float)AB_BALL_STACKS);
+    const float k = 0.5f + 0.2f * sinf(th) * sinf(phi), u = 0.25f / k;
+
+    xyz[0] = c + rad * sinf(th) * cosf(phi); xyz[1] = c + rad * cosf(th); xyz[2] = k;
+    uv[0] = u; uv[1] = u * (float)AB_RAMP_W;
+    return j == AB_BALL_STRIP - 1u;
 }
 
 #endif /* AB_MODEL_H */

@@ -144,6 +144,39 @@ static void precision(void) {
     CHECK(st.bad == 0u);
 }
 
+/* The ball (s4): 20 strips of 48 vertices, 920 triangles, inside the target, depth and ramp coordinate in range, no
+   two neighbours of a strip in one place, and most of its triangles with area on the target */
+static void ball(void) {
+    static const unsigned sizes[2] = { 128u, 256u };
+    static const float fracs[2] = { 0.3f, 0.15f };
+    unsigned s, f, i, ends, flat;
+
+    CHECK(AB_BALL_VERTS == 960u && AB_BALL_TRIS == 920u);
+    for (s = 0; s < 2u; s++) {
+        for (f = 0; f < 2u; f++) {
+            float p[3][3], uv[2];
+            const float lo = (0.5f - fracs[f]) * (float)sizes[s] - 0.01f, hi = (0.5f + fracs[f]) * (float)sizes[s] + 0.01f;
+
+            for (ends = flat = 0, i = 0; i < AB_BALL_VERTS; i++) {
+                const int end = ab_ball_vertex(i, sizes[s], fracs[f], p[i % 3u], uv);
+                const float *a = p[i % 3u], *b = p[(i + 2u) % 3u], *c = p[(i + 1u) % 3u];
+
+                ends += (unsigned)end;
+                CHECK(end == ((i % AB_BALL_STRIP) == AB_BALL_STRIP - 1u));
+                if (!(a[0] >= lo && a[0] <= hi && a[1] >= lo && a[1] <= hi)) { CHECK(a[0] >= lo && a[0] <= hi && a[1] >= lo && a[1] <= hi); return; }
+                if (!(a[2] >= 0.3f - 1e-4f && a[2] <= 0.7f + 1e-4f)) { CHECK(a[2] >= 0.3f && a[2] <= 0.7f); return; }
+                if (!(uv[0] > 0.35f && uv[0] < 0.84f && fabsf(uv[1] - 1024.0f * uv[0]) < 1e-3f && fabsf(uv[0] * a[2] - 0.25f) < 1e-5f)) { CHECK(!"ball uv"); return; }
+                if ((i % AB_BALL_STRIP) >= 1u && a[0] == b[0] && a[1] == b[1]) { CHECK(!"two strip vertices in one place"); return; }
+                if ((i % AB_BALL_STRIP) >= 2u)
+                    flat += fabsf((b[0] - c[0]) * (a[1] - c[1]) - (a[0] - c[0]) * (b[1] - c[1])) < 1e-3f;
+            }
+            CHECK(ends == AB_BALL_STACKS);
+            CHECK(flat == 0u);                                   /* no triangle without area on the target */
+            printf("  ball %u px, radius %.2f: %u of %u triangles under 0.001 px^2 on the target\n", sizes[s], (double)fracs[f], flat, AB_BALL_TRIS);
+        }
+    }
+}
+
 static void shapes(void) {
     ab_test_t t;
     unsigned x, y, prev;
@@ -238,6 +271,7 @@ int main(void) {
     agree();
     shapes();
     precision();
+    ball();
     faults();
     if (fails) { fprintf(stderr, "ab_model_test: %d failure(s)\n", fails); return 1; }
     printf("ab_model_test: ok\n");

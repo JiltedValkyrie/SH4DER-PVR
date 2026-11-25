@@ -7,25 +7,21 @@
    the PVR draws the casters' depth into a render target as a colour code, the picture is copied back to RAM, the
    SH-4 compares per vertex) and prints what it measured on result pages (and on the serial line, "ab:" lines).
 
-   s2 on a console (ROUTE_AB_NOTES.md, "Hardware result s2") found: the ramp codes come back within one code with
-   dither off; dither on destroys them; the PVR-DMA download works; 16 pixels of the target's last row keep what was
-   there before. s3 asks what was left open:
+   s2 and s3 on a console (ROUTE_AB_NOTES.md, "Hardware result s2" and "s3") settled the ramp codes, the dither
+   switch, the download and the 16 pixels a render holds back on its last row. s3's cost lines were at fault in two
+   places (the "send" time held the test's own trigonometry; the "PVR render" time was KallistiOS's scheduler tick).
+   s4 measures those two properly and asks how the download compares with the SH-4's own ways of copying:
 
      0 SANITY a plain magenta quad on green, over a target the SH-4 filled with 0x1234 first.
-     E EDGE   which pixels a render leaves unwritten, and what they hold after the next render: three passes with
-              different background colours into a target 128, 130, 136 and 160 rows tall, then whether an ordinary
-              screen pass in between makes them appear.
-     R RAMP   the s1 tests (10 and 16 bits: FLAT, TILT, OVER), now with the error by sign: one under, one over, more.
-     P PREC   16 bits: six bands whose code rises one a pixel, at six sizes of the code (v = 1024 u from 1 to 896):
-              how many low bits of the wrapped v survive at each size.
-     D DITHER dither off for the target pass only: FB_CFG_2 is written before the pass and put back after its
-              render-done, then a screen pass is drawn. The target must be exact and the screen pass must be dithered
-              (it is compared with the same pass drawn undithered).
-     2 COPY   the PVR-DMA download (PVR to system memory, our own register writes) against the SH-4's read, and its
-              spread over 8 runs.
-     C COST   for a 128, 256 and 512 target: a 920-triangle ball with the 16-bit ramp drawn into it (the time to
-              send it and the PVR's render time), the PVR-DMA download of the whole target, and 20,000 two-byte reads
-              of the copy in RAM (4 a vertex x 5,000 vertices: the fetches of a compare, not the compare).
+     E EDGE   the held-back pixels with one and with two spare rows (129 and 130 rows).
+     S SEND   960 ready vertices (920 triangles) sent three ways: pvr_prim a vertex, the store queues a vertex,
+              one store-queue copy of the array. The vertices are built before the clock starts.
+     T RENDER the PVR's render time from pvr_get_stats (stamped in the interrupts): an empty pass, a small ball and
+              a large one, at 128 and at 256.
+     B COPY   32 KB and 128 KB out of video memory: the PVR-DMA download, memcpy, loops of 16, 32 and 64 bits a
+              read through the uncached window, and reads through the cached mirror (lines invalidated first), with
+              and without a prefetch. Every copy is compared with the DMA's.
+     K CACHE  whether the cached mirror is ever stale after an invalidate, and that it is stale without one.
 
    The PVR-DMA download. Register names and the direction bit are from the Flycast source read as documentation of
    the register block (core/hw/holly/sb.h, core/hw/pvr/pvr_sb_regs.cpp: SB_PDDIR set is "PVR -> System"); the area
@@ -37,8 +33,9 @@
    Every number on the result pages comes from the run that prints it. Only a real console's run is evidence.
 
    KallistiOS paths: pvr_init, pvr_mem_malloc, pvr_txr_load, pvr_scene_begin_rtt, pvr_scene_begin, pvr_prim,
-   pvr_wait_ready, pvr_wait_render_done, vid_set_dithering, vid_waitvbl, timer_ns_gettime64, perf_cntr_start /
-   perf_cntr_count (PRFC1), dcache_purge_range / dcache_inval_range, bfont, maple.
+   pvr_dr_target / pvr_dr_commit, pvr_sq_load, pvr_wait_ready, pvr_wait_render_done, pvr_get_stats,
+   vid_set_dithering, timer_ns_gettime64, perf_cntr_start / perf_cntr_count (PRFC1), dcache_purge_range /
+   dcache_inval_range, bfont, maple.
    Build: python demo/psm/spike/build.py (it refuses a KallistiOS without pvr_scene_begin_rtt). No SH4ZAM, no library
    code: only ab_model.h.
 */
@@ -100,7 +97,7 @@ static void page_draw(unsigned page, unsigned pages) {
     unsigned i;
 
     vid_clear(0, 0, 0);
-    snprintf(head, sizeof head, "AB SPIKE s3 p%u/%u  A next B back START rerun", page + 1u, pages);
+    snprintf(head, sizeof head, "AB SPIKE s4 p%u/%u  A next B back START part 2", page + 1u, pages);
     head[COLS] = 0;
     bfont_draw_str(vram_s + 16u * 640u + 20u, 640, true, head);
     for (i = 0; i < ROWS && page * ROWS + i < nlines; i++)
@@ -127,8 +124,6 @@ static struct {                            /* the last pass */
 
 static uint16_t ramp_px[AB_RAMP_W * AB_RAMP16_H] __attribute__((aligned(32)));
 static uint16_t cpu_img[AB_SIZE * TALL] __attribute__((aligned(32)));         /* the target as the SH-4 read it */
-static uint16_t dma_img[AB_SIZE * AB_SIZE] __attribute__((aligned(32)));      /* the target as PVR-DMA delivered it */
-static uint16_t scr_img[2][AB_SIZE * AB_SIZE];                                /* a corner of the screen pass, dithered and not */
 static uint8_t big_dst[BIG_BYTES] __attribute__((aligned(32)));
 static char verdict[COLS + 1u];
 static int target_ok;                      /* the plain picture came back as drawn (pixels held back apart) */
@@ -224,30 +219,6 @@ static void quad_col(float x0, float y0, float x1, float y1, uint32_t c0, uint32
     }
 }
 
-/* Draw one model test into the 128 x 128 target and wait for the PVR to finish it. 0 when the pass could not be made. */
-static int scene(const ab_test_t *t, int bits) {
-    pvr_vertex_t v;
-    unsigned r, i;
-
-    prefill(PREFILL);
-    if (!pass_begin(target_mem, AB_SIZE, AB_SIZE)) return 0;
-    pvr_prim(&hdr[bits == 16], sizeof hdr[0]);
-    memset(&v, 0, sizeof v);
-    v.argb = 0xffffffffu;
-    for (r = 0; r < t->nrect; r++) {
-        for (i = 0; i < 4u; i++) {
-            float p[3], uv[2];
-
-            ab_rect_corner(&t->rect[r], i, bits, p, uv);
-            v.flags = i == 3u ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
-            v.x = p[0]; v.y = p[1]; v.z = p[2];
-            v.u = uv[0]; v.v = uv[1];
-            pvr_prim(&v, sizeof v);
-        }
-    }
-    return pass_end();
-}
-
 /* `rows` rows of the 128-wide target by the SH-4, 16 bits a read, through the uncached window the pointer is in. */
 static void cpu_read(unsigned rows) {
     const volatile uint16_t *src = (const volatile uint16_t *)target_mem;
@@ -301,13 +272,6 @@ static void pd_download(uint32_t pvr_addr, void *dst, uint32_t bytes, pd_result_
 
 /* The PVR address of video memory at `mem` for the download: the 64-bit area form (s2: both forms gave the target). */
 static uint32_t pd_addr(pvr_ptr_t mem) { return 0x04000000u | ((uint32_t)(uintptr_t)mem & 0x00ffffffu); }
-
-static unsigned diff16(const uint16_t *a, const uint16_t *b, unsigned n) {
-    unsigned i, d = 0;
-
-    for (i = 0; i < n; i++) d += a[i] != b[i];
-    return d;
-}
 
 /* Smallest, largest and mean of `runs` downloads of `bytes` from `mem` into `dst`. Returns the runs that finished. */
 static unsigned pd_spread(pvr_ptr_t mem, void *dst, uint32_t bytes, unsigned runs, uint64_t *lo, uint64_t *hi, uint64_t *mean) {
@@ -451,226 +415,369 @@ static unsigned edge_pass(unsigned h, const char *tag, float r, float g, float b
 }
 
 static void edge(void) {
-    static const unsigned heights[4] = { 128u, 130u, 136u, 160u };
+    static const unsigned heights[2] = { 129u, 130u };          /* s3: 128, 130, 136, 160; one spare row was not tried */
     unsigned i;
 
     say("E EDGE px not the background after a pass");
     say("  PRE = prefill, OLD = the pass before's colour");
-    for (i = 0; i < 4u; i++) {
+    for (i = 0; i < 2u; i++) {
         edge_pass(heights[i], "p1", 1.0f, 0.0f, 0.0f, RED, 0);
         edge_pass(heights[i], "p2", 0.0f, 0.0f, 1.0f, BLUE, 0);
-        edge_pass(heights[i], "p3", 1.0f, 0.0f, 0.0f, RED, 0);
     }
-    edge_pass(128u, "sc", 0.0f, 0.0f, 1.0f, BLUE, 1);            /* does a screen pass after it bring them out */
     pvr_set_bg_color(0.0f, 0.0f, 0.0f);
     if (pass_begin(target_mem, AB_SIZE, AB_SIZE)) pass_end();    /* leave black behind for the ramp tests */
 }
 
-/* ---- R. the ramp tests, P. the precision bands ----------------------------------- */
+/* ---- S. sending 920 triangles three ways; T. the PVR's render time ---------------- */
 
-static void check_one(unsigned which, int bits) {
-    ab_test_t t;
-    ab_stats_t st;
+static pvr_vertex_t ball_v[AB_BALL_VERTS] __attribute__((aligned(32)));
 
-    ab_test_make(&t, which, bits);
-    if (!scene(&t, bits)) { say("%2d %-4s NOT DRAWN", bits, t.name); pass_say(); return; }
-    cpu_read(AB_SIZE);
-    ab_check(&t, bits, cpu_img, AB_SIZE, 0.0f, 0.0f, &st);
-    say("%2d %-4s -1:%5u +1:%5u more:%5u cov:%3u", bits, t.name, st.neg1, st.pos1, st.more, st.cover);
-    if (st.more) say("  max %u, first %u,%u got %u want %u", st.max_err, st.first_x, st.first_y, st.first_got, st.first_want);
-    if (st.cover) say("  cov box x%3u-%3u y%3u-%3u", st.cx0, st.cx1, st.cy0, st.cy1);
-}
+/* The ball's 960 vertices, ready to send, for a size x size target. Built outside every timing. */
+static void ball_build(unsigned size, float frac) {
+    unsigned i;
 
-static void precision(void) {
-    ab_test_t t;
-    ab_stats_t st;
-    unsigned i, y0, y1;
+    for (i = 0; i < AB_BALL_VERTS; i++) {
+        float p[3], uv[2];
+        const int end = ab_ball_vertex(i, size, frac, p, uv);
 
-    say("P PREC 16 bits, code +1 a pixel, 1792 px a band");
-    ab_test_make(&t, AB_TEST_PREC, 16);
-    if (!scene(&t, 16)) { say("P NOT DRAWN"); pass_say(); return; }
-    cpu_read(AB_SIZE);
-    for (i = 0; i < AB_PREC_BANDS; i++) {
-        ab_prec_rows(i, &y0, &y1);
-        ab_check_rows(&t, 16, cpu_img, AB_SIZE, 0.0f, 0.0f, y0, y1, &st);
-        say("P %5u: -1:%4u +1:%4u more:%4u max %u", ab_prec_base(i), st.neg1, st.pos1, st.more + st.cover, st.max_err);
+        ball_v[i].flags = end ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+        ball_v[i].x = p[0]; ball_v[i].y = p[1]; ball_v[i].z = p[2];
+        ball_v[i].u = uv[0]; ball_v[i].v = uv[1];
+        ball_v[i].argb = 0xffffffffu; ball_v[i].oargb = 0u;
     }
 }
 
-/* ---- D. dither off for the target pass alone -------------------------------------- */
+enum { SEND_PRIM = 0, SEND_DR = 1, SEND_SQ = 2 };
 
-/* A screen pass: a slow grey run (0x20 to 0x30 over 256 pixels, which a 5/6-bit target can only show with dither),
-   then 128 x 128 of the frame buffer it was rendered into, read by the SH-4. 0 when the pass was not made. */
-static int screen_pass(uint16_t *img) {
-    const volatile uint16_t *fb;
-    unsigned x, y;
-
-    if (!pass_begin(NULL, 0u, 0u)) return 0;
-    quad_col(0.0f, 0.0f, 256.0f, 256.0f, 0xff202020u, 0xff303030u);
-    if (!pass_end()) return 0;
-    fb = (const volatile uint16_t *)(uintptr_t)(0xa5000000u | (last.render_addr & 0x00ffffffu));
-    for (y = 0; y < AB_SIZE; y++) for (x = 0; x < AB_SIZE; x++) img[y * AB_SIZE + x] = fb[y * 640u + x];
-    return 1;
-}
-
-static void dither(void) {
-    ab_test_t t;
-    ab_stats_t st;
-    uint32_t cfg_off, cfg_on;
-    int ok;
-
-    say("D DITHER off for the target pass only");
-    ab_test_make(&t, AB_TEST_FLAT, 10);
-    vid_set_dithering(false);                                    /* before the target pass is closed */
-    cfg_off = PVR_GET(PVR_FB_CFG_2);
-    ok = scene(&t, 10);                                          /* returns after the target's render-done */
-    vid_set_dithering(true);                                     /* back on before the screen pass's list is closed */
-    cfg_on = PVR_GET(PVR_FB_CFG_2);
-    if (!ok) { say("D target pass NOT DRAWN"); pass_say(); return; }
-    cpu_read(AB_SIZE);
-    ab_check(&t, 10, cpu_img, AB_SIZE, 0.0f, 0.0f, &st);
-    say("D FB_CFG_2 %08x for target, %08x after", (unsigned)cfg_off, (unsigned)cfg_on);
-    say("D target: -1:%u +1:%u more:%u (exact = 0 0 0)", st.neg1, st.pos1, st.more);
-    ok = screen_pass(scr_img[0]);                                /* the frame's own pass, dither on again */
-    vid_set_dithering(false);
-    ok = ok && screen_pass(scr_img[1]);                          /* the same pass undithered, to compare with */
-    if (!ok) { say("D screen pass NOT DRAWN"); pass_say(); return; }
-    say("D screen: %u/16384 px differ from undithered", diff16(scr_img[0], scr_img[1], AB_SIZE * AB_SIZE));
-    say("  (over 0: the screen kept its dither)");
-}
-
-/* ---- 2. the copy back ------------------------------------------------------------ */
-
-static void copy_back(void) {
-    uint64_t lo, hi, mean;
-    pd_result_t r;
-    ab_test_t t;
-    unsigned i, changed = 0, ok;
-
-    say("2 COPY BACK by PVR-DMA, 128x128 = 32 KB");
-    ab_test_make(&t, AB_TEST_FLAT, 16);                          /* a picture with a different value at every pixel */
-    if (!scene(&t, 16)) { say(" no picture to copy"); pass_say(); return; }
-    cpu_read(AB_SIZE);
-    for (i = 0; i < AB_SIZE * AB_SIZE; i++) dma_img[i] = 0xa5a5u;
-    pd_download(pd_addr(target_mem), dma_img, MAP_BYTES, &r);
-    for (i = 0; i < AB_SIZE * AB_SIZE; i++) changed += dma_img[i] != 0xa5a5u;
-    say(" %s irq %d, wrote %u px, %u differ from CPU", r.done ? "done" : "TIMEOUT", r.irq, changed, diff16(dma_img, cpu_img, AB_SIZE * AB_SIZE));
-    say(" DMAOR %04x CHCR0 %08x", (unsigned)(DMAC_DMAOR & 0xffffu), (unsigned)r.chcr0);
-    if (!r.done) {
-        say(" PDST %x LEND %x STAPD %08x", (unsigned)r.pdst, (unsigned)r.lend, (unsigned)r.stapd);
-        say(" STARD %08x TCR0 %x", (unsigned)r.stard, (unsigned)r.tcr0);
-        return;
-    }
-    ok = pd_spread(target_mem, dma_img, MAP_BYTES, 8u, &lo, &hi, &mean);
-    if (ok) say(" %u runs us: min %lu max %lu mean %lu", ok, (unsigned long)(lo / 1000u), (unsigned long)(hi / 1000u), (unsigned long)(mean / 1000u));
-    else say(" no run finished");
-}
-
-/* ---- C. the cost of a real pass, by target size ----------------------------------- */
-
-#define BALL_STACKS 20u
-#define BALL_SEGS 23u                      /* 20 strips of 46 triangles: 920, the cow's count in the demo */
-
-/* A ball of 920 triangles in the middle of a size x size target, radius 0.3 size, its depth k from 0.3 to 0.7, the
-   16-bit ramp with u = 0.25 / k: a stand-in for a caster. The rings stop short of the poles, so no triangle is
-   without area on the sphere; front and back are both drawn, as a caster's are. */
-static void ball(unsigned size) {
-    const float c = 0.5f * (float)size, rad = 0.3f * (float)size;
-    pvr_vertex_t v;
-    unsigned st, sg, e;
+/* Send the header and the ball's vertices inside an open list. Returns the time of the vertices alone, in ns:
+   SEND_PRIM  pvr_prim, one call a vertex
+   SEND_DR    the store queues, one vertex at a time (pvr_dr_target / pvr_dr_commit: what demo/psm/psm_dc.c does)
+   SEND_SQ    one store-queue copy of the whole array to the tile accelerator (pvr_sq_load) */
+static uint64_t ball_send(int how) {
+    uint64_t t0;
+    unsigned i;
 
     pvr_prim(&hdr[1], sizeof hdr[1]);
-    memset(&v, 0, sizeof v);
-    v.argb = 0xffffffffu;
-    for (st = 0; st < BALL_STACKS; st++) {
-        for (sg = 0; sg <= BALL_SEGS; sg++) {
-            const float phi = 6.2831853f * (float)sg / (float)BALL_SEGS;
+    t0 = timer_ns_gettime64();
+    if (how == SEND_PRIM) {
+        for (i = 0; i < AB_BALL_VERTS; i++) pvr_prim(&ball_v[i], sizeof ball_v[0]);
+    } else if (how == SEND_DR) {
+        for (i = 0; i < AB_BALL_VERTS; i++) {
+            pvr_vertex_t *o = pvr_dr_target();
 
-            for (e = 0; e < 2u; e++) {
-                const float th = 3.1415927f * (0.08f + 0.84f * (float)(st + 1u - e) / (float)BALL_STACKS);
-                const float k = 0.5f + 0.2f * sinf(th) * sinf(phi), u = 0.25f / k;
-
-                v.flags = (sg == BALL_SEGS && e == 1u) ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
-                v.x = c + rad * sinf(th) * cosf(phi); v.y = c + rad * cosf(th); v.z = k;
-                v.u = u; v.v = u * (float)AB_RAMP_W;
-                pvr_prim(&v, sizeof v);
-            }
+            *o = ball_v[i];
+            pvr_dr_commit(o);
         }
+    } else {
+        pvr_sq_load(NULL, ball_v, sizeof ball_v, PVR_DMA_TA);
+    }
+    return timer_ns_gettime64() - t0;
+}
+
+/* The PVR's render time of the pass that just ended, from KallistiOS's own statistics: stamped inside the render
+   start and render-done interrupts, so it does not hold the scheduler's wait that s3's figure did. */
+static uint64_t render_stat_ns(void) {
+    pvr_stats_t st;
+
+    if (pvr_get_stats(&st) < 0) return 0;
+    return st.rnd_last_time;
+}
+
+static unsigned covered(unsigned rows) {
+    unsigned i, n = 0;
+
+    cpu_read(rows);
+    for (i = 0; i < AB_SIZE * rows; i++) n += cpu_img[i] != 0u;
+    return n;
+}
+
+static void send_test(void) {
+    static const char *const name[3] = { "pvr_prim  ", "sq, 1 vtx ", "sq, array " };
+    unsigned how, n, cov = 0;
+
+    say("S SEND 960 vertices (920 tris), built before");
+    ball_build(AB_SIZE, 0.3f);
+    pvr_set_bg_color(0.0f, 0.0f, 0.0f);
+    for (how = 0; how < 3u; how++) {
+        uint64_t lo = ~0ull, t;
+        int ok = 0;
+
+        for (n = 0; n < 3u; n++) {
+            if (!pass_begin(target_mem, AB_SIZE, AB_SIZE + 2u)) continue;
+            t = ball_send((int)how);
+            if (!pass_end()) continue;
+            ok = 1;
+            if (t < lo) lo = t;
+        }
+        if (!ok) { say("S %s NOT DRAWN", name[how]); pass_say(); continue; }
+        cov = covered(AB_SIZE);
+        say("S %s%5lu us, %4lu ns/vtx, covers %u", name[how], (unsigned long)(lo / 1000u), (unsigned long)(lo / AB_BALL_VERTS), cov);
     }
 }
 
-static void cost(void) {
-    static const unsigned sizes[3] = { 128u, 256u, 512u };
-    unsigned i, n, s, k, acc, covered, ok;
-    uint64_t sub, rnd, t0, lo, hi, mean, taps;
+/* One pass into big_mem at size x size: nothing but a 2 x 2 quad (frac 0), or the ball at radius frac x size.
+   Returns the smallest of 3 render times from the statistics, in ns; 0 when no pass was made. */
+static uint64_t render_time(unsigned size, float frac) {
+    uint64_t lo = ~0ull, t;
+    unsigned n;
 
-    say("C COST 920-tri ball, 16-bit ramp; smallest of 3");
-    for (i = 0; i < 3u; i++) {
-        const unsigned size = sizes[i], bytes = size * size * 2u;
-        const uint16_t *map = (const uint16_t *)big_dst;
-
-        for (sub = rnd = ~0ull, ok = 0, n = 0; n < 3u; n++) {
-            if (!pass_begin(big_mem, size, size)) continue;
-            ball(size);
-            if (!pass_end()) continue;
-            ok++;
-            if (last.submit_ns < sub) sub = last.submit_ns;
-            if (last.render_ns < rnd) rnd = last.render_ns;
-        }
-        if (!ok) { say("C %3u: NOT DRAWN", size); pass_say(); continue; }
-        say("C %3u: send %lu us, PVR render %lu us", size, (unsigned long)(sub / 1000u), (unsigned long)(rnd / 1000u));
-        ok = pd_spread(big_mem, big_dst, bytes, 3u, &lo, &hi, &mean);
-        if (!ok) { say("C %3u: DMA of %u KB did not finish", size, bytes / 1024u); continue; }
-        for (covered = 0, k = 0; k < size * size; k++) covered += map[k] != 0u;
-        for (taps = ~0ull, n = 0; n < 3u; n++) {                 /* 4 texels a vertex x 5,000 vertices from the copy in RAM */
-            t0 = timer_ns_gettime64();
-            for (s = 12345u, k = 0, acc = 0; k < 20000u; k++) { s = s * 1664525u + 1013904223u; acc += ((const volatile uint16_t *)map)[(s >> 12) & (size * size - 1u)]; }
-            t0 = timer_ns_gettime64() - t0;
-            sink = acc;
-            if (t0 < taps) taps = t0;
-        }
-        say("C %3u: DMA %u KB %lu us, 20000 taps %lu us", size, bytes / 1024u, (unsigned long)(lo / 1000u), (unsigned long)(taps / 1000u));
-        say("C %3u: ball covers %u of %u px", size, covered, size * size);
+    if (frac > 0.0f) ball_build(size, frac);
+    for (n = 0; n < 3u; n++) {
+        if (!pass_begin(big_mem, size, size)) continue;
+        if (frac > 0.0f) ball_send(SEND_SQ);
+        else quad_col(0.0f, 0.0f, 2.0f, 2.0f, 0xff000000u, 0xff000000u);
+        if (!pass_end()) continue;
+        t = render_stat_ns();
+        if (t < lo) lo = t;
     }
+    return lo == ~0ull ? 0 : lo;
+}
+
+static void render_test(void) {
+    static const unsigned sizes[2] = { 128u, 256u };
+    unsigned i;
+
+    say("T PVR RENDER us, from pvr_get_stats, min of 3");
+    say("T size: empty, ball r 0.15, ball r 0.30");
+    for (i = 0; i < 2u; i++) {
+        const unsigned long e = (unsigned long)(render_time(sizes[i], 0.0f) / 1000u);
+        const unsigned long b1 = (unsigned long)(render_time(sizes[i], 0.15f) / 1000u);
+        const unsigned long b2 = (unsigned long)(render_time(sizes[i], 0.3f) / 1000u);
+
+        say("T %3u: %6lu, %6lu, %6lu", sizes[i], e, b1, b2);
+    }
+}
+
+/* ---- B. copying the map out of video memory: the DMA against the SH-4's own ways ---- */
+
+#define COPY_MAX (256u * 256u * 2u)
+static uint8_t copy_dst[COPY_MAX] __attribute__((aligned(32)));
+
+/* Every way gets the destination, the source through the uncached window (P2), the same source through the cached
+   mirror (P1), and the byte count (a multiple of 32). */
+typedef void (*copy_fn)(void *dst, const void *unc, const void *cached, unsigned n);
+
+static void copy_memcpy(void *dst, const void *unc, const void *cached, unsigned n) { (void)cached; memcpy(dst, unc, n); }
+
+static void copy_16(void *dst, const void *unc, const void *cached, unsigned n) {          /* s2's loop: 16 bits a read */
+    const volatile uint16_t *s = (const volatile uint16_t *)unc;
+    uint16_t *d = (uint16_t *)dst;
+    unsigned i;
+
+    (void)cached;
+    for (i = 0; i < n / 2u; i++) d[i] = s[i];
+}
+
+static void copy_32(void *dst, const void *unc, const void *cached, unsigned n) {          /* 32 bits a read */
+    const volatile uint32_t *s = (const volatile uint32_t *)unc;
+    uint32_t *d = (uint32_t *)dst;
+    unsigned i;
+
+    (void)cached;
+    for (i = 0; i < n / 4u; i++) d[i] = s[i];
+}
+
+/* 64 bits a read: the FPU's pair moves (FPSCR.SZ set for the loop), four a 32-byte line. A measuring loop, not a
+   library kernel. */
+static void copy_64(void *dst, const void *unc, const void *cached, unsigned n) {
+    unsigned lines = n / 32u;
+
+    (void)cached;
+    __asm__ volatile (
+        "fschg\n"
+        "1:\n\t"
+        "fmov @%1+, dr0\n\t"
+        "fmov @%1+, dr2\n\t"
+        "fmov @%1+, dr4\n\t"
+        "fmov @%1+, dr6\n\t"
+        "fmov dr0, @%0\n\t"
+        "add #8, %0\n\t"
+        "fmov dr2, @%0\n\t"
+        "add #8, %0\n\t"
+        "fmov dr4, @%0\n\t"
+        "add #8, %0\n\t"
+        "fmov dr6, @%0\n\t"
+        "dt %2\n\t"
+        "bf/s 1b\n\t"
+        "add #8, %0\n\t"
+        "fschg\n"
+        : "+r"(dst), "+r"(unc), "+r"(lines)
+        :
+        : "fr0", "fr1", "fr2", "fr3", "fr4", "fr5", "fr6", "fr7", "t", "memory");
+}
+
+/* Through the cache: the source's lines are dropped first (the PVR has written under them), then each 32-byte line
+   comes in as one line fill. The invalidate is inside the time: a real use pays it. */
+static void copy_cached(void *dst, const void *unc, const void *cached, unsigned n) {
+    const uint32_t *s = (const uint32_t *)cached;
+    uint32_t *d = (uint32_t *)dst;
+    unsigned i;
+
+    (void)unc;
+    dcache_inval_range((uintptr_t)cached, n);
+    for (i = 0; i < n / 4u; i++) d[i] = s[i];
+}
+
+static void copy_cached_pref(void *dst, const void *unc, const void *cached, unsigned n) {  /* the same, the line after next asked for early */
+    const uint32_t *s = (const uint32_t *)cached;
+    uint32_t *d = (uint32_t *)dst;
+    unsigned i, k;
+
+    (void)unc;
+    dcache_inval_range((uintptr_t)cached, n);
+    for (i = 0; i < n / 4u; i += 8u) {
+        __builtin_prefetch(s + i + 16u);
+        for (k = 0; k < 8u; k++) d[i + k] = s[i + k];
+    }
+}
+
+static unsigned diff32(const void *a, const void *b, unsigned n) {
+    const uint32_t *x = (const uint32_t *)a, *y = (const uint32_t *)b;
+    unsigned i, d = 0;
+
+    for (i = 0; i < n / 4u; i++) d += x[i] != y[i];
+    return d;
+}
+
+static void *cached_of(pvr_ptr_t mem) { return (void *)(((uintptr_t)mem & 0x1fffffffu) | 0x80000000u); }
+
+/* `bytes` of `mem` (a finished render): the PVR-DMA download, then each way of the SH-4, smallest of 8 runs by both
+   clocks, and how many 32-bit words of each copy differ from the DMA's (summed over the runs: 0 = always the same). */
+static void baseline(pvr_ptr_t mem, unsigned bytes, unsigned first, unsigned count) {
+    static const struct { const char *name; copy_fn fn; } way[6] = {
+        { "memcpy P2", copy_memcpy }, { "16-bit P2", copy_16 }, { "32-bit P2", copy_32 }, { "64-bit P2", copy_64 },
+        { "cached P1", copy_cached }, { "P1 + pref", copy_cached_pref },
+    };
+    uint64_t lo, hi, mean, t, c, clo;
+    unsigned w, n, bad;
+
+    if (!pd_spread(mem, big_dst, bytes, 8u, &lo, &hi, &mean)) { say("B %3uK DMA did not finish", bytes / 1024u); return; }
+    if (!first) say("B %3uK PVR-DMA   %6lu us", bytes / 1024u, (unsigned long)(lo / 1000u));
+    for (w = first; w < first + count && w < 6u; w++) {
+        for (lo = clo = ~0ull, bad = 0, n = 0; n < 8u; n++) {
+            memset(copy_dst, 0x5a, bytes);
+            t = timer_ns_gettime64(); c = cyc();
+            way[w].fn(copy_dst, mem, cached_of(mem), bytes);
+            c = cyc() - c;
+            t = timer_ns_gettime64() - t;
+            if (t < lo) lo = t;
+            if (c < clo) clo = c;
+            bad += diff32(copy_dst, big_dst, bytes);
+        }
+        say("B %3uK %s %6lu us %8lu cyc d%u", bytes / 1024u, way[w].name, (unsigned long)(lo / 1000u), (unsigned long)clo, bad);
+    }
+    if (first + count > 4u) dcache_inval_range((uintptr_t)cached_of(mem), bytes);   /* leave no line of video memory in the cache */
+}
+
+/* Words of the 128 x 128 target, from byte `first` on, that read differently through the cached mirror and through
+   the uncached window. Compared in place, a word at a time, so nothing else is written and no line is pushed out of
+   the cache by the test's own copies. `inval`: the mirror's lines are dropped first. */
+static unsigned mirror_diff(unsigned first, unsigned bytes, int inval) {
+    const uint32_t *c = (const uint32_t *)((const uint8_t *)cached_of(target_mem) + first);
+    const volatile uint32_t *u = (const volatile uint32_t *)((const uint8_t *)target_mem + first);
+    unsigned i, d = 0;
+
+    if (inval) dcache_inval_range((uintptr_t)c, bytes);
+    for (i = 0; i < bytes / 4u; i++) d += c[i] != u[i];
+    return d;
+}
+
+/* Is the cached mirror ever stale after an invalidate? And is it stale without one (if not, the test proves nothing)? */
+static void coherency(void) {
+    const unsigned tail = MAP_BYTES - 8192u;                     /* the last 32 rows: 8 KB, half the SH-4's data cache */
+    unsigned round, total = 0, stale;
+    int ok = 1;
+
+    say("K CACHED MIRROR vs uncached read, words");
+    for (round = 0; round < 8u && ok; round++) {                 /* draw, invalidate, read: 8 rounds, the picture changing each time */
+        ball_build(AB_SIZE, (round & 1u) ? 0.15f : 0.3f);
+        ok = pass_begin(target_mem, AB_SIZE, AB_SIZE + 2u);
+        if (ok) { ball_send(SEND_SQ); ok = pass_end(); }
+        if (ok) total += mirror_diff(0u, MAP_BYTES, 1);
+    }
+    if (!ok) { say("K NOT DRAWN"); pass_say(); return; }
+    say("K 8 x (render, invalidate, read): %u stale", total);
+
+    /* without the invalidate: bring the last 32 rows into the cache, draw magenta over them, read again */
+    stale = mirror_diff(tail, 8192u, 1);
+    ok = pass_begin(target_mem, AB_SIZE, AB_SIZE + 2u);
+    if (ok) { quad_col(0.0f, 96.0f, 128.0f, 127.0f, 0xffff00ffu, 0xffff00ffu); ok = pass_end(); }
+    if (!ok) { say("K NOT DRAWN"); pass_say(); return; }
+    say("K rows 96-127 read (%u stale), then redrawn:", stale);
+    say("K  NO invalidate: %u of 2048 stale", mirror_diff(tail, 8192u, 0));
+    say("K  invalidate:    %u of 2048 stale", mirror_diff(tail, 8192u, 1));
+    dcache_inval_range((uintptr_t)cached_of(target_mem), MAP_BYTES);
+}
+
+/* The ways `first` .. `first + count - 1` of baseline(), at 32 KB and at 128 KB. */
+static void baselines(unsigned first, unsigned count) {
+    int ok;
+
+    say("B COPY OUT of VRAM, min of 8; d = words not as DMA");
+    ball_build(AB_SIZE, 0.3f);
+    ok = pass_begin(target_mem, AB_SIZE, AB_SIZE + 2u);
+    if (ok) { ball_send(SEND_SQ); ok = pass_end(); }
+    if (ok) baseline(target_mem, MAP_BYTES, first, count);
+    else { say("B 32K NOT DRAWN"); pass_say(); }
+    ball_build(256u, 0.3f);
+    ok = pass_begin(big_mem, 256u, 256u);
+    if (ok) { ball_send(SEND_SQ); ok = pass_end(); }
+    if (ok) baseline(big_mem, COPY_MAX, first, count);
+    else { say("B 128K NOT DRAWN"); pass_say(); }
 }
 
 /* ---- the run -------------------------------------------------------------------- */
 
-static void run(void) {
-    static const int bits[2] = { 10, 16 };
+static int start(void) {
     pvr_init_params_t init = pvr_default_params;
-    unsigned b, w;
 
-    nlines = 0;
-    say("(verdict)");                                            /* line 0: written once the sanity step has run */
-    snprintf(lines[0], sizeof lines[0], "NOT RUN: see the next lines");
     init.vertex_buf_size = 256 * 1024;
     init.opb_overflow_count = 8;                                 /* the ball puts many strips in a few tiles of a small target */
-    if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return; }
+    if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return 0; }
     pvr_set_bg_color(0.0f, 0.0f, 0.0f);
-    if (!load()) { say("video memory allocation FAIL"); pvr_shutdown(); return; }
+    if (!load()) { say("video memory allocation FAIL"); pvr_shutdown(); return 0; }
     vid_set_dithering(false);
-    clocks();
-    sanity();
-    memcpy(lines[0], verdict, sizeof verdict);
-    printf("ab: VERDICT %s\n", verdict);
-    edge();
+    return 1;
+}
 
-    say("R RAMP dither off: got-want by sign, cov");
-    for (b = 0; b < 2u; b++) for (w = 0; w < AB_TESTS; w++) check_one(w, bits[b]);
-    precision();
-    dither();
-    vid_set_dithering(false);
-    copy_back();
-    cost();
-
+static void stop(void) {
     vid_set_dithering(true);
     pvr_mem_free(target_mem); pvr_mem_free(big_mem); pvr_mem_free(ramp_mem[0]); pvr_mem_free(ramp_mem[1]);
     pvr_shutdown();
 }
 
+/* Part one: everything that reads video memory the way s2 and s3 did. Its pages are on screen before part two. */
+static void run(void) {
+    nlines = 0;
+    say("(verdict)");                                            /* line 0: written once the sanity step has run */
+    snprintf(lines[0], sizeof lines[0], "NOT RUN: see the next lines");
+    if (!start()) return;
+    clocks();
+    sanity();
+    memcpy(lines[0], verdict, sizeof verdict);
+    printf("ab: VERDICT %s\n", verdict);
+    edge();
+    send_test();
+    render_test();
+    baselines(0u, 4u);
+    stop();
+    say("START: part 2, reads through the cache");
+    say(" (new on hardware: these pages stay if it hangs)");
+}
+
+/* Part two, on START: video memory read through the SH-4's cached mirror, which no run has done before. */
+static void run_cached(void) {
+    say("PART 2");
+    if (!start()) return;
+    baselines(4u, 2u);
+    coherency();
+    stop();
+    say("PART 2 done");
+}
+
 int main(void) {
     unsigned page = 0, pages, held = ~0u;
+    int part2 = 0;
 
     run();
     vid_set_mode(DM_640x480, PM_RGB565);
@@ -684,12 +791,14 @@ int main(void) {
         if (held == ~0u) page_draw(page, pages);                 /* the first pass: nothing counts as a press */
         else if (hit & CONT_A) { page = (page + 1u) % pages; page_draw(page, pages); }
         else if (hit & CONT_B) { page = (page + pages - 1u) % pages; page_draw(page, pages); }
-        else if (hit & CONT_START) {
-            run();
+        else if ((hit & CONT_START) && !part2) {
+            part2 = 1;
+            page = (nlines + ROWS - 1u) / ROWS;                  /* open on the first new page */
+            run_cached();
             vid_set_mode(DM_640x480, PM_RGB565);
-            page = 0;
             pages = (nlines + ROWS - 1u) / ROWS;
-            page_draw(page, pages ? pages : 1u);
+            if (page >= pages) page = pages - 1u;
+            page_draw(page, pages);
         }
         held = now;
         thd_sleep(20);
