@@ -17,7 +17,7 @@
    timers and the text textures.
 
    Pad, as the torch walk demo (demo/torchwalk_ab.c, single stick): the stick looks (INVERT Y on: up looks down), Y / A
-   held walk forward / back, X / B strafe left / right. D-pad down opens the menu (a row a line: route, map, map size (512 on
+   held walk forward / back, X / B strafe left / right. D-pad down opens the menu (a row a line: route, map, map hold (the fit held still so texels do not swim), map size (512 on
    routes B and AB only, its RAM taken while chosen), A filter (the PVR's bilinear or point), B filter (2 x 2 or point),
    bias a and b, warp near, sun azimuth and elevation, inset, readout and the SH-4's split, presets, invert Y); in it the
    face buttons do not walk, D-pad up / down pick a row, left / right and A change it, B or START close it. Quick, menu

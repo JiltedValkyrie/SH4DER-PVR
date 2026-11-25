@@ -14,6 +14,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "../demo/psm/psm_scene.h"
 #include "../demo/psm/psm_sky.h"
@@ -578,6 +579,90 @@ static void sweep(void) {
     CHECK(bad == 0u);
 }
 
+/* ---- the swim: shadow edges that flip while the camera moves ------------------------------------------------------- */
+/* MAP HOLD off against on. The boot view, everything still (no clock, no movers): 60 frames walking forward 2 cm a frame
+   (a texel of a 64 map is about a metre), then 60 frames turning 0.1 degree a frame. Fixed probes on the ground, a 0.3 m
+   lattice 4 to 40 m ahead and 15 m to each side: in shadow or not, each frame. Nothing in the scene moves, so every probe
+   that changes is the map's texels moving under it. Route B: the depth compare, point (B FILTER off, so an edge is an edge).
+   Route A on the host: the same map's silhouette (any caster texel, no compare), point, as the PVR's lookup with A FILTER
+   point; the bilinear filter softens a flip but moves it the same way. */
+#define SWIM_PX 120u
+#define SWIM_PZ 120u
+static uint8_t swim_prev[SWIM_PX * SWIM_PZ];
+static unsigned swim_fr[120];
+
+static int swim_shadowed_(const psm_frame_t *f, const float p[3], int route) {
+    if (route == PSM_ROUTE_B) return sh4der_psm_raster_lit(&f->raster, p, 0.02f, 0) < 0.5f;
+    {
+        float h[4];
+        int tx, ty;
+
+        sh4der_psm_xform(f->raster.m, p, 1.0f, h);
+        if (!(h[3] > SH4DER_PSM_TRI_EPS)) return 0;
+        tx = (int)floorf((h[0] / h[3] + 1.0f) * 0.5f * (float)f->raster.size);
+        ty = (int)floorf((h[1] / h[3] + 1.0f) * 0.5f * (float)f->raster.size);
+        if (tx < 0 || ty < 0 || tx >= (int)f->raster.size || ty >= (int)f->raster.size) return 0;
+        return f->raster.depth[(unsigned)ty * f->raster.size + (unsigned)tx] != 0u;
+    }
+}
+
+/* flips a frame over the path, and the times the held fit was taken again */
+static float swim_run_(int route, int warp, unsigned size_i, int hold, unsigned *steps, unsigned *shadowed) {
+    psm_state_t st;
+    float x0, z0, yaw0, sy, cy;
+    unsigned fr, i, j, flips = 0, shade = 0;
+
+    psm_state_town(&st);
+    st.route = route; st.warp = warp; st.size_i = size_i; st.hold = hold; st.pcf = 0;
+    psm_town_update(&scene, &st, 0.0f);
+    x0 = st.x; z0 = st.z; yaw0 = st.yaw;
+    sy = sinf(yaw0); cy = cosf(yaw0);
+    memset(&frame.hold, 0, sizeof frame.hold); frame.hold_key = 0u;
+    memset(swim_fr, 0, sizeof swim_fr);
+    for (fr = 0; fr < 120u; fr++) {
+        const float walk = (float)(fr < 60u ? fr : 60u) * 0.02f;
+
+        st.x = x0 + sy * walk; st.z = z0 - cy * walk;
+        st.yaw = yaw0 + (fr < 60u ? 0.0f : (float)(fr - 60u) * 0.1f * 0.01745329f);
+        psm_frame_setup(&frame, &scene, &st);
+        if (!psm_frame_b_begin(&frame, &scene, depth)) continue;
+        psm_frame_b_casters(&frame, &scene, 0);
+        for (j = 0; j < SWIM_PZ; j++)
+            for (i = 0; i < SWIM_PX; i++) {
+                const float ahead = 4.0f + 0.3f * (float)j, side = -18.0f + 0.3f * (float)i;
+                const float p[3] = { x0 + sy * ahead + cy * side, 0.0f, z0 - cy * ahead + sy * side };
+                const uint8_t s = (uint8_t)swim_shadowed_(&frame, p, route);
+
+                if (fr) { flips += s != swim_prev[j * SWIM_PX + i]; swim_fr[fr] += s != swim_prev[j * SWIM_PX + i]; }
+                else shade += s;
+                swim_prev[j * SWIM_PX + i] = s;
+            }
+    }
+    *steps = frame.hold.steps;
+    *shadowed = shade;
+    return (float)flips / 119.0f;
+}
+
+static void swim(void) {
+    unsigned route, warp, si, worst_hold_ratio_bad = 0;
+
+    printf("  swim: shadow flips a frame on %u fixed ground probes, 60 frames walking 2 cm a frame then 60 turning 0.1 degree"
+           " (nothing moves but the camera)\n", SWIM_PX * SWIM_PZ);
+    for (route = 0; route < 2u; route++)
+        for (warp = 0; warp < 2u; warp++)
+            for (si = 0; si < 3u; si++) {
+                unsigned st0, st1, sh0, sh1;
+                const float off = swim_run_((int)route, (int)warp, si, 0, &st0, &sh0), on = swim_run_((int)route, (int)warp, si, 1, &st1, &sh1);
+
+                printf("    route %c %-7s %3u: HOLD off %7.1f flips a frame, on %6.1f (%u refits in 120 frames); probes in shadow at the"
+                       " start %u / %u\n", route ? 'B' : 'A', warp ? "PSM" : "uniform", psm_map_sizes[si], off, on, st1, sh0, sh1);
+                worst_hold_ratio_bad += warp ? !(on <= off * 0.6f) : !(on <= off * 0.05f + 2.0f);   /* PSM: pops at its steps remain */
+                if (getenv("SWIM_DUMP") && warp) { unsigned f_; printf("     on:"); for (f_ = 1; f_ < 120u; f_++) if (swim_fr[f_]) printf(" %u:%u", f_, swim_fr[f_]); printf("\n"); }
+                CHECK(sh1 * 10u >= sh0 * 9u && sh1 * 9u <= sh0 * 10u);            /* the same shadows, within a tenth */
+            }
+    CHECK(worst_hold_ratio_bad == 0u);
+}
+
 /* ---- the air: the quadratic fog, the band, the cap and the hills --------------------------------------------------- */
 static void air(void) {
     static psm_sky_out_t sky;
@@ -703,6 +788,7 @@ int main(void) {
     receivers();
     budget();
     sweep();
+    swim();
     air();
     readout();
     if (fails) { printf("psm_town_test: %d FAILED\n", fails); return 1; }

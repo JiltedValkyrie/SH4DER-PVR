@@ -90,6 +90,9 @@ extern "C" {
 #define SH4DER_PSM_TRI_EPS   1.0e-6f   /**< \brief |w| under this is the singularity: a vertex there is not drawn. */
 #define SH4DER_PSM_BIAS_A    0.02f     /**< \brief Bias a, metres (the chapter's a). */
 #define SH4DER_PSM_BIAS_B    1.5f      /**< \brief Bias b, texels (the chapter's b: times the texel's size in metres). */
+#define SH4DER_PSM_HOLD_GROW 1.10f     /**< \brief A held fit is taken this much larger than it needs when it is made again. */
+#define SH4DER_PSM_HOLD_BAND 1.30f     /**< \brief And kept until it needs more, or this many times less. */
+#define SH4DER_PSM_HOLD_PAD  2.0f      /**< \brief Texels of room each side for the centre's snap. */
 /** @} */
 
 /** \brief Which map `sh4der_psm_build_*` made. */
@@ -112,6 +115,20 @@ typedef struct sh4der_psm {
     float light[3];     /**< unit direction from the surface toward the light */
     int   kind;         /**< SH4DER_PSM_* */
 } sh4der_psm_t;
+
+/** \brief What a held fit keeps from frame to frame (`sh4der_psm_build_uniform_held`, `sh4der_psm_build_warp_held`).
+    Zero it to start; zero it again when the map's size, kind or route changes. The client owns it, one a map. */
+typedef struct sh4der_psm_hold {
+    int ok;                   /**< 1: `ext`, `axis` and `kind` are held */
+    float ext[2];             /**< the fit's half extents in use (the map's two sides) */
+    float axis[3];            /**< a warped fit's axis in use (the points' mean direction from L' when it was taken) */
+    int light_ok;             /**< 1: `light` is held */
+    float light[3];           /**< the light direction in use */
+    int kind;
+    int cam_ok;               /**< 1: `cam` is the warp's camera in use */
+    sh4der_psm_cam_t cam;
+    unsigned steps;           /**< times the extents, the camera or the light were taken again (each one moves every texel) */
+} sh4der_psm_hold_t;
 
 /* ---- the chapter's depth numbers --------------------------------------- */
 
@@ -195,8 +212,20 @@ static inline void sh4der_psm_basis_(const float a[3], float r[3], float u[3]) {
     sh4der_norm3_(u);
 }
 
-/* Fit a map to world points seen through T (world -> homogeneous). Writes the matrix and kind. 0 on a bad fit. */
-static inline int sh4der_psm_fit_(const float T[16], int warped, const float light[3], const float *pts, unsigned n, sh4der_psm_t *out) {
+/* A held half extent: the one in use while `need` fits in it and is not SH4DER_PSM_HOLD_BAND times smaller, else a new one
+   SH4DER_PSM_HOLD_GROW over `need`. Returns 1 when it was taken again. */
+static inline int sh4der_psm_hold_ext_(float *held, float need, int ok) {
+    if (ok && need <= *held && need * SH4DER_PSM_HOLD_BAND >= *held) return 0;
+    *held = need * SH4DER_PSM_HOLD_GROW;
+    return 1;
+}
+
+/* Fit a map to world points seen through T (world -> homogeneous). Writes the matrix and kind. 0 on a bad fit. With `hold`
+   (and `size`, the map's texels a side): the half extents are held (sh4der_psm_hold_ext_, with SH4DER_PSM_HOLD_PAD texels
+   of room) and the centre is snapped to whole texels of them, so while the extents hold, the texels stay where they were
+   and a fit that moves moves them by whole texels. */
+static inline int sh4der_psm_fit_(const float T[16], int warped, const float light[3], const float *pts, unsigned n, unsigned size,
+                                  sh4der_psm_hold_t *hold, sh4der_psm_t *out) {
     float lh[4], q[SH4DER_PSM_MAX_PTS][3], a[3], r[3], u[3], lp[3] = { 0, 0, 0 };
     float n_m[16] = { 0 }, lo_s = 1e30f, hi_s = -1e30f, lo_t = 1e30f, hi_t = -1e30f, cu, cv, ext_u, ext_v;
     unsigned i;
@@ -245,6 +274,8 @@ static inline int sh4der_psm_fit_(const float T[16], int warped, const float lig
         a[0] = mean[0]; a[1] = mean[1]; a[2] = mean[2];
         if (!(sh4der_len3_(a[0], a[1], a[2]) > 1e-12f)) return 0;
         sh4der_norm3_(a);
+        if (hold && hold->ok && hold->kind == kind) { a[0] = hold->axis[0]; a[1] = hold->axis[1]; a[2] = hold->axis[2]; }
+        else if (hold) { hold->axis[0] = a[0]; hold->axis[1] = a[1]; hold->axis[2] = a[2]; }   /* a held axis: the map does not turn */
         sh4der_psm_basis_(a, r, u);
         for (i = 0; i < n; i++) {
             const float c = sh4der_dot3_(e[i], a);
@@ -264,6 +295,19 @@ static inline int sh4der_psm_fit_(const float T[16], int warped, const float lig
     ext_u = 0.5f * (hi_s - lo_s) * SH4DER_PSM_MARGIN;     /* the two sides fitted apart: a long thin fit keeps its texels */
     ext_v = 0.5f * (hi_t - lo_t) * SH4DER_PSM_MARGIN;
     if (!(ext_u > 1e-9f) || !(ext_v > 1e-9f) || !sh4der_finite_(ext_u) || !sh4der_finite_(ext_v)) return 0;
+    if (hold && size > 2u * (unsigned)SH4DER_PSM_HOLD_PAD) {
+        const float pad = 1.0f + 2.0f * SH4DER_PSM_HOLD_PAD / (float)size;
+        const int ok = hold->ok && hold->kind == kind;
+        const int su = sh4der_psm_hold_ext_(&hold->ext[0], ext_u * pad, ok), sv = sh4der_psm_hold_ext_(&hold->ext[1], ext_v * pad, ok);
+        float tu, tv;
+
+        if (hold->ok && (su || sv)) hold->steps++;
+        hold->ok = 1; hold->kind = kind;
+        ext_u = hold->ext[0]; ext_v = hold->ext[1];
+        tu = 2.0f * ext_u / (float)size; tv = 2.0f * ext_v / (float)size;      /* a texel, in the fit's own units */
+        cu = floorf(cu / tu + 0.5f) * tu;
+        cv = floorf(cv / tv + 0.5f) * tv;
+    }
     {
         const float iu = sh4der_recip_pos_(ext_u), iv = sh4der_recip_pos_(ext_v);   /* ext > 1e-9: the guard above */
         int k;
@@ -299,7 +343,35 @@ static inline int sh4der_psm_fit_(const float T[16], int warped, const float lig
 static inline int sh4der_psm_build_uniform(sh4der_psm_t *out, const float light[3], const float *pts, unsigned n) {
     static const float id[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
-    return sh4der_psm_fit_(id, 0, light, pts, n, out);
+    return sh4der_psm_fit_(id, 0, light, pts, n, 0u, NULL, out);
+}
+
+/* the held light: the one in use while it is within `light_cos` of the new one; a new one lets the extents go */
+static inline const float *sh4der_psm_hold_light_(sh4der_psm_hold_t *hold, const float light[3], float light_cos) {
+    float l[3];
+
+    l[0] = light[0]; l[1] = light[1]; l[2] = light[2];
+    sh4der_norm3_(l);
+    if (!hold->light_ok || !(sh4der_dot3_(l, hold->light) >= light_cos)) {
+        if (hold->light_ok) hold->steps++;
+        hold->light[0] = l[0]; hold->light[1] = l[1]; hold->light[2] = l[2];
+        hold->light_ok = 1;
+        hold->ok = 0;
+    }
+    return hold->light;
+}
+
+/** \brief The uniform map, held still: as `sh4der_psm_build_uniform`, but the fit's extents are kept while the points fit in
+    them (and are not SH4DER_PSM_HOLD_BAND times smaller), its centre moves by whole texels of a `size` map, and the light is
+    kept while it is within `light_cos` (a cosine) of the one in use. A camera that moves then moves no texel: an edge
+    stays on its texels. When the extents or the light are taken again (`hold->steps` counts it) every texel moves once.
+    `hold` is the client's, zeroed to start. Returns 0 for a bad input. */
+static inline int sh4der_psm_build_uniform_held(sh4der_psm_t *out, const float light[3], const float *pts, unsigned n, unsigned size,
+                                                sh4der_psm_hold_t *hold, float light_cos) {
+    static const float id[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+
+    if (!hold || !light) return 0;
+    return sh4der_psm_fit_(id, 0, sh4der_psm_hold_light_(hold, light, light_cos), pts, n, size, hold, out);
 }
 
 /** \brief The warp's near plane from the receivers' points: the nearest view depth among them, held between the camera's
@@ -329,7 +401,42 @@ static inline int sh4der_psm_build_warp(sh4der_psm_t *out, const sh4der_psm_cam_
     float t[16];
 
     if (!sh4der_psm_cam_rows(cam, warp_near, t)) return 0;
-    return sh4der_psm_fit_(t, 1, light, pts, n, out);
+    return sh4der_psm_fit_(t, 1, light, pts, n, 0u, NULL, out);
+}
+
+/* the held camera still stands for `cam`: its eye within `pos_step`, its forward and up within `dir_cos`, the same lens */
+static inline int sh4der_psm_hold_cam_ok_(const sh4der_psm_cam_t *h, const sh4der_psm_cam_t *cam, float pos_step, float dir_cos) {
+    const float d[3] = { cam->eye[0] - h->eye[0], cam->eye[1] - h->eye[1], cam->eye[2] - h->eye[2] };
+
+    return sh4der_dot3_(d, d) <= pos_step * pos_step && sh4der_dot3_(cam->fwd, h->fwd) >= dir_cos && sh4der_dot3_(cam->up, h->up) >= dir_cos
+        && cam->tan_half == h->tan_half && cam->aspect == h->aspect;
+}
+
+/** \brief The perspective shadow map, held still: the warp is made from a held camera, the one in use while the real one
+    is within `pos_step` (world units) of its eye and within `dir_cos` (a cosine) of its forward and up; the fit is then
+    held as `sh4der_psm_build_uniform_held` holds it. Between steps no texel moves; at a step (the camera taken again,
+    counted in `hold->steps`) the whole warp changes once. `pts` are the real camera's receivers. What cannot be held: a
+    warped map's texels are sized by the view, so a step changes their size as well as their place. When the held camera
+    cannot fit the points it is let go and the real one tried. Returns 0 for a bad input or a degenerate frame (as
+    `sh4der_psm_build_warp`). */
+static inline int sh4der_psm_build_warp_held(sh4der_psm_t *out, const sh4der_psm_cam_t *cam, float warp_near, const float light[3],
+                                             const float *pts, unsigned n, unsigned size, sh4der_psm_hold_t *hold,
+                                             float pos_step, float dir_cos, float light_cos) {
+    float t[16];
+    const float *l;
+
+    if (!hold || !cam || !light) return 0;
+    l = sh4der_psm_hold_light_(hold, light, light_cos);
+    if (hold->cam_ok && !sh4der_psm_hold_cam_ok_(&hold->cam, cam, pos_step, dir_cos)) {
+        hold->cam_ok = 0;
+        hold->steps++;
+    }
+    if (hold->cam_ok && sh4der_psm_cam_rows(&hold->cam, warp_near, t) && sh4der_psm_fit_(t, 1, l, pts, n, size, hold, out)) return 1;
+    hold->cam = *cam; hold->cam_ok = 1;                          /* a new warp: the extents are taken again */
+    hold->ok = 0;
+    if (sh4der_psm_cam_rows(cam, warp_near, t) && sh4der_psm_fit_(t, 1, l, pts, n, size, hold, out)) return 1;
+    hold->cam_ok = 0;
+    return 0;
 }
 
 /* ---- the lookup --------------------------------------------------------- */

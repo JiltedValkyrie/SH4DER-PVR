@@ -107,7 +107,10 @@
 #define PSM_DIST_STEPS   22u          /* DRAW DISTANCE: 5 .. 50 m by 5, to 200 by 25, to 500 by 50; one step more is INFINITE */
 #define PSM_DIST_INF     PSM_DIST_STEPS
 #define PSM_DIST_FADE    0.75f        /* the fog starts at this share of the distance and is whole at it */
-#define PSM_FOG_START    0.43f        /* with the air on (state atmos, demo/psm/psm_sky.h): the quadratic fog starts here */
+#define PSM_FOG_START    0.43f
+#define PSM_HOLD_POS     2.0f         /* MAP HOLD, the warped map: its camera is taken again when the eye moves this many metres */
+#define PSM_HOLD_DIR_COS 0.99756f     /* or turns 4 degrees */
+#define PSM_HOLD_LIGHT_COS 0.99999f   /* both maps: the sun is taken again when it moves about a quarter of a degree */        /* with the air on (state atmos, demo/psm/psm_sky.h): the quadratic fog starts here */
 
 /* hold to repeat (the menu's values, the sun's azimuth, the warp's near plane): one step on the press, then after the delay
    8 a second, rising to 30 a second at 2 s held; by time held, not by frames */
@@ -516,11 +519,11 @@ static inline unsigned psm_repeat_step(psm_repeat_t *r, int held, float dt) {
 
 /* The menu's rows, as torchwalk's: one line "ROW: value", D-pad up / down picks, left / right (and A) changes. */
 enum {
-    PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_FILTER_A, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
+    PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_HOLD, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_FILTER_A, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
     PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROWS
 };
 static const char *const psm_row_name[PSM_ROWS] = {
-    "ROUTE", "MAP", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "A FILTER", "B FILTER", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
+    "ROUTE", "MAP", "MAP HOLD", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "A FILTER", "B FILTER", "BIAS A", "BIAS B", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
     "SCENE", "TIME", "TIME SPEED"
 };
 static const float psm_preset_sun[3][2] = { { 120.0f, 35.0f }, { 0.0f, 20.0f }, { 180.0f, 20.0f } };   /* default, head-on, behind */
@@ -529,6 +532,7 @@ static const char *const psm_preset_name[3] = { "default", "head-on", "behind" }
 typedef struct psm_state {
     int route, warp, inset, readout, pcf, split, invert_y, menu, row;   /* pcf: B FILTER, 1 the 2 x 2 compare-then-blend */
     int filter_a;        /* A FILTER: 1 the PVR's bilinear on the target lookup, 0 point */
+    int hold;            /* MAP HOLD: 1 the fit held still (sh4der_psm_build_*_held: texels do not swim), 0 fitted again each frame */
     unsigned size_refused_kb;   /* the last bigger map the program could not allocate (KB; 0: none), on the readout */
     int movers_only;     /* CASTERS: 0 every caster into the map, 1 only the movers' (the static casters are not drawn into it) */
     unsigned dist_i;     /* DRAW DISTANCE: psm_dist_m[dist_i] metres, PSM_DIST_INF for no cut and no fog */
@@ -562,6 +566,7 @@ static inline void psm_state_default(psm_state_t *st) {
     st->readout = 1;
     st->pcf = 1;
     st->filter_a = 1;
+    st->hold = 1;
     st->invert_y = 1;
     st->size_i = 2u;                                   /* 256 (512 is a choice for route B and AB) */
     st->az = psm_preset_sun[0][0]; st->el = psm_preset_sun[0][1];
@@ -634,6 +639,7 @@ static inline void psm_row_change(psm_state_t *st, int row, int d) {
     switch (row) {
         case PSM_ROW_ROUTE: st->route = !st->route; break;
         case PSM_ROW_MAP: st->warp = !st->warp; break;
+        case PSM_ROW_HOLD: st->hold = !st->hold; break;
         case PSM_ROW_CASTERS: st->movers_only = !st->movers_only; break;
         case PSM_ROW_DIST:                                  /* stops at 5 m and at INFINITE */
             if (d > 0 && st->dist_i < PSM_DIST_INF) st->dist_i++;
@@ -677,6 +683,7 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
         case PSM_ROW_ROUTE: return st->route == PSM_ROUTE_A ? "A  PVR draws the map" : st->route == PSM_ROUTE_B ? "B  SH-4 depth map"
                                    : "AB  stub, a frame late";          /* route AB: demo/psm/psm_mapsrc.h */
         case PSM_ROW_MAP: return st->warp ? "PSM (perspective)" : "uniform";
+        case PSM_ROW_HOLD: return st->hold ? "ON  still texels" : "OFF  refit each frame";
         case PSM_ROW_CASTERS: return st->movers_only ? (st->scene ? "movers only (people, hens)" : "movers only (cows)") : "all";
         case PSM_ROW_DIST:
             if (st->dist_i >= PSM_DIST_INF) return "INF: no cut, no fog";
@@ -714,6 +721,7 @@ static inline int32_t psm_row_int(const psm_state_t *st, int row) {
     switch (row) {
         case PSM_ROW_ROUTE: return st->route;
         case PSM_ROW_MAP: return st->warp;
+        case PSM_ROW_HOLD: return st->hold;
         case PSM_ROW_CASTERS: return st->movers_only;
         case PSM_ROW_DIST: return (int32_t)st->dist_i;
         case PSM_ROW_SIZE: return (int32_t)psm_map_size(st);
@@ -856,6 +864,8 @@ typedef struct psm_frame {
     float mh[PSM_CV_MAX][4];    /* route B's scratch: the casters in the map's homogeneous form (X, Y, K, W) */
     float ma[PSM_CV_MAX][4];    /* route A: the casters in the map's homogeneous form (X, Y, ., W), once a frame */
     uint8_t con[PSM_CO_MAX];    /* 1: the caster object's box touches the map's square (psm_frame_cull_) */
+    sh4der_psm_hold_t hold;     /* MAP HOLD: what the held fit keeps between frames */
+    unsigned hold_key;          /* the size, map, route and scene it was held for (another: let go) */
     unsigned cull_objs, cull_tris;   /* objects and their triangles left out by it this frame */
     uint8_t mvis[PSM_MV_MAX];   /* 1: the model vertex is a corner of a triangle that is sent (psm_place_geo) */
     int vis_ok;                 /* mvis is this frame's: route B compares those vertices only */
@@ -971,12 +981,21 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
     f->slab = s->slab[st->route != PSM_ROUTE_A ? 1 : 0];          /* route B's slab for AB too: it compares the models */
     if (sh4der_psm_frustum(&f->cam, PSM_FIT_NEAR, PSM_FAR, corners))
         n = sh4der_psm_slab_pts((const float (*)[3])corners, up, 0.0f, f->slab, pts);
+    {
+        const unsigned key = 1u | (f->size << 1) | ((unsigned)(st->warp != 0) << 12) | ((unsigned)st->route << 13) | ((unsigned)(st->scene != 0) << 16)
+                           | ((unsigned)(st->hold != 0) << 17);
+
+        if (key != f->hold_key) { memset(&f->hold, 0, sizeof f->hold); f->hold_key = key; }
+    }
     if (n) {
         if (st->warp) {
-            f->built = sh4der_psm_build_warp(&f->map, &f->cam, st->warp_near, f->sun, &pts[0][0], n);
+            f->built = st->hold ? sh4der_psm_build_warp_held(&f->map, &f->cam, st->warp_near, f->sun, &pts[0][0], n, f->size, &f->hold,
+                                                             PSM_HOLD_POS, PSM_HOLD_DIR_COS, PSM_HOLD_LIGHT_COS)
+                                : sh4der_psm_build_warp(&f->map, &f->cam, st->warp_near, f->sun, &pts[0][0], n);
             if (!f->built) f->head_on = 1;
         }
-        if (!f->built) f->built = sh4der_psm_build_uniform(&f->map, f->sun, &pts[0][0], n);
+        if (!f->built) f->built = st->hold ? sh4der_psm_build_uniform_held(&f->map, f->sun, &pts[0][0], n, f->size, &f->hold, PSM_HOLD_LIGHT_COS)
+                                           : sh4der_psm_build_uniform(&f->map, f->sun, &pts[0][0], n);
     }
     for (c = 0; c < 4u; c++) {
         const float p[3] = { st->x + sy * psm_probe_m[c], 0.0f, st->z - cy * psm_probe_m[c] };
