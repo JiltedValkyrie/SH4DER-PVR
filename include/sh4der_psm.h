@@ -151,23 +151,43 @@ static inline float sh4der_psm_depth(const sh4der_psm_t *p, const float x[3]) { 
 
 /* ---- 4 x 4 row form ----------------------------------------------------- */
 
+/* A row vector times a row-form matrix. The 16 floats of a row-form matrix, read as the column-major matrix SH4ZAM
+   keeps, are its transpose, so SH4ZAM's matrix x vector is (x, y, z, w) x m: four FIPR on the SH-4, 4-byte loads
+   only (m needs no more than float alignment), XMTRX not touched. Plain C without SH4ZAM, the same sums. */
+static inline void sh4der_psm_row_(const float m[16], float x, float y, float z, float w, float out[4]) {
+#ifndef SH4DER_CORE_NO_SH4ZAM
+    const shz_vec4_t v = shz_mat4x4_transform_vec4((const shz_mat4x4_t *)(const void *)m, shz_vec4_init(x, y, z, w));
+
+    out[0] = v.x; out[1] = v.y; out[2] = v.z; out[3] = v.w;
+#else
+    int c;
+
+    for (c = 0; c < 4; c++)
+        out[c] = x * m[c] + y * m[4 + c] + z * m[8 + c] + w * m[12 + c];
+#endif
+}
+
 /** \brief out = a then b (row vectors). `out` may be a or b. */
 static inline void sh4der_psm_mul(const float a[16], const float b[16], float out[16]) {
     float t[16];
-    int r, c;
+    int r;
 
-    for (r = 0; r < 4; r++)
-        for (c = 0; c < 4; c++)
-            t[r * 4 + c] = a[r * 4 + 0] * b[0 + c] + a[r * 4 + 1] * b[4 + c] + a[r * 4 + 2] * b[8 + c] + a[r * 4 + 3] * b[12 + c];
+    for (r = 0; r < 4; r++) sh4der_psm_row_(b, a[r * 4 + 0], a[r * 4 + 1], a[r * 4 + 2], a[r * 4 + 3], t + r * 4);
     for (r = 0; r < 16; r++) out[r] = t[r];
 }
 
 /** \brief (x, y, z, w_in) x m. w_in is 1 for a point, 0 for a direction. */
 static inline void sh4der_psm_xform(const float m[16], const float p[3], float w_in, float out[4]) {
-    int c;
+    sh4der_psm_row_(m, p[0], p[1], p[2], w_in, out);
+}
 
-    for (c = 0; c < 4; c++)
-        out[c] = p[0] * m[c] + p[1] * m[4 + c] + p[2] * m[8 + c] + w_in * m[12 + c];
+/* One over the square root of x, x > 0: one FSRRA on the SH-4. */
+static inline float sh4der_psm_rsqrt_(float x) {
+#ifndef SH4DER_CORE_NO_SH4ZAM
+    return shz_inv_sqrtf_fsrra(x);
+#else
+    return 1.0f / sqrtf(x);
+#endif
 }
 
 /** \brief The camera's world-to-clip rows for a near plane `zn` (the warp's; not the render's): x / (tan a),
@@ -296,7 +316,7 @@ static inline int sh4der_psm_fit_(const float T[16], int warped, const float lig
     ext_v = 0.5f * (hi_t - lo_t) * SH4DER_PSM_MARGIN;
     if (!(ext_u > 1e-9f) || !(ext_v > 1e-9f) || !sh4der_finite_(ext_u) || !sh4der_finite_(ext_v)) return 0;
     if (hold && size > 2u * (unsigned)SH4DER_PSM_HOLD_PAD) {
-        const float pad = 1.0f + 2.0f * SH4DER_PSM_HOLD_PAD / (float)size;
+        const float pad = 1.0f + sh4der_div_(2.0f * SH4DER_PSM_HOLD_PAD, (float)size);
         const int ok = hold->ok && hold->kind == kind;
         const int su = sh4der_psm_hold_ext_(&hold->ext[0], ext_u * pad, ok), sv = sh4der_psm_hold_ext_(&hold->ext[1], ext_v * pad, ok);
         float tu, tv;
@@ -304,9 +324,9 @@ static inline int sh4der_psm_fit_(const float T[16], int warped, const float lig
         if (hold->ok && (su || sv)) hold->steps++;
         hold->ok = 1; hold->kind = kind;
         ext_u = hold->ext[0]; ext_v = hold->ext[1];
-        tu = 2.0f * ext_u / (float)size; tv = 2.0f * ext_v / (float)size;      /* a texel, in the fit's own units */
-        cu = floorf(cu / tu + 0.5f) * tu;
-        cv = floorf(cv / tv + 0.5f) * tv;
+        tu = sh4der_div_(2.0f * ext_u, (float)size); tv = sh4der_div_(2.0f * ext_v, (float)size);      /* a texel, in the fit's own units */
+        cu = sh4der_div_(cu, tu) + 0.5f; cu = (cu - sh4der_frac_(cu)) * tu;      /* x - frac(x) is floor(x) */
+        cv = sh4der_div_(cv, tv) + 0.5f; cv = (cv - sh4der_frac_(cv)) * tv;
     }
     {
         const float iu = sh4der_recip_pos_(ext_u), iv = sh4der_recip_pos_(ext_v);   /* ext > 1e-9: the guard above */
@@ -477,7 +497,7 @@ static inline float sh4der_psm_texel_m(const sh4der_psm_t *p, unsigned size, con
     area = u1 * v2 - v1 * u2;
     if (area < 0.0f) area = -area;
     if (!(area > 1e-12f)) return 1e30f;
-    return sqrtf(sh4der_div_(delta * delta, area));
+    return sh4der_sqrt_(sh4der_div_(delta * delta, area));
 }
 
 /** \brief Metres of surface one screen pixel covers at point x with unit normal n, for a screen `h_px` pixels tall.
@@ -489,14 +509,14 @@ static inline float sh4der_psm_pixel_m(const sh4der_psm_cam_t *cam, unsigned h_p
     z = sh4der_dot3_(d, cam->fwd);
     len2 = sh4der_len3_(d[0], d[1], d[2]);
     if (!(z > 0.0f) || !(len2 > 0.0f) || !(h_px > 0u)) return 0.0f;
-    inv = 1.0f / sqrtf(len2);
+    inv = sh4der_psm_rsqrt_(len2);
     cos_t = z * inv;
     ndr = sh4der_dot3_(n, d) * inv;
     if (ndr < 0.0f) ndr = -ndr;
     if (!(ndr > 1e-4f)) ndr = 1e-4f;
-    az = z * 2.0f * cam->tan_half / (float)h_px;
-    area = az * az * cos_t / ndr;
-    return sqrtf(area);
+    az = sh4der_div_(z * 2.0f * cam->tan_half, (float)h_px);
+    area = sh4der_div_(az * az * cos_t, ndr);
+    return sh4der_sqrt_(area);
 }
 
 /* ---- the points to fit -------------------------------------------------- */
@@ -549,7 +569,7 @@ static inline unsigned sh4der_psm_slab_pts(const float corners[8][3], const floa
             if ((hp < h && hq > h) || (hp > h && hq < h)) {
                 const float t = sh4der_div_(h - hp, hq - hp);
 
-                for (k = 0; k < 3; k++) out[n][k] = p[k] + (q[k] - p[k]) * t;
+                for (k = 0; k < 3; k++) out[n][k] = sh4der_lerp_(p[k], q[k], t);
                 n++;
             }
         }
