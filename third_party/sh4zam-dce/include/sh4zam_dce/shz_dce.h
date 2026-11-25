@@ -29,5 +29,6 @@
 #include "shz_dce_shadow.h"
 #include "shz_dce_tri_row.h"
 #include "shz_dce_pvr.h"
+#include "shz_dce_xmtrx.h"
 
 #endif /* SHZ_DCE_H */

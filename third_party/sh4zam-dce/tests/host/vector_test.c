@@ -20,6 +20,8 @@
      routines, and no effect on the other elements of a batch (strict-flag build)
 */
 
+/* the FIPR bodies of the length and of the 4-vector normalisation are tested here: by default they are SH4ZAM's routines, called underneath */
+#define SHZ_DCE_REWORK_FIPR 1
 #include <sh4zam_dce/shz_dce_vector.h>
 
 #include "shz_dce_test.h"
@@ -275,7 +277,10 @@ int main(void) {
         for (i = 0; i < count; i++) {
             double pm;
             const double e = exact_dot(&va[i], &vb[i], &pm), bound = (pm + fabs(e)) * BOUND;
+            const double from_shz = fabs((double)fout[i] - (double)shz_vec3_dot(va[i], vb[i]));
             T_CHECK(fabs((double)fout[i] - e) <= bound, "dot batch count %d element %d: %.9g, exact %.9g, bound %.3g", count, i, (double)fout[i], e, bound);
+            /* the batch agrees with shz_vec3_dot() within (P + |R|) x 2^-20 (each of the two is within (P + |R|) x 2^-21 of the exact value) */
+            T_CHECK(from_shz <= 2.0 * bound, "dot batch count %d element %d: %.3g from shz_vec3_dot(), over %.3g", count, i, from_shz, 2.0 * bound);
         }
         /* the plain C form is the same expression as shz_vec3_dot(): counted here, and required to match under strict flags */
         shz_dce_vec3_dot_batch_c(fout, va, vb, (size_t)count);
@@ -338,6 +343,9 @@ int main(void) {
             for (k = 0; k < 3; k++) {
                 const uint32_t u = t_ulps(got[k], vref[i].e[k]);
                 if (u > max_ulps_norm) max_ulps_norm = u;
+                /* the batch agrees with shz_vec3_normalize() within 2^-19 a component (a unit vector's components are at most 1) */
+                T_CHECK(fabs((double)got[k] - (double)vref[i].e[k]) <= REL_NORM, "normalize element %d component %d: %.3g from shz_vec3_normalize(), over 2^-19", i, k,
+                        fabs((double)got[k] - (double)vref[i].e[k]));
                 if (fabs(ex[k]) > 1e-3) {
                     const double rel = fabs((double)got[k] - ex[k]) / fabs(ex[k]);
                     T_CHECK(rel <= REL_NORM, "normalize element %d component %d: %.9g, exact %.9g, relative %.3g", i, k, (double)got[k], ex[k], rel);

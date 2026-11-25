@@ -200,10 +200,12 @@ static void test_nlerp(void) {
                     T_CHECK(dif <= 4.0 * 1.1920928955078125e-07, "nlerp count %u elem %u: the batch differs from the single element by %.3g",
                             (unsigned)count, (unsigned)k, dif);
                 }
-                /* SH4ZAM's own routine on the same inputs: measured, not promised (the sign is not in the band) */
+                /* SH4ZAM's own routine on the same inputs (the sign is not in the band): the batch agrees with shz_quat_nlerp()
+                   within 2^-19 a component; how many results have its bits is counted, not promised */
                 if (d > SIGN_BAND || d < -SIGN_BAND) {
                     ref = shz_quat_nlerp(A[k], B[k], t);
                     dif = max_abs_diff4(O[k].e, (double[]){ ref.w, ref.x, ref.y, ref.z });
+                    T_CHECK(dif <= NLERP_BOUND, "nlerp count %u elem %u: %.3g from shz_quat_nlerp(), over 2^-19", (unsigned)count, (unsigned)k, dif);
                     orig_n++;
                     if (memcmp(&ref, &O[k], 16) == 0) same_bits++;
                     if (dif > max_vs_orig) max_vs_orig = dif;
@@ -257,11 +259,13 @@ static void test_mult(void) {
                     m[2][0] - m[2][1] + m[2][2] + m[2][3],
                     m[3][0] + m[3][1] - m[3][2] + m[3][3],
                 };
+                double tol[4];
                 int c, j;
                 for (c = 0; c < 4; c++) {
                     double P = 0.0;
                     const double err = fabs((double)O[k].e[c] - r[c]);
                     for (j = 0; j < 4; j++) if (fabs(m[c][j]) > P) P = fabs(m[c][j]);
+                    tol[c] = (P + fabs(r[c])) * MULT_FACTOR;
                     T_CHECK(err <= (P + fabs(r[c])) * MULT_FACTOR,
                             "mult count %u elem %u comp %d: error %.9g over (P + |R|) x 2^-20 = %.9g", (unsigned)count, (unsigned)k, c,
                             err, (P + fabs(r[c])) * MULT_FACTOR);
@@ -274,6 +278,11 @@ static void test_mult(void) {
                             (unsigned)count, (unsigned)k);
 #endif
                     const double dif = max_abs_diff4(O[k].e, (double[]){ ref.w, ref.x, ref.y, ref.z });
+                    /* in every build: the batch agrees with shz_quat_mult() within (P + |R|) x 2^-19 a component (each of the two
+                       is within (P + |R|) x 2^-20 of the exact product) */
+                    for (c = 0; c < 4; c++)
+                        T_CHECK(fabs((double)O[k].e[c] - (double)ref.e[c]) <= 2.0 * tol[c], "mult count %u elem %u comp %d: %.9g from shz_quat_mult(), over %.9g",
+                                (unsigned)count, (unsigned)k, c, fabs((double)O[k].e[c] - (double)ref.e[c]), 2.0 * tol[c]);
                     n++;
                     if (memcmp(&ref, &O[k], 16) == 0) same_bits++;
                     if (dif > max_vs_orig) max_vs_orig = dif;
@@ -319,9 +328,10 @@ static void test_normalize(void) {
                     T_CHECK(err <= NORM_BOUND, "normalize count %u elem %u: error %.9g over the bound", (unsigned)count, (unsigned)k, err);
                     if (err > worst) worst = err;
                 }
-                {   /* SH4ZAM's own normalise on the same input */
+                {   /* SH4ZAM's own normalise on the same input: the batch agrees with shz_quat_normalize() within 2^-19 a component */
                     const shz_quat_t ref = shz_quat_normalize(A[k]);
                     const double dif = max_abs_diff4(O[k].e, (double[]){ ref.w, ref.x, ref.y, ref.z });
+                    T_CHECK(dif <= NORM_BOUND, "normalize count %u elem %u: %.3g from shz_quat_normalize(), over 2^-19", (unsigned)count, (unsigned)k, dif);
                     n++;
                     if (memcmp(&ref, &O[k], 16) == 0) same_bits++;
                     if (dif > max_vs_orig) max_vs_orig = dif;

@@ -11,6 +11,8 @@
    the compile check of the header: it instantiates every public routine, so every asm block is assembled.
 */
 
+/* the FIPR bodies of the length and of the 4-vector normalisation are tested here: by default they are SH4ZAM's routines, called underneath */
+#define SHZ_DCE_REWORK_FIPR 1
 #include <sh4zam_dce/shz_dce_vector.h>
 
 #include "vector_jobs.h"

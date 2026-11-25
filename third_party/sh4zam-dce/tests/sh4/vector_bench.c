@@ -13,6 +13,8 @@
    The figures are the interpreter's pipeline model (an ESTIMATE, cache hits assumed), not a console's.
 */
 
+/* the FIPR bodies of the length and of the 4-vector normalisation are tested here: by default they are SH4ZAM's routines, called underneath */
+#define SHZ_DCE_REWORK_FIPR 1
 #include <sh4zam_dce/shz_dce_vector.h>
 
 #define R SHZ_RESTRICT

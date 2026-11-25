@@ -7,9 +7,19 @@
 */
 
 /** \file    shz_dce_sqrt.h
-    \brief   Reworks of SH4ZAM 0.10's guarded square roots and lengths (Falco Girgis): the zero
-             test moved into the shadow of FSRRA. Same signatures, same bits. A console did not
-             confirm the gain: shz_dce_override.h leaves them off unless asked for.
+    \brief   SH4ZAM's guarded square roots and lengths (Falco Girgis) under shz_dce_ names. As
+             built by default each routine here IS SH4ZAM's routine of the same name, called
+             underneath: one implementation, SH4ZAM's. The reordered bodies described below (the
+             zero test moved into the shadow of FSRRA; same signatures, same bits) are compiled
+             only with SHZ_DCE_REWORK_ROOTS 1, for a console test: a console did not confirm
+             their gain.
+
+    SHZ_DCE_REWORK_ROOTS (1 or 0, default 0, set before the include):
+    - 0: shz_dce_sqrtf(x) is shz_sqrtf(x), and so on for every routine of this header. SH4ZAM
+      has these routines, so nothing here replaces them; the names exist so that code written
+      against this header, and the lines of shz_dce_override.h, keep compiling. The barrier
+      switches (SHZ_DCE_OPAQUE_...) do nothing in this build.
+    - 1: the reordered bodies. Everything from here to the end of this comment describes them.
 
     SH4ZAM 0.10's guarded routines are written `x == 0 ? 0 : f(FSRRA(x))`: shz_sqrtf,
     shz_inv_sqrtf, shz_hypotf, the vector magnitudes, distances and safe normalisations. Compiled,
@@ -79,6 +89,19 @@
 extern "C" {
 #endif
 
+/** \brief 0 (the default): every routine of this header calls SH4ZAM's routine of the same name. 1: the reordered bodies. */
+#ifndef SHZ_DCE_REWORK_ROOTS
+#define SHZ_DCE_REWORK_ROOTS 0
+#endif
+
+/* One line a public routine: the reordered body, or SH4ZAM's own routine. */
+#if SHZ_DCE_REWORK_ROOTS
+#define SHZ_DCE_ROOT_(reordered, sh4zam) (reordered)
+#else
+#define SHZ_DCE_ROOT_(reordered, sh4zam) (sh4zam)
+#endif
+
+#if SHZ_DCE_REWORK_ROOTS
 /** \brief shz_dce_sqrtf() with the barrier chosen by the caller: `opaque` a constant, not 0 for
     a +0 behind shz_dce_opaquef() on the zero path, 0 for the plain constant. The public routines
     pass their group's switch; the tests run both. */
@@ -122,6 +145,7 @@ SHZ_FORCE_INLINE shz_vec4_t shz_dce_vec4_normalize_safe_o_(shz_vec4_t vec, int o
     const shz_vec4_t unit = shz_vec4_scale(vec, shz_inv_sqrtf_fsrra(sqr_mag));
     return SHZ_UNLIKELY(sqr_mag == 0.0f) ? shz_vec4_fill(SHZ_DCE_ZERO_(opaque)) : unit;
 }
+#endif /* SHZ_DCE_REWORK_ROOTS */
 
 /** \brief Rework of SH4ZAM 0.10's shz_sqrtf (Falco Girgis): `x == 0 ? 0 : FSRRA(x) * x`, the test
     taken in FSRRA's shadow. Same special cases: 0 for a zero of either sign and for a denormal
@@ -129,7 +153,7 @@ SHZ_FORCE_INLINE shz_vec4_t shz_dce_vec4_normalize_safe_o_(shz_vec4_t vec, int o
     -ffast-math: see the file comment). Barrier: SHZ_DCE_OPAQUE_SQRT. Cycles E: 16 -> 14; a
     console, single calls, cached: 29, against 28 for current SH4ZAM's FSQRT. */
 SHZ_FORCE_INLINE float shz_dce_sqrtf(float x) SHZ_NOEXCEPT {
-    return shz_dce_sqrtf_o_(x, SHZ_DCE_OPAQUE_SQRT);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_(x, SHZ_DCE_OPAQUE_SQRT), shz_sqrtf(x));
 }
 
 /** \brief Rework of SH4ZAM 0.10's shz_inv_sqrtf (Falco Girgis): `x == 0 ? 0 : FSRRA(x)`, the test
@@ -137,7 +161,7 @@ SHZ_FORCE_INLINE float shz_dce_sqrtf(float x) SHZ_NOEXCEPT {
     SHZ_DCE_OPAQUE_INV_SQRT. Cycles E: 12 -> 11 (-O2), 9 (-O3); a console, single calls, cached:
     25 -> 24 with the barrier, 26 without. */
 SHZ_FORCE_INLINE float shz_dce_inv_sqrtf(float x) SHZ_NOEXCEPT {
-    return shz_dce_inv_sqrtf_o_(x, SHZ_DCE_OPAQUE_INV_SQRT);
+    return SHZ_DCE_ROOT_(shz_dce_inv_sqrtf_o_(x, SHZ_DCE_OPAQUE_INV_SQRT), shz_inv_sqrtf(x));
 }
 
 /** \brief Rework of SH4ZAM's shz_hypotf: the guarded root of x x + y y. Bit-identical to
@@ -148,58 +172,58 @@ SHZ_FORCE_INLINE float shz_dce_hypotf(float x, float y) SHZ_NOEXCEPT {
     if (__builtin_constant_p(x) && __builtin_constant_p(y))
         return shz_hypotf(x, y);
 #endif
-    return shz_dce_sqrtf_o_((x * x) + (y * y), SHZ_DCE_OPAQUE_SQRT);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_((x * x) + (y * y), SHZ_DCE_OPAQUE_SQRT), shz_hypotf(x, y));
 }
 
 /** \brief Reworks of SH4ZAM's shz_vec2_magnitude / shz_vec3_magnitude / shz_vec4_magnitude: the
     length, 0 for a vector whose squared length is zero. Bit-identical: YES. Barrier:
     SHZ_DCE_OPAQUE_MAGNITUDE. Cycles E (vec3): 25 -> 23. */
 SHZ_FORCE_INLINE float shz_dce_vec2_magnitude(shz_vec2_t vec) SHZ_NOEXCEPT {
-    return shz_dce_sqrtf_o_(shz_vec2_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_(shz_vec2_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE), shz_vec2_magnitude(vec));
 }
 
 /** \brief See shz_dce_vec2_magnitude. */
 SHZ_FORCE_INLINE float shz_dce_vec3_magnitude(shz_vec3_t vec) SHZ_NOEXCEPT {
-    return shz_dce_sqrtf_o_(shz_vec3_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_(shz_vec3_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE), shz_vec3_magnitude(vec));
 }
 
 /** \brief See shz_dce_vec2_magnitude. */
 SHZ_FORCE_INLINE float shz_dce_vec4_magnitude(shz_vec4_t vec) SHZ_NOEXCEPT {
-    return shz_dce_sqrtf_o_(shz_vec4_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_(shz_vec4_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE), shz_vec4_magnitude(vec));
 }
 
 /** \brief Reworks of SH4ZAM's shz_vec2_magnitude_inv / shz_vec3_magnitude_inv /
     shz_vec4_magnitude_inv: one over the length, 0 for a vector whose squared length is zero.
     Bit-identical: YES. Barrier: SHZ_DCE_OPAQUE_MAGNITUDE. Cycles E (vec3): 21 -> 20. */
 SHZ_FORCE_INLINE float shz_dce_vec2_magnitude_inv(shz_vec2_t vec) SHZ_NOEXCEPT {
-    return shz_dce_inv_sqrtf_o_(shz_vec2_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE);
+    return SHZ_DCE_ROOT_(shz_dce_inv_sqrtf_o_(shz_vec2_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE), shz_vec2_magnitude_inv(vec));
 }
 
 /** \brief See shz_dce_vec2_magnitude_inv. */
 SHZ_FORCE_INLINE float shz_dce_vec3_magnitude_inv(shz_vec3_t vec) SHZ_NOEXCEPT {
-    return shz_dce_inv_sqrtf_o_(shz_vec3_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE);
+    return SHZ_DCE_ROOT_(shz_dce_inv_sqrtf_o_(shz_vec3_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE), shz_vec3_magnitude_inv(vec));
 }
 
 /** \brief See shz_dce_vec2_magnitude_inv. */
 SHZ_FORCE_INLINE float shz_dce_vec4_magnitude_inv(shz_vec4_t vec) SHZ_NOEXCEPT {
-    return shz_dce_inv_sqrtf_o_(shz_vec4_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE);
+    return SHZ_DCE_ROOT_(shz_dce_inv_sqrtf_o_(shz_vec4_magnitude_sqr(vec), SHZ_DCE_OPAQUE_MAGNITUDE), shz_vec4_magnitude_inv(vec));
 }
 
 /** \brief Reworks of SH4ZAM's shz_vec2_distance / shz_vec3_distance / shz_vec4_distance: the
     length of the difference. Bit-identical: YES. Barrier: SHZ_DCE_OPAQUE_DISTANCE. Cycles E
     (vec3): 31 -> 29. */
 SHZ_FORCE_INLINE float shz_dce_vec2_distance(shz_vec2_t vec1, shz_vec2_t vec2) SHZ_NOEXCEPT {
-    return shz_dce_sqrtf_o_(shz_vec2_magnitude_sqr(shz_vec2_sub(vec1, vec2)), SHZ_DCE_OPAQUE_DISTANCE);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_(shz_vec2_magnitude_sqr(shz_vec2_sub(vec1, vec2)), SHZ_DCE_OPAQUE_DISTANCE), shz_vec2_distance(vec1, vec2));
 }
 
 /** \brief See shz_dce_vec2_distance. */
 SHZ_FORCE_INLINE float shz_dce_vec3_distance(shz_vec3_t vec1, shz_vec3_t vec2) SHZ_NOEXCEPT {
-    return shz_dce_sqrtf_o_(shz_vec3_magnitude_sqr(shz_vec3_sub(vec1, vec2)), SHZ_DCE_OPAQUE_DISTANCE);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_(shz_vec3_magnitude_sqr(shz_vec3_sub(vec1, vec2)), SHZ_DCE_OPAQUE_DISTANCE), shz_vec3_distance(vec1, vec2));
 }
 
 /** \brief See shz_dce_vec2_distance. */
 SHZ_FORCE_INLINE float shz_dce_vec4_distance(shz_vec4_t vec1, shz_vec4_t vec2) SHZ_NOEXCEPT {
-    return shz_dce_sqrtf_o_(shz_vec4_magnitude_sqr(shz_vec4_sub(vec1, vec2)), SHZ_DCE_OPAQUE_DISTANCE);
+    return SHZ_DCE_ROOT_(shz_dce_sqrtf_o_(shz_vec4_magnitude_sqr(shz_vec4_sub(vec1, vec2)), SHZ_DCE_OPAQUE_DISTANCE), shz_vec4_distance(vec1, vec2));
 }
 
 /** \brief Reworks of SH4ZAM's shz_vec2_normalize_safe / shz_vec3_normalize_safe /
@@ -208,18 +232,20 @@ SHZ_FORCE_INLINE float shz_dce_vec4_distance(shz_vec4_t vec1, shz_vec4_t vec2) S
     SHZ_DCE_OPAQUE_NORMALIZE2 / 3 / 4. Cycles E (vec3): 28 -> 25 (-O2), 27 -> 25 (-O3); a
     console, single calls, cached, barrier off: vec2 44 -> 40, vec3 52 -> 60, vec4 50 -> 65. */
 SHZ_FORCE_INLINE shz_vec2_t shz_dce_vec2_normalize_safe(shz_vec2_t vec) SHZ_NOEXCEPT {
-    return shz_dce_vec2_normalize_safe_o_(vec, SHZ_DCE_OPAQUE_NORMALIZE2);
+    return SHZ_DCE_ROOT_(shz_dce_vec2_normalize_safe_o_(vec, SHZ_DCE_OPAQUE_NORMALIZE2), shz_vec2_normalize_safe(vec));
 }
 
 /** \brief See shz_dce_vec2_normalize_safe. */
 SHZ_FORCE_INLINE shz_vec3_t shz_dce_vec3_normalize_safe(shz_vec3_t vec) SHZ_NOEXCEPT {
-    return shz_dce_vec3_normalize_safe_o_(vec, SHZ_DCE_OPAQUE_NORMALIZE3);
+    return SHZ_DCE_ROOT_(shz_dce_vec3_normalize_safe_o_(vec, SHZ_DCE_OPAQUE_NORMALIZE3), shz_vec3_normalize_safe(vec));
 }
 
 /** \brief See shz_dce_vec2_normalize_safe. */
 SHZ_FORCE_INLINE shz_vec4_t shz_dce_vec4_normalize_safe(shz_vec4_t vec) SHZ_NOEXCEPT {
-    return shz_dce_vec4_normalize_safe_o_(vec, SHZ_DCE_OPAQUE_NORMALIZE4);
+    return SHZ_DCE_ROOT_(shz_dce_vec4_normalize_safe_o_(vec, SHZ_DCE_OPAQUE_NORMALIZE4), shz_vec4_normalize_safe(vec));
 }
+
+#undef SHZ_DCE_ROOT_
 
 #ifdef __cplusplus
 }

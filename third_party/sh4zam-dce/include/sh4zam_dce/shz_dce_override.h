@@ -38,6 +38,12 @@
                                             SH4ZAM's: within 3 and 2 ulp.
         SHZ_DCE_OVERRIDE_ALL    default 0   1: every switch above that is not set by name is on.
 
+    The root, length, distance, safe-normalisation and FIPR groups rename to shz_dce_ routines
+    that, as built by default, call SH4ZAM's own routine underneath (SH4ZAM has those jobs:
+    shz_dce_sqrt.h, shz_dce_vector.h). Their switches change what a call compiles to only
+    together with SHZ_DCE_REWORK_ROOTS 1 or SHZ_DCE_REWORK_FIPR 1, the flags that build the
+    reworked bodies for a console test.
+
     Why these defaults: a console (single calls, reported by Falco Girgis; doc/THESIS.md, section
     7). The arcsine and arccosine won there, in accuracy by a factor of 850 and in cycles by
     nothing or a little. The arctangent won in use: with 5 terms an interpolated rotation that

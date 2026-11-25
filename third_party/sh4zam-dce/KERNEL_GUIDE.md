@@ -209,3 +209,40 @@ The routines: `shz_dce_pvr_project_c` (plain C on SH4ZAM's `shz_xmtrx_transform_
 **What was tried and did not pay, with numbers.** The first form copied W to a scratch register and walked a second pointer for the screen point's stores: 22.0. Squaring W in place and storing through `@(r0, q)` with constant offsets took the copy and two trailing adds out: 19.5. Pair moves (FPSCR.SZ = 1) for the carried words would take four more loads and stores out; not tried: the position sits across a pair boundary (command word and x share a pair), so it needs a permuted XMTRX or two FSCHG a vertex.
 
 **Not measured, and not claimed.** Any console time: the spike `demo/psm/compare/c4_spike.c` (page 5) times this loop against its C form on a console and compares the bytes; until its pages exist the 19.5 is the model's. Cache misses (the model assumes hits; the loop prefetches the input 96 bytes ahead and allocates the output lines).
+
+## Entry: xmtrx (shz_dce_xmtrx.h, arrays of vectors through XMTRX)
+
+**Why it exists.** A console measured the plain loop of SH4ZAM's `shz_xmtrx_transform_vec4` and `shz_invf_fsrra` at 28.67 cycles a vertex in the cache (256 vertices, 16-byte records, output 8 KB from the input), and KallistiOS's `mat_transform` on the same job at 13.16 (one console, one run, 2026-11-25). SH4ZAM 0.10.0 has the single calls only: no routine of it takes a count (checked by a search of its headers for an array form of any transform). So these are new routines, not reworks: nothing of SH4ZAM's is replaced or renamed, there is no line in `shz_dce_override.h`, and off the SH-4 each routine is the loop of SH4ZAM's own call.
+
+The routines: `shz_dce_xmtrx_transform_vec4_batch`, `shz_dce_xmtrx_transform_point3_batch` (w = 1), `shz_dce_xmtrx_transform_vec3_batch` (w = 0), `shz_dce_xmtrx_project_point3_batch` (X / W, Y / W, 1 / W with 1 / W = FSRRA(W W)); each with its `_c` form (the loop of SH4ZAM's single call: the reference and the software back end) and its `_sh4` loop. All take `(out, out_stride, in, in_stride, count)`.
+
+**Alignment.** Every pointer and stride on a multiple of 4; a stride at least its record (12 or 16 bytes). 4-byte accesses only. The output may be the input array with the same stride (a record is loaded before any record at or after it is stored: the checks run every routine in place); no other overlap. XMTRX is read, not changed.
+
+**Error bound.** FTRV's and FSRRA's own; none added. The checks hold a transformed component to (largest product + |result|) x 2^-21 of the exact value, and the projection to the bound of the `pvr` entry.
+
+**Bit-identical.** YES against the loop of SH4ZAM's single call, on the SH-4: every byte of the output arrays, counts 0 to 41 and 257, strides 12 / 16 / 20 / 28 / 32 in several pairings, in place and apart, in the four flag sets, with and without the prefetches (`xmtrx_check`, `xmtrxnp_check`: 126,546 checks each build). On the host the dispatch is the C form; the host test holds each result to the bits of SH4ZAM's single call (`xmtrx_test`: 2,393,790 checks, strict and fast-math).
+
+**Cycles E** (`build/sh4zam-dce/cycles_xmtrx.txt`, `cycles_xmtrxnp.txt`; a vector; the same at -O2 and -O3):
+
+| Row | E a vector | instructions |
+|---|---|---|
+| `_bench_xmtrx_project_divide` (the plain loop, FDIV) | 30.0 | 15 |
+| `_bench_xmtrx_project_c` (the plain loop, FSRRA: the loop the console timed at 28.67) | 26.0 | 15 |
+| `_bench_xmtrx_project` | 11.0 | 20 |
+| the same without the prefetches | 11.0 | 16 |
+| `_bench_xmtrx_point3_c`, `_vec3_12_c` | 13.0 | 11 |
+| `_bench_xmtrx_point3`, `_vec3_12` | 9.5 | 16 |
+| the same without the prefetches | 7.5 | 12 |
+| `_bench_xmtrx_vec4_c` | 15.0 | 12 |
+| `_bench_xmtrx_vec4` | 10.5 | 17 |
+| the same without the prefetches | 9.0 | 13 |
+
+**Where the gain comes from.** The projection is FE-bound: FTRV holds the FPU 4 cycles, FSRRA 3 (assumed), and there are three multiplies: 10 FPU cycles a vector, 11 with the one cycle the schedule cannot fill. The chain of one vector is 18 cycles from its first load to its last product, so three are in flight (fv0, fv4, fv8 in turn): a step begins vector k, does W W and FSRRA for k - 1 and the two products and three stores for k - 2. The stores run backwards through a pre-decrement pointer (1 / W, Y, X: the order the numbers arrive in), which needs no index register and no address arithmetic but one add a record. The plain transforms are LS-bound (loads + stores + the constant: 7 or 8 a vector) with two in flight.
+
+**The prefetches.** One PREF a step for each array, 64 bytes ahead. In the model they cost the projection nothing (its loads and stores, 9 with them, fit beside 11 FPU cycles) and the plain transforms 2 cycles a vector. What they are worth when the arrays are not in the cache is not known: the model has no cache. The switch `SHZ_DCE_XMTRX_PREFETCH` (default 1) is there so that a console can time both builds, in and out of the cache.
+
+**What was tried and did not pay, with numbers.** The first form stored through `@(r0, q)` with `mov #imm, r0` before each store and kept the output pointer 64 bytes ahead so that it was its own prefetch pointer: projection 11.35, point3 11.0 (9.5 without prefetch), vec4 13.0 (11.5). The pre-decrement stores took 3 or 4 instructions a vector out: 11.0, 9.5 (7.5), 10.5 (9.0). Not tried: pair moves (FPSCR.SZ = 1) for the vec4 routine, which would halve its loads and stores when both arrays and strides are on multiples of 8; four vectors in flight for the projection (10 cycles in the model instead of 11, at the price of fv12 and a fourth tail).
+
+**Not measured, and not claimed.** Any console time. The target was KallistiOS's measured 13.16; the projection's 11.0 is the model's, and the model was 10 % under the console on the plain loop (26.0 against 28.67) and 8 % under on `shz_dce_pvr_project` (19.5 against 21.15). Cache misses. FSRRA's 3 cycles of the FPU.
+
+**`shz_dce_pvr_project` after the same console run.** 21.15 cycles a vertex measured against the model's 19.5; its C form 43.19 against 39. Its pace is 18 loads, stores and moves a vertex. It can drop in the model, not yet in code: the four carried words (two pairs on a multiple of 8) can go as two pair loads and two pair stores with FPSCR.SZ switched on and off once a vertex (two FSCHG): 14 loads and stores, about 14.5 to 15 E. That needs the input on a multiple of 8, and it rests on FSCHG costing one FPU slot, which this model assumes and no console here has timed.

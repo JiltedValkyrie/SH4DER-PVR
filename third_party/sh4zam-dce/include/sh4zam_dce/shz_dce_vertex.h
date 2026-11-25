@@ -171,7 +171,11 @@ SHZ_INLINE float shz_dce_vertex_fmaf_sw(float a, float b, float c) SHZ_NOEXCEPT 
 #endif
 
 /** \brief One fused multiply-add: a * b + c with one rounding. On the SH-4 it is FMAC (the multiplicand goes in FR0, where FMAC
-    wants it); with a compiler's FMA instruction (-mfma) it is that instruction; otherwise shz_dce_vertex_fmaf_sw(). */
+    wants it); with a compiler's FMA instruction (-mfma) it is that instruction; otherwise shz_dce_vertex_fmaf_sw().
+    Not SH4ZAM's shz_fmaf(), on purpose: that one is the expression a * b + c, which the compiler fuses or not as its flags
+    say (two roundings in a strict build, one with -ffp-contract=fast). This one FORCES the single rounding in every build
+    and on every target, because the routines here that promise the bits of a fused sum, and the tests that check them, need
+    the same answer whatever the flags. Where one rounding or two does not matter, call shz_fmaf(). */
 SHZ_FORCE_INLINE float shz_dce_vertex_fmaf(float a, float b, float c) SHZ_NOEXCEPT {
 #if SHZ_DCE_SH4
     register float f0 asm("fr0") = a;

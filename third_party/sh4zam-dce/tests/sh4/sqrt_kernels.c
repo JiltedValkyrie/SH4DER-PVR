@@ -11,6 +11,8 @@
    them. This file is also the compile check of the header: it calls every public routine.
 */
 
+/* this file is about the reordered bodies: by default the header's routines are SH4ZAM's own, called underneath */
+#define SHZ_DCE_REWORK_ROOTS 1
 #include <sh4zam_dce/shz_dce_sqrt.h>
 
 #include "sqrt_jobs.h"

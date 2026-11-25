@@ -399,7 +399,16 @@ SHZ_INLINE void shz_dce_vec3_normalize_batch(shz_vec3_t *out, const shz_vec3_t *
 #endif
 }
 
-/** \brief The length of one 3-vector (0 for the zero vector), by FIPR. A rework of SH4ZAM's shz_vec3_magnitude (Falco Girgis). The original: the
+/** \brief 0 (the default): shz_dce_vec3_magnitude_fipr() and shz_dce_vec4_normalize() call SH4ZAM's shz_vec3_magnitude() and shz_vec4_normalize()
+    underneath: SH4ZAM has these routines, so nothing here replaces them. 1: the FIPR bodies their comments describe, whose results differ from
+    SH4ZAM's in the last bits, for a console test (set before the include). */
+#ifndef SHZ_DCE_REWORK_FIPR
+#define SHZ_DCE_REWORK_FIPR 0
+#endif
+
+/** \brief With SHZ_DCE_REWORK_FIPR 0: SH4ZAM's shz_vec3_magnitude(), called underneath, and the rest of this comment does not apply.
+    With SHZ_DCE_REWORK_FIPR 1:
+    The length of one 3-vector (0 for the zero vector), by FIPR. A rework of SH4ZAM's shz_vec3_magnitude (Falco Girgis). The original: the
     squared length (fmul and two fmac), then its root as FSRRA(s) times s, with 0 for a zero squared length. What changes on the SH-4: the squared
     length is one FIPR (latency 4 instead of 9), and the zero test is taken in FSRRA's shadow (shz_dce_sqrt.h). Same special cases (tested: 0 for a
     zero vector, NaN for an infinite or NaN component, as the original). Bit-identical to the original: NO. Error bound: the FIPR bound for the
@@ -407,7 +416,9 @@ SHZ_INLINE void shz_dce_vec3_normalize_batch(shz_vec3_t *out, const shz_vec3_t *
     Cycles E: 20 (-O2) and 18 (-O3) against 25 for the SH4ZAM routine in a loop (bench rows magnitude_dce and magnitude_shz): a gain of 20% and 28%.
     For the original's bits take shz_dce_vec3_magnitude() of shz_dce_sqrt.h (23 and 21 E). */
 SHZ_FORCE_INLINE float shz_dce_vec3_magnitude_fipr(shz_vec3_t vec) SHZ_NOEXCEPT {
-#if SHZ_DCE_SH4
+#if !SHZ_DCE_REWORK_FIPR
+    return shz_vec3_magnitude(vec);
+#elif SHZ_DCE_SH4
     register float x asm("fr4") = vec.x;
     register float y asm("fr5") = vec.y;
     register float z asm("fr6") = vec.z;
@@ -427,14 +438,18 @@ SHZ_FORCE_INLINE float shz_dce_vec3_magnitude_fipr(shz_vec3_t vec) SHZ_NOEXCEPT 
 #endif
 }
 
-/** \brief Normalisation of one 4-vector: vec / |vec|, the length over all four components. A rework of SH4ZAM's shz_vec4_normalize (Falco Girgis).
+/** \brief With SHZ_DCE_REWORK_FIPR 0: SH4ZAM's shz_vec4_normalize(), called underneath, and the rest of this comment does not apply.
+    With SHZ_DCE_REWORK_FIPR 1:
+    Normalisation of one 4-vector: vec / |vec|, the length over all four components. A rework of SH4ZAM's shz_vec4_normalize (Falco Girgis).
     The original: four products summed in a chain of fmac, then FSRRA. What changes on the SH-4: the squared length is one FIPR over the four lanes
     (the fourth component is saved first, because FIPR's result overwrites its lane). Same special cases (tested, as for the magnitude). Bit-identical
     to the original: NO. Error bound: as shz_dce_vec3_magnitude_fipr(); the largest distance from the original is 3 ulp on the SH-4 in the strict-flag
     build (2 ulp in the fast-math build) and 0 on the host (measured). Cycles E: 24 against 31 for the SH4ZAM routine in a loop (bench rows
     vec4_normalize_dce and vec4_normalize_shz): a gain of 23%. */
 SHZ_FORCE_INLINE shz_vec4_t shz_dce_vec4_normalize(shz_vec4_t vec) SHZ_NOEXCEPT {
-#if SHZ_DCE_SH4
+#if !SHZ_DCE_REWORK_FIPR
+    return shz_vec4_normalize(vec);
+#elif SHZ_DCE_SH4
     const float w = vec.w;
     register float x asm("fr4") = vec.x;
     register float y asm("fr5") = vec.y;
