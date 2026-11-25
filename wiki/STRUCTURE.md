@@ -41,6 +41,7 @@ wiki/
                              pool, psm, ao, ca, shafts, sh4dow-dc, deform, mist, rise, film, cloudvolume, core
   limits/
     budgets.md               frame budget by unit: SH-4 ms, PVR ms, TA vertices, VRAM, RAM, sound RAM
+    frame-budget.md          practices that keep the frame rate: which side bounds a frame, measured feature costs, what to do, the default look
     recommended-limits.md    the "do this, not that" table: limit, why, number, status, scene it came from
     scenes.md                the scenes the numbers came from (town, ocean, street, torch walk), with their counts
   status/

@@ -210,4 +210,5 @@ Outside the wiki, not edited:
 - [Hardware ledger](../hardware/README.md): where every label's evidence lives
 - [Effects index](../effects/README.md): one line an effect
 - [Recommended limits](../limits/recommended-limits.md)
+- [Frame budget: practices](../limits/frame-budget.md): what each part costs a frame
 - [Open questions](../open-questions.md): the OPEN items that cap the ALPHA rows

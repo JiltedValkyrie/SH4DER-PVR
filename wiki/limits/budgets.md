@@ -86,6 +86,7 @@ Each effect page lists its own video memory. The largest in this library:
 
 ## Related
 
+- [Frame budget: practices](frame-budget.md)
 - [Recommended limits](recommended-limits.md)
 - [Scenes](scenes.md)
 - [Benchmarking](../methods/benchmarking.md)

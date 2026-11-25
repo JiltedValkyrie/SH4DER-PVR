@@ -135,5 +135,6 @@ The picture places the SH-4 work between the waits (the 2.05, 0.94 and 0.13 ms g
 ## Related
 
 - [Budgets](budgets.md)
+- [Frame budget: practices](frame-budget.md)
 - [Scenes](scenes.md)
 - [Open questions](../open-questions.md)

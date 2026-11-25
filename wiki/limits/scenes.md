@@ -83,5 +83,6 @@ A sunset ocean, its own program (`make ocean`). Rows switch swell, ripple, trans
 ## Related
 
 - [Budgets](budgets.md)
+- [Frame budget: practices](frame-budget.md)
 - [Recommended limits](recommended-limits.md)
 - [PSM routes](../shadows/psm-routes.md)
