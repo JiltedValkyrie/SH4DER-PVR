@@ -2,6 +2,8 @@
 
 Draft, 2026-11-25. A design document in the form of a paper. **No code has been written for it, and nothing in it has run.** It is built on what this project has measured on one console, on Sega's documents, and on the known bugs and contradictions in them. Where a number is not known, it is marked or left out.
 
+Revised 2026-11-25, the same day, after spikes c3b and c4 and chip benches h1 and h2 ran (one console, one run each; c4 twice). New facts F22 to F26; F10, F20, §4, §5.8, §5.9, §6 (P7 overturned), §7 and §8 brought up to date. Ledger IDs (PVR-, SH4-, BUS-) are those of `wiki/hardware/`.
+
 ## Status marks
 
 Every number and every claim about hardware carries one of these marks.
@@ -31,7 +33,7 @@ This thesis proposes the opposite trade: **do not re-render the shadow every fra
 - **What is cached.** A per-vertex sun-visibility term, one byte per receiver vertex.
 - **Static geometry.** The term comes from ray casts toward the sun through a coarse height grid of the scene, walked by a DDA, with exact triangle lists in the cells that overhang. It is baked at load and re-sliced over several frames when the sun steps. On the game's clock the sun's path is fixed, so a variant stores per-vertex occlusion intervals instead and needs no rays at run time.
 - **Moving casters** (people, hens) are analytic proxies (capsules, spheres, boxes). They are evaluated only on the receivers near them.
-- **Writing it out.** The term goes into the vertex colour, which the PVR shades for free. Where a triangle's vertices disagree, an optional overlay sharpens the edge by reading the term through a point-sampled step texture.
+- **Writing it out.** The term goes into the vertex colour, which the PVR shades for free. Where a triangle's vertices disagree, an optional overlay sharpens the edge, by reading the term through a point-sampled step texture or through the punch-through test, which our console showed acts on vertex alpha (F22).
 - **Visibility.** Vertices hidden from the camera are not sent, to free TA vertices in the scene that needs them most.
 
 The method trades per-frame cost for memory, latency and coarse static occluders. We state what it predicts, what would prove it wrong, and what we do not know.
@@ -118,7 +120,7 @@ Every row is a fact this design leans on. "Source" is the file that records it.
 | F7 | C1 blend compare | one clean edge per row, constant +1 level; 8-bit map exact to that bias; PVR-drawn 565 map gives about 6 bits (err −2..+4) | `compare/NOTES.md` c1 | MEASURED |
 | F8 | Translucent layer cost | 3,113 us a full-screen layer at 640 x 480; 771 us at 320 x 240; linear in layers | same | MEASURED |
 | F9 | Opaque-only pass floor in that setup | about 3.15 ms at both sizes | same | MEASURED |
-| F10 | Punch-through test (C3): texture alpha x vertex alpha, ref 64 | every pixel drawn; the test did not act | same | MEASURED (one run, cause unknown) |
+| F10 | Punch-through test (C3): texture alpha x vertex alpha, ref 64 | every pixel drawn (c1; c3b 5b and 5c the same). **Cause found in c4 test 6:** those headers used blend ONE / ZERO, which writes the pixels that fail the test as well (F22, PVR-061) | same; `compare/NOTES.md` "Hardware result c4: the result pages (second run)" | MEASURED (c1, c3b, c4; one run each) |
 | F11 | Palette | one value a scene | same | MEASURED |
 | F12 | One modifier volume | exact (11,008 px, 0 differ); no render-time cost seen (3,151 us with and without) | same | MEASURED |
 | F13 | Shadow compare kernel, per point | 489 cycles (2 x 2 PCF, texel bias) / 184 (plain) at -O3 | `KERNEL_GUIDE.md`, `shz_dce_shadow_compare_batch` | MODEL |
@@ -128,10 +130,15 @@ Every row is a fact this design leans on. "Source" is the file that records it.
 | F17 | ch2-DMA to TA / texture memory | 702.6 MB/s (64-bit) | same | DOC |
 | F18 | Route B's raster and compare on a console | **never timed** | `ROUTE_AB_NOTES.md` "Still open" | — |
 | F19 | The PVR's render time for a caster pass | not measured (s3's figure is a scheduler-tick upper bound) | same | — |
-| F20 | Bump unit as a subtract; 1555 write threshold; fog-table depth code | spike c3 (`compare/sub_spike.c`, `sub_model.h`, image `psm-sub-c3.cdi`): **built, host-model tested, not run on a console**. The run is on hold because of CORE 26. | repo; lead | — |
-| F21 | Modifier volumes at town scale | spike c2 (`compare/vol_spike.c`): built, not run | repo; lead | — |
+| F20 | Bump unit as a subtract; 1555 write threshold; fog-table depth code (spike c3, run as image c3b, `compare/sub_spike.c`) | **The bump unit is a subtract:** level about 128 + 127 sin(M − Q), Q one value a polygon (not interpolated), the result in alpha; exact to ±1 code, so a bias of at least one code is needed (PVR-045, PVR-046). The curve is not exactly a sine (c4 test 1: 443 of 40,960 pairs off the cosine table at window 32; PVR-096). **A non-twiddled bump texture, and a render target used as one, did not hang** and gave the same numbers as a twiddled one (CORE 26 not reproduced; one run is not proof). **The 1555 frame-buffer write thresholds accumulated alpha** exactly at 1, 2 and 128. **The fog table gives a depth code per pixel**, about one 6-bit step low (PVR-049). | `compare/NOTES.md` "Hardware result c3b" and "c4 ... (second run)" | MEASURED (c3b 2026-11-25; c4 test 1; one run each) |
+| F21 | Modifier volumes at town scale | spike c2 (`compare/vol_spike.c`): built, **still not run** | repo; `wiki/shadows/thesis.md` | — |
+| F22 | Punch-through, reference 128, a 4444 alpha ramp (c4 test 6) | KallistiOS's header draws the half with alpha ≥ reference (16,384 of 32,768; c3b 5a the same rule at 64 / 128 / 192; PVR-060). Blend ONE / ZERO draws all 32,768 (PVR-061). **Vertex alpha 128 draws 2,048: the tested alpha is texture alpha x vertex alpha** (PVR-064); how the product rounds is OPEN. The bump level can be the tested alpha (10,200 of 20,480 drawn; PVR-065). Depth write off or depth "always" changed nothing on an empty screen (PVR-062: cannot tell "ignored" from "harmless") | `compare/NOTES.md` "c4 ... (second run)" | MEASURED (one run); rounding OPEN |
+| F23 | SH-4 operand cache (bench h1) | hit 3.17, read miss 18.41, write miss 41.91 cycles a 32-byte line; allocate + write 16.24 (SH4-003, SH4-004). OC-RAM holds 8 KB, is no faster than a hit (1,401 against 1,446 us for 20,000 reads) and makes the same 8 KB of RAM data 59 % slower by halving the cache (SH4-010 to SH4-012) | `bench/NOTES.md` "Hardware result h1" | MEASURED |
+| F24 | Transform and placing (bench h2) | `mat_transform` 13.16 cycles a vertex in the cache on a clean placing, 38.67 with source and output a multiple of 16 KB apart (SH4-020, SH4-021); FTRV row 16.58, FIPR 38.10, plain C 72.43 cycles a point (SH4-017). c4's projection ran 132 cycles a vertex for this reason (its arrays 256 KB apart) | `bench/NOTES.md` "Hardware result h2"; `compare/NOTES.md` c4 | MEASURED |
+| F25 | Bus (h1, h2) | TA 260 ns a vertex by `pvr_prim`, 142 ns in one store-queue run (BUS-001, BUS-003); upload 512 KB: store queue 216–224 MB/s, ch2-DMA 498 MB/s (BUS-011); PVR-DMA download ended by its interrupt 37.6–38.1 MB/s (BUS-021); a PVR render of 8 layers does not slow the SH-4 (BUS-033) | `bench/NOTES.md` h1, h2 | MEASURED |
+| F26 | Frame period of the c4 live view | 39.9 ms at 676 and 1,288 vertices, 49.9 ms at 2,192, for 19.3, 21.7 and 27.1 ms of measured work: the frame is set by waiting, in steps 10.0 ms apart | `compare/NOTES.md` c4 (PVR-094) | MEASURED (the times); the cause OPEN (a wait on a 10 ms clock fits; INF) |
 
-Naming: **candidate C1 / C2 / C3** are the compare routes in `compare/NOTES.md`: blend compare, destination alpha, punch-through. **Spike c1 / c2 / c3** are console test images. Candidate C3 failed in spike c1 (F10). Spike c3 is the subtract spike (F20).
+Naming: **candidate C1 / C2 / C3** are the compare routes in `compare/NOTES.md`: blend compare, destination alpha, punch-through. **Spike c1 / c2 / c3 / c4** are console test images (c3 ran as image c3b). Candidate C3 drew every pixel in spikes c1 and c3b (F10); c4 traced that to the ONE / ZERO blend and showed the test working (F22). Spike c3 is the subtract spike (F20); spike c4 is the whole bump-compare chain. **h1, h2** are chip benches (F23 to F25).
 
 ## 4. Known bugs and contradictions that matter
 
@@ -139,7 +146,7 @@ Naming: **candidate C1 / C2 / C3** are the compare routes in `compare/NOTES.md`:
 
 | Sega # | What | What it does to us |
 |---|---|---|
-| CORE 26 | A non-twiddled bump texture hangs the CORE. Marked "will become part of the specifications". | Any compare that reads a render target as a bump texture (rank 1 in `PVR_FEATURES.md`) must first download, twiddle on the SH-4 and upload. That brings back SH-4 time. §3.6.4 of the same document allows non-twiddled bump: **the document contradicts its own bug list.** |
+| CORE 26 | A non-twiddled bump texture hangs the CORE. Marked "will become part of the specifications". | Any compare that reads a render target as a bump texture (rank 1 in `PVR_FEATURES.md`) must first download, twiddle on the SH-4 and upload. That brings back SH-4 time. §3.6.4 of the same document allows non-twiddled bump: **the document contradicts its own bug list.** On our console (c3b, one run) a non-twiddled bump texture and a render target read as one did not hang (F20). The marks per revision are lost, so this console's CORE may be one where it was fixed (INF); one run does not clear it. |
 | CORE 25 | A polygon edge just on the negative side of a pixel centre is written twice. | An additive compare layer could add twice on a shared edge. c1 saw no sign of it on a two-triangle quad (INF: not tested on a grid). An edge overlay (§5.8) with a blend is exposed to it. |
 | CORE 10, 11, 15 | A pixel write is skipped and End_Of_Render goes missing, worse with the X scaler. | Possibly related to F5. INF only. |
 | CORE 21, 22 | Missing tiles; a per-tile change of translucent sort mode can hang. | Set the sort mode per render, never per tile. |
@@ -150,10 +157,10 @@ Naming: **candidate C1 / C2 / C3** are the compare routes in `compare/NOTES.md`:
 
 | Point | One source | Other source | Bearing |
 |---|---|---|---|
-| Punch-through rule | §3.4.3: texel alpha >= PT_ALPHA_REF | §3.7.9.2: only PIX[A] = 1.0 is drawn | **F10: on the console neither rule was seen.** Every pixel was drawn. Any design that thresholds by punch-through (the owner's item d) rests on an unresolved point. |
-| Punch-through depth mode | §3.4.3: GreaterEq | §3.7.9.1: LessEq | A punch-through copy drawn coplanar over its own base passes the depth test under GreaterEq and fails under LessEq. Flycast also reports that Z write disable is ignored for punch-through (REP). |
-| Bump shading | §3.7.9.1: flat only | Fig. 3-21: Gouraud | Per-polygon K / Q only, if flat. |
-| Bump non-twiddled | §3.6.4: allowed | CORE 26: hangs | as above |
+| Punch-through rule | §3.4.3: texel alpha >= PT_ALPHA_REF | §3.7.9.2: only PIX[A] = 1.0 is drawn | **The console follows §3.4.3** (c3b 5a, c4 test 6: alpha ≥ reference; F22). The tested alpha is texture x vertex, not the texel alone. c1's "every pixel drawn" was the ONE / ZERO blend (F10). |
+| Punch-through depth mode | §3.4.3: GreaterEq | §3.7.9.1: LessEq | A punch-through copy drawn coplanar over its own base passes the depth test under GreaterEq and fails under LessEq. Flycast and skmp report that the depth mode and Z write disable are ignored for punch-through (REP); c4 saw no change with either, on an empty screen, which cannot tell "ignored" from "harmless" (F22, PVR-062). Still open. |
+| Bump shading | §3.7.9.1: flat only | Fig. 3-21: Gouraud | Q one value a polygon on the console (F20); K / Q per polygon. |
+| Bump non-twiddled | §3.6.4: allowed | CORE 26: hangs | did not hang in c3b, one run (F20) |
 | PVR-DMA direction | §2.6.9 documents only system to PVR | F1: VRAM to RAM works, about 35 MB/s against the table's 51.4 | measured beats the gap |
 | Render-to-texture pack mode | §3.4.10: the 16-bit modes | KOS #1506: RTT takes the main frame buffer's pack mode | keep the main mode 565 |
 | Target height | TA lists to 2048 x 480 (MetalliC, KOS #696, REP) | MEASURED: KOS's 512 target renders only to row 479 | maps above 480 rows are out through the TA |
@@ -170,7 +177,7 @@ Naming: **candidate C1 / C2 / C3** are the compare routes in `compare/NOTES.md`:
 
 ## 5. Proposed method
 
-The equations in this section are Senior's (sent 2026-11-25), placed and lightly edited here. Their tags: **MEASURED** and **DOC** as above; **FILE** = a constant in this repo; **DERIVED** = arithmetic on the others; **ESTIMATE** = an instruction count, not measured. Senior's cycle counts use SH-4 latencies he holds from memory of the SH7750 manual: FIPR about 4, FTRV about 7, FSRRA about 4, FSCA 3 to 5, add / sub / mul 3, divide 10 to 12. Those are "DOC, from memory, to verify". They differ slightly from the sh4zam-dce model's (F15: FTRV 5–7, FSRRA 5). **Every cycle count below is an ESTIMATE until bench h1 replaces it.**
+The equations in this section are Senior's (sent 2026-11-25), placed and lightly edited here. Their tags: **MEASURED** and **DOC** as above; **FILE** = a constant in this repo; **DERIVED** = arithmetic on the others; **ESTIMATE** = an instruction count, not measured. Senior's cycle counts use SH-4 latencies he holds from memory of the SH7750 manual: FIPR about 4, FTRV about 7, FSRRA about 4, FSCA 3 to 5, add / sub / mul 3, divide 10 to 12. Those are "DOC, from memory, to verify". They differ slightly from the sh4zam-dce model's (F15: FTRV 5–7, FSRRA 5). **Every cycle count below is an ESTIMATE until a bench replaces it.** Benches h1 and h2 have run and measured the cache, the transform and the bus (F23 to F25); none has yet timed a ray step, a slice or a proxy.
 
 ### 5.1 The idea
 
@@ -400,7 +407,7 @@ A vertex coming into view shows a value up to P_u old. A camera turning at W rad
 | Fix | How | Risk | Tag |
 |---|---|---|---|
 | **Cut** receivers into cells | at build: route B's eave bands (about 400 triangles, `TOWN_STORY.md` §4) and the graded ground | TA vertices | ESTIMATE |
-| **Overlay, punch-through** (the owner's item d) | draw each edge triangle (vertices that disagree) again on the punch-through list, vertex alpha = Lit, reference τ | **F10:** the test did not act in spike c1. §4.2: Sega gives two rules and two depth modes. | contradicted by F10 |
+| **Overlay, punch-through** (the owner's item d) | draw each edge triangle (vertices that disagree) again on the punch-through list, carrying the shaded colour, vertex alpha = 1 − Lit, reference τ, with KallistiOS's blend | **F22:** the test acts on texture alpha x vertex alpha at ≥ reference, so it works with a texture of constant alpha; how the product rounds is OPEN (PVR-064), which moves τ by up to a code (INF). The copy writes its own colour, it does not multiply, so it must carry the receiver's texture and shade. Whether the depth mode is used for a coplanar copy is open (§4.2, PVR-062). ONE / ZERO must not be used (F10). | test acts (F22, one run); the overlay not built |
 | **Overlay, step texture** (ours) | the same copy with u = Lit into a point-sampled 8 x 1 texture (white for u >= τ, the shade colour below), multiplied over the frame (DESTCOLOR x ZERO) on the translucent list. The threshold becomes a texel lookup. The texture coordinate path is the one F4 measured exact to 10 bits. Auto-sort translucent depth is always GreaterEq (DOC §3.7.9.1), so a coplanar copy from the same vertices passes. | coplanar depth equality is INF; CORE 25 double writes on shared edges; fill = the edge triangles' pixels at F8's rate | INF |
 
 **Edge error of either overlay** (Senior's geometry; it holds for any threshold of an interpolated value).
@@ -429,7 +436,7 @@ Inside a triangle, Lit is affine in position (ASSUMPTION: it is interpolated in 
     T_vis   = G C_g / F
     frame period = ceil(60 max(T_sh4, T_pvr)) / 60   (ASSUMPTION: SH-4 builds frame m while the PVR draws m − 1, locked to the display)
 
-**The model and the a3 HUD disagree.** The model gives a3 a period of 2/60 s (30 fps). The HUD says 25 fps (MEASURED). So the frame loop is not the simple overlap assumed. Candidates: a wait on the PVR, the KOS scheduler tick (§4.3), and frames that miss vblank. This is unresolved. Until it is, "room" below is an upper bound.
+**The model and the a3 HUD disagree.** The model gives a3 a period of 2/60 s (30 fps). The HUD says 25 fps (MEASURED). So the frame loop is not the simple overlap assumed. Candidates: a wait on the PVR, the KOS scheduler tick (§4.3), and frames that miss vblank. Spike c4's live view points the same way: its frames took 39.9 and 49.9 ms for 19 to 27 ms of measured work, in steps 10.0 ms apart (F26, MEASURED). A wait that wakes on the 100 Hz tick fits those numbers (INF, from three frames). 25 fps is a 40 ms period, which a 10 ms step also gives (INF). This is unresolved. Until it is, "room" below is an upper bound.
 
 **Room at 30 fps:** 33.3 − 22.6 = 10.7 ms of SH-4 time (DERIVED). For 60 fps T_sh4 must fall under 16.7 ms, and T_pvr = 16.0 ms just fits.
 
@@ -446,22 +453,23 @@ So at x60 near sunset the interval variant (5.4) or a looser ε is needed.
 | Height grid | 4 KB (64 x 64) | DERIVED |
 | Ground map, 0.5 m | 18.3 KB | ESTIMATE |
 | Interval variant | about 35 KB | ESTIMATE (5.4) |
-| OC-RAM | 8 KB of the 16 KB D$. It holds the grid, not the vertex cache. | REP (SH7750 manual); DOC for the 16 KB D$ |
+| OC-RAM | 8 KB of the 16 KB D$. It holds the grid, not the vertex cache. No faster than a hit; halves the cache for everything else. | MEASURED (F23, h1); DOC for the 16 KB D$ |
 
 **Cache behaviour.**
 
 - A grid of 4 KB is 128 of the 512 D$ lines. The vertex transform streams more than a megabyte a frame and will evict it. So refresh the slice in one batch: the grid is loaded once a frame, at most 128 lines x 27.7 cycles = 18 µs (DERIVED).
-- Without that, each step that misses costs about 27.7 more cycles (MEASURED miss cost, loop included).
-- OC-RAM keeps the grid resident at the price of half the D$. Whether that pays is bench h1's question.
+- Without that, each step that misses costs about 27.7 more cycles (MEASURED miss cost, loop included, s2). Bench h1 measured the bare line: 18.41 cycles a read miss against 3.17 for a hit (F23).
+- OC-RAM keeps the grid resident at the price of half the D$. Bench h1 measured that price: OC-RAM is no faster than a hit, and 8 KB of ordinary RAM data ran 59 % slower beside it (F23). With the slice batched (above), the grid is loaded once a frame anyway, so OC-RAM looks unlikely to pay here (INF; P2 tests it).
+- Placing matters as much as the cache: two arrays a multiple of 16 KB apart share every cache entry, and the same transform ran 13.16 or 38.67 cycles a vertex by placing alone (F24). The grid, the vertex term and the vertex buffers must not sit at such distances (INF from F24).
 
 **Moving results between chips, for comparison.**
 
 | Path | Rate | 32 KB takes | Tag |
 |---|---|---|---|
-| PVR-DMA, PVR to RAM | 35.5 MB/s | 0.92 ms | MEASURED |
-| Store queue, RAM to video memory | about 84 MB/s | 0.38 ms | DOC |
-| ch2-DMA, RAM to video memory | 702.6 MB/s | 0.05 ms | DOC |
-| SH-4 loop reading video memory | 3.8 MB/s | 8.6 ms | MEASURED |
+| PVR-DMA, PVR to RAM | 35.5 MB/s polled; 37.6 MB/s ended by its interrupt | 0.92 ms; 0.87 ms | MEASURED (s2, s3; h2, BUS-021) |
+| Store queue, RAM to video memory | 146 MB/s at 32 KB (216–224 at 512 KB) | 0.22 ms | MEASURED (h1, h2; BUS-010, BUS-011). Sega's table gives about 84 MB/s (DOC) |
+| ch2-DMA, RAM to video memory | 335 MB/s at 32 KB (498 at 512 KB) | 0.10 ms | MEASURED (h1; BUS-010, BUS-011). Sega's table gives 702.6 MB/s (DOC) |
+| SH-4 loop reading video memory | 3.8 MB/s (16-bit reads) | 8.6 ms | MEASURED (s2; h2 the same, 3.7) |
 
 The cached term needs none of these: it never leaves the SH-4's side.
 
@@ -486,46 +494,57 @@ Nothing in this order waits on the PVR (§4.3).
 | B: SH-4 depth raster in RAM, per-vertex compare | yes | raster 12–43 cycles a texel (F14, MODEL) + compare 184–489 cycles a vertex (F13, MODEL) | 16-bit depth; edge at vertex spacing | built; **never timed on a console** (F18) |
 | AB: PVR draws the depth code, PVR-DMA back, SH-4 compares | yes | 0.93 ms copy at 128 x 128 (F1) + the compare + the PVR pass (F19) | 10 bits exact, 16 within one code (F4); one frame late | spikes s2 / s3; not integrated |
 | C1: blend compare in a mask target | yes | about 11 layers: 11.7 ms at 320 x 240 (ESTIMATE from F8's slope), plus laying the mask over the screen | 8 bits exact with a +1 bias; 6 bits from a PVR-drawn map (F7) | spike c1 |
-| Bump unit as a subtract (spike c3) | yes (in principle) | not known; CORE 26 forces a twiddle of a drawn map | not known | built, not run (F20) |
-| ARGB1555 write threshold (spike c3) | — | a 1-bit compare against one constant at write-out (DOC) | 1 bit | built, not run (F20) |
+| Bump unit as a subtract (spike c3b) | yes | not timed in c3b; no twiddle needed on this console (F20) | 8-bit map, ±1 code, Q one value a polygon (F20) | ran once (F20) |
+| ARGB1555 write threshold (spike c3b) | — | a 1-bit compare at write-out, no extra layer | exact at 1, 2, 128 (F20) | ran once (F20) |
+| Bump-compare chain (spike c4: PVR map, bump compare, 1555 mask, layer) | yes | at 320 x 240, bands 2 codes wide, 1,288 vertices: PVR map pass 3.3 ms, mask pass 6.1 ms, screen pass 9.6 ms with the layer against 3.2 ms without; SH-4 band cut 1.3 ms, send 0.44 ms (MEASURED, one run, `compare/NOTES.md` c4) | map equal to the model in 98–99 % of pixels, the rest 1 code; acne 7 % of lit pixels at b0 1.5, 0 on the ground at b0 3 (MEASURED) | ran twice; frame period OPEN (F26) |
 | Modifier volumes | yes, on what the volume encloses | one volume: no cost seen (F12); at town scale not known (F21) | exact per pixel | **excluded by the owner**; context only |
 | **This proposal: cached per-vertex term** | yes | refresh slice B (chosen, for example 2 ms) + proxies + a 3–5 cycle write a vertex; overlay fill on edge triangles only | edge at vertex spacing (per pixel on the overlay's line); sun lag P (5.5), none on the clock with intervals (5.4) | design only |
+
+**Spike c4's cost by band width** (sun 150 / 26, 320 x 240 mask; MEASURED 2026-11-25, one console, one run; `compare/NOTES.md` c4, test 5; PVR-100, SH4-045). A band is a strip of receiver of one depth code, because Q is one value a polygon (F20).
+
+| Band width (codes) | Bands | Vertices | Light fit, us | Band cut (SH-4), us | Mask send, us | PVR map pass, us | PVR mask pass, us |
+|---|---|---|---|---|---|---|---|
+| 1 | 616 | 2,464 | 54 | 2,483 | 820 | 3,312 | 9,054 |
+| 2 | 322 | 1,288 | 53 | 1,332 | 440 | 3,311 | 6,132 |
+| 4 | 173 | 692 | 53 | 744 | 251 | 3,311 | 5,015 |
+
+The screen pass took 3,161 us alone and 9,646 us with the shadow layer. The map pass is the same at every width, near the 3.15 ms floor of a pass in this set-up (F9). The SH-4's cut and send scale with the band count. The compare itself is not exact to the cosine level table: 443 of 40,960 code pairs disagree at window 32, 784 at window 16, 240 at window 64 (F20, PVR-096); the acne in c4's scenes (about 7 % of lit pixels at b0 1.5) has the same size. A cached per-vertex term pays none of these passes; its cost is in 5.9.
 
 ## 6. Predictions and how to falsify them
 
 The benches:
 
-- **h1** is Senior's chip benchmark: SH-4 caches, store queue, DMAC, PVR fill, TA and DMA, and which slows which. It is planned and being built (`demo/psm/bench/`, image `psm-bench-h1.cdi`), and has not run. Its plan is not filed.
-- **Spike c3** is the subtract spike (`compare/sub_spike.c`, `psm-sub-c3.cdi`). It is built and has not run; it is on hold for CORE 26.
+- **h1 and h2** are Senior's chip benches (`demo/psm/bench/`, `bench/NOTES.md`). Both ran on 2026-11-25, one console, one run each. They measured the cache, the transform, the TA, uploads and DMA (F23 to F25). They did not time a ray step, a slice or a proxy, so P1, P2 and P9 still need a **ray bench**: rays and slices on the town grid, not yet built.
+- **Spike c3** is the subtract spike (`compare/sub_spike.c`). It ran once as image c3b (F20). **Spike c4** is the bump-compare chain; it ran twice, and its test 6 is the punch-through test (F22).
 - **"Console"** means a later test image, not yet named.
 
-| # | Prediction | Falsified if | Test | Bench |
-|---|---|---|---|---|
-| P1 | C_step is 12 to 16 cycles and C_setup about 30, with the grid in cache (5.3) | the console's cycles a ray, over n, fall well outside that | rays of known n on a 4 KB grid, timed with the KOS ns timer and performance counter 1 (the s2 clock pair) | h1 |
-| P2 | One batch a frame keeps the grid resident: a slice costs k x C_ray plus at most 18 µs of loads (5.9) | the slice's cost grows with misses (27.7 cycles each) beyond that | the same slice batched, then interleaved with the vertex transform, then with the grid in OC-RAM | h1 |
-| P3 | At 14:00 and S = 60, a 2 ms slice keeps the shadow within 0.75 m of truth; at 16:00 it does not (5.9 gives 1.9 m) | a capture at x60 shows the lag outside those bounds | the measured slice rate put into 5.5's rule, then captures at x60 at 14:00 and 16:00 | console |
-| P4 | On the clock, the interval variant matches a fresh ray cast within a quarter hour of sun travel (5.4) | edges differ by more than one quarter hour's shift (5.5 with θ = w x 900 s) | host first (deterministic), then the console's bytes | host; console |
-| P5 | A per-vertex term with cut receivers agrees with route B's `lit_plane` on the same vertices and sun | the share that differs exceeds a threshold fixed before the run | the two compared on the host over the town's receivers | host |
-| P6 | The step-texture overlay draws a two-valued edge on the line Lit = ½, within 5.8's error bound, on a coplanar copy | gaps or double darkening on shared edges (CORE 25), or the copy fails the depth test | a 32 x 32 triangle grid with a known Lit field, read back, pixels counted | console (new) |
-| P7 | The punch-through overlay does not threshold vertex alpha | **already supported by F10.** Overturned by a run where the test acts on vertex alpha at a set reference | texel alpha alone, then vertex alpha alone (spike c3's PUNCH line, or a follow-up) | spike c3 |
-| P8 | Group culling pays above φ_g = 0.7 %, and saves about φ_g x 22.6 ms of the a3 frame's vertex work (5.7) | the a3 view's visible share is near 1, or the saving is not proportional | vertices sent with and without, counted on the host and on the console's HUD | host; console |
-| P9 | Proxies for 8 people and 4 hens cost less than one slice (5.6) | their cost a frame exceeds k x C_ray | the proxy pass timed at 16:00 (the longest runs) with every walker in view | h1 |
-| P10 | The frame model of 5.9 explains the a3 HUD | the HUD's 25 fps stays unexplained by max(T_sh4, T_pvr) | the frame's waits (render-done, vblank, the KOS tick) timed on the console | console |
+| # | Prediction | Falsified if | Test | Bench | Evidence so far |
+|---|---|---|---|---|---|
+| P1 | C_step is 12 to 16 cycles and C_setup about 30, with the grid in cache (5.3) | the console's cycles a ray, over n, fall well outside that | rays of known n on a 4 KB grid, timed with the KOS ns timer and performance counter 1 (the s2 clock pair) | ray bench | none |
+| P2 | One batch a frame keeps the grid resident: a slice costs k x C_ray plus at most 18 µs of loads (5.9) | the slice's cost grows with misses (27.7 cycles each) beyond that | the same slice batched, then interleaved with the vertex transform, then with the grid in OC-RAM | ray bench | none on the slice. h1 gives the line costs and OC-RAM's price (F23) |
+| P3 | At 14:00 and S = 60, a 2 ms slice keeps the shadow within 0.75 m of truth; at 16:00 it does not (5.9 gives 1.9 m) | a capture at x60 shows the lag outside those bounds | the measured slice rate put into 5.5's rule, then captures at x60 at 14:00 and 16:00 | console | none |
+| P4 | On the clock, the interval variant matches a fresh ray cast within a quarter hour of sun travel (5.4) | edges differ by more than one quarter hour's shift (5.5 with θ = w x 900 s) | host first (deterministic), then the console's bytes | host; console | none |
+| P5 | A per-vertex term with cut receivers agrees with route B's `lit_plane` on the same vertices and sun | the share that differs exceeds a threshold fixed before the run | the two compared on the host over the town's receivers | host | none |
+| P6 | The step-texture overlay draws a two-valued edge on the line Lit = ½, within 5.8's error bound, on a coplanar copy | gaps or double darkening on shared edges (CORE 25), or the copy fails the depth test | a 32 x 32 triangle grid with a known Lit field, read back, pixels counted | console (new) | none. c4's second pass at equal depth left 0 holes (`compare/NOTES.md` c4), a sign for the coplanar copy, not a test of it |
+| P7 | The punch-through overlay does not threshold vertex alpha | a run where the test acts on vertex alpha at a set reference | texel alpha alone, then vertex alpha alone | spike c4 test 6 | **OVERTURNED** (MEASURED 2026-11-25, one console, one run; **PVR-064**): with vertex alpha 128 the 4444 ramp drew 2,048 of 32,768 pixels at reference 128, so the tested alpha is texture x vertex. F10, on which P7 rested, used blend ONE / ZERO, which writes the failing pixels too (PVR-061). The rounding of the product is OPEN |
+| P8 | Group culling pays above φ_g = 0.7 %, and saves about φ_g x 22.6 ms of the a3 frame's vertex work (5.7) | the a3 view's visible share is near 1, or the saving is not proportional | vertices sent with and without, counted on the host and on the console's HUD | host; console | none |
+| P9 | Proxies for 8 people and 4 hens cost less than one slice (5.6) | their cost a frame exceeds k x C_ray | the proxy pass timed at 16:00 (the longest runs) with every walker in view | ray bench | none |
+| P10 | The frame model of 5.9 explains the a3 HUD | the HUD's 25 fps stays unexplained by max(T_sh4, T_pvr) | the frame's waits (render-done, vblank, the KOS tick) timed on the console | console | against, in another program: c4's frames are 39.9 / 49.9 ms for 19–27 ms of work (F26, PVR-094, cause OPEN) |
 
 ## 7. Threats to validity and what we do not know
 
 | Threat | Why it matters |
 |---|---|
-| Every MEASURED row is from one console and one run | No spread, no second unit, no other cable or video mode |
+| Every MEASURED row is from one console and one run (c4's PVR-DMA at 512 KB: two runs) | No spread, no second unit, no other cable or video mode |
 | The a3 photo is not filed; its buffer percentage is an ESTIMATE; its 25 fps contradicts the frame model (5.9) | The budget's "room" is an upper bound |
 | Every cycle count in section 5 is an ESTIMATE from latencies held from memory, or MODEL with cache hits assumed | P1, P2 and P9 exist to replace them |
 | Senior's tables use H = 13 m; the tower reaches 28 m | Rays toward the tower cost about twice the table (5.3) |
 | A height grid has no overhangs and self-hits wall vertices | Eave shadows on walls need the exact overhang lists (5.3); without them the method loses route B's main gain |
 | Route B has never been timed on a console (F18) | 5.11's comparison lacks its baseline |
-| The PVR's render time for any pass beyond c1's is not known (F19) | The overlay's cost is an extrapolation from F8 |
-| The punch-through rule and depth mode: Sega contradicts itself, and our test saw neither rule | Item (d) as asked may not be buildable; 5.8 offers the step texture instead |
-| Spike c3 (bump subtract, 1555 threshold, fog code) and spike c2 (volumes) are built and have not run | Those rows of 5.11 are design, not data |
-| The OC-RAM size and behaviour are REP | P2's alternative is unverified |
+| The PVR's render time for a town caster pass is not known (F19); c4 timed only its own small passes (5.11) | The overlay's cost is an extrapolation from F8 |
+| Punch-through: the rule is settled on our console (alpha ≥ reference, texture x vertex; F22), but the product's rounding and the depth mode for a coplanar copy are not | The punch-through overlay (5.8) may place its edge up to a code off τ, and may fail or pass its depth test; P6's grid test would show both |
+| Spike c2 (volumes at town scale) is built and has not run; c3b ran once and c4 twice | The volumes row of 5.11 is context, not data |
+| The frame is set by waiting, not work, in c4 (F26), and the cause is not known | Any frame-rate figure here (5.9) can be off by a whole 10 ms step |
 | The PVR's Gouraud precision is not documented | The base tier's darkest shade and its banding are unknown |
 | The interval formula (5.4) is transcribed, not checked against the page | Check it before building on it |
 | Proxy fidelity | 1,130 static proxy triangles are not the drawn mesh; a shadow can disagree with the geometry it seems to fall from |
@@ -555,7 +574,7 @@ The estimates in section 5 say three things:
 
 The costs are tens of KB, lag when the sun steps off the clock, and fidelity bounded by the proxies and the receivers' vertex spacing.
 
-Edge sharpening should not rest on the punch-through unit, which did not act in our one test. Test first the alternative: a point-sampled step texture through the texture-coordinate path, which we measured exact to 10 bits.
+For edge sharpening there are now two candidates, and one grid test (P6) can try both. The punch-through test does act, on texture alpha x vertex alpha (F22, which overturned P7); its open points are the product's rounding and the depth mode of a coplanar copy. The point-sampled step texture goes through the texture-coordinate path, which we measured exact to 10 bits (F4), and multiplies instead of writing.
 
 None of this is a measured result. Section 6 says what would show it wrong.
 
@@ -564,7 +583,9 @@ None of this is a measured result. Section 6 says what would show it wrong.
 Repo files (this repository unless named):
 
 - `demo/psm/ROUTE_AB_NOTES.md`: route AB, PVR-DMA, s2 / s3 results
-- `demo/psm/compare/NOTES.md`: spike c1 results; `compare/sub_spike.c` (spike c3) and `compare/vol_spike.c` (spike c2): built, not run
+- `demo/psm/compare/NOTES.md`: results of spikes c1, c3b and c4 (both runs); `compare/vol_spike.c` (spike c2): built, not run
+- `demo/psm/bench/NOTES.md`: results of chip benches h1 and h2
+- `wiki/hardware/ledger-pvr.md`, `ledger-sh4.md`, `ledger-bus-dma.md`: the ledger IDs cited (PVR-, SH4-, BUS-)
 - `demo/psm/PVR_FEATURES.md`: per-pixel operations, Sega's bug list, contradictions, KOS issues
 - `demo/psm/PRIOR_ART.md`, `demo/psm/LATEGEN_NOTES.md`, `demo/psm/GPU_GEMS_NOTES.md`: related work
 - `demo/psm/TOWN_STORY.md`, `TOWN_MOCKUP.md`, `TOWN_LOOK.md`: the scene, its budget, its palette
