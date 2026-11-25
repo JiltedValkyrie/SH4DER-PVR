@@ -59,11 +59,12 @@ Stick or D-pad left / right: steer. **Right trigger** engine, **left trigger** b
 
 | Item | Cost |
 | --- | --- |
-| Reflection target, RGB565 | 256 x 128 = 64 KB of video memory with `--rtt` (exact) |
+| Reflection target, RGB565, street build | the mirror's own size: 128 x 64 = 16 KB, 256 x 128 = 64 KB (the street default), 512 x 256 = 256 KB of video memory with `--rtt` (exact) |
+| Reflection target, RGB565, map build | twice the mirror's width (`RT_W`: the mirror on the left, the car shadow tiles on the right; the pitch is the width): mirror 128 x 64 = target 256 x 64 = 32 KB (the hills build's default), 256 x 128 = 512 x 128 = 128 KB (the c7 and c8 default), 512 x 256 = 1024 x 256 = 512 KB (exact, with `--rtt`) |
 | Glow texture | 32 x 32 RGB565 = 2 KB (exact) |
 | World textures, low look | 5 x 64 x 64 at 4 bits a texel: 10 KB, and 80 palette entries (exact) |
 | World textures, full look | 4 facades 128 x 128 and the road 256 x 256, RGB565 with mipmaps: 381 KB (exact); both sets stay loaded for the switch |
-| Resident in video memory, all at once | full textures 381 KB + low textures 10 KB + glow 2 KB + font 32 KB + target 64 KB = 489 KB (exact, with `--rtt`) |
+| Resident in video memory, all at once | full textures 381 KB + low textures 10 KB + glow 2 KB + font 32 KB = 425 KB, plus the target. Street build at 256 x 128: 489 KB. Map build: 457 KB at 128 x 64 (the hills build's default), 553 KB at 256 x 128 (c7, c8; not 489 KB as this table said before), 937 KB at 512 x 256 (exact, with `--rtt`). The planned heat haze's 128 x 128 RGB565 frame texture would add 32 KB (exact for that size; not built yet) |
 | Lookup | 320 looked-up vertices (364 in the body, the player car only): the page's column read 0.92 to 0.97 ms on a console, one run (PVR-160), about 2.9 to 3.0 us a vertex (DERIVED). (Earlier: 0.43 ms for 1,623 vertices on an emulator, an older, heavier car.) |
 | Mirror pass, PVR | not measured (see the library README: a timer round the pass reads the PVR's queue) |
 | Pools, halos, shadows | about 100 triangles on the translucent list at night: fill not measured |
