@@ -20,6 +20,9 @@ Neither run was repeated, so no number has a spread. A *line* is 32 bytes. *MB* 
 
 > **The placing trap.** The SH-4's operand cache is direct-mapped and 16 KB. Two buffers a multiple of 16 KB apart share every cache entry, and a copy or a transform between them slows by up to 8.5 times. h1's buffers were exactly 1 MB apart, so six of its lines measured the placing, not the routine. h2 corrected them (SH4-020 to SH4-024).
 
+![The placing trap: the SH-4 operand cache is 16 KB, direct-mapped, indexed by address bits 13..5, so two arrays a multiple of 16 KB apart put line i of each in the same entry and every access misses; measured on one console, mat_transform 13.16 against 38.67 cycles a vertex (1 MB apart), pvr_project 21.15 against 132.5 (256 KB apart in c4), memcpy 398.0 against 46.6 MB/s; the fix is one pool with the second array 8 KB off modulo 16 KB (SH4-002, 003, 020-023, 030-032, 046).](../images/cache-placing-trap.svg)
+
+
 ## Clock and cache
 
 | ID | Claim | Status | Evidence | Source | Test | Used by |

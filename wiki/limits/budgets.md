@@ -15,6 +15,11 @@ The SH-4 and the PVR work at the same time. The SH-4 builds and sends frame N+1 
 
 Budget each side on its own, then check the frame rate on a console.
 
+
+A frame can be longer than its work. In the c4 live view most of the frame was waiting:
+
+![The c4 frame waits: the live view's frame is 39.9 or 49.9 ms while the measured SH-4 and PVR work in it adds to only 21.7, 27.1 and 19.3 ms (MEASURED PVR-090, 091, 101, PVR-094, one console, 2026-11-25); the rest is waiting, and why the frame takes one of two values 10 ms apart is OPEN (Q53).](../images/frame-wait.svg)
+
 ## Unit costs (all MEASURED, one console)
 
 | Cost | Value | Ledger |
@@ -34,6 +39,10 @@ Budget each side on its own, then check the frame rate on a console.
 | Sound RAM → RAM, 32 KB, G2 DMA | 6.5 ms | AICA-021 |
 
 At 200 MHz, 1 ms is about 200,000 cycles (SH4-001).
+
+The render-target floor (PVR-004) is not fixed: a target rendered through only the tiles it covers costs far less (PVR-092).
+
+![The tile-list cut: rendering a target through only the tiles it covers took the 128 x 130 map pass from 3,312 to 375 us (20 tiles) and the 320 x 240 mask pass from 6,130 to 3,760 us (80 tiles) with the same picture (MEASURED PVR-092, one console, 2026-11-25); the savings of 2.9 ms and 2.4 ms are arithmetic (ESTIMATE PVR-093).](../images/tile-list-cut.svg)
 
 ## Worked example (ESTIMATE)
 

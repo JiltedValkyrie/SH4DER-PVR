@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="820" viewBox="0 0 1200 820" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">Idea T4: a cached static map plus a small mover map (not built)</title>
+<desc id="dsc">With a sun that does not move, the static casters' map is drawn once and kept, static-on-static shadow is baked at load, and the static receivers' bands are cut once. Each frame only the movers get a small map, cut to the tiles they cover. Three compares give static on mover, mover on static, and mover on mover; a pixel is in shadow where either map says so. Not built: every number is an estimate or open, except the measured anchors from other passes.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.cmp{fill:#fff;stroke:#5b6577;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="820" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">Idea T4: a cached static map plus a small mover map</text>
+<rect x="30" y="48" width="1140" height="30" rx="4" fill="#fbf1e2" stroke="#a86a00"/>
+<text x="42" y="68" class="b"><tspan class="k e">NOT BUILT. ESTIMATE / OPEN.</tspan> The owner's idea for a sun that does not move. The only MEASURED numbers come from the c4 passes, not from this design.</text>
+
+<!-- column heads -->
+<text x="30" y="110" class="h">Once, at load (the sun is fixed)</text>
+<text x="640" y="110" class="h">Every frame</text>
+
+<!-- static column -->
+<rect x="30" y="124" width="380" height="70" rx="6" class="st"/>
+<text x="44" y="148" class="b">Static casters drawn from the sun once:</text>
+<text x="44" y="168" class="b"><tspan font-weight="700">the static map</tspan>, kept in video memory</text>
+<text x="44" y="186" class="s">(the c4 map pass, run one time) · used by compare 1</text>
+
+<rect x="30" y="210" width="380" height="58" rx="6" class="st"/>
+<text x="44" y="234" class="b">Static on static: baked into vertex colours</text>
+<text x="44" y="254" class="b">or a lightmap. Costs nothing per frame.</text>
+
+<rect x="30" y="284" width="380" height="58" rx="6" class="st"/>
+<text x="44" y="308" class="b">Static receivers cut into bands once</text>
+<text x="44" y="328" class="b">(their depth codes do not change) · compare 2</text>
+
+<!-- mover column -->
+<rect x="640" y="124" width="530" height="96" rx="6" class="mv"/>
+<text x="654" y="148" class="b">Movers drawn from the sun into <tspan font-weight="700">a small mover map</tspan>,</text>
+<text x="654" y="168" class="b">rendered through only the tiles they cover · compares 2, 3</text>
+<text x="654" y="190" class="b">For scale: the full c4 map cut to 20 tiles took 375 us</text>
+<text x="654" y="208" class="k m">[MEASURED PVR-092, the c4 map, not a mover map]</text>
+
+<rect x="640" y="236" width="530" height="58" rx="6" class="mv"/>
+<text x="654" y="260" class="b">Movers cut into bands (their depth codes change</text>
+<text x="654" y="280" class="b">with every step), as in the c4 mask pass today · compares 1, 3</text>
+
+<!-- compares -->
+<text x="30" y="392" class="h">Three compares into the mask, every frame</text>
+<rect x="30" y="404" width="560" height="50" rx="5" class="cmp"/>
+<text x="44" y="426" class="b"><tspan font-weight="700">1  static on mover:</tspan> the mover's bands against the static map</text>
+<rect x="30" y="464" width="560" height="50" rx="5" class="cmp"/>
+<text x="44" y="486" class="b"><tspan font-weight="700">2  mover on static:</tspan> the static bands against the mover map</text>
+<rect x="30" y="524" width="560" height="50" rx="5" class="cmp"/>
+<text x="44" y="546" class="b"><tspan font-weight="700">3  mover on mover, self:</tspan> mover bands against mover map</text>
+<text x="44" y="444" class="s">reads the cached map: no map pass for it this frame</text>
+<text x="44" y="504" class="s">the static bands are sent again, but not cut again</text>
+<text x="44" y="564" class="s">the same as today's chain, on fewer polygons</text>
+
+<!-- compares to join -->
+<path d="M590 429 C 615 429, 615 489, 638 489" class="ar" marker-end="url(#h)"/>
+<path d="M590 489 L638 489" class="ar" marker-end="url(#h)"/>
+<path d="M590 549 C 615 549, 615 489, 638 489" class="ar" marker-end="url(#h)"/>
+<!-- join -->
+<rect x="640" y="404" width="530" height="170" rx="6" class="box"/>
+<text x="654" y="428" class="h">Join: shadow where either map says so</text>
+<text x="654" y="452" class="b">All three compares write the one 320 x 240 mask; then</text>
+<text x="654" y="470" class="b">the screen layer as in the c4 chain.</text>
+<text x="654" y="494" class="b">Today each band writes with blend ONE / ZERO, which</text>
+<text x="654" y="512" class="b">replaces the pixel. A join needs a write that never</text>
+<text x="654" y="530" class="b">clears a set shadow bit. How: <tspan class="k o">[OPEN]</tspan></text>
+<text x="654" y="556" class="s">(the punch-through route of PVR-065 is one candidate, not built)</text>
+
+<!-- catches -->
+<rect x="30" y="600" width="1140" height="200" rx="6" class="box"/>
+<text x="44" y="626" class="h">The catches</text>
+<text x="44" y="652" class="b">1. The PVR's depth buffer stays on chip per tile; no register writes it to memory <tspan class="k f">[FACT PVR-083]</tspan>. So the static map cannot</text>
+<text x="62" y="670" class="b">be preloaded as the starting depth of the movers' map. Two maps mean two compares, not one.</text>
+<text x="44" y="696" class="b">2. Each extra pass adds waits: the c4 frame was 39.9 ms for 19 – 22 ms of measured work <tspan class="k m">[MEASURED PVR-094]</tspan>; why <tspan class="k o">[OPEN Q53]</tspan>.</text>
+<text x="44" y="722" class="b">3. How many movers before this costs more than one full map each frame: <tspan class="k o">[OPEN]</tspan>.</text>
+<text x="44" y="752" class="b"><tspan font-weight="700">Test that would settle it:</tspan> after c4b works <tspan class="k o">[Q56]</tspan> and the wait test is done <tspan class="k o">[Q53]</tspan>, time one static map plus one</text>
+<text x="62" y="770" class="b">mover map against the single full map, by pvr_get_stats and the frame time, on the console.</text>
+<text x="44" y="790" class="s">Source: wiki/shadows/bump-compare-chain.md, "Idea: a cached static map plus small mover maps"; open-questions.md T4.</text>
+</svg>

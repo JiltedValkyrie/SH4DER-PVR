@@ -46,6 +46,15 @@ Short definitions in our own words. Where a term has a ledger entry, the [hardwa
   - K2, K3: gains.
   - Q: an angle.
 
+Where the offset colour, the bump unit and the punch-through test sit in a pixel's path, with one pass filled in field by field:
+
+![A PVR pass recipe: the order a pixel goes through (depth, texel or bump level, combine, offset colour, clamp, fog, blend, write-out; the punch-through test in its own list) and a card with every field of one pass, filled in for the c4 mask pass's bump draw, each entry with its status (FACT from Sega's manual or our code, MEASURED from our console).](images/pvr-pass-recipe.svg)
+
+The bump unit used as a comparator in an object's own texture space:
+
+![The bump comparator in texture space (recipes R7 and R8, not built): when M is a texture in the object's own u, v (a height or a noise) and Q is one value for the whole object (a water level, a dissolve time), the bump unit's window passes exactly the pixels with |M - Q| <= w, with no bands, no camera depth map and no screen coordinates; the mechanism is MEASURED (PVR-045, PVR-065), the window edges must come from boot measurements (PVR-096, Q56), and the recipes are ESTIMATE.](images/bump-texture-space.svg)
+
+
   We use it as a per-pixel compare: see [bump compare chain](shadows/bump-compare-chain.md).
 - **Fog table**: 128 entries the PVR looks up by each pixel's 1/w. It gives a per-pixel depth code without reading depth back.
 - **Render to texture (RTT)**: drawing into video memory that is then read as a texture. 16-bit formats only (565, 1555, 4444, 0555).

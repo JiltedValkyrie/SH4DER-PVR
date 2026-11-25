@@ -42,6 +42,8 @@ skmp's PowerVR2 model gives the bump unit's exact form, the punch-through rule, 
 
 ## c4: the whole chain (MEASURED, one console, two runs)
 
+![The c4 chain: a map drawn from the sun (3.2-3.3 ms), a mask pass where the bump unit compares each receiver band against the map and the 1555 write keeps one bit (4.8-10.2 ms by band width), and one screen layer that darkens by the mask (6.5 ms, the difference of two measured screen passes); one console, 2026-11-25, ledger PVR-028, 045, 090, 091, 094-101.](../images/c4-chain.svg)
+
 Program `demo/psm/compare/c4_spike.c`; image `demo/psm/out/cdi/psm-c4-c4.cdi`; design in `compare/NOTES.md:180-244`:
 
 1. The PVR draws the map through a depth-lookup ramp into a 128 × 128 target.
@@ -86,7 +88,16 @@ The projection's c4 cycle counts (132.5 against 138.8 a vertex) are a cache-plac
 | Sun 182°/26°, b0 8.0, bands 4 wide | 676 | 811 + 422 us | 3,301 us | 4,792 us | 9,951 us | 39,929 us |
 
 - **The frame is set by waiting, not by work:** 39.9, 39.9 and 49.9 ms for 19.3, 21.7 and 27.1 ms of work. Why the frame is one of two values 10.0 ms apart is OPEN (PVR-094, Q53).
+
+![The c4 frame waits: the live view's frame is 39.9 or 49.9 ms while the measured SH-4 and PVR work in it adds to only 21.7, 27.1 and 19.3 ms (MEASURED PVR-090, 091, 101, PVR-094, one console, 2026-11-25); the rest is waiting, and why the frame takes one of two values 10 ms apart is OPEN (Q53).](../images/frame-wait.svg)
+
 - **Tile stage:** rendering only the tiles a target covers took the map from 3,312 to 375 us, and the mask from 6,130 to 3,760 us, with the picture unchanged (PVR-092). That points at the old 3.2 ms target floor (PVR-004).
+
+![The tile-list cut: rendering a target through only the tiles it covers took the 128 x 130 map pass from 3,312 to 375 us (20 tiles) and the 320 x 240 mask pass from 6,130 to 3,760 us (80 tiles) with the same picture (MEASURED PVR-092, one console, 2026-11-25); the savings of 2.9 ms and 2.4 ms are arithmetic (ESTIMATE PVR-093).](../images/tile-list-cut.svg)
+
+**Worked example: one pass, field by field.** The recipe card below fills in every setting of the c4 mask pass's bump draw, in the order a pixel meets them.
+
+![A PVR pass recipe: the order a pixel goes through (depth, texel or bump level, combine, offset colour, clamp, fog, blend, write-out; the punch-through test in its own list) and a card with every field of one pass, filled in for the c4 mask pass's bump draw, each entry with its status (FACT from Sega's manual or our code, MEASURED from our console).](../images/pvr-pass-recipe.svg)
 
 **Punch-through** (c4 test 6, MEASURED, one run): KallistiOS's header thresholds at alpha ≥ reference; ONE/ZERO writes every pixel (c3b's failure); the tested alpha is texture × vertex (PVR-060, PVR-061, PVR-064). A bump polygon in the punch-through list is thresholded on its level: 10,200 of 20,480 drawn against the cosine table's 10,320 (PVR-065). So a mask could be made with no 1555 target. Not built (ESTIMATE).
 
@@ -100,6 +111,8 @@ Before the console run, the design was checked against skmp's rules (`POLLY2_NOT
 ## Idea: a cached static map plus small mover maps (T4, ESTIMATE / OPEN)
 
 The owner's idea, not built. Everything here is ESTIMATE or OPEN.
+
+![Idea T4, not built: with a fixed sun, draw the static casters' map once and bake static-on-static shadow at load, then each frame draw only a small mover map cut to its tiles and run three compares (static on mover, mover on static, mover on mover) into one mask; how the bits join, and the break-even number of movers, are OPEN, and the PVR's depth buffer cannot be preloaded from a cached map (FACT PVR-083).](../images/static-sun-split.svg)
 
 With a sun that does not move:
 
@@ -121,6 +134,12 @@ The catches:
 - **The PVR's depth buffer cannot be preloaded from a cached map** (it stays on chip per tile, PVR-083). So the static casters cannot simply be merged into one map with the movers without drawing them again. Two maps mean two compares.
 - **Each extra pass adds waits.** The c4 frame is 40 ms for 19-22 ms of measured work (PVR-094).
 - **The break-even number of movers is unknown.**
+- **Joining the compares into one mask is OPEN (Q58).** Three compares must write into one mask without a later one clearing a shadow bit an earlier one set. Today's bands write with blend ONE/ZERO, which overwrites. A write that can only set the bit is needed; the punch-through route (PVR-065) is a candidate: a failing pixel is not written with KallistiOS's blend (PVR-061), so a pass drawing "shadow" only where the test passes would leave earlier bits alone (ESTIMATE; which way round the level must point for that is part of Q58). A second candidate: a destination-alpha mask, which the library's trail pass already uses to choose the pixels a pass lands on (`src/sh4der_trail.c:127-151`; [post-PVR tricks](../research/post-pvr-tricks.md) H1). ESTIMATE.
+
+
+Why the static part should be baked: band counts on the town (ESTIMATE, host, `demo/psm/TOWN_NOTES.md` TOWN-051 to TOWN-055; see [scenes](../limits/scenes.md#the-town-shadow-demo)):
+
+![Band counts under c4's rules: the whole static town needs 44,577 / 26,969 / 18,097 band vertices at bands 1 / 2 / 4 codes wide, the boot view 11,146 / 7,090 / 5,174, and the movers' patches only 864 / 460 / 260, against 2,464 / 1,288 / 692 in c4's measured scene; the town counts and every cost on top are host ESTIMATEs (TOWN-051 to 055), which is why static shadow goes to a bake and c4 runs for movers only.](../images/town-band-counts.svg)
 
 **Test that would settle it:** after c4b works (Q56) and the wait test is done (Q53), time one static map plus one mover map against the single full map, by `pvr_get_stats` and the frame time.
 
@@ -136,10 +155,15 @@ Which c4 page or setting each photo shows is not recorded, so these photos are *
 
 ## Open
 
+The same comparator in texture space, where Q is one value for the whole object and no bands are needed (`demo/psm/RECIPES_NOTES.md` R7, R8; ESTIMATE):
+
+![The bump comparator in texture space (recipes R7 and R8, not built): when M is a texture in the object's own u, v (a height or a noise) and Q is one value for the whole object (a water level, a dissolve time), the bump unit's window passes exactly the pixels with |M - Q| <= w, with no bands, no camera depth map and no screen coordinates; the mechanism is MEASURED (PVR-045, PVR-065), the window edges must come from boot measurements (PVR-096, Q56), and the recipes are ESTIMATE.](../images/bump-texture-space.svg)
+
+
 - c4b: the window edges measured at boot, Q made from them (Q56); the bias at more suns, bands 2 and walls (Q57).
 - The c4 frame time (PVR-094, Q53).
 - Tile lists cut to a target in the library's own passes (Q54).
-- A cached static map plus mover maps (T4).
+- A cached static map plus mover maps (T4), and how its compares join into one mask (Q58).
 - Punch-through: blended with alpha 0 or not drawn; the texture × vertex rounding; the depth mode with an occluder (Q16, Q21).
 - PVR-046: why equal depths are undecided.
 - c3b's level 28 where the rules say 32 (`POLLY2_NOTES.md:276`).

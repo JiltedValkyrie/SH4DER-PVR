@@ -21,6 +21,8 @@ The PVR has no way to write its depth buffer to memory (PVR-083). So a depth [sh
 
 ## What is research
 
+![The c4 chain: a map drawn from the sun (3.2-3.3 ms), a mask pass where the bump unit compares each receiver band against the map and the 1555 write keeps one bit (4.8-10.2 ms by band width), and one screen layer that darkens by the mask (6.5 ms, the difference of two measured screen passes); one console, 2026-11-25, ledger PVR-028, 045, 090, 091, 094-101.](../images/c4-chain.svg)
+
 | Method | Idea | Status | Page |
 |---|---|---|---|
 | PSM, routes A, B and AB | A shadow map for a directional light, uniform or perspective-warped. A: the PVR draws a silhouette. B: the SH-4 draws depth. AB: the PVR draws depth as a colour code, PVR-DMA copies it back. | Headers host tested; town demo on a console (one view) | [PSM routes](psm-routes.md) |

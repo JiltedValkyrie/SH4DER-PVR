@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1010" viewBox="0 0 1200 1010" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">The static bake split: static on static baked once, movers through c4 patches</title>
+<desc id="dsc">Left: at load, static casters are binned on a 96 by 96 grid and one ray a model vertex and a ground texel gives a byte a vertex and a ground lightmap. Right: what the bake writes, its memory and its per-frame cost. Bottom: movers cast through c4 on ground patches round them; an open question on where the ray starts; the rule from TOWN-055. All host estimates.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="1010" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">The static bake split: static on static baked once, movers through c4 patches</text>
+<rect x="30" y="48" width="1140" height="30" rx="4" fill="#fbf1e2" stroke="#a86a00"/>
+<text x="42" y="68" class="b"><tspan class="k e">ESTIMATE (host).</tspan> demo/psm/TOWN_NOTES.md TOWN-060 .. 067, from the host tool town_bake. Nothing here has run on a console.</text>
+<text x="30" y="100" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<rect x="30" y="120" width="560" height="400" rx="6" class="st"/>
+<text x="44" y="146" class="h">At load, once a sun: static casters on static receivers</text>
+<rect x="54" y="170" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="170" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="170" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="170" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="170" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="170" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="170" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="170" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="54" y="186" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="186" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="186" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="186" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="186" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="186" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="186" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="186" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="54" y="202" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="202" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="202" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="202" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="202" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="202" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="202" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="202" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="54" y="218" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="218" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="218" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="218" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="218" width="16" height="16" fill="#6f86a8" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="218" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="218" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="218" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="54" y="234" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="234" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="234" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="234" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="234" width="16" height="16" fill="#6f86a8" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="234" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="234" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="234" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="54" y="250" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="250" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="250" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="250" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="250" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="250" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="250" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="250" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="54" y="266" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="266" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="266" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="266" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="266" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="266" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="266" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="266" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="54" y="282" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="70" y="282" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="86" y="282" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="102" y="282" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="118" y="282" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="134" y="282" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="150" y="282" width="16" height="16" fill="#ffffff" stroke="#8a8f99" stroke-width="0.6"/>
+<rect x="166" y="282" width="16" height="16" fill="#c9d6ea" stroke="#8a8f99" stroke-width="0.6"/>
+<path d="M48 292 L188 182" stroke="#a86a00" stroke-width="2" marker-end="url(#h)"/>
+<text x="54" y="318" class="s">ray toward the sun</text>
+<text x="204" y="182" class="b">Casters binned on a 96 x 96 grid across</text>
+<text x="204" y="200" class="b">the sun: 1.35 .. 1.39 m a bin. Fullest bin</text>
+<text x="204" y="218" class="b">82 triangles (14:00), 103 (16:00).</text>
+<text x="204" y="242" class="b">A ray tests 18.0 / 13.6 triangles for a</text>
+<text x="204" y="260" class="b">model vertex, 1.0 .. 1.2 for a ground texel</text>
+<text x="204" y="278" class="b"><tspan class="k e">[ESTIMATE TOWN-060]</tspan></text>
+<text x="204" y="298" class="s">(8 x 8 drawn; illustration)</text>
+<text x="44" y="342" class="h2">Cost a sun</text>
+<text x="44" y="362" class="b">168,965 ray-triangle tests with the caster proxies (models 88,328</text>
+<text x="44" y="380" class="b">+ ground 80,637), 577,635 with the screen mesh. At about 50 cycles</text>
+<text x="44" y="398" class="b">a test (assumed, not measured): about 0.04 s or 0.14 s at load</text>
+<text x="44" y="416" class="b"><tspan class="k e">[ESTIMATE TOWN-063]</tspan></text>
+<text x="44" y="444" class="b">Proxies against the screen mesh as casters: 43.4 against 41.6 %</text>
+<text x="44" y="462" class="b">(14:00), 73.9 against 70.3 % (16:00), ground 23.8 against 22.4 %.</text>
+<text x="44" y="480" class="b">Good enough to bake with, at a third of the tests <tspan class="k e">[ESTIMATE TOWN-064]</tspan></text>
+<text x="44" y="502" class="s">Faces away from the sun need no ray: dark by n · s alone.</text>
+<rect x="610" y="120" width="560" height="400" rx="6" class="tm"/>
+<text x="624" y="146" class="h">What the bake writes, and what it costs a frame</text>
+<rect x="624" y="164" width="250" height="150" rx="5" class="box"/>
+<text x="636" y="186" class="h2">Models: one byte a vertex</text>
+<rect x="636" y="196" width="113" height="16" fill="#9aa1ad"/>
+<text x="755.49" y="209" class="s">3,783 away</text>
+<rect x="636" y="216" width="83" height="16" fill="#e8c062"/>
+<text x="725.49" y="229" class="s">2,783 lit</text>
+<rect x="636" y="236" width="64" height="16" fill="#4a5a78"/>
+<text x="705.93" y="249" class="s">2,131 shadowed</text>
+<text x="636" y="270" class="s">43.4 % of sun-facing (14:00),</text>
+<text x="636" y="286" class="s">73.9 % (16:00); proxies as casters</text>
+<text x="636" y="304" class="s"><tspan class="k e">[ESTIMATE TOWN-061]</tspan></text>
+<rect x="890" y="164" width="266" height="150" rx="5" class="box"/>
+<text x="902" y="186" class="h2">Ground: a lightmap</text>
+<rect x="902" y="198" width="64" height="64" fill="#e8c062" stroke="#5b6577"/>
+<polygon points="910,208 920,208 932,226 922,226" fill="#4a5a78" opacity="0.8"/>
+<polygon points="932,204 940,204 952,228 944,228" fill="#4a5a78" opacity="0.8"/>
+<polygon points="922,232 936,232 948,252 934,252" fill="#4a5a78" opacity="0.8"/>
+<polygon points="946,238 954,238 966,256 958,256" fill="#4a5a78" opacity="0.8"/>
+<text x="976" y="212" class="s">256² at 0.375 m</text>
+<text x="976" y="228" class="s">23.8 % shadowed, 14:00</text>
+<text x="976" y="244" class="s">30.8 %, 16:00</text>
+<text x="976" y="260" class="s"><tspan class="k e">[ESTIMATE TOWN-062]</tspan></text>
+<text x="902" y="280" class="s">Tower (28 m): its shadow about 56 m</text>
+<text x="902" y="296" class="s">at 14:00, off the map at 16:00</text>
+<text x="624" y="342" class="h2">Memory <tspan class="k f">[FACT TOWN-067, sizes from the counts]</tspan></text>
+<text x="624" y="362" class="b">8,697 B models + 64 KB ground at 256² (16 KB at 128²), in RAM.</text>
+<text x="624" y="380" class="b">0 B of video memory, unless the textured fallback (64 KB, PAL8).</text>
+<text x="624" y="408" class="h2">Each frame after the bake <tspan class="k e">[ESTIMATE TOWN-066]</tspan></text>
+<text x="624" y="428" class="b">Static models and ground: 0 for the sun.</text>
+<text x="624" y="446" class="b">Ground re-read on a re-centre: 6,305 bilinear reads, about 1 ms,</text>
+<text x="624" y="464" class="b">only on frames that re-centre (30 cycles a read, not measured).</text>
+<text x="624" y="488" class="s">Rebake when the sun moves: a background job, sliced</text>
+<text x="624" y="504" class="s">(item 4 of the overnight list; not designed here).</text>
+<rect x="30" y="540" width="560" height="250" rx="6" class="mv"/>
+<text x="44" y="566" class="h">Each frame: movers through c4, on patches only</text>
+<rect x="60" y="600" width="200" height="140" fill="#e8c062" stroke="#5b6577"/>
+<rect x="90" y="630" width="70" height="14" fill="#fff" stroke="#a86a00" stroke-dasharray="4 3"/>
+<rect x="94" y="634" width="42" height="7" fill="#4a5a78"/>
+<circle cx="87" cy="637.0" r="4" fill="#d9534f"/>
+<rect x="150" y="690" width="60" height="14" fill="#fff" stroke="#a86a00" stroke-dasharray="4 3"/>
+<rect x="154" y="694" width="36" height="7" fill="#4a5a78"/>
+<circle cx="147" cy="697.0" r="4" fill="#d9534f"/>
+<rect x="190" y="640" width="40" height="8" fill="#fff" stroke="#a86a00" stroke-dasharray="4 3"/>
+<rect x="194" y="642" width="24" height="4" fill="#4a5a78"/>
+<circle cx="187" cy="644.0" r="3" fill="#d9534f"/>
+<rect x="100" y="700" width="34" height="8" fill="#fff" stroke="#a86a00" stroke-dasharray="4 3"/>
+<rect x="104" y="702" width="20" height="4" fill="#4a5a78"/>
+<circle cx="97" cy="704.0" r="3" fill="#d9534f"/>
+<text x="60" y="760" class="s">red: a mover; dashed: its patch</text>
+<text x="290" y="598" class="b">12 ground patches, from 0.5 m behind the</text>
+<text x="290" y="616" class="b">feet to the run&#39;s end: 1 m wide for a</text>
+<text x="290" y="634" class="b">person, 0.5 m for a hen. Map 128, fit to</text>
+<text x="290" y="652" class="b">the square: 0.159 m a code (14:00).</text>
+<text x="290" y="676" class="b">Mask pass at 2-code bands:</text>
+<text x="290" y="694" class="b">1.1 .. 2.2 ms (14:00), 2.1 .. 4.1 ms (16:00)</text>
+<text x="290" y="712" class="b"><tspan class="k e">[ESTIMATE TOWN-054]</tspan></text>
+<text x="290" y="736" class="b">Patches move, so bands are cut each frame:</text>
+<text x="290" y="754" class="b">the cut&#39;s own cost <tspan class="k o">[OPEN]</tspan></text>
+<text x="44" y="778" class="s">Movers receiving: 36 rays, ~600 tests, ~0.15 ms <tspan class="k e">[ESTIMATE TOWN-066]</tspan></text>
+<rect x="610" y="540" width="560" height="250" rx="6" class="box" stroke-dasharray="6 4"/>
+<text x="624" y="566" class="h">OPEN: the ray&#39;s start moves the answer</text>
+<text x="624" y="586" class="s">Sun-facing model vertices shadowed, screen mesh as casters</text>
+<text x="624" y="630" class="h2">14:00</text>
+<text x="680" y="618" class="s">0.05 m out</text>
+<rect x="800" y="606" width="177" height="18" fill="#4a5a78"/><text x="982.8" y="620" class="b">41.6 %</text>
+<text x="680" y="646" class="s">0.3 m + 0.5 m</text>
+<rect x="800" y="632" width="121" height="18" fill="#9aa8c4"/><text x="927.125" y="646" class="b">28.5 %</text>
+<text x="624" y="694" class="h2">16:00</text>
+<text x="680" y="682" class="s">0.05 m out</text>
+<rect x="800" y="670" width="299" height="18" fill="#4a5a78"/><text x="1104.775" y="684" class="b">70.3 %</text>
+<text x="680" y="710" class="s">0.3 m + 0.5 m</text>
+<rect x="800" y="696" width="272" height="18" fill="#9aa8c4"/><text x="1077.575" y="710" class="b">63.9 %</text>
+<text x="624" y="740" class="s">(The proxies as casters from 0.05 m out: 43.4 and 73.9 %.)</text>
+<text x="624" y="762" class="s">The vertices that change sit where walls meet roofs and under eaves:</text>
+<text x="624" y="778" class="s">one ray is a poor sample. Fix: average a few points, or the 2 x 2 rule.</text>
+<text x="1036" y="566" class="b"><tspan class="k o">[OPEN TOWN-065]</tspan></text>
+<rect x="30" y="810" width="1140" height="180" rx="6" class="box"/>
+<text x="44" y="836" class="h">The rule (TOWN-055, an inference from TOWN-050 .. 054)</text>
+<text x="44" y="862" class="b">Do not run c4 on the static town. Static on static goes to the bake: a byte a vertex for the models, the lightmap for the ground.</text>
+<text x="44" y="883" class="b">Also left to the bake: every face away from the sun, the 5 .. 21 steep faces, the tower and far roofs (their depth is what stretches c4&#39;s fit).</text>
+<text x="44" y="904" class="b">c4 runs only for the movers&#39; shadows on the ground patches round them, at 2-code bands.</text>
+<text x="44" y="925" class="b">At the town fit c4&#39;s 3-code bias is about 0.9 m and would lose a hen&#39;s shadow whole (0.37 m tall); the square-only fit (0.16 m a code,</text>
+<text x="44" y="946" class="b">bias about 0.5 m) keeps a person&#39;s and is marginal for a hen. A mover&#39;s shadow on a wall is left out: whether it is missed is <tspan class="k o">OPEN</tspan>.</text>
+<text x="44" y="967" class="s">Console tests that would settle it: the bake loop timed (one timer pair), the HUD with the bake in, two ray starts photographed.</text>
+</svg>

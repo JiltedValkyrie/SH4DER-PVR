@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="884" viewBox="0 0 1200 884" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">A PVR pass recipe: the pixel path and the fields of one pass</title>
+<desc id="dsc">Top: the order a pixel goes through on the PVR: depth compare, texel or bump level, combine with the vertex colour, offset colour added, colour clamp, fog, blend, write-out; the punch-through test applies in its own list. Below: a recipe card with the fields of one pass (list, target, header, texture, vertex colour, offset colour, bump constants, fog, blend, write-out), filled in for the c4 mask pass's bump draw, with the status of each entry.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}
+.stp{fill:#fff;stroke:#5b6577;stroke-width:1.3}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:4 3}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="884" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">A PVR pass recipe</text>
+<text x="30" y="58" class="s">A pass is one list into one target. Each polygon carries a header (how), a texture (what), vertex and offset colours (per vertex), and these settings.</text>
+<text x="30" y="78" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> Sega's manual or our code · <tspan class="k e">ESTIMATE</tspan> · <tspan class="k o">OPEN</tspan></text>
+<text x="30" y="102" class="h">The pixel path</text>
+<rect x="30" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="40" y="134" class="h2">1 Depth</text><text x="40" y="154" class="b">compare, 8 modes</text><text x="40" y="172" class="b">write on or off</text>
+<path d="M167 148 L173 148" class="ar" marker-end="url(#h)"/>
+<rect x="174" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="184" y="134" class="h2">2 Texel</text><text x="184" y="154" class="b">texture read, or</text><text x="184" y="172" class="b">the bump level</text>
+<path d="M311 148 L317 148" class="ar" marker-end="url(#h)"/>
+<rect x="318" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="328" y="134" class="h2">3 Combine</text><text x="328" y="154" class="b">with vertex colour</text><text x="328" y="172" class="b">4 modes</text>
+<path d="M455 148 L461 148" class="ar" marker-end="url(#h)"/>
+<rect x="462" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="472" y="134" class="h2">4 + Offset</text><text x="472" y="154" class="b">colour added</text><text x="472" y="172" class="b">after the combine</text>
+<path d="M599 148 L605 148" class="ar" marker-end="url(#h)"/>
+<rect x="606" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="616" y="134" class="h2">5 Clamp</text><text x="616" y="154" class="b">colour clamp</text><text x="616" y="172" class="b">min and max</text>
+<path d="M743 148 L749 148" class="ar" marker-end="url(#h)"/>
+<rect x="750" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="760" y="134" class="h2">6 Fog</text><text x="760" y="154" class="b">table, vertex</text><text x="760" y="172" class="b">or off</text>
+<path d="M887 148 L893 148" class="ar" marker-end="url(#h)"/>
+<rect x="894" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="904" y="134" class="h2">7 Blend</text><text x="904" y="154" class="b">src × f + dst × f</text><text x="904" y="172" class="b">with what is there</text>
+<path d="M1031 148 L1037 148" class="ar" marker-end="url(#h)"/>
+<rect x="1038" y="112" width="136" height="72" rx="5" class="stp"/>
+<text x="1048" y="134" class="h2">8 Write</text><text x="1048" y="154" class="b">565, 1555, 4444</text><text x="1048" y="172" class="b">dither, threshold</text>
+<path d="M386 184 L386 204" class="ad"/>
+<text x="312" y="220" class="b">Punch-through list only: drawn where alpha ≥ reference;</text>
+<text x="312" y="238" class="b">the tested alpha is texture × vertex alpha <tspan class="k m">[MEASURED PVR-060, 064]</tspan></text>
+<text x="30" y="220" class="b">Order: Sega's manual,</text><text x="30" y="238" class="b">PVR_FEATURES rows 1, 9–14, 18</text><text x="30" y="256" class="k f">[FACT]</text>
+<text x="30" y="290" class="h">The recipe card: one pass, every field written down</text>
+<text x="30" y="310" class="s">Fill one card a pass before writing code. Third column: the c4 mask pass's bump draw as the worked example.</text>
+<rect x="30" y="326" width="1140" height="28" fill="#e9edf3"/>
+<text x="40" y="345" class="k">Field</text><text x="180" y="345" class="k">What to choose</text><text x="600" y="345" class="k">Example: c4 mask, bump draw</text><text x="925" y="345" class="k">Status</text>
+<text x="40" y="381" class="h2">List</text>
+<text x="180" y="381" class="b">opaque, punch-through, translucent, modifier volume</text>
+<text x="600" y="381" class="b">translucent</text>
+<text x="925" y="381" class="k f">[FACT c4_spike.c]</text>
+<rect x="30" y="400" width="1140" height="46" fill="#f4f2ec"/>
+<text x="40" y="427" class="h2">Target</text>
+<text x="180" y="420" class="b">the screen, or a 16-bit render target</text><text x="180" y="437" class="b">(0555, 565, 4444, 1555)</text>
+<text x="600" y="420" class="b">320 x 240 mask, ARGB1555</text><text x="600" y="437" class="b">(in a 512 x 256 texture)</text>
+<text x="925" y="427" class="k f">[FACT Sega §3.4.10]</text>
+<text x="40" y="473" class="h2">Header</text>
+<text x="180" y="473" class="b">depth compare, depth write, culling, shading</text>
+<text x="600" y="466" class="b">GEQUAL ("equal or nearer"),</text><text x="600" y="483" class="b">depth write off, culling none</text>
+<text x="925" y="473" class="k f">[FACT c4_spike.c]</text>
+<rect x="30" y="492" width="1140" height="46" fill="#f4f2ec"/>
+<text x="40" y="519" class="h2">Texture</text>
+<text x="180" y="519" class="b">format, twiddled or not, filter, size, u / v clamp</text>
+<text x="600" y="512" class="b">bump, not twiddled, point sampled,</text><text x="600" y="529" class="b">128 x 128, clamp u and v</text>
+<text x="925" y="512" class="k m">[MEASURED PVR-070]</text><text x="925" y="529" class="k m">no hang, one run</text>
+<text x="40" y="565" class="h2">Vertex colour</text>
+<text x="180" y="558" class="b">base ARGB; combine: REPLACE, MODULATE,</text><text x="180" y="575" class="b">DECAL, MODULATE ALPHA</text>
+<text x="600" y="565" class="b">white, REPLACE, texture alpha on</text>
+<text x="925" y="565" class="k f">[FACT c4_spike.c]</text>
+<rect x="30" y="584" width="1140" height="46" fill="#f4f2ec"/>
+<text x="40" y="611" class="h2">Offset colour</text>
+<text x="180" y="604" class="b">added after the combine;</text><text x="180" y="621" class="b">the header's specular bit turns it on</text>
+<text x="600" y="611" class="b">on: it carries the bump constants</text>
+<text x="925" y="611" class="k f">[FACT Sega §3.4.7.3]</text>
+<text x="40" y="657" class="h2">Bump constants</text>
+<text x="180" y="657" class="b">K1, K2, K3, Q: 8 bits each, one set a polygon</text>
+<text x="600" y="657" class="b">K1 128, K2 0, K3 127, Q per band</text>
+<text x="925" y="650" class="k f">[FACT c4_model.h]</text><text x="925" y="667" class="k m">Q per polygon: MEASURED PVR-045</text>
+<rect x="30" y="676" width="1140" height="46" fill="#f4f2ec"/>
+<text x="40" y="703" class="h2">Fog</text>
+<text x="180" y="696" class="b">off, table (by 1/w), vertex (offset alpha),</text><text x="180" y="713" class="b">table mode 2</text>
+<text x="600" y="703" class="b">not set by c4</text>
+<text x="925" y="703" class="k f">[FACT Sega §3.4.8]</text>
+<text x="40" y="749" class="h2">Blend</text>
+<text x="180" y="749" class="b">src × factor + dst × factor; 8 factors each</text>
+<text x="600" y="749" class="b">ONE / ZERO: the pixel is replaced</text>
+<text x="925" y="749" class="k f">[FACT c4_spike.c]</text>
+<rect x="30" y="768" width="1140" height="46" fill="#f4f2ec"/>
+<text x="40" y="795" class="h2">Write-out</text>
+<text x="180" y="795" class="b">pack format, dither, the 1555 alpha threshold</text>
+<text x="600" y="788" class="b">bit = level ≥ 10 / 38 / 128 (windows</text><text x="600" y="805" class="b">16 / 32 / 64); dither off on targets</text>
+<text x="925" y="795" class="k m">[MEASURED PVR-028, 022]</text>
+<rect x="30" y="326" width="1140" height="488" fill="none" stroke="#5b6577" stroke-width="1.2"/>
+<text x="30" y="844" class="b"><tspan font-weight="700">Before sending:</tspan> a header that was never compiled ends the list, and a triangle with no screen area drew bright lines on a console <tspan class="k f">[FACT PVR-080, 081]</tspan>:</text>
+<text x="30" y="862" class="b">check them with sh4der_poly_hdr_ok and sh4der_tri_area_ok. The cost of a pass is measured on the console with pvr_get_stats, never filled in from a host.</text>
+</svg>

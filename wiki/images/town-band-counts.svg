@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="840" viewBox="0 0 1200 840" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">Band counts: the town under c4 rules against c4 scene</title>
+<desc id="dsc">Horizontal bars of receiver band vertices at bands 1, 2 and 4 codes wide for the whole static town, the town boot view, the c4 test scene and the town movers only, with the estimated mask cost and the recommendation to bake static shadow and run c4 for movers only.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="840" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">Band counts: the town under c4's rules, against c4's own scene</text>
+<text x="30" y="58" class="s">Vertices of the receiver bands the mask pass would draw, at bands 1, 2 and 4 depth codes wide. Town: sun at 14:00, map 256, window 32, b0 3.0.</text>
+<text x="30" y="76" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<path d="M330 110 L330 610" stroke="#d6d2c8" stroke-dasharray="3 4"/>
+<text x="330" y="626" class="s" text-anchor="middle">0</text>
+<path d="M472 110 L472 610" stroke="#d6d2c8" stroke-dasharray="3 4"/>
+<text x="472" y="626" class="s" text-anchor="middle">10,000</text>
+<path d="M614 110 L614 610" stroke="#d6d2c8" stroke-dasharray="3 4"/>
+<text x="614" y="626" class="s" text-anchor="middle">20,000</text>
+<path d="M757 110 L757 610" stroke="#d6d2c8" stroke-dasharray="3 4"/>
+<text x="757" y="626" class="s" text-anchor="middle">30,000</text>
+<path d="M899 110 L899 610" stroke="#d6d2c8" stroke-dasharray="3 4"/>
+<text x="899" y="626" class="s" text-anchor="middle">40,000</text>
+<text x="30" y="140" class="h2">Whole town, static</text>
+<text x="30" y="158" class="s">5,320 triangles; 3,083 compare</text>
+<text x="30" y="176" class="b"><tspan class="k e">[ESTIMATE (host) TOWN-051]</tspan></text>
+<rect x="330" y="124" width="634.0" height="24" fill="#5b8cc0" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="971.984" y="141" class="b">44,577  <tspan class="s">(1-code bands)</tspan></text>
+<rect x="330" y="154" width="383.6" height="24" fill="#8fb3d9" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="721.5591111111112" y="171" class="b">26,969  <tspan class="s">(2-code bands)</tspan></text>
+<rect x="330" y="184" width="257.4" height="24" fill="#c7dbef" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="595.3795555555555" y="201" class="b">18,097  <tspan class="s">(4-code bands)</tspan></text>
+<text x="30" y="262" class="h2">Town, boot view only</text>
+<text x="30" y="280" class="s">models with a corner in view</text>
+<text x="30" y="298" class="b"><tspan class="k e">[ESTIMATE (host) TOWN-052]</tspan></text>
+<rect x="330" y="246" width="158.5" height="24" fill="#5b8cc0" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="496.52088888888886" y="263" class="b">11,146  <tspan class="s">(1-code bands)</tspan></text>
+<rect x="330" y="276" width="100.8" height="24" fill="#8fb3d9" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="438.8355555555556" y="293" class="b">7,090  <tspan class="s">(2-code bands)</tspan></text>
+<rect x="330" y="306" width="73.6" height="24" fill="#c7dbef" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="411.58577777777776" y="323" class="b">5,174  <tspan class="s">(4-code bands)</tspan></text>
+<text x="30" y="384" class="h2">c4&#39;s test scene</text>
+<text x="30" y="402" class="s">what was measured on the console</text>
+<text x="30" y="420" class="b"><tspan class="k m">[MEASURED c4 test 5, PVR-100]</tspan></text>
+<rect x="330" y="368" width="35.0" height="24" fill="#5b8cc0" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="373.04355555555554" y="385" class="b">2,464  <tspan class="s">(1-code bands)</tspan></text>
+<rect x="330" y="398" width="18.3" height="24" fill="#8fb3d9" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="356.31822222222223" y="415" class="b">1,288  <tspan class="s">(2-code bands)</tspan></text>
+<rect x="330" y="428" width="9.8" height="24" fill="#c7dbef" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="347.8417777777778" y="445" class="b">692  <tspan class="s">(4-code bands)</tspan></text>
+<text x="30" y="506" class="h2">Town, movers only, 14:00</text>
+<text x="30" y="524" class="s">12 ground patches under movers</text>
+<text x="30" y="542" class="b"><tspan class="k e">[ESTIMATE (host) TOWN-054]</tspan></text>
+<rect x="330" y="490" width="12.3" height="24" fill="#5b8cc0" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="350.288" y="507" class="b">864  <tspan class="s">(1-code bands)</tspan></text>
+<rect x="330" y="520" width="6.5" height="24" fill="#8fb3d9" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="344.5422222222222" y="537" class="b">460  <tspan class="s">(2-code bands)</tspan></text>
+<rect x="330" y="550" width="3.7" height="24" fill="#c7dbef" stroke="#3d5f86" stroke-width="0.6"/>
+<text x="341.6977777777778" y="567" class="b">260  <tspan class="s">(4-code bands)</tspan></text>
+<text x="330" y="646" class="s">band vertices</text>
+<rect x="30" y="670" width="1140" height="150" rx="6" class="mv"/>
+<text x="44" y="694" class="h">The cost on top (all ESTIMATE, from the counts and c4's measured passes)</text>
+<text x="44" y="720" class="b">The town is 18 to 26 times c4's scene <tspan class="k e">[ESTIMATE TOWN-051]</tspan>. Culling to the view cuts about 3.8 times, not enough <tspan class="k e">[TOWN-052]</tspan>.</text>
+<text x="44" y="740" class="b">Mask pass for the boot view's static bands, 2-code: about 17 ms at 2.4 us a vertex, or 33 ms at c4's whole-pass 4.7 us; 4-code 12 to 24 ms.</text>
+<text x="44" y="760" class="b">Either way over a 16.7 ms frame on its own <tspan class="k e">[ESTIMATE TOWN-053]</tspan>. Movers only, 2-code: about 1.1 to 2.2 ms at 14:00 <tspan class="k e">[ESTIMATE TOWN-054]</tspan>.</text>
+<text x="44" y="780" class="b">Recommendation: bake static on static; run c4 only for the movers' shadows on the patches round them, 2-code bands <tspan class="k e">[ESTIMATE TOWN-055]</tspan>.</text>
+<text x="44" y="800" class="s">Source: demo/psm/TOWN_NOTES.md (host counter run on c4's rules in compare/c4_model.h; no town code changed).</text>
+</svg>

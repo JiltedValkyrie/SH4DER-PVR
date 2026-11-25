@@ -46,6 +46,11 @@ The hooks that exist so far are listed in `third_party/sh4zam-dce/README.md`. On
 - No uncached read in a hot loop.
 - No copy that the store queue or DMA can do.
 
+
+Uncached and badly placed buffers are the commonest slow code here:
+
+![The placing trap: the SH-4 operand cache is 16 KB, direct-mapped, indexed by address bits 13..5, so two arrays a multiple of 16 KB apart put line i of each in the same entry and every access misses; measured on one console, mat_transform 13.16 against 38.67 cycles a vertex (1 MB apart), pvr_project 21.15 against 132.5 (256 KB apart in c4), memcpy 398.0 against 46.6 MB/s; the fix is one pool with the second array 8 KB off modulo 16 KB (SH4-002, 003, 020-023, 030-032, 046).](../images/cache-placing-trap.svg)
+
 ## 4. Proof is a console number
 
 An assembly kernel is kept only with a measured gain on a real console. An emulator number is not evidence. The numbers we have are in the [SH-4 ledger](../hardware/ledger-sh4.md). For example, in our h2 run (one console):

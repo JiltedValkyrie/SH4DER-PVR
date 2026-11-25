@@ -28,12 +28,17 @@ The notes stay where they are; this page indexes them. Measured numbers from the
 | `demo/psm/TOWN_STORY.md`, `TOWN_MOCKUP.md`, `TOWN_LOOK.md` | — | The town scene: setting, layout, budgets, mockup findings, look targets. See [scenes](../limits/scenes.md). |
 | `demo/psm/DC_MOCKUP.md` | — | The field scene's disc layout, cost label and controls. |
 | `demo/psm/CREDITS.md` | — | Credits for CC0 art and the technique sources. |
+| `demo/psm/RECIPES_NOTES.md` | 2026-11-25 | Pass recipes for crude programmable shading from the PVR's fixed units: settings, SH-4 maths, evidence and a host test for each. Builds on the two idea pages below. Nothing built or run. |
+| `demo/psm/BUMP_REVIEW_NOTES.md` | 2026-11-25 | Could `sh4der_bump.h` use c3b and c4's measured level table? Not directly: since v0.14 that header does not use the bump unit. |
+| `demo/psm/town_ray_data.h` (made by `demo/psm/tools/town_ray_data.c`) | 2026-11-25 | Generated data for the thesis's ray bench (P1, P2, P9): the static town's 64 × 64 height grid of 1.5 m cells, block maxima, overhangs, and the twelve movers with their shadow runs at 14:00 and 16:00. Host tool; changes nothing in the town. |
 
 Pages written here (research ideas, nothing built):
 
 | Page | Date | What it covers |
 |---|---|---|
 | [Depth shading ideas](depth-shading-ideas.md) | 2026-11-25 | Material inputs mapped onto the PVR; where a PVR depth compare could fill a gap; most-useful and one-spike ideas. All ESTIMATE or OPEN. |
+| [The sound chip as a precompute unit](sound-chip-precompute.md) | 2026-11-25 | The AICA manual read against the offload plan: the ARM's timers, the DSP's rules, the voices; nine ideas with verdicts. The manual confirms the plan: only rare, small work pays across G2. ESTIMATE / OPEN. |
+| [Tricks from after and around the PVR](post-pvr-tricks.md) | 2026-11-25 | 21 GPU techniques of 2003-2010 and 18 fixed-function console tricks, each mapped to the PVR with ledger costs and a host test; the PVR pieces cost key; most useful and craziest. ESTIMATE / OPEN. |
 | [Depth fog and glow ideas](depth-fog-ideas.md) | 2026-11-25 | Film and TV depth fog and light; what table fog already does; fog between c4's bands, and its cost against the mask. All ESTIMATE or OPEN. |
 
 Outside sources: [skmp's repositories](outside-sources.md).

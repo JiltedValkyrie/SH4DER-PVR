@@ -26,9 +26,15 @@ Each item names the page it comes from. When a test settles one, move the answer
 | Q53 | c4 live view: the frame is 39.9 or 49.9 ms, two values 10.0 ms apart, for 19.3 to 27.1 ms of work ("it waits for the picture's turn"); a 10 ms wake clock is a guess | Count the pictures (vblanks) in each frame and time each wait apart | PVR-094 |
 | Q56 | c4b: the bump window's real edges, and which side of the cosine they move (PVR-096); a Q made from them should end the acne | Measure each window's two edges at boot from strips of known codes, make Q from them, rerun tests 3 and 4 | PVR-096, PVR-099 |
 | Q57 | c4 bias: b0 3 gave 0 acne on the ground at one sun with bands 1 and 4 wide; bands 2, walls and other suns are untested, and the owner went to 5.25 and 8.0 in the live view | c4b test 3 at several suns, bands 1, 2, 4, with a wall | PVR-098 |
+| Q58 | Joining several compares into one mask (T4's three): a write that never clears a shadow bit an earlier pass set. c4's bands write with ONE/ZERO, which overwrites. Candidates: the punch-through route (PVR-065, PVR-061); a destination-alpha mask, as the library's trail pass already uses (`src/sh4der_trail.c:127-151`; [post-PVR tricks](research/post-pvr-tricks.md) H1) | Two overlapping compares into one target, by ONE/ZERO and by punch-through; count bits against the union on the host model | Designer, T4, PVR-065 |
 | Q54 | Use a tile list cut to a target's covered tiles in the library's target passes (saves 2.9 ms on a 128 × 128 map in c4) | Build it into a target pass and time it | PVR-092, PVR-093 |
 | Q55 | Town TOWN-001 (a3 HUD): the photo's file name | Owner gives it; until then it is MEASURED by relay | errata O5 |
 | Q10 | Town TA line: why KOS's "last frame" reads 56 K to 966 K for the same view | Log `pvr_get_stats` beside the estimate each frame | VID-011 |
+
+
+Q53 in one picture:
+
+![The c4 frame waits: the live view's frame is 39.9 or 49.9 ms while the measured SH-4 and PVR work in it adds to only 21.7, 27.1 and 19.3 ms (MEASURED PVR-090, 091, 101, PVR-094, one console, 2026-11-25); the rest is waiting, and why the frame takes one of two values 10 ms apart is OPEN (Q53).](images/frame-wait.svg)
 
 ## 2. PVR behaviour
 
@@ -65,7 +71,9 @@ Each item names the page it comes from. When a test settles one, move the answer
 | Q29 | Multiply cost on the ARM7DI | Time MUL and MLA | AICA-008 |
 | Q30 | The ARM's clock | Time a known loop with the AICA timer | AICA-006 |
 | Q31 | No 16-bit loads, no long multiply on our own console | Console test 3 | AICA-003 |
-| Q32 | A Yamaha AICA datasheet with timing | Find one | AICA ledger |
+| Q32 | A Yamaha AICA datasheet with timing. The AICA manual was found and read 2026-11-25 (AICA-026 to AICA-031): it gives the memory cycle (4 clocks) but no ARM wait-state count, so Q28 stays | Console test 1 (Q28) | AICA ledger |
+| Q59 | Does a muted DSP (send level 0, master volume 0) still compute and write to sound RAM as normal? | Run a known DSP program muted; read EFREG and its writes | AICA-029, [sound chip](research/sound-chip-precompute.md) |
+| Q60 | The DSP ring buffer base step: 1 K or 4 K words (the manual disagrees with itself) | Write at two bases one step apart; read back | AICA-031 |
 
 ## 5. Video memory and the frame
 
@@ -87,6 +95,17 @@ Each item names the page it comes from. When a test settles one, move the answer
 | T2 | Material functions on the PVR: depth tests from popular engine material functions (outlines, cel, depth fade, soft intersections, contact edges, shells, rim, darkening, dither, depth colour) mapped to PVR mechanisms, with costs from the ledger. | RESEARCH TASK | Draft written, awaiting review: [depth shading ideas](research/depth-shading-ideas.md). Every idea is ESTIMATE or OPEN; first test is a camera-view depth map. |
 | T3 | Depth fog and glow: film and TV effects that use depth fog or light; can fog fill the space between c4's bands, and is it cheaper than the mask pass? | RESEARCH TASK | Draft written, awaiting review: [depth fog ideas](research/depth-fog-ideas.md). Answer: fog on surfaces reuses the mask; fog in the air adds about one mask pass per 8 slices (ESTIMATE). |
 | T4 | Static sun: cache the static casters' map and bake static-on-static at load; give movers their own small map each frame, cut to their tiles; shadow where either map says so. | TODO | ESTIMATE / OPEN; written up in [bump compare chain](shadows/bump-compare-chain.md#idea-a-cached-static-map-plus-small-mover-maps-t4-estimate--open). Catches: the depth buffer cannot be preloaded (PVR-083), extra passes add waits (PVR-094), the break-even in movers is unknown. Test: after c4b works (Q56) and the wait test (Q53), time one static map plus one mover map against the single full map. |
+
+
+Why T4 bakes the static part (band counts, ESTIMATE, host, TOWN-051 to TOWN-055):
+
+![Band counts under c4's rules: the whole static town needs 44,577 / 26,969 / 18,097 band vertices at bands 1 / 2 / 4 codes wide, the boot view 11,146 / 7,090 / 5,174, and the movers' patches only 864 / 460 / 260, against 2,464 / 1,288 / 692 in c4's measured scene; the town counts and every cost on top are host ESTIMATEs (TOWN-051 to 055), which is why static shadow goes to a bake and c4 runs for movers only.](images/town-band-counts.svg)
+
+The split itself:
+
+T4 in one picture:
+
+![Idea T4, not built: with a fixed sun, draw the static casters' map once and bake static-on-static shadow at load, then each frame draw only a small mover map cut to its tiles and run three compares (static on mover, mover on static, mover on mover) into one mask; how the bits join, and the break-even number of movers, are OPEN, and the PVR's depth buffer cannot be preloaded from a cached map (FACT PVR-083).](images/static-sun-split.svg)
 
 ## 7. From the effect pages
 

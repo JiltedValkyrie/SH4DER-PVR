@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">The sound chip as an offload unit</title>
+<desc id="dsc">Block picture: SH-4 and main RAM and texture memory on the left, the G2 bus in the middle, the AICA on the right with 2 MB sound RAM, the ARM7DI, the DSP and 64 voices, each with its ledger status. Below: the G2 time of five round trips against a 16.7 ms frame, and the verdicts S1 to S9 from the research page, with the open questions.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="1100" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">The sound chip as an offload unit: every result crosses a 5 MB/s bus</text>
+<text x="30" y="58" class="s">Rates from one console, bench h2, 2026-11-25. Sources: wiki/hardware/ledger-bus-dma.md, ledger-aica.md, wiki/research/sound-chip-precompute.md.</text>
+<text x="30" y="78" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<rect x="30" y="110" width="300" height="150" rx="6" class="box"/><text x="42" y="132" class="h2">SH-4 and main RAM</text><text x="42" y="152" class="s">200 MHz, 16 MB main RAM</text><text x="42" y="169" class="s">keeps 98 .. 100 % of a register loop</text><text x="42" y="186" class="s">while a G2 DMA runs</text><text x="42" y="203" class="s"><tspan class="k m">[MEASURED AICA-020]</tspan></text>
+<rect x="30" y="455" width="300" height="85" rx="6" class="box"/><text x="42" y="477" class="h2">Texture memory (PVR)</text><text x="42" y="497" class="s">a G2 DMA can write it straight</text><text x="42" y="514" class="s">from sound RAM</text><text x="42" y="531" class="s"><tspan class="k m">[MEASURED AICA-023]</tspan></text>
+<rect x="390" y="110" width="150" height="445" rx="6" fill="#f1ede4" stroke="#8a6d3b" stroke-width="1.4"/>
+<text x="402" y="134" class="h">G2 bus</text>
+<text x="402" y="156" class="s">16 bits at 25 MHz:</text>
+<text x="402" y="173" class="s">50 MB/s ceiling</text>
+<text x="402" y="190" class="s"><tspan class="k f">[FACT BUS-042]</tspan></text>
+<text x="402" y="290" class="s">Sega&#39;s table: 11.3</text>
+<text x="402" y="307" class="s">and 14.4 MB/s for</text>
+<text x="402" y="324" class="s">AICA DMA; we got</text>
+<text x="402" y="341" class="s">about half</text>
+<text x="402" y="358" class="s"><tspan class="k o">[DISPUTED AICA-024]</tspan></text>
+<text x="402" y="375" class="s"></text>
+<text x="402" y="392" class="s">An SH-4 read of the</text>
+<text x="402" y="409" class="s">AICA can stop the</text>
+<text x="402" y="426" class="s">buses for 16 µs; 8</text>
+<text x="402" y="443" class="s">writes, then wait</text>
+<text x="402" y="460" class="s"><tspan class="k f">[FACT BUS-043]</tspan></text>
+<rect x="600" y="100" width="570" height="455" rx="8" fill="#f6f2fa" stroke="#7a3ea8" stroke-width="1.4"/>
+<text x="614" y="124" class="h">AICA sound block, 22.5792 MHz <tspan class="k f">[FACT AICA-005]</tspan></text>
+<rect x="750" y="150" width="290" height="130" rx="6" class="box"/><text x="762" y="172" class="h2">Sound RAM, 2 MB</text><text x="762" y="192" class="s">16-bit SDRAM, shared by the ARM, the</text><text x="762" y="209" class="s">voices, the DSP and the SH-4</text><text x="762" y="226" class="s"><tspan class="k f">[FACT AICA-010]</tspan></text><text x="762" y="243" class="s">random access 4 clocks, 177 ns</text><text x="762" y="260" class="s"><tspan class="k f">[FACT AICA-026]</tspan></text>
+<rect x="614" y="300" width="268" height="128" rx="6" class="st"/><text x="626" y="322" class="h2">ARM7DI (ARMv3)</text><text x="626" y="342" class="s">no FPU, no divide</text><text x="626" y="359" class="s"><tspan class="k">[REPORTED AICA-009]</tspan></text><text x="626" y="376" class="s">timer A: a 5.8 ms tick <tspan class="k f">[FACT AICA-027]</tspan></text><text x="626" y="393" class="s">sound RAM waits? <tspan class="k o">[OPEN Q28]</tspan></text>
+<rect x="890" y="300" width="266" height="128" rx="6" class="st"/><text x="902" y="322" class="h2">DSP</text><text x="902" y="342" class="s">128 steps a sample, no branches</text><text x="902" y="359" class="s">≤ 5.64 M multiply-adds a second</text><text x="902" y="376" class="s"><tspan class="k f">[FACT AICA-028]</tspan> + arithmetic</text><text x="902" y="393" class="s">muted, still runs? <tspan class="k o">[OPEN Q59]</tspan></text><text x="902" y="410" class="s">ring base 1 K or 4 K? <tspan class="k o">[OPEN Q60]</tspan></text>
+<rect x="614" y="440" width="542" height="104" rx="6" class="box"/><text x="626" y="462" class="h2">64 voices</text><text x="626" y="482" class="s">play 16-, 8- or 4-bit ADPCM samples from sound RAM, interpolated;</text><text x="626" y="499" class="s">output can feed the DSP (MIXS) with no CPU work <tspan class="k f">[FACT AICA-030]</tspan>.</text><text x="626" y="516" class="s">Their state reads back one voice at a time over G2:</text><text x="626" y="533" class="s">not an arithmetic unit for us (S8).</text>
+<path d="M830 280 L770 298" class="ar" marker-end="url(#h)"/>
+<path d="M770 298 L830 282" class="ar" marker-end="url(#h)"/>
+<path d="M940 282 L1000 298" class="ar" marker-end="url(#h)"/>
+<path d="M1000 298 L940 284" class="ar" marker-end="url(#h)"/>
+<path d="M330 218 L748 218" class="ar" stroke-width="2.4" marker-end="url(#h)"/>
+<text x="548" y="213" class="k">in</text>
+<path d="M748 248 L330 248" class="ar" stroke-width="2.4" marker-end="url(#h)"/>
+<text x="548" y="243" class="k">back</text>
+<path d="M748 270 L570 270 L570 495 L332 495" class="ar" stroke-width="2.4" marker-end="url(#h)"/>
+<text x="402" y="488" class="k">direct</text>
+<text x="30" y="285" class="h2">Into sound RAM</text>
+<text x="30" y="303" class="s">G2 DMA 5.7 MB/s <tspan class="k m">[MEASURED AICA-020]</tspan></text>
+<text x="30" y="320" class="s">store queue 7.5 MB/s, SH-4 busy <tspan class="k m">[AICA-022]</tspan></text>
+<text x="30" y="345" class="h2">Back to main RAM</text>
+<text x="30" y="363" class="s">G2 DMA 4.9 .. 5.0 MB/s <tspan class="k m">[MEASURED AICA-021]</tspan></text>
+<text x="30" y="380" class="s">SH-4 register reads 2.5 MB/s <tspan class="k m">[AICA-022]</tspan></text>
+<text x="30" y="405" class="h2">Straight to texture memory</text>
+<text x="30" y="423" class="s">32 KB in 6,511 µs: 5.0 MB/s, every byte right</text>
+<text x="30" y="440" class="s"><tspan class="k m">[MEASURED AICA-023]</tspan></text>
+<text x="30" y="590" class="h">What a round trip costs, against a 16.7 ms frame</text>
+<text x="30" y="608" class="s">Bar = G2 time only, at 5.0 MB/s back (the measured rate). Arithmetic on MEASURED rates: <tspan class="k e">ESTIMATE</tspan>.</text>
+<path d="M589 620 L589 772" stroke="#d9534f" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="595.4666666666667" y="632" class="k">one frame, 16.7 ms</text>
+<text x="30" y="653" class="b">32 KB map back (AICA-025)</text>
+<rect x="300" y="640" width="113" height="17" fill="#7fb08e"/>
+<text x="418.66666666666663" y="653" class="s">6.5 ms</text>
+<text x="30" y="679" class="b">128 KB table as 4-bit ADPCM (S3)</text>
+<rect x="300" y="666" width="113" height="17" fill="#7fb08e"/>
+<text x="418.66666666666663" y="679" class="s">6.5 ms</text>
+<text x="30" y="705" class="b">128 KB table, 16-bit (S3)</text>
+<rect x="300" y="692" width="451" height="17" fill="#d9534f"/>
+<text x="756.6666666666666" y="705" class="s">26.0 ms</text>
+<text x="30" y="731" class="b">per-vertex data, 26 KB a frame (S5)</text>
+<rect x="300" y="718" width="92" height="17" fill="#7fb08e"/>
+<text x="397.8666666666667" y="731" class="s">5.3 ms every frame</text>
+<text x="30" y="757" class="b">DSP as transform, 158 KB a frame (S9)</text>
+<rect x="300" y="744" width="520" height="17" fill="#d9534f"/>
+<text x="826.0" y="757" class="s">28 .. 32 ms every frame</text>
+<text x="30" y="786" class="s">A 5 ms trip fits a frame only as a one-off; per-frame data never pays (S5, S9 rejected).</text>
+<rect x="30" y="810" width="1140" height="272" rx="6" class="box"/>
+<text x="44" y="836" class="h">What fits (the research page&#39;s ideas; every number <tspan class="k e">ESTIMATE</tspan>, nothing built or run)</text>
+<rect x="44" y="851" width="76" height="22" rx="4" fill="#fff" stroke="#1d7a3a" stroke-width="1.4"/>
+<text x="82" y="867" class="k m" text-anchor="middle">YES</text>
+<text x="132" y="867" class="h2">S2  ARM pacing clock</text>
+<text x="312" y="867" class="s">Timer A at 172 Hz ticks the background bake with no SH-4 poll; the one-sample interrupt (44,100 a second) is too often.</text>
+<rect x="44" y="887" width="76" height="22" rx="4" fill="#fff" stroke="#1d7a3a" stroke-width="1.4"/>
+<text x="82" y="903" class="k m" text-anchor="middle">YES</text>
+<text x="132" y="903" class="h2">S3  ADPCM storage</text>
+<text x="312" y="903" class="s">Smooth bulk tables (heights, sun tables) at 4 bits a value: 1/4 of the G2 bytes; lossy, so no masks. Decode time OPEN.</text>
+<rect x="44" y="923" width="76" height="22" rx="4" fill="#fff" stroke="#a86a00" stroke-width="1.4"/>
+<text x="82" y="939" class="k e" text-anchor="middle">BG</text>
+<text x="132" y="939" class="h2">S1  Silent DSP blur</text>
+<text x="312" y="939" class="s">A static map blurred in sound RAM: 1.1 .. 1.4 M texels a second, no SH-4 or ARM time, but the map still crosses G2. Rests on Q59.</text>
+<rect x="44" y="959" width="76" height="22" rx="4" fill="#fff" stroke="#1f5fa8" stroke-width="1.4"/>
+<text x="82" y="975" class="k f" text-anchor="middle">ONE JOB</text>
+<text x="132" y="975" class="h2">The plan&#39;s bake</text>
+<text x="312" y="975" class="s">Rebake the static ground sun-shadow on the ARM when the sun moves; bring it back by G2 DMA (OFFLOAD_PLAN.md).</text>
+<rect x="44" y="995" width="76" height="22" rx="4" fill="#fff" stroke="#666" stroke-width="1.4"/>
+<text x="82" y="1011" class="k o" text-anchor="middle">NO</text>
+<text x="132" y="1011" class="h2">S4 .. S9</text>
+<text x="312" y="1011" class="s">Voices as decompressor, DSP lookups, interval tables, small tables, envelopes, DSP transform: the bus decides.</text>
+<text x="44" y="1048" class="s"><tspan class="k o">OPEN</tspan> before any ARM work is costed: Q28 (ARM wait states, AICA-007), Q29 (ARM7DI multiply timing, AICA-008), Q59 (muted DSP), Q60 (ring base step).</text>
+<text x="44" y="1068" class="s">A G2 DMA asked for too soon after the last locks some units up: REPORTED, and disputed by another developer (BUS-045).</text>
+</svg>

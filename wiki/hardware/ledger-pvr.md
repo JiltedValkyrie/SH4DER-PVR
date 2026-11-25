@@ -125,6 +125,10 @@ The whole [bump compare chain](../shadows/bump-compare-chain.md) on one console,
 
 c4's PVR-DMA lines are BUS-050 and BUS-051; its SH-4 costs are SH4-045 and SH4-046.
 
+PVR-092, PVR-093 and PVR-004 in one picture:
+
+![The tile-list cut: rendering a target through only the tiles it covers took the 128 x 130 map pass from 3,312 to 375 us (20 tiles) and the 320 x 240 mask pass from 6,130 to 3,760 us (80 tiles) with the same picture (MEASURED PVR-092, one console, 2026-11-25); the savings of 2.9 ms and 2.4 ms are arithmetic (ESTIMATE PVR-093).](../images/tile-list-cut.svg)
+
 ## Open
 
 Also in [open-questions.md](../open-questions.md): PVR-004 (target floor; PVR-092 points at the tile walk), PVR-094 (c4 frame time), PVR-007, PVR-012, PVR-024 (one-under pattern), PVR-046 (equal depths), PVR-061 (blended with alpha 0 or not drawn), PVR-062 (depth mode with an occluder), PVR-064 (product rounding), PVR-096 (which side the window edges move), the PVR render time of a caster pass.

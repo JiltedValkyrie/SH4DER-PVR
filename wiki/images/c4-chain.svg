@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">The c4 chain: a per-pixel shadow compare on the PVR</title>
+<desc id="dsc">Three PVR passes: a map drawn from the sun into a 128 by 128 target, a mask pass that compares each receiver band against the map with the bump unit and keeps one bit through the 1555 write threshold, and one screen layer that darkens by the mask. Measured times from one console on 2026-11-25: map 3.2 to 3.3 ms, mask 4.8 to 10.2 ms, layer 6.5 ms.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}
+.b{font-size:13px}.n{font-size:22px;font-weight:700}.k{font-size:12px;font-weight:700}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:2;fill:none}
+</style>
+<rect width="1200" height="800" fill="#fbfaf7"/>
+<text x="20" y="36" class="t">The c4 chain: a per-pixel shadow compare on the PVR</text>
+<text x="20" y="58" class="s">Times are PVR render time (pvr_get_stats), one console, 2026-11-25, one run each. Status of every number in brackets; IDs are rows of hardware/ledger-pvr.md.</text>
+<text x="20" y="76" class="s">Status words: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> Sega's manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic · <tspan class="k o">OPEN</tspan> not known</text>
+
+<!-- box 1 -->
+<rect x="20" y="92" width="360" height="352" rx="6" class="box"/>
+<text x="34" y="118" class="h">1  MAP PASS, from the sun</text>
+<text x="34" y="142" class="b">Casters' faces toward the sun, grown 0.75 texel,</text>
+<text x="34" y="160" class="b">drawn from the sun into a 128 x 128 RGB565</text>
+<text x="34" y="178" class="b">render target (130 rows: PVR-021).</text>
+<text x="34" y="202" class="b">A ramp texture read at u = 1 / (2z) gives each</text>
+<text x="34" y="220" class="b">pixel the code of its own depth, 0 .. 255.</text>
+<text x="34" y="238" class="b">Never more than 1 code off; 348 of 16,384</text>
+<text x="34" y="256" class="b">pixels off with 8 sub-steps <tspan class="k m">[MEASURED PVR-095]</tspan></text>
+<text x="34" y="280" class="b">The PVR's own depth test keeps the caster</text>
+<text x="34" y="298" class="b">nearest the sun.</text>
+<text x="34" y="322" class="b">Opaque list, REPLACE, point sampled, no dither</text>
+<text x="34" y="340" class="b">on the target pass <tspan class="k f">[FACT c4_spike.c]</tspan></text>
+<rect x="34" y="362" width="332" height="68" rx="5" class="tm"/>
+<text x="46" y="386" class="n">3.2 – 3.3 ms</text>
+<text x="46" y="408" class="b">3,236 / 3,301 / 3,314 us</text>
+<text x="46" y="424" class="k m">[MEASURED PVR-090, 091, 101]</text>
+
+<!-- arrow -->
+<path d="M382 268 L408 268" class="ar"/><path d="M402 262 L410 268 L402 274" class="ar"/>
+
+<!-- box 2 -->
+<rect x="412" y="92" width="410" height="352" rx="6" class="box"/>
+<text x="426" y="118" class="h">2  MASK PASS, the bump unit compares</text>
+<text x="426" y="142" class="b">A 320 x 240 target written as ARGB1555.</text>
+<text x="426" y="164" class="b">a. Opaque pass: the receivers' depth.</text>
+<text x="426" y="184" class="b">b. Clear: alpha 0, depth left alone.</text>
+<text x="426" y="204" class="b">c. Receivers again, cut into bands (below), with the</text>
+<text x="426" y="222" class="b">    map read as a bump texture, point sampled; depth</text>
+<text x="426" y="240" class="b">    "equal or nearer", no depth write, blend ONE / ZERO.</text>
+<text x="426" y="264" class="b">Level ≈ 128 + 127 · sin(M − Q): M the map's code,</text>
+<text x="426" y="282" class="b">Q one value a polygon <tspan class="k m">[MEASURED PVR-045]</tspan></text>
+<text x="426" y="300" class="b">Not the cosine table: 240 to 784 of 40,960 pairs</text>
+<text x="426" y="318" class="b">differ <tspan class="k m">[MEASURED PVR-096]</tspan>; which side <tspan class="k o">[OPEN]</tspan></text>
+<text x="426" y="342" class="b">Write-out: alpha bit = level ≥ threshold, exact</text>
+<text x="426" y="360" class="b">at 1, 2, 128 <tspan class="k m">[MEASURED PVR-028]</tspan>. The bit is the shadow.</text>
+<rect x="426" y="372" width="382" height="62" rx="5" class="tm"/>
+<text x="438" y="392" class="n">4.8 – 10.2 ms</text>
+<text x="438" y="410" class="b">4,792 us (bands 4 wide) .. 10,171 us (1 wide)</text>
+<text x="438" y="426" class="k m">[MEASURED PVR-101, 091]</text>
+
+<path d="M824 268 L850 268" class="ar"/><path d="M844 262 L852 268 L844 274" class="ar"/>
+
+<!-- box 3 -->
+<rect x="854" y="92" width="326" height="352" rx="6" class="box"/>
+<text x="868" y="118" class="h">3  SCREEN LAYER</text>
+<text x="868" y="142" class="b">One translucent layer over the scene,</text>
+<text x="868" y="160" class="b">textured with the mask, bilinear;</text>
+<text x="868" y="178" class="b">black, alpha = the mask's bit x the</text>
+<text x="868" y="196" class="b">vertex's strength; depth ALWAYS,</text>
+<text x="868" y="214" class="b">no depth write <tspan class="k f">[FACT c4_spike.c]</tspan></text>
+<text x="868" y="246" class="b">Scene alone: 3,161 us</text>
+<text x="868" y="264" class="b">Scene with the layer: 9,646 us</text>
+<text x="868" y="282" class="k m">[both MEASURED PVR-100]</text>
+<text x="868" y="306" class="b">The layer's share is the difference:</text>
+<text x="868" y="324" class="b">arithmetic on two measured numbers.</text>
+<rect x="868" y="372" width="298" height="62" rx="5" class="tm"/>
+<text x="880" y="392" class="n">6.5 ms</text>
+<text x="880" y="410" class="b">9,646 − 3,161 us</text>
+<text x="880" y="426" class="k e">[ESTIMATE: arithmetic on MEASURED]</text>
+
+<!-- bands panel -->
+<rect x="20" y="462" width="620" height="318" rx="6" class="box"/>
+<text x="34" y="488" class="h">Why bands: Q is one value a polygon</text>
+<!-- receiver face drawn as a trapezoid cut into bands -->
+<g transform="translate(40,505)">
+<path d="M10 200 L250 200 L190 20 L70 20 Z" fill="#f1ede4" stroke="#5b6577" stroke-width="1.5"/>
+<path d="M18 176 L242 176" stroke="#8a6d3b" stroke-width="1.2"/>
+<path d="M26 152 L234 152" stroke="#8a6d3b" stroke-width="1.2"/>
+<path d="M36 122 L224 122" stroke="#8a6d3b" stroke-width="1.2"/>
+<path d="M46 92 L214 92" stroke="#8a6d3b" stroke-width="1.2"/>
+<path d="M58 56 L202 56" stroke="#8a6d3b" stroke-width="1.2"/>
+<g text-anchor="middle"><text x="130" y="193" class="b">Q = 41</text><text x="130" y="169" class="b">Q = 43</text>
+<text x="130" y="142" class="b">Q = 45</text><text x="130" y="112" class="b">Q = 47</text>
+<text x="130" y="79" class="b">Q = 49</text><text x="130" y="43" class="b">Q = 51</text></g>
+<text x="0" y="222" class="s">A receiver face, cut along lines of equal depth code</text>
+<text x="0" y="238" class="s">(here bands 2 codes wide; Q values are examples)</text>
+</g>
+<text x="350" y="520" class="b">Each band is sent as its own polygon,</text>
+<text x="350" y="538" class="b">with Q in its offset colour slot.</text>
+<text x="350" y="562" class="b">Q = R + (w − b) + 128; lit while</text>
+<text x="350" y="580" class="b">M − R is in (−b, 2w − b)</text>
+<text x="350" y="598" class="k f">[FACT: the c4 design]</text>
+<text x="350" y="622" class="b">Bias b = b0 + half a band + half a</text>
+<text x="350" y="640" class="b">texel of slope. b0 3 gave 0 acne on</text>
+<text x="350" y="658" class="b">the ground at one sun <tspan class="k m">[MEASURED</tspan></text>
+<text x="350" y="676" class="k m">PVR-098, ground only]</text>
+<text x="350" y="700" class="b">Walls, other suns, bands 2 wide:</text>
+<text x="350" y="718" class="k o">[OPEN]</text>
+
+<!-- cost by band width -->
+<rect x="660" y="462" width="520" height="318" rx="6" class="box"/>
+<text x="674" y="488" class="h">Band width sets the mask's cost</text>
+<text x="674" y="508" class="s">sun 150° / 26°, one run <tspan class="k m">[MEASURED PVR-100]</tspan></text>
+<text x="674" y="540" class="k">bands</text><text x="760" y="540" class="k">vertices</text><text x="860" y="540" class="k">mask pass</text>
+<text x="674" y="570" class="b">1 code</text><text x="760" y="570" class="b">2,464</text>
+<rect x="860" y="558" width="271" height="16" fill="#7fb08e"/><text x="1136" y="571" class="b">9.05</text>
+<text x="674" y="600" class="b">2 codes</text><text x="760" y="600" class="b">1,288</text>
+<rect x="860" y="588" width="184" height="16" fill="#7fb08e"/><text x="1049" y="601" class="b">6.13</text>
+<text x="674" y="630" class="b">4 codes</text><text x="760" y="630" class="b">692</text>
+<rect x="860" y="618" width="150" height="16" fill="#7fb08e"/><text x="1015" y="631" class="b">5.02 ms</text>
+<text x="674" y="664" class="b">The map pass stays 3.31 ms at every width.</text>
+<text x="674" y="690" class="b">SH-4 before the passes, live view: fit + cut + faces</text>
+<text x="674" y="708" class="b">0.8 – 2.3 ms, projection 0.4 – 1.5 ms <tspan class="k m">[MEASURED]</tspan></text>
+<text x="674" y="734" class="b">Whole frame 39.9 or 49.9 ms for 19 – 27 ms of work:</text>
+<text x="674" y="752" class="b">set by waiting <tspan class="k m">[MEASURED PVR-094]</tspan>; why <tspan class="k o">[OPEN]</tspan></text>
+</svg>

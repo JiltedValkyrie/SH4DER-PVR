@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="880" viewBox="0 0 1200 880" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">The placing trap: arrays a multiple of 16 KB apart share cache entries</title>
+<desc id="dsc">How the SH-4 operand cache picks an entry from address bits 13 to 5, why two arrays 256 KB or 1 MB apart clash in one entry per line, what it cost on one console, and the fix: one pool with the second array 8 KB off modulo 16 KB.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="880" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">The placing trap: two arrays a multiple of 16 KB apart share every cache entry</text>
+<text x="30" y="58" class="s">The SH-4 operand cache is 16 KB, direct-mapped, 32-byte lines: 512 entries, each holding one line <tspan class="k f">[FACT SH-4 manual; SH4-002]</tspan>. Times from one console, 2026-11-25.</text>
+<text x="30" y="76" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<text x="30" y="108" class="h">Which entry a line goes to</text>
+<text x="30" y="146" class="mono">source array 8C205220</text>
+<rect x="250" y="124" width="26" height="30" fill="#dcdcdc" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="263.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="276" y="124" width="26" height="30" fill="#dcdcdc" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="289.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="302" y="124" width="26" height="30" fill="#dcdcdc" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="315.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="328" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="341.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="354" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="367.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="380" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="393.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="406" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="419.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="432" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="445.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="458" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="471.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="484" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="497.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="510" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="523.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="536" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="549.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="562" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="575.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="588" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="601.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="614" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="627.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="640" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="653.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="666" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="679.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="692" y="124" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="705.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="718" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="731.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="744" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="757.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="770" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="783.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="796" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="809.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="822" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="835.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="848" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="861.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="874" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="887.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="900" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="913.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="926" y="124" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="939.0" y="145" class="mono" text-anchor="middle">1</text>
+<rect x="952" y="124" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="965.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="978" y="124" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="991.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="1004" y="124" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="1017.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="1030" y="124" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="1043.0" y="145" class="mono" text-anchor="middle">0</text>
+<rect x="1056" y="124" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="1069.0" y="145" class="mono" text-anchor="middle">0</text>
+<text x="30" y="190" class="mono">output array 8C1C5220</text>
+<rect x="250" y="168" width="26" height="30" fill="#dcdcdc" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="263.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="276" y="168" width="26" height="30" fill="#dcdcdc" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="289.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="302" y="168" width="26" height="30" fill="#dcdcdc" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="315.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="328" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="341.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="354" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="367.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="380" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="393.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="406" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="419.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="432" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="445.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="458" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="471.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="484" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="497.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="510" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="523.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="536" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="549.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="562" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="575.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="588" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="601.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="614" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="627.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="640" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="653.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="666" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="679.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="692" y="168" width="26" height="30" fill="#dbe6f5" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="705.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="718" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="731.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="744" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="757.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="770" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="783.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="796" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="809.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="822" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="835.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="848" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="861.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="874" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="887.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="900" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="913.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="926" y="168" width="26" height="30" fill="#f6deb0" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="939.0" y="189" class="mono" text-anchor="middle">1</text>
+<rect x="952" y="168" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="965.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="978" y="168" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="991.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="1004" y="168" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="1017.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="1030" y="168" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="1043.0" y="189" class="mono" text-anchor="middle">0</text>
+<rect x="1056" y="168" width="26" height="30" fill="#ececec" stroke="#8a8f99" stroke-width="0.8"/>
+<text x="1069.0" y="189" class="mono" text-anchor="middle">0</text>
+<path d="M252 216 L252 224 L326 224 L326 216" class="ar"/>
+<text x="289.0" y="242" class="k o" text-anchor="middle">area</text>
+<text x="289.0" y="258" class="s" text-anchor="middle">bits 31..29</text>
+<path d="M330 216 L330 224 L716 224 L716 216" class="ar"/>
+<text x="523.0" y="242" class="k f" text-anchor="middle">tag: which line of RAM</text>
+<text x="523.0" y="258" class="s" text-anchor="middle">bits 28..14</text>
+<path d="M720 216 L720 224 L950 224 L950 216" class="ar"/>
+<text x="835.0" y="242" class="k e" text-anchor="middle">index: which of 512 entries</text>
+<text x="835.0" y="258" class="s" text-anchor="middle">bits 13..5</text>
+<path d="M954 216 L954 224 L1080 224 L1080 216" class="ar"/>
+<text x="1017.0" y="242" class="k o" text-anchor="middle">byte in line</text>
+<text x="1017.0" y="258" class="s" text-anchor="middle">bits 4..0</text>
+<text x="250" y="286" class="b">The addresses differ only in the tag: 0x40000 = 256 KB apart <tspan class="k f">[FACT sh-elf-nm; SH4-046]</tspan></text>
+<text x="250" y="304" class="b">Index bits equal, so both land in entry 0x091 (145).</text>
+<text x="250" y="322" class="s">Index from bits 13..5 holds with the cache's index mode off. The CCR read 00000105 (SH4-010),</text>
+<text x="250" y="338" class="s">which we read as off <tspan class="k e">[ESTIMATE: our decode of the bits]</tspan></text>
+<text x="30" y="400" class="h">The clash</text>
+<rect x="30" y="420" width="150" height="40" fill="#dbe6f5" stroke="#1f5fa8"/><text x="42" y="445" class="b">source line i</text>
+<rect x="30" y="510" width="150" height="40" fill="#fbf1e2" stroke="#a86a00"/><text x="42" y="535" class="b">output line i</text>
+<rect x="300" y="410" width="60" height="170" fill="#fff" stroke="#5b6577"/>
+<path d="M300 410 L360 410" stroke="#d0d0d0"/>
+<path d="M300 420 L360 420" stroke="#d0d0d0"/>
+<path d="M300 430 L360 430" stroke="#d0d0d0"/>
+<path d="M300 440 L360 440" stroke="#d0d0d0"/>
+<path d="M300 450 L360 450" stroke="#d0d0d0"/>
+<path d="M300 460 L360 460" stroke="#d0d0d0"/>
+<path d="M300 470 L360 470" stroke="#d0d0d0"/>
+<path d="M300 480 L360 480" stroke="#d0d0d0"/>
+<path d="M300 490 L360 490" stroke="#d0d0d0"/>
+<path d="M300 500 L360 500" stroke="#d0d0d0"/>
+<path d="M300 510 L360 510" stroke="#d0d0d0"/>
+<path d="M300 520 L360 520" stroke="#d0d0d0"/>
+<path d="M300 530 L360 530" stroke="#d0d0d0"/>
+<path d="M300 540 L360 540" stroke="#d0d0d0"/>
+<path d="M300 550 L360 550" stroke="#d0d0d0"/>
+<path d="M300 560 L360 560" stroke="#d0d0d0"/>
+<path d="M300 570 L360 570" stroke="#d0d0d0"/>
+<rect x="300" y="480" width="60" height="10" fill="#d9534f"/>
+<text x="370" y="490" class="k">entry 145</text>
+<text x="300" y="596" class="s">512 entries (part)</text>
+<path d="M180 440 C 240 440, 250 485, 298 485" class="ar" marker-end="url(#h)"/>
+<path d="M180 530 C 240 530, 250 487, 298 487" class="ar" marker-end="url(#h)"/>
+<text x="440" y="430" class="b">One entry holds one line. Reading source line i throws</text>
+<text x="440" y="449" class="b">out output line i (written back first if dirty); writing</text>
+<text x="440" y="468" class="b">output line i throws out source line i. Every access misses.</text>
+<text x="440" y="487" class="b">Hit 3.17 cycles a line, read miss 18.41, write miss 41.91</text>
+<text x="440" y="506" class="b"><tspan class="k m">[MEASURED SH4-003]</tspan></text>
+<text x="440" y="525" class="b">The same at 1 MB, or any multiple of 16 KB. At 8 KB off,</text>
+<text x="440" y="544" class="b">line i of each array lands 256 entries apart: both stay.</text>
+<text x="30" y="620" class="h">What it cost, the same routine on a clean and a clashing placing</text>
+<text x="30" y="658" class="h2">KOS mat_transform, 256 vertices</text>
+<text x="30" y="676" class="s">cycles a vertex</text>
+<text x="30" y="694" class="b"><tspan class="k m">[MEASURED SH4-020, 021]</tspan></text>
+<rect x="330" y="646" width="177" height="18" fill="#7fb08e"/><text x="512.9640548228601" y="660" class="b">13.16  clean</text>
+<rect x="330" y="670" width="520" height="18" fill="#d9534f"/><text x="856.0" y="684" class="b">38.67  1 MB apart</text>
+<text x="30" y="730" class="h2">shz_dce_pvr_project</text>
+<text x="30" y="748" class="s">cycles a vertex</text>
+<text x="30" y="766" class="b"><tspan class="k m">[MEASURED SH4-023, 046]</tspan></text>
+<rect x="330" y="718" width="83" height="18" fill="#7fb08e"/><text x="419.0037735849057" y="732" class="b">21.15  clean, in cache</text>
+<rect x="330" y="742" width="520" height="18" fill="#d9534f"/><text x="856.0" y="756" class="b">132.5  256 KB apart (c4)</text>
+<text x="30" y="802" class="h2">memcpy 4 KB in the cache</text>
+<text x="30" y="820" class="s">MB/s, higher is better</text>
+<text x="30" y="838" class="b"><tspan class="k m">[MEASURED SH4-032]</tspan></text>
+<rect x="330" y="790" width="520" height="18" fill="#7fb08e"/><text x="856.0" y="804" class="b">398  8 KB off</text>
+<rect x="330" y="814" width="61" height="18" fill="#d9534f"/><text x="396.88442211055275" y="828" class="b">46.6  1 MB off</text>
+<text x="30" y="866" class="s">The pvr_project out of the cache is 58.09 <tspan class="k m">[MEASURED SH4-023]</tspan>: c4's 132.5 is worse than no cache at all. Cite 21.15 for the routine, never 132.5.</text>
+<text x="880" y="400" class="h">The fix: one pool, chosen offsets</text>
+<rect x="880" y="416" width="300" height="190" rx="6" class="tm"/>
+<rect x="896" y="434" width="120" height="26" fill="#dbe6f5" stroke="#1f5fa8"/><text x="904" y="452" class="b">source</text>
+<rect x="1016" y="434" width="40" height="26" fill="#fff" stroke="#999" stroke-dasharray="3 3"/><text x="1019" y="452" class="s">pad</text>
+<rect x="1056" y="434" width="110" height="26" fill="#fbf1e2" stroke="#a86a00"/><text x="1064" y="452" class="b">output</text>
+<text x="896" y="482" class="b">Allocate one pool; put the output at</text>
+<text x="896" y="500" class="b">an offset whose remainder by 16 KB is</text>
+<text x="896" y="518" class="b">8 KB (half the cache).</text>
+<text x="896" y="542" class="b">h2's clean placing was exactly this</text>
+<text x="896" y="560" class="b"><tspan class="k m">[MEASURED SH4-030, 032]</tspan></text>
+<text x="896" y="584" class="b">c4b must do it <tspan class="k f">[SH4-046]</tspan>. Three or more</text>
+<text x="896" y="600" class="b">arrays: each its own share <tspan class="k e">[ESTIMATE]</tspan></text>
+</svg>

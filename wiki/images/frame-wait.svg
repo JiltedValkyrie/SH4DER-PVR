@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">The frame waits: c4 frame time against measured work</title>
+<desc id="dsc">Three live views of spike c4 drawn on a millisecond axis: the SH-4 and the three PVR passes end to end, then waiting up to the end of the frame. Work 21.7, 27.1 and 19.3 ms; frames 39.9, 49.9 and 39.9 ms. The cause of the wait is open.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="720" fill="#fbfaf7"/>
+<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#f1ede4"/><path d="M0 0 L0 8" stroke="#b9b2a2" stroke-width="3"/></pattern></defs>
+<text x="30" y="36" class="t">The frame waits: c4's frame time against the work measured in it</text>
+<text x="30" y="58" class="s">Live view of spike c4, one console, 2026-11-25. Work = the SH-4 lines plus the three PVR passes, as the page printed them.</text>
+<text x="30" y="76" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<path d="M280.0 110 L280.0 460" stroke="#9aa3b2" stroke-dasharray="4 4"/>
+<text x="280.0" y="104" class="k" text-anchor="middle">0 ms</text>
+<path d="M445.0 110 L445.0 460" stroke="#9aa3b2" stroke-dasharray="4 4"/>
+<text x="445.0" y="104" class="k" text-anchor="middle">10 ms</text>
+<path d="M610.0 110 L610.0 460" stroke="#9aa3b2" stroke-dasharray="4 4"/>
+<text x="610.0" y="104" class="k" text-anchor="middle">20 ms</text>
+<path d="M775.0 110 L775.0 460" stroke="#9aa3b2" stroke-dasharray="4 4"/>
+<text x="775.0" y="104" class="k" text-anchor="middle">30 ms</text>
+<path d="M940.0 110 L940.0 460" stroke="#9aa3b2" stroke-dasharray="4 4"/>
+<text x="940.0" y="104" class="k" text-anchor="middle">40 ms</text>
+<path d="M1105.0 110 L1105.0 460" stroke="#9aa3b2" stroke-dasharray="4 4"/>
+<text x="1105.0" y="104" class="k" text-anchor="middle">50 ms</text>
+<path d="M555.22 122 L555.22 460" stroke="#c9a46a" stroke-width="1.2"/>
+<text x="555.22" y="474" class="s" text-anchor="middle">1 x 16.7 ms</text>
+<path d="M830.4399999999999 122 L830.4399999999999 460" stroke="#c9a46a" stroke-width="1.2"/>
+<text x="830.4399999999999" y="474" class="s" text-anchor="middle">2 x 16.7 ms</text>
+<path d="M1105.6599999999999 122 L1105.6599999999999 460" stroke="#c9a46a" stroke-width="1.2"/>
+<text x="1105.6599999999999" y="474" class="s" text-anchor="middle">3 x 16.7 ms</text>
+<text x="30" y="164" class="h2">sun 150° / 26°, bands 2 wide</text>
+<text x="30" y="182" class="s">1,288 vertices</text>
+<text x="30" y="200" class="b"><tspan class="k m">[MEASURED PVR-090]</tspan></text>
+<rect x="280.0" y="150" width="23.2" height="28" fill="#8fb3d9" stroke="#fff" stroke-width="0.8"/>
+<rect x="303.2" y="150" width="14.1" height="28" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="317.3" y="150" width="54.7" height="28" fill="#9fd0a8" stroke="#fff" stroke-width="0.8"/>
+<rect x="372.0" y="150" width="101.3" height="28" fill="#5fae74" stroke="#fff" stroke-width="0.8"/>
+<rect x="473.2" y="150" width="164.0" height="28" fill="#2f7d48" stroke="#fff" stroke-width="0.8"/>
+<rect x="637.3" y="150" width="301.6" height="28" fill="url(#hatch)" stroke="#8a8f99"/>
+<path d="M938.9 144 L938.9 184" stroke="#d9534f" stroke-width="3"/>
+<text x="280" y="200" class="b">work 21.7 ms <tspan class="k e">[ESTIMATE: the sum]</tspan></text>
+<text x="934.9" y="200" class="h2" text-anchor="end" fill="#d9534f">frame 39.9 ms</text>
+<text x="30" y="269" class="h2">sun 91° / 34°, bands 1 wide</text>
+<text x="30" y="287" class="s">2,192 vertices</text>
+<text x="30" y="305" class="b"><tspan class="k m">[MEASURED PVR-091]</tspan></text>
+<rect x="280.0" y="255" width="37.5" height="28" fill="#8fb3d9" stroke="#fff" stroke-width="0.8"/>
+<rect x="317.5" y="255" width="24.1" height="28" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="341.6" y="255" width="53.4" height="28" fill="#9fd0a8" stroke="#fff" stroke-width="0.8"/>
+<rect x="395.0" y="255" width="167.8" height="28" fill="#5fae74" stroke="#fff" stroke-width="0.8"/>
+<rect x="562.8" y="255" width="164.1" height="28" fill="#2f7d48" stroke="#fff" stroke-width="0.8"/>
+<rect x="726.9" y="255" width="376.9" height="28" fill="url(#hatch)" stroke="#8a8f99"/>
+<path d="M1103.8 249 L1103.8 289" stroke="#d9534f" stroke-width="3"/>
+<text x="280" y="305" class="b">work 27.1 ms <tspan class="k e">[ESTIMATE: the sum]</tspan></text>
+<text x="1099.8" y="305" class="h2" text-anchor="end" fill="#d9534f">frame 49.9 ms</text>
+<text x="30" y="374" class="h2">sun 182° / 26°, bands 4 wide</text>
+<text x="30" y="392" class="s">676 vertices</text>
+<text x="30" y="410" class="b"><tspan class="k m">[MEASURED PVR-101]</tspan></text>
+<rect x="280.0" y="360" width="13.4" height="28" fill="#8fb3d9" stroke="#fff" stroke-width="0.8"/>
+<rect x="293.4" y="360" width="7.0" height="28" fill="#5b8cc0" stroke="#fff" stroke-width="0.8"/>
+<rect x="300.3" y="360" width="54.5" height="28" fill="#9fd0a8" stroke="#fff" stroke-width="0.8"/>
+<rect x="354.8" y="360" width="79.1" height="28" fill="#5fae74" stroke="#fff" stroke-width="0.8"/>
+<rect x="433.9" y="360" width="164.2" height="28" fill="#2f7d48" stroke="#fff" stroke-width="0.8"/>
+<rect x="598.1" y="360" width="340.8" height="28" fill="url(#hatch)" stroke="#8a8f99"/>
+<path d="M938.8 354 L938.8 394" stroke="#d9534f" stroke-width="3"/>
+<text x="280" y="410" class="b">work 19.3 ms <tspan class="k e">[ESTIMATE: the sum]</tspan></text>
+<text x="934.8" y="410" class="h2" text-anchor="end" fill="#d9534f">frame 39.9 ms</text>
+<rect x="30" y="500" width="16" height="14" fill="#8fb3d9"/><text x="52" y="512" class="b">SH-4 fit, cut, faces</text>
+<rect x="228.0" y="500" width="16" height="14" fill="#5b8cc0"/><text x="250.0" y="512" class="b">SH-4 project</text>
+<rect x="365.2" y="500" width="16" height="14" fill="#9fd0a8"/><text x="387.2" y="512" class="b">PVR map</text>
+<rect x="464.4" y="500" width="16" height="14" fill="#5fae74"/><text x="486.4" y="512" class="b">PVR mask</text>
+<rect x="571.1999999999999" y="500" width="16" height="14" fill="#2f7d48"/><text x="593.1999999999999" y="512" class="b">PVR screen</text>
+<rect x="693.1999999999999" y="500" width="16" height="14" fill="url(#hatch)" stroke="#8a8f99"/><text x="715.1999999999999" y="512" class="b">waiting</text>
+<path d="M803.1999999999999 498 L803.1999999999999 516" stroke="#d9534f" stroke-width="3"/><text x="811.1999999999999" y="512" class="b">end of frame</text>
+<text x="30" y="536" class="s">Dashed: 10 ms marks. Gold: 60 Hz pictures (16.7 ms each). The parts are drawn end to end; on the console the SH-4 and</text>
+<text x="30" y="552" class="s">the PVR can overlap, so the sum is an upper bound of the serial work.</text>
+<text x="30" y="584" class="h">What is known, and what is not</text>
+<text x="30" y="608" class="b">The frame is one of two values 10.0 ms apart, 39.9 or 49.9 ms, whatever the work: 39.9 at 676 and at 1,288 vertices <tspan class="k m">[MEASURED PVR-094]</tspan>.</text>
+<text x="30" y="630" class="b">Both values are 70 us short of a multiple of 10 ms; 39.9 ms is not a whole number of 60 Hz pictures (2.39) <tspan class="k e">[ESTIMATE: arithmetic]</tspan>.</text>
+<text x="30" y="652" class="b">A wait that wakes on a 10 ms clock is one guess, from three numbers <tspan class="k e">[ESTIMATE]</tspan>. The cause <tspan class="k o">[OPEN PVR-094, Q53]</tspan>.</text>
+<text x="30" y="674" class="b"><tspan font-weight="700">Test that would settle it:</tspan> count the pictures (vblanks) in each frame and time each wait apart, on the console.</text>
+</svg>

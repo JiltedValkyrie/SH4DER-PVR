@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="930" viewBox="0 0 1200 930" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">Recipe R1: ramp cel shading in one pass</title>
+<desc id="dsc">Four steps: the SH-4 writes clamp of N dot L into each vertex u; the PVR interpolates u across the triangle; an 8 by 1 point-sampled ramp texture maps u to a tone; the result is hard bands on pixels. Beside it the pass settings, what it rests on, its cost and its host test. Not built.</desc>
+<style>
+text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
+.t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
+.b{font-size:13px}.k{font-size:12px;font-weight:700}.n{font-size:22px;font-weight:700}.mono{font-family:"DejaVu Sans Mono",Consolas,monospace;font-size:14px}
+.m{fill:#1d7a3a}.f{fill:#1f5fa8}.e{fill:#a86a00}.o{fill:#666}.r{fill:#7a3ea8}
+.box{fill:#fff;stroke:#5b6577;stroke-width:1.5}.st{fill:#eef1f7;stroke:#1f5fa8;stroke-width:1.4}
+.mv{fill:#fbf1e2;stroke:#a86a00;stroke-width:1.4}.tm{fill:#eef6f0;stroke:#1d7a3a;stroke-width:1.2}
+.ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
+<rect width="1200" height="930" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">Recipe R1: ramp cel shading in one pass</text>
+<rect x="30" y="48" width="1140" height="30" rx="4" fill="#fbf1e2" stroke="#a86a00"/>
+<text x="42" y="68" class="b"><tspan class="k e">NOT BUILT. ESTIMATE.</tspan> Design from demo/psm/RECIPES_NOTES.md R1; the parts it rests on are measured, the recipe has not run.</text>
+<text x="30" y="100" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
+<defs><linearGradient id="gsoft" gradientUnits="userSpaceOnUse" x1="2.9" y1="434.4" x2="311.8" y2="314.5"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient><linearGradient id="ghard" gradientUnits="userSpaceOnUse" x1="362.9" y1="454.4" x2="671.8" y2="334.5"><stop offset="0.000" stop-color="#3b4a63"/><stop offset="0.125" stop-color="#3b4a63"/><stop offset="0.125" stop-color="#3b4a63"/><stop offset="0.250" stop-color="#3b4a63"/><stop offset="0.250" stop-color="#6f86a8"/><stop offset="0.375" stop-color="#6f86a8"/><stop offset="0.375" stop-color="#6f86a8"/><stop offset="0.500" stop-color="#6f86a8"/><stop offset="0.500" stop-color="#6f86a8"/><stop offset="0.625" stop-color="#6f86a8"/><stop offset="0.625" stop-color="#b9cbe3"/><stop offset="0.750" stop-color="#b9cbe3"/><stop offset="0.750" stop-color="#b9cbe3"/><stop offset="0.875" stop-color="#b9cbe3"/><stop offset="0.875" stop-color="#f3f7fc"/><stop offset="1.000" stop-color="#f3f7fc"/></linearGradient><radialGradient id="sph" cx="0.36" cy="0.32" r="0.75"><stop offset="0" stop-color="#f3f7fc"/><stop offset="0.12" stop-color="#f3f7fc"/><stop offset="0.12" stop-color="#b9cbe3"/><stop offset="0.38" stop-color="#b9cbe3"/><stop offset="0.38" stop-color="#6f86a8"/><stop offset="0.72" stop-color="#6f86a8"/><stop offset="0.72" stop-color="#3b4a63"/><stop offset="1" stop-color="#3b4a63"/></radialGradient></defs>
+<text x="30" y="140" class="h">1  SH-4, per vertex</text>
+<text x="30" y="162" class="mono">u = clamp(N · L, 0, 1), v = 0.5</text>
+<text x="30" y="180" class="s">the light turned into object space once an object</text>
+<polygon points="40,420 270,280 220,490" fill="url(#gsoft)" stroke="#1d2330" stroke-width="1.5"/><circle cx="40" cy="420" r="4" fill="#d9534f"/><text x="20" y="446" class="k">u = 0.12</text><circle cx="270" cy="280" r="4" fill="#d9534f"/><text x="278" y="274" class="k">u = 0.92</text><circle cx="220" cy="490" r="4" fill="#d9534f"/><text x="228" y="508" class="k">u = 0.55</text>
+<text x="30" y="560" class="h">2  The PVR interpolates u across</text>
+<text x="30" y="580" class="s">each triangle (shown here as grey)</text>
+<text x="400" y="140" class="h">3  An 8 x 1 ramp, point sampled</text>
+<text x="400" y="160" class="s">RGB565, nearest, clamp u: the texel is the tone</text>
+<rect x="400" y="180" width="40" height="40" fill="#3b4a63" stroke="#1d2330" stroke-width="0.8"/>
+<text x="420" y="238" class="s" text-anchor="middle">0</text>
+<rect x="440" y="180" width="40" height="40" fill="#3b4a63" stroke="#1d2330" stroke-width="0.8"/>
+<text x="460" y="238" class="s" text-anchor="middle">1</text>
+<rect x="480" y="180" width="40" height="40" fill="#6f86a8" stroke="#1d2330" stroke-width="0.8"/>
+<text x="500" y="238" class="s" text-anchor="middle">2</text>
+<rect x="520" y="180" width="40" height="40" fill="#6f86a8" stroke="#1d2330" stroke-width="0.8"/>
+<text x="540" y="238" class="s" text-anchor="middle">3</text>
+<rect x="560" y="180" width="40" height="40" fill="#6f86a8" stroke="#1d2330" stroke-width="0.8"/>
+<text x="580" y="238" class="s" text-anchor="middle">4</text>
+<rect x="600" y="180" width="40" height="40" fill="#b9cbe3" stroke="#1d2330" stroke-width="0.8"/>
+<text x="620" y="238" class="s" text-anchor="middle">5</text>
+<rect x="640" y="180" width="40" height="40" fill="#b9cbe3" stroke="#1d2330" stroke-width="0.8"/>
+<text x="660" y="238" class="s" text-anchor="middle">6</text>
+<rect x="680" y="180" width="40" height="40" fill="#f3f7fc" stroke="#1d2330" stroke-width="0.8"/>
+<text x="700" y="238" class="s" text-anchor="middle">7</text>
+<text x="400" y="260" class="b">u = 0 picks texel 0, u = 1 texel 7. The tones, and</text>
+<text x="400" y="278" class="b">where they change, are the artist&#39;s table.</text>
+<polygon points="400,440 630,300 580,510" fill="url(#ghard)" stroke="#1d2330" stroke-width="1.5"/><circle cx="400" cy="440" r="4" fill="#d9534f"/><text x="380" y="466" class="k">u = 0.12</text><circle cx="630" cy="300" r="4" fill="#d9534f"/><text x="638" y="294" class="k">u = 0.92</text><circle cx="580" cy="510" r="4" fill="#d9534f"/><text x="588" y="528" class="k">u = 0.55</text>
+<text x="400" y="560" class="h">4  Hard bands on pixels</text>
+<text x="400" y="580" class="s">each edge falls where u crosses a texel boundary</text>
+<circle cx="780" cy="420" r="80" fill="url(#sph)" stroke="#1d2330" stroke-width="1.5"/>
+<text x="730" y="522" class="s">a sphere, banded</text>
+<text x="730" y="538" class="s">(illustration)</text>
+<rect x="880" y="124" width="290" height="380" rx="6" class="box"/>
+<text x="894" y="148" class="h2">The pass, untextured model</text>
+<text x="894" y="167" class="b">opaque list</text>
+<text x="894" y="186" class="b">ramp 8 x 1 RGB565 (8 is the least</text>
+<text x="894" y="205" class="b">texture side) <tspan class="k f">[FACT]</tspan></text>
+<text x="894" y="224" class="b">filter nearest, clamp u</text>
+<text x="894" y="243" class="b">MODULATE: vertex colour = material</text>
+<text x="894" y="262" class="b">one pass, nothing else</text>
+<text x="894" y="289" class="h2">A textured model: one more pass</text>
+<text x="894" y="308" class="b">draw the base first, then the ramp:</text>
+<text x="894" y="327" class="b">translucent list, blend DESTCOLOR /</text>
+<text x="894" y="346" class="b">ZERO (frame x ramp), depth GEQUAL,</text>
+<text x="894" y="365" class="b">depth write off, fog off</text>
+<text x="894" y="392" class="h2">Rests on</text>
+<text x="894" y="411" class="b">u exact to 10 bits</text>
+<text x="894" y="430" class="k m">[MEASURED PVR-023]</text>
+<text x="894" y="449" class="b">an equal-depth second pass, 0 holes</text>
+<text x="894" y="468" class="k m">[MEASURED PVR-097]</text>
+<rect x="30" y="610" width="1140" height="300" rx="6" class="box"/>
+<text x="44" y="636" class="h">What it costs and what can go wrong</text>
+<text x="44" y="660" class="b">SH-4: one dot a vertex. A loop of FIPR rows took 38.10 cycles a point in the cache <tspan class="k m">[MEASURED SH4-017, that loop]</tspan>; this loop <tspan class="k e">[ESTIMATE]</tspan>.</text>
+<text x="44" y="682" class="b">PVR, untextured: a plain Gouraud draw with a tiny texture <tspan class="k e">[ESTIMATE]</tspan>. Textured: the vertices are sent again, 142 ns each</text>
+<text x="44" y="704" class="b"><tspan class="k m">[MEASURED BUS-003]</tspan>, plus the second pass&#39;s fill.</text>
+<text x="44" y="726" class="b">Band edges sit where the interpolated u crosses a texel boundary; the error is at most half an edge for hard values <tspan class="k e">[ESTIMATE, thesis §5.8]</tspan>.</text>
+<text x="44" y="748" class="b">u is linear inside a triangle, so a band edge is straight there and bends only at vertices: smooth bands need enough vertices.</text>
+<text x="44" y="770" class="b">u is interpolated with perspective, so the bands stay on the surface as it turns <tspan class="k f">[FACT: the PVR&#39;s texture path]</tspan>.</text>
+<text x="44" y="792" class="b">Every vertex with N · L ≤ 0 gets texel 0: the dark band is flat, as cel art wants.</text>
+<text x="44" y="820" class="h2">Host test before any console run (test/recipe_cel_test.c, not written)</text>
+<text x="44" y="844" class="b">On a 32 x 32 sphere: u on the SH4ZAM path and on plain C agree within 1 / 1024; u rises with N · L; every vertex with N · L ≤ 0 gets texel 0.</text>
+<text x="44" y="866" class="s">Source: demo/psm/RECIPES_NOTES.md R1 (wiki research idea D4).</text>
+</svg>

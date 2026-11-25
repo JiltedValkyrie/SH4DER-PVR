@@ -30,6 +30,11 @@ So c4 is **not** a per-pixel camera depth test. Every idea below that needs the 
 
 **Neighbour compares are OPEN.** In one bump pass a pixel reads one texel (M) at its own texture coordinate and compares it with the polygon's Q. Shifting the texture coordinates reads a neighbour's M, but compares it with the same polygon-wide Q, not with this pixel's own depth. Whether the bump unit can compare a pixel against its neighbour is OPEN. The blend chain of spike c1 can subtract two shifted copies per pixel, but it took about 11 layers (PVR-040, PVR-004).
 
+**A compare that needs no bands.** When M is a texture in the object's own u, v (a height or a noise) and Q is one value for the whole object (a water level, a dissolve time), the bump window passes exactly the pixels near Q, with no bands and no camera depth map (`demo/psm/RECIPES_NOTES.md` R7, R8; ESTIMATE):
+
+![The bump comparator in texture space (recipes R7 and R8, not built): when M is a texture in the object's own u, v (a height or a noise) and Q is one value for the whole object (a water level, a dissolve time), the bump unit's window passes exactly the pixels with |M - Q| <= w, with no bands, no camera depth map and no screen coordinates; the mechanism is MEASURED (PVR-045, PVR-065), the window edges must come from boot measurements (PVR-096, Q56), and the recipes are ESTIMATE.](../images/bump-texture-space.svg)
+
+
 ## The PVR's building blocks
 
 | Block | What it gives | Evidence |
@@ -46,6 +51,10 @@ So c4 is **not** a per-pixel camera depth test. Every idea below that needs the 
 | Modifier volumes | Exact inside/outside per pixel; no cost seen in one test | PVR-044 |
 | Frame read | The SH-4 reads the drawn frame back | SH4-040, SH4-041, BUS-021 |
 | SH-4 per-vertex maths | Any function of position, normal, light, eye, written into colours | [SH4ZAM rule](../methods/sh4zam-rule.md); SH4-020 |
+
+The order these blocks act on a pixel, and one pass written out field by field (the c4 mask pass's bump draw):
+
+![A PVR pass recipe: the order a pixel goes through (depth, texel or bump level, combine, offset colour, clamp, fog, blend, write-out; the punch-through test in its own list) and a card with every field of one pass, filled in for the c4 mask pass's bump draw, each entry with its status (FACT from Sega's manual or our code, MEASURED from our console).](../images/pvr-pass-recipe.svg)
 
 ## By material input
 
@@ -105,6 +114,44 @@ Each row: what the PVR does today, what this library already does per vertex (he
 - **Library:** `sh4der_look.h` (fog glare), `sh4der_torch.h` (fog table bent to black), `sh4der_mist.h` (fog with a shape).
 - **Depth fills:** **height fog** is not in the table (it is by depth only). It can be done per vertex on the SH-4, or with mist sheets. A depth "pulse" sweeping out from the camera is idea C1.
 
+## Material functions by slot: per vertex or per pixel
+
+Modern material editors give each input slot a small set of ready functions. This table lists the common ones, what this library already does for each, and **where it happens**:
+
+- **per pixel** means a PVR unit does it for every pixel: texture lookup, texture × vertex colour, offset add, bump unit, fog table, blend, punch-through, 1555 threshold;
+- **per vertex** means the SH-4 computes it and the PVR interpolates the result across the triangle (Gouraud). A per-vertex term is only as sharp as the mesh.
+
+A function's maths is per vertex here unless a PVR unit can carry it per pixel. Headers are named; nothing is copied from them.
+
+| Slot | Function | What it does | Library today | Where | Route to per pixel on the PVR | Status |
+|---|---|---|---|---|---|---|
+| Specular, opacity | **Fresnel** (Schlick) | More reflection at grazing angles: F0 + (1 − F0)(1 − N·V)^5 | `sh4der_water.h` (`sh4der_water_fresnel`), `sh4der_pl4nar.h` (layer alpha) | per vertex | M1: N·V per vertex as a texture coordinate, a ramp texture holding the curve. The curve is then applied per pixel to an interpolated N·V | ESTIMATE |
+| Emissive | **Rim** | A glow on the silhouette: (1 − N·V)^p | none as such; `sh4der_sss.h` lights the side away from the light, not the rim | — | M1 (ramp of the rim curve); or M2 (the bump unit as per-pixel N·V) | ESTIMATE |
+| Opacity | **Dither fade** (screen door) | Pixels cut by a threshold pattern instead of blended | `sh4der_warp.h` (`sh4der_warp_dither_threshold`, ordered dither for pixelate) | per pixel (pattern) | C6: a pattern's alpha × vertex alpha against the punch-through reference (PVR-064) | ESTIMATE |
+| Subsurface | **Thickness / transmission** | Light through thin parts, tinted by absorption over a path | `sh4der_sss.h` (baked thickness, wrap, distortion), `sh4der_water.h` (crest) | per vertex | M4: thickness per pixel from two depth maps (front and back faces) | **OPEN**; crazy |
+| Diffuse | **Wrap lighting** | N·L shifted so light wraps past the terminator | `sh4der_sss.h` (`wrap` in the back term) | per vertex | the bump unit's own K terms set an ambient floor per polygon (PVR-047, REPORTED) | ESTIMATE |
+| Specular | **Half-vector highlight** | (N·H)^n | `sh4der_bump.h` (power 2 by grey add passes, H per cell) | per pixel (power 2), per cell (H) | as the library does it | ESTIMATE (the client's passes; console checks Q42) |
+| Normal | **Normal map** | Per-pixel normal for light | `sh4der_bump.h` (blend passes); the bump unit (hardware) | per pixel | already per pixel | FACT (unit), ESTIMATE (passes) |
+| Normal, UV | **Parallax** | Texture shifted by view angle × height, so flat surfaces look deep | `sh4der_uvwarp.h` (a UV offset per vertex from a table; not view-driven) | per vertex | per pixel parallax needs a texture read that depends on another texture: the PVR has none. M3 gives depth by layers instead | per vertex: ESTIMATE; per pixel: not possible |
+| Opacity, WPO | **Shells** (fur, grass, moss) | N copies of the mesh pushed out along the normals, each cut by a noise alpha | `sh4der_holo.h` names a translucent shell, but not stacked shells | — | C5 (punch-through, per-shell cut-off by vertex alpha) | ESTIMATE |
+| Base colour | **Detail texture** | A small tiling texture multiplied over the base up close | none; `LATEGEN_NOTES.md` lists it | per pixel (second pass) | a multiply pass (DESTCOLOR blend), faded out by vertex alpha with distance | ESTIMATE |
+| Specular | **Matcap / sphere map** | A pre-lit sphere picture looked up by the view-space normal | none | — | per vertex: the SH-4 writes the view-space normal's x, y as u, v; the PVR interpolates and looks up per pixel | ESTIMATE |
+| AO | **Baked occlusion** | Darkening in creases | `sh4der_ao.h` (crease bake), `sh4der_pool.h` (blob) | per vertex | lightmap pass (DESTCOLOR) for per pixel | ESTIMATE |
+| Opacity | **Depth fade** | Fade where the surface meets geometry | none | — | D1 (camera depth map) | ESTIMATE; needs the camera map |
+| Fog | **Distance fog** | Blend toward a colour by depth | the PVR's fog table; `sh4der_look.h`, `sh4der_torch.h` bend it | per pixel | already per pixel | FACT |
+| Fog | **Height fog** | Density falls with height | `sh4der_mist.h` (sheets) | per vertex or sheets | none in the table (depth only) | ESTIMATE |
+
+### The new ideas from this table
+
+| # | Idea | PVR mechanism | Cost (from ledger) | Status |
+|---|---|---|---|---|
+| M1 | **Per-pixel curve of a per-vertex term** (Fresnel, rim, cel, any 1-D curve) | The SH-4 writes the term (N·V, N·L) into u per vertex. The PVR interpolates u per pixel; a 1-D ramp texture, point sampled or bilinear, holds the curve. Drawn as a second pass (multiply or add), or as the only texture on an untextured object. This is D4 generalised. Interpolating the term and then applying the curve is closer to per-pixel maths than interpolating the curve's output, but the term itself is still linear across the triangle | One more pass of the object (BUS-003 for the vertices, PVR-006 for the texture) | ESTIMATE |
+| M2 | **Bump-unit rim** | The bump unit gives a per-pixel level from a texel's normal and one light direction per polygon (PVR-045, PVR-047). Set that direction to the view direction and the level follows N·V per pixel; write it to alpha and blend a rim colour by inverse alpha. The view direction is one per polygon, so large polygons need cutting, as c4 cuts bands. Linear in N·V: no power curve | One bump pass over the object | ESTIMATE; OPEN whether the bump level reaches alpha usefully outside a 1555 target |
+| M3 | **Relief by shells with one height texture** | Draw N layers of the surface, layer k lifted by k/N of the relief depth (or for a floor, sunk), all with the same texture whose alpha is the height. Each layer's vertex alpha is set so that texture × vertex passes the punch-through reference only where the height reaches that layer (PVR-064). One texture, one reference, N layers. Parallax then comes from real geometry, not a lookup | N × the surface's vertices (BUS-003), N × its punch-through fill | ESTIMATE; rests on one measured line (PVR-064); the rounding OPEN (Q16) |
+| M4 | **Per-pixel thickness** | Draw the back faces' depth into one map and use it as a bump texture against the front faces' Q in bands, as c4 does from the light. The level is a thickness window, fed to the transmission colour | Two map passes (PVR-100: 3.3 ms each through the whole list) plus a banded pass (PVR-100: 5.0-9.1 ms) | **OPEN**; far too dear today |
+
+Sources for these functions: Schlick 1994 (Fresnel, below); Kaneko et al. 2001 and Welsh 2004 (parallax, below); Lengyel et al. 2001 (shells, below).
+
 ## The ideas
 
 "Needs camera depth map" means the camera-view pass of the first section, which has not been tried.
@@ -119,6 +166,11 @@ Each row: what the PVR does today, what this library already does per vertex (he
 | D4 | **Cel bands per pixel** | Light falls off in hard steps, not a smooth gradient | none | The SH-4 writes N·L per vertex as a texture coordinate. The PVR interpolates it per pixel; a small ramp texture, point sampled, turns it into hard bands. Draw the ramp as a second, multiply pass over the base texture. | no | One more pass of the object; texture cost as PVR-006 (point-sampled twiddled, the cheapest line). | ESTIMATE |
 | D5 | **Depth-of-field by real depth** | Only what is near the focus distance stays sharp | scene depth per pixel | Camera depth map on one full-screen quad; Q = focus depth; the bump window makes the sharp band. Feed it to `sh4der_focus.h` instead of its shape mask. One quad has one Q, so no bands. | yes | Map pass, plus a full-screen bump layer at 320 × 240: 0.77 ms (PVR-004). | ESTIMATE |
 | D6 | **Inverted hull outlines** | A thick dark border round a character | none | The SH-4 pushes a copy of the mesh out along its normals; draw it flat with the culling reversed. | no | Doubles the outline mesh's vertices (BUS-003) and adds a little fill. | ESTIMATE |
+
+
+D4 as a pass recipe (`demo/psm/RECIPES_NOTES.md` R1):
+
+![Recipe R1, not built: the SH-4 puts clamp(N.L, 0, 1) in each vertex's u, the PVR interpolates it, and a point-sampled 8 x 1 ramp turns it into hard tone bands per pixel in one opaque pass (a textured model adds one multiply pass at equal depth); it rests on the 10-bit texture-coordinate path and the hole-free equal-depth pass (MEASURED PVR-023, PVR-097), and the recipe itself is ESTIMATE.](../images/cel-ramp-recipe.svg)
 
 ### Craziest, worth one spike each
 
@@ -151,6 +203,8 @@ Read for the techniques; explained here in our own words; nothing copied.
 - Bavoil, Sainz, Dimitrov, "Image-Space Horizon-Based Ambient Occlusion", SIGGRAPH 2008 talk (screen-space occlusion).
 - Philippe Decaudin, "Cartoon-Looking Rendering of 3D Scenes", INRIA RR-2919, 1996 (cel shading; seen in search).
 - Christophe Schlick, "An Inexpensive BRDF Model for Physically-based Rendering", *Computer Graphics Forum* 13(3), 1994 (Fresnel; via its summary, the paper was not reachable).
+- Tomomichi Kaneko et al., "Detailed Shape Representation with Parallax Mapping", ICAT 2001, Tokyo, pp. 205-208 (parallax by a texture-coordinate shift per pixel; seen in search, with a course-site copy at page.mi.fu-berlin.de).
+- Terry Welsh, "Parallax Mapping with Offset Limiting: A Per-Pixel Approximation of Uneven Surfaces", Infiscape, revision 0.3, 2004 (the offset capped at the height to stop swimming at grazing angles; seen in search; later slides date it 2003).
 - Codrops, "WebGPU Scanning Effect with Depth Maps", 2025, tympanus.net/codrops/2025/03/31/webgpu-scanning-effect-with-depth-maps/ (depth pulse; seen in search).
 
 Several popular tutorials on these effects are written for named commercial engines. Under the wiki's rule against engine names, they are not listed here; lead has the list.

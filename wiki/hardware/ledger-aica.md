@@ -27,7 +27,7 @@ The AICA has its own ARM processor and 2 MB of its own RAM. The SH-4 reaches tha
 | AICA-005 | The audio block runs at 22.5792 MHz, from the GD-ROM's 33.8688 MHz through a PLL. | FACT | SysArc p. 227 | same, (3) | — | timing |
 | AICA-006 | The ARM core itself runs at 22.5792 MHz. | REPORTED (emulator, not evidence) | Flycast `arm7.h` comment | same, (3) | Time a known loop with the AICA timer. | timing |
 | AICA-007 | The ARM's wait states on sound RAM. | OPEN | No source read gives a number. | same, (3) | Console test 1 in the notes: N loads timed by the ARM timer, with and without SH-4 G2 traffic. | any ARM offload |
-| AICA-008 | Multiply cost on this core. | OPEN | The ARM7 family's "1S + m×I" is from memory, not read. | same, (3) | Time MUL and MLA with small and large operands. | DSP-style work |
+| AICA-008 | Multiply cost on this core. The ARM7TDMI's manual gives MUL 1S + m·I and MLA 1S + (m + 1)·I, m 1 to 4 by the multiplier's size (TRM DDI 0029G §6.20, Table 6-23); that is a later core of the family, not checked for the ARM7DI. | OPEN for this core; REPORTED for the ARM7TDMI | TRM DDI 0029G, read 2026-11-25 ([sound chip page](../research/sound-chip-precompute.md)) | same, (3) | Time MUL and MLA with small and large operands. | DSP-style work |
 | AICA-009 | No FPU and no divide instruction. Floats and `/` are library calls. | REPORTED | KOS links `-lgcc` only; the ARM7 family has no FPU | same, (3) | — | code rules |
 
 ## Memory, reset and interrupts
@@ -55,6 +55,19 @@ The numbers below are from chip bench h2: one run on one console, 2026-11-25, re
 | AICA-024 | Sega gives 11.3 and 14.4 MB/s for AICA DMA ("simulation optimums"). Our console did about half. Plans built on Sega's rate (`OFFLOAD_PLAN.md` Q2) are about twice too hopeful. | DISPUTED (Sega's table against our console) | Sega SH4 access table | `demo/psm/OFFLOAD_PLAN.md:45`; NOTES.md h2 "G2" | — | offload planning |
 | AICA-025 | So a 128 × 128 16-bit map (32 KB) made in sound RAM costs 6.5 ms to bring to RAM or to a texture. A per-frame shadow map through sound RAM does not fit a frame. | ESTIMATE (arithmetic on AICA-021/023) | — | NOTES.md h2 "G2" | — | offload planning |
 
+## From the AICA manual
+
+Yamaha / Sega, *AICA Sound-block User's Manual*, ver. 1.00, read 2026-11-25 as extracted text (page = PDF page). What it means for offload work is in [the sound chip as a precompute unit](../research/sound-chip-precompute.md).
+
+| ID | Claim | Status | Evidence | Source | Test | Used by |
+|---|---|---|---|---|---|---|
+| AICA-026 | The audio clock (MACK) is 22.5792 MHz, so one 44.1 kHz sample is exactly 512 clocks. A random read or write of sound RAM is 4 clocks (177 ns) at the memory controller; what an ARM access adds is not given (AICA-007). | FACT (clock, cycle) + arithmetic (512, 177 ns) | AICA manual p.41, p.44-46 | sound chip page | — | ARM and DSP budgets |
+| AICA-027 | The ARM has three 8-bit timers (A, B, C), each counting samples with a prescale of 1 to 128, and interrupts for each timer, for every sample, for DMA end and for a main-CPU write, with levels. Timer A at prescale 1: 256 samples, 5.8 ms (arithmetic). | FACT | AICA manual p.16-19 | sound chip page | count timer A against the real-time clock for 60 s | ARM pacing |
+| AICA-028 | The DSP runs 128 steps a sample with no branches; each step is one multiply of a 24-bit value by a 13-bit value (a coefficient, a fraction or data) plus an add. Sound-RAM reads and writes only on odd steps: 64 a sample. A table mode indexes sound RAM by a 12-bit value taken from data. | FACT (manual) + REPORTED (Corlett agrees) | AICA manual p.33-38 | sound chip page | — | DSP ideas |
+| AICA-029 | The DSP's 16 outputs (EFREG) and its other buffers can be read and written by the CPUs. No DSP stop bit is documented; its sound is muted by send level 0 and master volume 0. Whether a muted DSP computes and writes as normal is not stated. | FACT (access, mute); OPEN (muted run) | AICA manual p.9, p.27-28, p.33 | sound chip page | run a known DSP program muted; read EFREG and its sound-RAM writes | DSP ideas |
+| AICA-030 | A voice's output can be routed into the DSP's inputs (16 MIXS sums) with no CPU work; voices interpolate between samples (method not named; Corlett: linear). A voice's envelope level and position read back one voice at a time. | FACT + REPORTED (linear) | AICA manual p.10-12, p.15, p.28; Corlett "slot" notes | sound chip page | — | voice ideas |
+| AICA-031 | The DSP ring buffer's base steps by 1 K words (p.14) or 4 K words (p.32): the manual disagrees with itself. Corlett reports 2 KB steps (1 K words). | DISPUTED | AICA manual p.14, p.32; Corlett "RBP" | sound chip page | write at two bases one step apart; read back | DSP ideas |
+
 ## Open
 
 These are also listed in [open-questions.md](../open-questions.md):
@@ -63,4 +76,6 @@ These are also listed in [open-questions.md](../open-questions.md):
 - AICA-006: confirm the ARM clock on a console.
 - AICA-007: ARM wait states.
 - AICA-008: multiply cost.
-- **Not found:** a Yamaha AICA datasheet with timing. Sega's SysArc has none.
+- AICA-029: does a muted DSP still compute?
+- AICA-031: the ring buffer base step.
+- **Found and read 2026-11-25:** the Yamaha / Sega AICA manual (AICA-026 to AICA-031). It has the memory cycle but no ARM wait-state count.
