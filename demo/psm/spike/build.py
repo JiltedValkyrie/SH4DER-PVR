@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SH4DER-PVR: route AB spike, build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
-    python demo/psm/spike/build.py [--tag s1] [--out <dir>] [--mkdcdisc <exe>] [--host-cc <cc>] [--host-only] [--elf-only]
+    python demo/psm/spike/build.py [--tag s2] [--out <dir>] [--mkdcdisc <exe>] [--host-cc <cc>] [--host-only] [--elf-only]
 
 Run it in a shell where the KallistiOS environment is sourced (kos-cc on the PATH, KOS_BASE set). It fetches nothing
 and touches no file outside --out (default build/psm_ab_spike). Steps, each refusing to go on when it fails:
@@ -50,7 +50,7 @@ def has_rtt(kos_base):
 
 def main():
     ap = argparse.ArgumentParser(description="Build the route AB spike image.")
-    ap.add_argument("--tag", default="s1")
+    ap.add_argument("--tag", default="s2")
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "psm_ab_spike"))
     ap.add_argument("--mkdcdisc", default=os.environ.get("MKDCDISC", "mkdcdisc"))
     ap.add_argument("--host-cc", default=os.environ.get("HOST_CC", "gcc"))

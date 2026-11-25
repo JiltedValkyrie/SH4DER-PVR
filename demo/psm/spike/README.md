@@ -12,11 +12,27 @@ In a shell with the KallistiOS environment sourced:
 python demo/psm/spike/build.py --mkdcdisc <path to mkdcdisc>
 ```
 
-It makes `build/psm_ab_spike/psm-ab-spike-s1.cdi` and refuses to overwrite an image (`--tag s2` for the next). `--host-only` runs just the host test of the model; `--elf-only` stops before the image. It stops, and says so, on a KallistiOS without `pvr_scene_begin_rtt`. It needs no SH4ZAM and no library file.
+It makes `build/psm_ab_spike/psm-ab-spike-s2.cdi` and refuses to overwrite an image (`--tag s3` for the next). `--host-only` runs just the host test of the model; `--elf-only` stops before the image. It stops, and says so, on a KallistiOS without `pvr_scene_begin_rtt`. It needs no SH4ZAM and no library file.
 
 ## Reading the pages
 
 A: next page. B: back. START: run again. The same lines go to the serial line with an `ab:` prefix.
+
+**The first line is the verdict** of the sanity step (s2). Read it before anything else:
+
+| Verdict | Meaning |
+|---|---|
+| `SANITY OK: target written and read` | a plain magenta quad on green came back as drawn: the ramp lines can be believed |
+| `TARGET UNCHANGED: render did not reach VRAM` | the target still holds the 0x1234 the SH-4 put there. An emulator that keeps render targets on the host GPU reads so (Flycast: the video option "Copy Rendered Textures to VRAM"); on a console, the render address is wrong |
+| `ALL ZERO: target not written or read wrong` | something wrote zeros, or the read is of the wrong place |
+| `NO PASS: ...` | KallistiOS refused the pass, or the render never started or never ended; the `rtt rc / start / end` line says which |
+| `TARGET WRONG: ...` | part right, part not: the counts in `0 SANITY b` say how |
+
+s1's first run read 0 in every pixel. Its log shows `CHCR0` going from 0 to 2 after the first download, which is what the Flycast source does at the end of its PVR-DMA model, so that run was most likely Flycast with render targets kept off its video memory. s2 tells that case from the others.
+
+**Sanity lines** (`0 SANITY`): the target's pointer and video memory offset; `a`, the SH-4 writing the target and reading it back; `b`, the plain picture: the pass's return values (`rtt rc`, `start`, `end`, with the count of 100 ms waits that timed out first), the render address the PVR was given against the one wanted, how many pixels are right, still prefill, zero or other, and whether the target changed three vblanks later. When the picture is not there, all 8 MB of video memory is searched for it in both areas.
+
+**Clock lines**: the smallest step of the KallistiOS ns timer, and how many CPU cycles (SH-4 performance counter 1) pass in 1 ms of it: about 200,000 on a console. Every time is printed by both clocks.
 
 **Ramp lines**, one a test: `bits test dither: bad hrd cov max`.
 
