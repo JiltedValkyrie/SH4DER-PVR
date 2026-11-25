@@ -31,7 +31,8 @@ Per output vertex this gives:
 
 - If the band corners are written to an array and projected in a second loop, that array must stay in the cache. At 1-code bands it is 2,464 × 16 B = 39 KB, more than the 16 KB cache.
 - Projecting each band's corners right after the cut, while they are in registers or in a line just written, keeps the 21-cycle figure.
-- ESTIMATE: up to (58 − 21) × 2,464 ≈ 91,000 cycles ≈ 0.46 ms saved, if the current loop projects out of cache. **OPEN:** whether c4's loop does today. The c4b `vpool` placing (one pool, offsets, bsrc and bscr apart: SH4-046) removes the conflict misses but not the capacity misses.
+- ESTIMATE: up to (58 − 21) × 2,464 ≈ 91,000 cycles ≈ 0.46 ms saved, if the current loop projects out of cache. The c4b `vpool` placing (one pool, offsets, bsrc and bscr apart: SH4-046) removes the conflict misses but not the capacity misses.
+- Answered by the c4b run, MEASURED 2026-11-25 on one console (compare/NOTES.md "c4b: hardware result"): 60.5 to 61.7 cycles a vertex, bench h2's out-of-cache figure. The loop projects out of cache today, so the 0.46 ms is there to take.
 - Placing matters as much as size: `mat_transform` is 13.16 cycles on a clean placing and 38.67 with buffers 1 MB apart (SH4-020, SH4-021).
 
 ### 3. Send: 333 ns against 142 ns a vertex
