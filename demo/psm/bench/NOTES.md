@@ -478,3 +478,35 @@ G2
 - Why the mesh's store-queue send is slower, why h1's 1 MB memcpy was 43.2 MB/s, why a PVR-DMA ran quicker beside
   a loop that misses the cache.
 - Any second console, any second run.
+
+## Ray bench (image ray1): built, not run
+
+Built 2026-11-25, 04:2x local, by Senior; **not run on a console**. No number from it exists yet.
+
+- Image: `demo/psm/out/cdi/psm-bench-ray1.cdi` (1,745,961 bytes, sha256 fe57f78f456dc9a44f70405b4c79a2ff94aeb7ce80755da2d5e3aa33745a8cdc). ELF `build/psm_bench/psm-bench-r1.elf`, built first and on its own, with no warnings at `-Wall -Wextra`.
+- Source: `bench_ray.c`, `bench_ray_np.c` (the projecting batch without its prefetch) and `ray_kernels.h` (the kernels and their C references). Build: `python demo/psm/bench/build.py --src bench_ray.c --tag <new tag>`, with the library's Dreamcast flags (`-O3 -ffast-math`), SH4ZAM master ff39547 and SH4ZAM-DCE.
+- Host test first: `ray_test.c` gave 20,052 checks and 0 failed, both strict `-O2` and `-O3 -ffast-math` (x86, SH4ZAM's software back end). It checks:
+  - The walk kernel gives the reference's bytes: 262,144 points at 14:00 and at 16:00, and 8,192 points at each of 96 other suns. 0 bytes differ.
+  - On a grid of zeros the walk's crossings match THESIS 5.3's n. Mean ratio 1.0001; the worst single ray is 1.80 crossings off.
+  - Against one wall, the hit lands on the 11th cell.
+  - The proxy kernel (early outs) gives the reference's bytes over 454 receivers at 16:00. 88 are shadowed and 18 are in a penumbra.
+  - A point halfway along each person's run is dark, and a point 1.5 m to the side is lit.
+- Pages: one test a page. A page's first line is "TEST <id> (what is measured, not a result)"; every result line starts "RESULT <id>"; DERIVED lines are marked.
+  - CLOCK: the s2 clock pair.
+  - P1.1–P1.4: rays of known n, cycles a ray at n 1 to 96, and a straight-line fit (DERIVED) set beside 5.3's ESTIMATE. P1.1 and P1.2 use a grid of zeros at 14:00 and 16:00. P1.3 and P1.4 use the town grid. On the town grid, lit rays only exist from n 24 up, because they must climb to H = 28 m (host count).
+  - P2.A and P2.B: a slice of 1,024 receivers at 14:00 and 16:00. Each page has five rows: batched with the grid cold, batched with the grid warm, 28,699 PVR vertices alone (`shz_dce_pvr_project`), the two interleaved (8 rays, then the vertices' share), and the extra cost (DERIVED).
+  - P2.C and P2.D: the same with the grid in OC-RAM. They run as group 2 on START, and OC-RAM stays on until the power goes off, as in h1.
+  - P9: the proxy pass at 16:00. 8 capsules and 4 spheres at their **load places** (`town_ray_movers` x, z), each against the 0.5 m ground points in its 16:00 run. The page gives cycles a pair, the reference without early outs, and the pass as a share of P2.B's slice and of a 2 ms slice (DERIVED).
+  - h3: `mat_transform`, `shz_dce_xmtrx_project_point3_batch` with and without its prefetch, and the plain SH4ZAM loop, for 256 vectors in the cache and 16,384 not. It also compares the bytes of the batch and the loop.
+- Stand-ins (stated on the pages and here):
+  - The slice's receivers are random points over the casters' box, not the town's vertices: half on the ground, half at 0 to 13 m. The baked mesh is not loaded.
+  - The proxies' sizes are the bench's choice: a person is a capsule of radius 0.20 m; a hen is a sphere of radius 0.15 m.
+  - The light's angular radius is the real sun's, 0.00465 rad.
+  - The vertex stream is synthetic, 28,699 records.
+- Placing: one pool with offsets (grid +0; points +5 KB; bytes +72.5 KB and +81.5 KB; P9 points +163.5 KB; vertices in +256 KB, out +1 MB +8 KB beyond that). No two starts are a multiple of 16 KB apart.
+- Not in this image:
+  - the two-level walk with block maxima (5.3; its cost is OPEN);
+  - the fixed-point major-axis walk (5.3);
+  - the box proxy (5.6);
+  - the movers at other places on their routes.
+- Risk to watch: the kernels' bytes were compared on x86 only. The console prints its own comparison (`RESULT ... kernel against reference`) on every page. If a page says BYTES DIFFER, that page's timings stand, but the kernel is not the reference on the SH-4.

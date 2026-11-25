@@ -11,6 +11,8 @@ sources: [demo/psm/ARM7_TOOLCHAIN_NOTES.md, demo/psm/bench/NOTES.md h2, demo/psm
 
 The AICA has its own ARM processor and 2 MB of its own RAM. The SH-4 reaches that RAM over the slow G2 bus. Each row is one fact; the status legend is in [STRUCTURE.md](../STRUCTURE.md).
 
+![The sound chip as an offload unit: the SH-4 reaches sound RAM, the ARM7DI, the DSP and the 64 voices only over the G2 bus, measured on one console at 5.7 MB/s in and 4.9 to 5.0 MB/s back (also 5.0 MB/s straight to texture memory), so a 32 KB map costs about 6.5 ms back (ESTIMATE); only rare, small jobs fit: the ARM's timer A as a pacing clock (S2), ADPCM storage for smooth bulk tables (S3), a muted DSP blur in the background (S1, rests on Q59) and the plan's ground-shadow rebake, while ARM wait states (Q28), multiply timing (Q29), the muted DSP (Q59) and the ring base step (Q60) are OPEN.](../images/aica-offload.svg)
+
 **Sources.**
 
 - SysArc = Sega, *Dreamcast/Dev.Box System Architecture* (last update 99/09/03).

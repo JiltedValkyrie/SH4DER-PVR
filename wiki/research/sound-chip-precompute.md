@@ -9,6 +9,8 @@ sources: [demo/psm/OFFLOAD_PLAN.md, demo/psm/ARM7_TOOLCHAIN_NOTES.md, wiki/hardw
 **What you will learn:** what the sound chip's three engines (the ARM7, the DSP and the 64 voices) can and cannot compute for shading and shadows, beyond what `demo/psm/OFFLOAD_PLAN.md` already says, and the console test for each idea.
 **For:** whoever plans offload work, person or agent. Research, not a recipe.
 
+![The sound chip as an offload unit: the SH-4 reaches sound RAM, the ARM7DI, the DSP and the 64 voices only over the G2 bus, measured on one console at 5.7 MB/s in and 4.9 to 5.0 MB/s back (also 5.0 MB/s straight to texture memory), so a 32 KB map costs about 6.5 ms back (ESTIMATE); only rare, small jobs fit: the ARM's timer A as a pacing clock (S2), ADPCM storage for smooth bulk tables (S3), a muted DSP blur in the background (S1, rests on Q59) and the plan's ground-shadow rebake, while ARM wait states (Q28), multiply timing (Q29), the muted DSP (Q59) and the ring base step (Q60) are OPEN.](../images/aica-offload.svg)
+
 **Status: research only.** Nothing here was built or run. Facts are FACT (the vendor manual, page given) or REPORTED (Corlett's notes, a third party's reverse engineering, cited by heading only; nothing copied). Ideas are ESTIMATE or OPEN. The only measured numbers are the G2 rates already in the ledger (AICA-020 to AICA-023).
 
 ## What the offload plan already settled

@@ -56,6 +56,8 @@ The TA line of the same photos is explained in [VID-011](../hardware/ledger-vide
 
 ![Band counts under c4's rules: the whole static town needs 44,577 / 26,969 / 18,097 band vertices at bands 1 / 2 / 4 codes wide, the boot view 11,146 / 7,090 / 5,174, and the movers' patches only 864 / 460 / 260, against 2,464 / 1,288 / 692 in c4's measured scene; the town counts and every cost on top are host ESTIMATEs (TOWN-051 to 055), which is why static shadow goes to a bake and c4 runs for movers only.](../images/town-band-counts.svg)
 
+![The static bake split (ESTIMATE, host, TOWN-060 to 067): static casters on static receivers are baked once a sun at load (a byte a vertex for the models, a 256 x 256 ground lightmap; about 169,000 ray-triangle tests, about 0.04 s at an assumed 50 cycles a test; 8,697 B + 64 KB, sizes FACT from the counts) and cost nothing a frame, while the movers' shadows go through c4 on 12 ground patches (mask pass about 1.1 to 4.1 ms); the share of model vertices in shadow moves with where the ray starts (14:00: 41.6 % from 0.05 m out against 28.5 % from 0.3 m + 0.5 m, screen mesh as casters), which is OPEN.](../images/static-bake-split.svg)
+
 Other town findings are kept in `demo/psm/TOWN_NOTES.md` in ledger form: video memory free after load (VID-012), one crash with no message while turning (TOWN-004), and a swimming shadow map at 64 × 64 (TOWN-006).
 
 ## The field (first shadow scene)

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="ttl dsc">
-<title id="ttl">The ray bench plan: P1, P2 and P9</title>
-<desc id="dsc">Top: the 4 KB height grid and a ray walking its cells toward the sun, with the cost model C_ray = C_setup + n C_step. Below, three panels: P1 cycles a ray against n with the predicted band and no measurements yet; P2 the same slice batched, interleaved with the vertex transform, and with the grid in OC-RAM; P9 the movers proxies against one slice. Foot: what each result feeds. Not built.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1110" viewBox="0 0 1200 1110" role="img" aria-labelledby="ttl dsc">
+<title id="ttl">The ray bench: P1, P2 and P9</title>
+<desc id="dsc">Top: the 4 KB height grid and a ray walking its cells toward the sun, with the cost model C_ray = C_setup + n C_step. Below, three panels: P1 cycles a ray against n with the predicted band and no measurements yet; P2 the same slice batched, interleaved with the vertex transform, and with the grid in OC-RAM; P9 the movers proxies against one slice. Foot: what each result feeds. Built as image ray1, not run on a console.</desc>
 <style>
 text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .t{font-size:22px;font-weight:700}.s{font-size:13px;fill:#4a5263}.h{font-size:16px;font-weight:700}.h2{font-size:14px;font-weight:700}
@@ -11,10 +11,10 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 .ar{stroke:#5b6577;stroke-width:1.6;fill:none}.ad{stroke:#5b6577;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
 </style>
 <defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#5b6577"/></marker></defs>
-<rect width="1200" height="1100" fill="#fbfaf7"/>
-<text x="30" y="36" class="t">The ray bench plan: three predictions to replace estimated cycle counts</text>
+<rect width="1200" height="1110" fill="#fbfaf7"/>
+<text x="30" y="36" class="t">The ray bench: three predictions to replace estimated cycle counts</text>
 <rect x="30" y="48" width="1140" height="30" rx="4" fill="#fbf1e2" stroke="#a86a00"/>
-<text x="42" y="68" class="b"><tspan class="k e">NOT BUILT. ESTIMATE.</tspan> P1, P2 and P9 of demo/psm/THESIS_SH4_SHADOWS.md §6. No ray step, slice or proxy has been timed; evidence so far: none.</text>
+<text x="42" y="68" class="b"><tspan class="k e">BUILT, NOT RUN. ESTIMATE.</tspan> Image psm-bench-ray1: host test 20,052 checks, 0 failed (x86); no console number yet. THESIS §6 P1, P2, P9.</text>
 <text x="30" y="100" class="s">Status: <tspan class="k m">MEASURED</tspan> our console · <tspan class="k f">FACT</tspan> a manual or our code · <tspan class="k e">ESTIMATE</tspan> our arithmetic or model · <tspan class="k o">OPEN</tspan> not known</text>
 <rect x="30" y="116" width="1140" height="276" rx="6" class="box"/>
 <text x="44" y="140" class="h">What is timed: a ray walking a 4 KB height grid toward the sun (thesis §5.3)</text>
@@ -199,56 +199,57 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <rect x="416" y="408" width="368" height="470" rx="6" class="st"/>
 <rect x="802" y="408" width="368" height="470" rx="6" class="st"/>
 <text x="44" y="434" class="h">P1  cycles a ray, against n</text>
-<text x="44" y="454" class="s">Rays of known n on the 4 KB grid, in cache,</text>
-<text x="44" y="470" class="s">timed with the KOS ns timer and perf counter 1</text>
-<text x="44" y="486" class="s">(the clock pair spike s2 used).</text>
+<text x="44" y="454" class="s">Pages P1.1 .. P1.4, n 1 .. 96: a grid of zeros</text>
+<text x="44" y="470" class="s">at 14:00 / 16:00 (P1.1, P1.2), the town grid</text>
+<text x="44" y="486" class="s">(P1.3, P1.4); ns timer + perf counter 1 (CLOCK).</text>
 <path d="M84 518 L84 708 L374 708" class="ar"/>
-<polygon points="84.0,702.3 374.0,565.5 374.0,519.9" fill="#fbf1e2" stroke="#a86a00" stroke-dasharray="5 3"/>
-<circle cx="190.3" cy="643.8" r="4" fill="#fff" stroke="#a86a00" stroke-width="1.6"/>
-<text x="138.33333333333331" y="637.78" class="k e">14:00</text>
-<circle cx="316.0" cy="574.6" r="4" fill="#fff" stroke="#a86a00" stroke-width="1.6"/>
-<text x="264.0" y="568.62" class="k e">16:00</text>
-<text x="229.0" y="730" class="s" text-anchor="middle">n, cells walked (0 .. 60)</text>
-<text x="76" y="524" class="s" text-anchor="end">1,000</text>
+<polygon points="84.0,704.6 374.0,570.5 374.0,525.8" fill="#fbf1e2" stroke="#a86a00" stroke-dasharray="5 3"/>
+<circle cx="147.8" cy="670.2" r="4" fill="#fff" stroke="#a86a00" stroke-width="1.6"/>
+<text x="95.80000000000001" y="664.2235294117647" class="k e">14:00</text>
+<circle cx="223.2" cy="629.5" r="4" fill="#fff" stroke="#a86a00" stroke-width="1.6"/>
+<text x="171.2" y="623.5411764705882" class="k e">16:00</text>
+<text x="229.0" y="730" class="s" text-anchor="middle">n, cells walked (0 .. 100)</text>
+<text x="76" y="524" class="s" text-anchor="end">1,700</text>
 <text x="76" y="708" class="s" text-anchor="end">0</text>
 <text x="56" y="613.0" class="s" text-anchor="middle" transform="rotate(-90 56 613.0)">cycles a ray</text>
 <text x="96" y="538" class="s">amber: the predicted band</text>
 <text x="96" y="554" class="s">(12 .. 16 a step + 30)</text>
-<text x="234" y="696" class="k o">measured: none yet</text>
+<text x="204" y="696" class="k o">not run: no points yet</text>
 <text x="44" y="758" class="h2">Falsified if</text>
 <text x="44" y="778" class="b">the console&#39;s cycles a ray, over n, fall</text>
 <text x="44" y="796" class="b">well outside the band.</text>
-<text x="44" y="822" class="s">Also time the fixed-point walk along the</text>
-<text x="44" y="838" class="s">major axis (5 .. 6 cycles a step, two cells</text>
-<text x="44" y="854" class="s">a step) <tspan class="k e">[ESTIMATE]</tspan></text>
+<text x="44" y="822" class="s">Town grid: lit rays only from n 24 up (they</text>
+<text x="44" y="838" class="s">climb to H = 28 m; host count). The fixed-</text>
+<text x="44" y="854" class="s">point walk is not in this image.</text>
 <text x="430" y="434" class="h">P2  where the grid lives</text>
-<text x="430" y="454" class="s">One slice, three ways; verdicts <tspan class="k e">ESTIMATE</tspan>:</text>
-<rect x="430" y="470" width="340" height="94" rx="5" class="tm"/>
-<text x="440" y="490" class="h2">Batched</text>
-<text x="630" y="490" class="k">predicted best</text>
-<text x="440" y="510" class="s">all k rays together, grid loaded</text>
-<text x="440" y="527" class="s">once a frame: at most 128 lines x</text>
-<text x="440" y="544" class="s">27.7 = 18 µs of loads <tspan class="k e">[ESTIMATE]</tspan></text>
-<rect x="430" y="574" width="340" height="94" rx="5" class="mv"/>
-<text x="440" y="594" class="h2">Interleaved</text>
-<text x="630" y="594" class="k">predicted worst</text>
-<text x="440" y="614" class="s">rays between vertex transforms, which</text>
-<text x="440" y="631" class="s">stream over 1 MB a frame and evict the</text>
-<text x="440" y="648" class="s">grid: +27.7 cycles a missing step</text>
-<rect x="430" y="678" width="340" height="94" rx="5" class="box"/>
-<text x="440" y="698" class="h2">OC-RAM</text>
-<text x="630" y="698" class="k">unlikely to pay</text>
-<text x="440" y="718" class="s">grid in the 8 KB OC-RAM: no faster than</text>
-<text x="440" y="735" class="s">a hit, and the cache for the rest halves</text>
-<text x="440" y="752" class="s"><tspan class="k m">[MEASURED SH4-010 .. 012]</tspan></text>
+<text x="430" y="454" class="s">P2.A / P2.B: a slice of 1,024 receivers at 14:00</text>
+<text x="430" y="470" class="s">/ 16:00; P2.C / D in OC-RAM. Verdicts <tspan class="k e">ESTIMATE</tspan>.</text>
+<rect x="430" y="484" width="340" height="90" rx="5" class="tm"/>
+<text x="440" y="504" class="h2">Batched</text>
+<text x="630" y="504" class="k">predicted best</text>
+<text x="440" y="524" class="s">grid cold, then warm; 28,699 vertices</text>
+<text x="440" y="541" class="s">alone beside it. Loads at most 128 lines</text>
+<text x="440" y="558" class="s">x 27.7 = 18 µs <tspan class="k e">[ESTIMATE]</tspan></text>
+<rect x="430" y="584" width="340" height="90" rx="5" class="mv"/>
+<text x="440" y="604" class="h2">Interleaved</text>
+<text x="630" y="604" class="k">predicted worst</text>
+<text x="440" y="624" class="s">8 rays, then the vertices&#39; share; the</text>
+<text x="440" y="641" class="s">transform streams over 1 MB, evicting the</text>
+<text x="440" y="658" class="s">grid: +27.7 cycles a missing step</text>
+<rect x="430" y="684" width="340" height="90" rx="5" class="box"/>
+<text x="440" y="704" class="h2">OC-RAM</text>
+<text x="630" y="704" class="k">unlikely to pay</text>
+<text x="440" y="724" class="s">P2.C / P2.D. 8 KB, no faster than a hit;</text>
+<text x="440" y="741" class="s">the cache for the rest halves</text>
+<text x="440" y="758" class="s"><tspan class="k m">[MEASURED SH4-010 .. 012]</tspan></text>
 <text x="430" y="792" class="s">Miss cost 27.7 cycles, loop included (s2,</text>
 <text x="430" y="808" class="s">§5.9) <tspan class="k m">[MEASURED]</tspan>. Bare line: read miss</text>
 <text x="430" y="824" class="s">18.41 against hit 3.17 <tspan class="k m">[MEASURED SH4-003]</tspan>.</text>
 <text x="430" y="840" class="s">Keep the grid off a 16 KB multiple from</text>
 <text x="430" y="856" class="s">the vertex arrays.</text>
 <text x="816" y="434" class="h">P9  movers against one slice</text>
-<text x="816" y="454" class="s">Proxies for 8 people and 4 hens, timed at</text>
-<text x="816" y="470" class="s">16:00 (the longest runs), all in view.</text>
+<text x="816" y="454" class="s">Page P9: 8 capsules (r 0.20 m) and 4 spheres</text>
+<text x="816" y="470" class="s">(r 0.15 m) at load places, their 16:00 runs.</text>
 <path d="M826 560 L1146 560" stroke="#8a6d3b"/>
 <rect x="836" y="506" width="8" height="54" fill="#d9534f"/>
 <circle cx="840" cy="500" r="6" fill="#d9534f"/>
@@ -264,16 +265,18 @@ text{font-family:"DejaVu Sans",Verdana,Arial,sans-serif;fill:#1d2330}
 <text x="828" y="676" class="s">· sphere, early out 15 .. 20</text>
 <text x="828" y="693" class="s">· sphere, full path 40 .. 50</text>
 <text x="828" y="710" class="s">· capsule about 2 x sphere</text>
-<text x="828" y="727" class="s">· box 60 .. 90</text>
+<text x="828" y="727" class="s">· box 60 .. 90 (not in this image)</text>
+<text x="816" y="752" class="s">Host: 454 receivers, 88 shadowed, 18 penumbra</text>
 <text x="816" y="778" class="h2">Falsified if</text>
 <text x="816" y="798" class="b">their cost a frame exceeds k x C_ray (one</text>
 <text x="816" y="816" class="b">slice). At 2 ms: k ≤ 1,183 rays at 14:00,</text>
 <text x="816" y="834" class="b">570 at 16:00 <tspan class="k e">[ESTIMATE §5.9]</tspan>.</text>
-<rect x="30" y="896" width="1140" height="180" rx="6" class="box"/>
-<text x="44" y="922" class="h">What the bench feeds, once it has numbers</text>
+<rect x="30" y="896" width="1140" height="196" rx="6" class="box"/>
+<text x="44" y="922" class="h">What the bench feeds, once ray1 runs</text>
 <text x="44" y="948" class="b">P1 gives C_ray, which sets the slice k for a 2 ms budget (§5.9) and so the refresh period P = N / (k f) of §5.5.</text>
 <text x="44" y="972" class="b">P2 decides the frame&#39;s order: the slice in one batch before the transform (§5.10 step 2), or the grid in OC-RAM.</text>
 <text x="44" y="996" class="b">P9 decides whether the movers&#39; proxies fit beside the slice, or need their own budget.</text>
 <text x="44" y="1020" class="b">P3 (the shadow&#39;s lag at x60) waits on P1&#39;s rate. Every cycle count in §5 stays an ESTIMATE until P1, P2 and P9 replace it.</text>
-<text x="44" y="1044" class="s">Bench rules: one console image, both clocks, the cache state stated per run, the grid placed off a 16 KB multiple (see cache-placing-trap).</text>
+<text x="44" y="1044" class="s">Stand-ins: random receivers (not the town&#39;s vertices), a synthetic 28,699-vertex stream, the real sun&#39;s 0.00465 rad; no two arrays a 16 KB multiple apart.</text>
+<text x="44" y="1068" class="s">Kernel bytes were compared on x86 only: each page prints its own check; a BYTES DIFFER page keeps its times, but its kernel is not the reference.</text>
 </svg>

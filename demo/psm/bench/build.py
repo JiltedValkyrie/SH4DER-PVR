@@ -13,9 +13,11 @@ the images are kept; git ignores it). Steps, each refusing to go on when it fail
                third_party/sh4zam, used where it lies: its headers, and its source/sh4/shz_mem_sh4.s assembled into
                the program), with src/sh4der_warp.c compiled twice, a vertex at a time and a strip at a time, under
                two sets of names, so one program times both
+               bench_ray.c is built with the same flags and SH4ZAM, with bench_ray_np.c (the projecting batch without
+               its prefetch) beside it; its kernels are ray_kernels.h, host tested first by ray_test.c
   2 image      mkdcdisc -> <cdi-dir>/psm-bench-<tag>.cdi. An image that is there is never overwritten: pick a new --tag
 
-There is no host test: the program is timings of a console's own parts, and nothing in it can be checked on a host.
+h1 and h2 have no host test: they are timings of a console's own parts. The ray bench's kernels have one (ray_test.c).
 --elf-only stops after step 1 (no mkdcdisc needed).
 """
 import argparse
@@ -65,6 +67,15 @@ def build_h2(kos_cc, a, out, elf):
         [os.path.join(a.sh4zam, "source", "sh4", "shz_mem_sh4.s"), "-o", elf])
 
 
+def build_ray(kos_cc, a, out, elf):
+    """bench_ray.c and bench_ray_np.c, with SH4ZAM and SH4ZAM-DCE, the library's Dreamcast flags."""
+    if not os.path.isfile(os.path.join(a.sh4zam, "include", "sh4zam", "shz_sh4zam.h")):
+        raise SystemExit("no SH4ZAM at %s (see AGENTS.md for the clone line, or give --sh4zam)" % a.sh4zam)
+    inc = ["-I" + os.path.join(a.sh4zam, "include"), "-I" + os.path.join(ROOT, "third_party", "sh4zam-dce", "include")]
+    run("1 elf", kos_cc + LIB_FLAGS + inc + [os.path.join(HERE, "bench_ray.c"), os.path.join(HERE, "bench_ray_np.c"),
+        os.path.join(a.sh4zam, "source", "sh4", "shz_mem_sh4.s"), "-o", elf])
+
+
 def main():
     ap = argparse.ArgumentParser(description="Build the chip bench image.")
     ap.add_argument("--tag", default="h1")
@@ -88,6 +99,8 @@ def main():
         raise SystemExit("kos-cc is not on the PATH or KOS_BASE is not set: source the KallistiOS environment first")
     if os.path.basename(a.src) == "bench_h2.c":
         build_h2(kos_cc, a, out, elf)
+    elif os.path.basename(a.src) == "bench_ray.c":
+        build_ray(kos_cc, a, out, elf)
     else:
         run("1 elf", kos_cc + ["-O2", "-Wall", "-Wextra", os.path.join(HERE, a.src), "-o", elf])
     if a.elf_only:

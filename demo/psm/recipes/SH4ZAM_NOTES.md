@@ -1,4 +1,4 @@
-# Notes for SH4ZAM: `shz_ldexpf` / `shz_pow2f` with whole exponents, and `shz_log2f`'s offset
+# Notes for SH4ZAM: the fast exp / log family (`shz_pow2f`, `shz_ldexpf`, `shz_expf`, `shz_powf`, `shz_logf`, `shz_expm1f`, `shz_log2f`)
 
 For: Falco Girgis (SH4ZAM's author). Not filed upstream; the owner decides whether to send them.
 

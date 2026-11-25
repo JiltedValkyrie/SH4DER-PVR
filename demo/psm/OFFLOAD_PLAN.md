@@ -234,6 +234,22 @@ Host test, if built:
 - For every object and 216 views, compare the fast path with today's: screen x, y and 1/W within FTRV's error, the same triangle flags, the same `mvis`.
 - Count the objects that take the fast path, and those it should refuse (across the near plane, past the cut).
 
+## After the town bake numbers: what to precompute, and where (2026-11-25)
+
+The town now has host numbers for a static-sun bake (`TOWN_NOTES.md` TOWN-050..067): static on static is baked, and c4 runs for the movers only. That changes item 2's comparison. The sound chip's own ideas are in `wiki/research/sound-chip-precompute.md` (S1..S9) and are not repeated here. Every number below is an ESTIMATE (host counts, cycles a step assumed) or OPEN; none is measured.
+
+| ID | What to precompute | Where | Cost | Status | Test |
+|---|---|---|---|---|---|
+| OFF-01 | The static bake for a fixed sun: a byte a model vertex (8,697 B) and the ground map (256² at 0.375 m, 64 KB) | PC build (into the mesh header), else the SH-4 at load | 0 on the console at build time. At load: 169k ray-triangle tests on the caster proxies, about 0.04 s at an assumed 50 cycles a test (578k and 0.14 s on the screen mesh) | ESTIMATE (TOWN-063) | one `timer_us_gettime64` pair round the load bake |
+| OFF-02 | Rebake while the clock moves the sun, sliced over frames | the SH-4 | The whole bake is about 8.4 M cycles (42 ms). Spread over 60 frames for a new map a second, about 0.7 ms a frame, cross-faded. It handles overhangs (true triangles) | ESTIMATE | the same timer, a slice a frame, the HUD's SH-4 ms |
+| OFF-03 | The same rebake on the ARM7 (item 2) | ARM7 + G2 DMA back | A height-field DDA (integer adds; the ARM7DI has no long multiply: `as -mcpu=arm7di` refuses `umull`, ARM7TC-005, so fixed-point ray-triangle is costly). The ray from a texel runs 37 cells at 14:00 and up to 64 at 16:00 on the 1.5 m grid: 0.6 to 1.0 M steps for 128², about 5 to 8 M instructions, 0.3 to 1.6 s at 5 to 15 MIPS. The result comes back by DMA: 16 KB at h2's 4.9 to 5.0 MB/s is about 3.3 ms of G2 (64 KB: about 13 ms), with no SH-4 time. Overhangs (the arch) are approximate | ESTIMATE (B1 not run) | B1 (ARM speed), B2 (the data path), then this |
+| OFF-04 | Verdict on OFF-02 against OFF-03 | — | OFF-02 costs about 0.7 ms of SH-4 a frame, needs no new toolchain or sound-driver sharing, and is exact for overhangs. OFF-03 costs no SH-4 time but needs B1/B2, approximates overhangs, and fights a future sound driver for the ARM7. Do OFF-02 first; OFF-03 only if 0.7 ms is the frame's last margin | ESTIMATE (inference) | OFF-02's console number |
+| OFF-05 | Mover self-shadow by heading: each mover template's own N.L x self-occlusion for 16 headings at the fixed sun | PC build | person 60 vertices x 16 = 960 B, hen 140 x 16 = 2,240 B. Self-shadow then leaves the per-frame map; the per-frame work is a table read by heading | ESTIMATE | host: compare against a ray a vertex at 64 headings, worst error by heading step |
+| OFF-06 | c4's light basis and code scale for the movers' square fit (TOWN-054) | the SH-4, once per sun | a 3 x 3 basis and 6 floats: microseconds. The band cut itself follows the movers and stays per frame | FACT (sizes) | — |
+| OFF-07 | Ramp and depth tables: the c4 mask ramps, the 256-entry code-to-depth and bias tables, the ground's `glut` | the SH-4 at load | under 4 KB in all. Smaller than one G2 trip (S7), so no offload | ESTIMATE | — |
+| OFF-08 | The ground map as a texture (the textured fallback of the bake) | main RAM to video memory, `pvr_txr_load` or ch2 DMA | 64 KB PAL8 at 256², once per bake. Going through sound RAM (B4: 6,511 us for 32 KB, MEASURED h2) only makes sense if the ARM7 made it (OFF-03) | ESTIMATE (except B4) | B4's rate is known; time `pvr_txr_load` of 64 KB |
+| OFF-09 | Noise for grain and dither | the SH-4 | `sh4der_film.h` needs a pure function of time and seed; the voices' noise is not documented as repeatable (S7) | FACT (by design) | — |
+
 ## The benches, cheapest first
 
 Each runs on a real Dreamcast and prints one line a number. Senior's h2 plans the AICA tests; Lead coordinates which of these go into it.

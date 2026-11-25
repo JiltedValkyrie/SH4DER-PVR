@@ -46,6 +46,10 @@ The SH-4 side at 128 × 128: copy back 0.87 ms; 20,000 random map reads from the
 
 **The town's "AB stub" (87 ms) is not route AB.** The SH-4 fills both maps in it.
 
+The static bake split, which leaves only the movers to a per-frame map:
+
+![The static bake split (ESTIMATE, host, TOWN-060 to 067): static casters on static receivers are baked once a sun at load (a byte a vertex for the models, a 256 x 256 ground lightmap; about 169,000 ray-triangle tests, about 0.04 s at an assumed 50 cycles a test; 8,697 B + 64 KB, sizes FACT from the counts) and cost nothing a frame, while the movers' shadows go through c4 on 12 ground patches (mask pass about 1.1 to 4.1 ms); the share of model vertices in shadow moves with where the ray starts (14:00: 41.6 % from 0.05 m out against 28.5 % from 0.3 m + 0.5 m, screen mesh as casters), which is OPEN.](../images/static-bake-split.svg)
+
 ## Open
 
 - The PVR's render time for a caster pass, by `pvr_get_stats`.

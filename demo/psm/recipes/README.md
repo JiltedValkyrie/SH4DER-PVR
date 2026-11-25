@@ -11,7 +11,8 @@ Host reference models and tests for four recipes of `demo/psm/RECIPES_NOTES.md`.
 | `recipe_softplane_test.c` | R5 soft particles | the fade against a reference; the error and the alpha left on the contact line by cut size; two planes |
 | `CONSOLE_PAGES.md` | R3, R7, R8 | the console pages that would show them (spec only, not built) |
 | `R3_PAGE_SPEC.md` | R3 | the punch-through product page in detail, for coding from c4's `punch_pass`: lines, counts per rule, the decision table |
-| `SH4ZAM_NOTES.md`, `shz_notes_repro.c` | — | notes for SH4ZAM's author on `shz_ldexpf` / `shz_pow2f` and `shz_log2f`, with a repro (not filed upstream) |
+| `SH4ZAM_NOTES.md`, `shz_notes_repro.c` | — | notes for SH4ZAM's author on the fast exp / log family (`shz_pow2f`, `shz_ldexpf`, `shz_expf`, `shz_powf`, `shz_logf`, `shz_expm1f`, `shz_log2f`), with a repro (not filed upstream), and where SH4DER-PVR stands |
+| `depthmap_model.c` | R9 depth map | a camera depth map, 128 x 96, 8-bit, by SH-4 raster against PVR-drawn: the raster checked against a ray cast; work counted and priced from the ledger, 98 to 12,002 triangles (one program, its build line in its header) |
 
 ## Run
 
@@ -30,6 +31,7 @@ Run on 2026-11-25, host only (gcc, MSYS2 mingw64), both paths:
 | recipe_dither_test | PASS 23 FAIL 0 | PASS 23 FAIL 0 |
 | recipe_fogpulse_test | PASS 40 FAIL 0 | PASS 40 FAIL 0 |
 | recipe_softplane_test | PASS 6 FAIL 0 | PASS 6 FAIL 0 |
+| depthmap_model | PASS 10 FAIL 0 | PASS 10 FAIL 0 |
 
 ## What the models say
 
@@ -65,6 +67,22 @@ These are host results: ESTIMATE for the console until a page is photographed. T
 | 2 | 6 | 0.30 | 0.26 |
 | 4 | 10 | 0.12 | 0.07 |
 | 8 | 18 | 0.035 | 0.024 |
+
+**R9 depth map: the PVR should draw it.** Every price here is an ESTIMATE built from MEASURED rows (one console, one run); the rows are named in `depthmap_model.c` `price()`.
+
+- The SH-4 raster (edge functions, centre sampling, top-left rule, 1/z plane, 8-bit test) matches a double-precision ray cast to within one code on every pixel of five scenes, both paths. Host only.
+- The cost is the pixels, not the triangles: covered pixels grow from 0.69 to 26 times the map as the scene grows, because the depth test cannot skip hidden pixels.
+
+| Triangles (drawn) | SH-4 raster, whole route | PVR-drawn: SH-4 part | PVR-drawn: PVR part |
+|---|---|---|---|
+| 98 (47) | 0.76 .. 3.0 ms | 0.02 .. 0.05 ms | 0.38 ms |
+| 1,202 (481) | 2.8 .. 14.4 ms | 0.26 .. 0.55 ms | 0.44 ms |
+| 3,002 (1,171) | 5.1 .. 26.0 ms | 0.63 .. 1.35 ms | 0.54 ms |
+| 12,002 (4,597) | 18.4 .. 97.3 ms | 2.5 .. 5.3 ms | 1.04 ms |
+
+- Low end: 3 + 3 cycles a pixel (an instruction count). High end: the thesis F14 MODEL, 12 / 43 cycles a pixel. Neither is measured; a console bench of the row loop is what would settle it.
+- The PVR route is about ten times cheaper on the SH-4 at every count. Its unknown is the waits a separate render adds to the frame (PVR-094, OPEN), not its draw time.
+- The SH-4 route earns its cost only where the SH-4 must read the map itself; reading a PVR-drawn map back is 24 KB through the uncached 16-bit path at 3.7 MB/s, about 6.6 ms (ESTIMATE).
 
 **SH4ZAM note (host, software back end, not a console).**
 
