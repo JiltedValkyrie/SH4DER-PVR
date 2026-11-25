@@ -61,7 +61,7 @@ def room_data(a, out):
 
 def main():
     ap = argparse.ArgumentParser(description="Build the AO images, or the room's data.")
-    ap.add_argument("--spike", choices=("ao0", "ao4", "hen", "pd", "lamp", "d1"), default="ao0")
+    ap.add_argument("--spike", choices=("ao0", "ao4", "hen", "pd", "lamp", "d1", "mip"), default="ao0")
     ap.add_argument("--tag")
     ap.add_argument("--room-only", action="store_true", help="only the room's data: room_mesh.h and room_ao.h into --out")
     ap.add_argument("--room", default=None, help="the room's folder (room_manifest.json); without it, the placeholder room")
@@ -105,7 +105,7 @@ def main():
         room_inc = ["-I" + room, "-DAO4_TEST_ROOM"]
     # the lamp look draws its halo with the library's ring glow: sh4der_bloom.c and what it calls, on the host and in the ELF
     lamp_src = [os.path.join(ROOT, "src", n) for n in ("sh4der_bloom.c", "sh4der_blade.c", "sh4der_core.c")] if a.spike == "lamp" else []
-    for name in ("ao_layer_test", {"ao0": "ao0_model_test", "ao4": "ao4_scene_test", "hen": "hen_room_test", "pd": "ao_layer_test", "lamp": "ao4_lamp_test", "d1": "d1_model_test"}[a.spike]) + (("tile_cut_test",) if a.spike == "ao4" else ()):
+    for name in ("ao_layer_test", {"ao0": "ao0_model_test", "ao4": "ao4_scene_test", "hen": "hen_room_test", "pd": "ao_layer_test", "lamp": "ao4_lamp_test", "d1": "d1_model_test", "mip": "mip_model_test"}[a.spike]) + (("tile_cut_test",) if a.spike == "ao4" else ()):
         test = os.path.join(out, name + exe)
         run("1 host test %s (compile)" % name, host + (room_inc if name in ("ao4_scene_test", "hen_room_test", "ao4_lamp_test") else []) + [os.path.join(HERE, "test", name + ".c")] +
             (lamp_src if name == "ao4_lamp_test" else []) + ["-o", test, "-lm"])
