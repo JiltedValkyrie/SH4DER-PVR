@@ -1,0 +1,364 @@
+--- a/demo/psm/psm_dc.c	2026-11-25 01:40:33.810521500 -0500
++++ b/demo/psm/psm_dc.c	2026-11-25 09:27:45.304851800 -0500
+@@ -70,6 +70,10 @@
+ static psm_state_t state;
+ static psm_frame_t frame;
+ static psm_cost_t cost;
++#ifdef PSM_STATIC_BAKE
++#include "psm_bake.h"
++static psm_bake_t bake;                  /* the static town's shadow for the current sun (route B; prototype) */
++#endif
+ static psm_walk_limits_t walk_lim;
+ 
+ static uint16_t depth_map[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));    /* route B's map: 128 KB of RAM at 256 */
+@@ -462,6 +466,10 @@
+ 
+         psm_diag_line(&d, ln_now);
+     }
++#ifdef PSM_STATIC_BAKE
++    snprintf(ln_now[14], PSM_HUD_COLS + 1u, "BAKE %s %lu us  tests %lu  shadowed v %lu g %lu  n %lu",
++             psm_bake_valid(&bake, frame.sun) ? "ON" : "OFF", (unsigned long)bake.us, bake.tests, bake.shadowed_v, bake.shadowed_g, bake.bakes);
++#endif
+     return memcmp(ln_prev, ln_now, sizeof ln_prev) != 0;
+ }
+ 
+@@ -565,6 +573,14 @@
+ 
+         /* the SH-4's work, in the label's parts. B: build, clear, casters, receivers. A: build, clip (the map pass), uv.
+            A wait for the PVR is the PVR's time: it is taken between two parts, in none of them. */
++#ifdef PSM_STATIC_BAKE
++        if (state.route == PSM_ROUTE_B && scene.town && frame.sun[1] > 0.0f && !psm_bake_valid(&bake, frame.sun)) {
++            const uint64_t tb = timer_us_gettime64();      /* last frame's sun; outside the SH-4 window, so it is a hitch, not a cost */
++
++            psm_bake_run(&bake, &scene, frame.sun);
++            bake.us = (uint32_t)(timer_us_gettime64() - tb);
++        }
++#endif
+         t0 = timer_us_gettime64();
+         psm_fault_stage(&fault_crumbs, "setup");
+         psm_frame_setup(&frame, &scene, &state);
+@@ -576,11 +592,18 @@
+         if (state.route == PSM_ROUTE_B) {
+             b_ok = psm_frame_b_begin(&frame, &scene, psm_mapbuf_depth(&mapbuf, 0u, depth_map));
+             t2 = timer_us_gettime64();
++#ifdef PSM_STATIC_BAKE
++            if (b_ok) psm_frame_b_casters(&frame, &scene, scene.town ? psm_bake_movers_only(&bake, frame.sun, state.movers_only) : state.movers_only);
++#else
+             if (b_ok) psm_frame_b_casters(&frame, &scene, state.movers_only);
++#endif
+             t3 = timer_us_gettime64();
+             psm_fault_stage(&fault_crumbs, "compare");
+             if (b_ok) psm_frame_b_receivers(&frame, &scene, &state);
+             else psm_frame_unshadowed(&frame, &scene);
++#ifdef PSM_STATIC_BAKE
++            if (b_ok && scene.town && psm_bake_valid(&bake, frame.sun)) psm_bake_apply(&bake, &frame, &scene);
++#endif
+             win_us[1] += t2 - t1; win_us[2] += t3 - t2; win_us[3] += timer_us_gettime64() - t3;
+         } else if (state.route == PSM_ROUTE_AB) {
+             /* the hook: this frame's fill goes into the slot that is not read, the compare reads the last complete map.
+--- a/Makefile	2026-11-25 03:34:30.746269000 -0500
++++ b/Makefile	2026-11-25 09:27:10.750051900 -0500
+@@ -363,7 +363,7 @@
+ 	$(PYTHON) -I demo/psm/tools/bake_cow.py $(PSM_COW_OBJ) $@ --tris $(PSM_COW_TRIS)
+ $(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h demo/psm/psm_fault.h $(PSM_TOWN_DEPS) include/sh4der_psm.h $(BUILD)/libsh4der_core.a $(if $(wildcard $(PSM_COW_OBJ)),$(PSM_COW_H))
+ 	@mkdir -p $(BUILD)/psm_dc
+-	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
++	$(DC_CC) $(DC_FLAGS) $(PSM_DC_EXTRA) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
+ $(PSM_DC_CDI): $(BUILD)/psm_dc/sh4der-psm-ab.elf
+ 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+ 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PSM-AB
+--- /dev/null	2026-11-25 09:28:03.000000000 -0500
++++ b/demo/psm/psm_bake.h	2026-11-25 09:27:45.314865100 -0500
+@@ -0,0 +1,224 @@
++/* SH4DER-PVR: the town's static shadow, baked for a fixed sun (prototype; TOWN_NOTES.md "Static on static: the bake")
++   demo/psm/psm_bake.h
++   Copyright (c) 2026 Jilted Valkyrie. See ../../LICENSE.
++
++   Route B only, behind PSM_STATIC_BAKE. Once the sun is known (and again when it moves past PSM_BAKE_SUN_DOT), every
++   static model vertex gets N.L x (1 if a ray toward the sun clears the static casters, else 0) as a byte, and the ground
++   a 256 x 256 world map over 96 x 96 m (0.375 m a texel), 1 lit .. 0 shadowed. The rays test only the caster triangles in
++   their bin of a 96 x 96 grid across the sun (demo/psm/tools/town_bake.c is the host model of the same bake).
++   Then a frame's map holds the movers only (psm_bake_movers_only), and after the compare:
++     a static vertex: min(its compare, the baked byte); exact, since the baked visibility is 0 or 1;
++     the ground: its compare x the map, bilinear;
++     a mover's vertex: its compare x the map at the point where its sun ray meets the ground (an approximation: an
++     occluder between the ground and the vertex also shades it).
++   The maths is sh4der_core.h's (SH4ZAM on the console). The bake is timed with the caller's clock (psm_bake_t.us). */
++#ifndef PSM_BAKE_H
++#define PSM_BAKE_H
++
++#include <stdlib.h>
++#include <string.h>
++#include "psm_scene.h"
++
++#define PSM_BAKE_SIDE     256u
++#define PSM_BAKE_X0       (-58.5f)          /* the ray grid's corner (town_ray_data.h), world x and z */
++#define PSM_BAKE_Z0       (-39.0f)
++#define PSM_BAKE_SPAN     96.0f
++#define PSM_BAKE_BINS     96u
++#define PSM_BAKE_PUSH     0.05f             /* a vertex's ray starts this far out along its normal (TOWN-065: OPEN) */
++#define PSM_BAKE_GROUND_Y 0.02f
++#define PSM_BAKE_SUN_DOT  0.99999f          /* a sun within about 0.26 degrees of the baked one keeps the bake */
++
++typedef struct psm_bake {
++    int ok;
++    float sun[3];                           /* the sun it was baked for (unit, toward the sun) */
++    float lx[3], ly[3], bu0, bv0, ibsz;     /* the bins: the plane across the sun, its corner, 1 / bin size */
++    uint16_t *bin[PSM_BAKE_BINS * PSM_BAKE_BINS];
++    uint16_t binn[PSM_BAKE_BINS * PSM_BAKE_BINS];
++    uint16_t *pool;                          /* every bin's list, one allocation */
++    uint8_t vbake[PSM_MV_MAX];               /* static model vertices: N.L x visibility, 0 .. 255 */
++    uint8_t gmap[PSM_BAKE_SIDE * PSM_BAKE_SIDE];
++    unsigned long tests, shadowed_v, shadowed_g, bakes;
++    uint32_t us;                             /* the last bake's time, set by the caller */
++} psm_bake_t;
++
++static inline void psm_bake_cross_(const float a[3], const float b[3], float o[3]) {
++    o[0] = a[1] * b[2] - a[2] * b[1]; o[1] = a[2] * b[0] - a[0] * b[2]; o[2] = a[0] * b[1] - a[1] * b[0];
++}
++
++/* 1 when the ray o + t d (t > 1 mm) crosses triangle a b c (Moller-Trumbore, one divide) */
++static inline int psm_bake_ray_tri_(const float o[3], const float d[3], const float *a, const float *b, const float *c) {
++    const float e1[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, e2[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
++    float h[3], s[3], q[3], det, inv, u, v;
++
++    psm_bake_cross_(d, e2, h);
++    det = sh4der_dot3_(e1, h);
++    if (det > -1e-9f && det < 1e-9f) return 0;
++    inv = sh4der_div_(1.0f, det);
++    s[0] = o[0] - a[0]; s[1] = o[1] - a[1]; s[2] = o[2] - a[2];
++    u = sh4der_dot3_(s, h) * inv;
++    if (u < 0.0f || u > 1.0f) return 0;
++    psm_bake_cross_(s, e1, q);
++    v = sh4der_dot3_(d, q) * inv;
++    if (v < 0.0f || u + v > 1.0f) return 0;
++    return sh4der_dot3_(e2, q) * inv > 1e-3f;
++}
++
++static inline int psm_bake_bin_of_(const psm_bake_t *b, const float p[3], unsigned *k) {
++    const float u = (sh4der_dot3_(p, b->lx) - b->bu0) * b->ibsz, v = (sh4der_dot3_(p, b->ly) - b->bv0) * b->ibsz;
++
++    if (!(u >= 0.0f) || !(v >= 0.0f) || u >= (float)PSM_BAKE_BINS || v >= (float)PSM_BAKE_BINS) return 0;
++    *k = (unsigned)v * PSM_BAKE_BINS + (unsigned)u;
++    return 1;
++}
++
++/* 1 when p sees the sun past the static casters */
++static inline int psm_bake_sees_(psm_bake_t *b, const psm_scene_t *s, const float p[3]) {
++    unsigned k, j;
++
++    if (!psm_bake_bin_of_(b, p, &k)) return 1;
++    for (j = 0; j < b->binn[k]; j++) {
++        const unsigned t = b->bin[k][j];
++
++        b->tests++;
++        if (psm_bake_ray_tri_(p, b->sun, s->cv[s->ct[t][0]], s->cv[s->ct[t][1]], s->cv[s->ct[t][2]])) return 0;
++    }
++    return 1;
++}
++
++static inline void psm_bake_extent_(const psm_bake_t *b, const float p[3], float lo[2], float hi[2]) {
++    const float u = sh4der_dot3_(p, b->lx), v = sh4der_dot3_(p, b->ly);
++
++    if (u < lo[0]) lo[0] = u;
++    if (u > hi[0]) hi[0] = u;
++    if (v < lo[1]) lo[1] = v;
++    if (v > hi[1]) hi[1] = v;
++}
++
++/* The bins for sun s (unit, toward the sun): the static casters' triangles by their box across the sun. 0: no memory. */
++static inline int psm_bake_bins_(psm_bake_t *b, const psm_scene_t *s) {
++    float lo[2] = { 1e30f, 1e30f }, hi[2] = { -1e30f, -1e30f }, side, il;
++    unsigned t, k, i, j, total = 0, pass;
++    static const float up[3] = { 0.0f, 1.0f, 0.0f };
++
++    psm_bake_cross_(up, b->sun, b->lx);
++    il = sh4der_div_(1.0f, sh4der_sqrt_(sh4der_dot3_(b->lx, b->lx)));
++    b->lx[0] *= il; b->lx[1] *= il; b->lx[2] *= il;
++    psm_bake_cross_(b->sun, b->lx, b->ly);
++    for (k = 0; k < 4u; k++) {
++        const float p[3] = { PSM_BAKE_X0 + ((k & 1u) ? PSM_BAKE_SPAN : 0.0f), 0.0f, PSM_BAKE_Z0 + ((k & 2u) ? PSM_BAKE_SPAN : 0.0f) };
++
++        psm_bake_extent_(b, p, lo, hi);
++    }
++    for (k = 0; k < s->cvn; k++) psm_bake_extent_(b, s->cv[k], lo, hi);
++    side = (hi[0] - lo[0] > hi[1] - lo[1] ? hi[0] - lo[0] : hi[1] - lo[1]) + 1e-3f;
++    b->bu0 = lo[0]; b->bv0 = lo[1];
++    b->ibsz = sh4der_div_((float)PSM_BAKE_BINS, side);
++    free(b->pool); b->pool = NULL;
++    for (pass = 0; pass < 2u; pass++) {
++        if (pass) {
++            b->pool = (uint16_t *)malloc((total ? total : 1u) * sizeof(uint16_t));
++            if (!b->pool) return 0;
++            for (k = 0, total = 0; k < PSM_BAKE_BINS * PSM_BAKE_BINS; k++) { b->bin[k] = b->pool + total; total += b->binn[k]; b->binn[k] = 0; }
++        } else memset(b->binn, 0, sizeof b->binn);
++        for (t = 0; t < s->ctn; t++) {
++            float tlo[2] = { 1e30f, 1e30f }, thi[2] = { -1e30f, -1e30f };
++            unsigned u0, u1, v0, v1;
++
++            if (s->ctmov[t]) continue;
++            for (k = 0; k < 3u; k++) psm_bake_extent_(b, s->cv[s->ct[t][k]], tlo, thi);
++            u0 = (unsigned)((tlo[0] - b->bu0) * b->ibsz); u1 = (unsigned)((thi[0] - b->bu0) * b->ibsz);
++            v0 = (unsigned)((tlo[1] - b->bv0) * b->ibsz); v1 = (unsigned)((thi[1] - b->bv0) * b->ibsz);
++            u1 = u1 < PSM_BAKE_BINS ? u1 : PSM_BAKE_BINS - 1u;
++            v1 = v1 < PSM_BAKE_BINS ? v1 : PSM_BAKE_BINS - 1u;
++            for (j = v0; j <= v1; j++)
++                for (i = u0; i <= u1; i++) {
++                    k = j * PSM_BAKE_BINS + i;
++                    if (pass) b->bin[k][b->binn[k]] = (uint16_t)t;
++                    b->binn[k]++;
++                    if (!pass) total++;
++                }
++        }
++    }
++    return 1;
++}
++
++/* The bake for `sun` (unit, toward the sun). 0: no memory (b->ok stays 0: the frame keeps every caster). */
++static inline int psm_bake_run(psm_bake_t *b, const psm_scene_t *s, const float sun[3]) {
++    const float cell = PSM_BAKE_SPAN / (float)PSM_BAKE_SIDE;
++    unsigned i, j;
++
++    b->ok = 0;
++    memcpy(b->sun, sun, sizeof b->sun);
++    if (!(sun[1] > 0.0f) || !psm_bake_bins_(b, s)) return 0;
++    b->tests = b->shadowed_v = b->shadowed_g = 0;
++    memset(b->vbake, 255, sizeof b->vbake);
++    for (i = 0; i < s->mdyn0; i++) {
++        const float ndl = sh4der_dot3_(s->mn[i], sun);
++        float p[3];
++
++        if (!(ndl > 0.0f)) { b->vbake[i] = 0u; continue; }
++        p[0] = s->mv[i][0] + s->mn[i][0] * PSM_BAKE_PUSH;
++        p[1] = s->mv[i][1] + s->mn[i][1] * PSM_BAKE_PUSH;
++        p[2] = s->mv[i][2] + s->mn[i][2] * PSM_BAKE_PUSH;
++        if (psm_bake_sees_(b, s, p)) b->vbake[i] = (uint8_t)(sh4der_min1_(ndl) * 255.0f + 0.5f);
++        else { b->vbake[i] = 0u; b->shadowed_v++; }
++    }
++    for (j = 0; j < PSM_BAKE_SIDE; j++)
++        for (i = 0; i < PSM_BAKE_SIDE; i++) {
++            const float p[3] = { PSM_BAKE_X0 + ((float)i + 0.5f) * cell, PSM_BAKE_GROUND_Y, PSM_BAKE_Z0 + ((float)j + 0.5f) * cell };
++            const int lit = psm_bake_sees_(b, s, p);
++
++            b->gmap[j * PSM_BAKE_SIDE + i] = lit ? 255u : 0u;
++            b->shadowed_g += !lit;
++        }
++    b->bakes++;
++    b->ok = 1;
++    return 1;
++}
++
++/* 1 when the bake holds for this sun */
++static inline int psm_bake_valid(const psm_bake_t *b, const float sun[3]) {
++    return b->ok && sh4der_dot3_(b->sun, sun) >= PSM_BAKE_SUN_DOT;
++}
++
++/* The ground map at world (x, z), bilinear, 0 .. 255; outside the square: lit */
++static inline unsigned psm_bake_ground(const psm_bake_t *b, float x, float z) {
++    const float k = (float)PSM_BAKE_SIDE / PSM_BAKE_SPAN;
++    const float fx = (x - PSM_BAKE_X0) * k - 0.5f, fz = (z - PSM_BAKE_Z0) * k - 0.5f;
++    unsigned ix, iz, i1, j1;
++    float tx, tz, a, c;
++
++    if (!(fx >= 0.0f) || !(fz >= 0.0f) || fx >= (float)(PSM_BAKE_SIDE - 1u) || fz >= (float)(PSM_BAKE_SIDE - 1u)) return 255u;
++    ix = (unsigned)fx; iz = (unsigned)fz; tx = fx - (float)ix; tz = fz - (float)iz;
++    i1 = iz * PSM_BAKE_SIDE + ix; j1 = i1 + PSM_BAKE_SIDE;
++    a = (float)b->gmap[i1] + ((float)b->gmap[i1 + 1u] - (float)b->gmap[i1]) * tx;
++    c = (float)b->gmap[j1] + ((float)b->gmap[j1 + 1u] - (float)b->gmap[j1]) * tx;
++    return (unsigned)(a + (c - a) * tz + 0.5f);
++}
++
++/* After psm_frame_b_receivers on a movers-only map: the baked static shadow put in. */
++/* a x b / 255 for bytes, rounded, with no divide: exact for every a, b in 0 .. 255 */
++static inline unsigned psm_bake_mul8_(unsigned a, unsigned b) { const unsigned x = a * b + 128u; return (x + (x >> 8)) >> 8; }
++
++static inline void psm_bake_apply(const psm_bake_t *b, psm_frame_t *f, const psm_scene_t *s) {
++    const float ky = sh4der_div_(1.0f, b->sun[1]);
++    unsigned i;
++
++    for (i = 0; i < f->gvn; i++)
++        f->glit[i] = (uint8_t)psm_bake_mul8_(f->glit[i], psm_bake_ground(b, f->gpos[i][0], f->gpos[i][2]));
++    for (i = 0; i < s->mdyn0; i++)
++        if (b->vbake[i] < f->mlit[i]) f->mlit[i] = b->vbake[i];
++    for (i = s->mdyn0; i < s->mvn; i++) {
++        const float t = s->mv[i][1] * ky;              /* along the sun ray down to the ground */
++        const unsigned g = psm_bake_ground(b, s->mv[i][0] - b->sun[0] * t, s->mv[i][2] - b->sun[2] * t);
++
++        f->mlit[i] = (uint8_t)psm_bake_mul8_(f->mlit[i], g);
++    }
++}
++
++/* The movers-only switch for the casters: while the bake holds, the map takes the movers only. */
++static inline int psm_bake_movers_only(const psm_bake_t *b, const float sun[3], int asked) {
++    return asked || psm_bake_valid(b, sun);
++}
++
++#endif
+--- /dev/null	2026-11-25 09:28:03.000000000 -0500
++++ b/test/bake_check.c	2026-11-25 09:26:57.326731900 -0500
+@@ -0,0 +1,65 @@
++/* Host check of demo/psm/psm_bake.h (prototype): route B at the town's boot state, every caster against the bake plus a
++   movers-only map. Prints the bake's counts (to set beside demo/psm/tools/town_bake.c), the host times, and how far the
++   two lit results are apart. Plain C path. Numbers are host ESTIMATEs. */
++#include <stdio.h>
++#include <time.h>
++#include "psm_scene.h"
++#include "psm_bake.h"
++
++static psm_scene_t scene;
++static psm_frame_t frame;
++static psm_bake_t bake;
++static uint16_t depth[256 * 256];
++static uint8_t g_all[PSM_GV_MAX], m_all[PSM_MV_MAX];
++
++static double now_ms(void) { return (double)clock() * 1000.0 / CLOCKS_PER_SEC; }
++
++static void route_b(const psm_state_t *st, int movers_only) {
++    if (!psm_frame_b_begin(&frame, &scene, depth)) { psm_frame_unshadowed(&frame, &scene); return; }
++    psm_frame_b_casters(&frame, &scene, movers_only);
++    psm_frame_b_receivers(&frame, &scene, st);
++}
++
++int main(void) {
++    psm_state_t st;
++    unsigned i, gdiff = 0, mdiff = 0, mdiff_static = 0, n_static_seen = 0;
++    double t, t_bake, t_all, t_mov, t_apply;
++    int fails = 0;
++
++    psm_scene_init(&scene);
++    psm_scene_init_town(&scene);
++    psm_state_town(&st);
++    st.route = PSM_ROUTE_B;
++    psm_town_update(&scene, &st, 0.0f);
++    psm_frame_setup(&frame, &scene, &st);
++    psm_place_geo(&frame, &scene);
++    printf("boot state: %02.0f:00-ish clock %.3f, sun az %.2f el %.2f, map %u, built %d, gvn %u, mvn %u (static %u)\n",
++           st.clock, st.clock, st.az, st.el, frame.size, frame.built, frame.gvn, scene.mvn, scene.mdyn0);
++
++    t = now_ms(); for (i = 0; i < 20u; i++) route_b(&st, 0); t_all = (now_ms() - t) / 20.0;
++    memcpy(g_all, frame.glit, frame.gvn); memcpy(m_all, frame.mlit, scene.mvn);
++
++    t = now_ms(); if (!psm_bake_run(&bake, &scene, frame.sun)) { printf("FAIL bake\n"); return 1; } t_bake = now_ms() - t;
++    printf("bake: %lu ray-triangle tests, static vertices shadowed %lu, ground texels shadowed %lu of %u (%.1f %%); host %.1f ms\n",
++           bake.tests, bake.shadowed_v, bake.shadowed_g, PSM_BAKE_SIDE * PSM_BAKE_SIDE, 100.0 * bake.shadowed_g / (PSM_BAKE_SIDE * PSM_BAKE_SIDE), t_bake);
++    fails += !psm_bake_valid(&bake, frame.sun);
++    fails += !psm_bake_movers_only(&bake, frame.sun, 0);
++
++    t = now_ms(); for (i = 0; i < 20u; i++) route_b(&st, 1); t_mov = (now_ms() - t) / 20.0;
++    t = now_ms(); psm_bake_apply(&bake, &frame, &scene); t_apply = now_ms() - t;
++    printf("route B on the host, a frame: every caster %.2f ms (%u tris); movers only %.2f ms (%u tris) + apply %.3f ms\n",
++           t_all, scene.ctn, t_mov, frame.tris, t_apply);
++
++    for (i = 0; i < frame.gvn; i++) gdiff += (unsigned)(g_all[i] > frame.glit[i] ? g_all[i] - frame.glit[i] : frame.glit[i] - g_all[i]) > 64u;
++    for (i = 0; i < scene.mvn; i++) {
++        const unsigned d = m_all[i] > frame.mlit[i] ? m_all[i] - frame.mlit[i] : frame.mlit[i] - m_all[i];
++
++        if (frame.vis_ok && !frame.mvis[i]) continue;
++        mdiff += d > 64u;
++        if (i < scene.mdyn0) { n_static_seen++; mdiff_static += d > 64u; }
++    }
++    printf("against every caster (a step of more than 64 of 255): ground %u of %u vertices (%.1f %%), model %u (static %u of %u sent, %.1f %%)\n",
++           gdiff, frame.gvn, 100.0 * gdiff / frame.gvn, mdiff, mdiff_static, n_static_seen, n_static_seen ? 100.0 * mdiff_static / n_static_seen : 0.0);
++    printf("%s\n", fails ? "FAILED" : "checks ok");
++    return fails != 0;
++}
