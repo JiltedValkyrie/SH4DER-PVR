@@ -1,0 +1,23 @@
+#: s7.mkv 09:04.8, pvr-dma pd-c p1/2 CRC 8764f1ac, p2/2 graph 7603aefe; 22 rows. Table rows end with a space (the console prints one).
+PVR-DMA DOWNLOAD PROOF c: video memory to main RAM
+HOLLY REV 0011 SB 0B
+PROVES: this console's PVR-DMA channel copies video memory
+to RAM bit for bit: YES, every copy below is right
+Pattern: 524,288 bytes, written with pvr_txr_load, then
+ by DMA through 04: 0 of 524,288 bytes wrong
+ by DMA through 05: 0 wrong (against the CPU's read at A5)
+Registers, in this order (the ASIC's, at A05F7Cxx):
+ SB_PDEN=0  SB_ISTNRM=00000800 (clear)  SB_PDAPRO=6702007F
+ SB_PDSTAP=0427A920  video memory, a multiple of 32
+ SB_PDSTAR=0C0CBCC0  RAM, a multiple of 32, cache purged
+ SB_PDLEN=00080000  bytes, a multiple of 32
+ SB_PDDIR=1 (to RAM)  SB_PDTSEL=0  SB_PDEN=1  SB_PDST=1
+ end: SB_PDST bit 0 reads 0, or ASIC event 000B; SB_PDEN=0
+Best of 3, us and MB/s: 32 KB      128 KB       512 KB
+PVR-DMA 04 polled  1279  24.4   4914  25.4  19645  25.4 
+PVR-DMA 05 polled  1264  24.7   4925  25.3  19563  25.5 
+PVR-DMA 04 irq      915  34.1   3420  36.5  13778  36.2 
+memcpy from A4     4319   7.2  17328   7.2  69313   7.2 
+memcpy from A5     4323   7.2  17331   7.2  69316   7.2 
+shz 32-byte RAM     258 121.1   1028 121.6   4121 121.3 
+! = wrong bytes. Cycle counter. 04 / 05: 64 / 32-bit views.

@@ -1,0 +1,40 @@
+#: s7.mkv 08:46.8, hens-eyes p1/3 CRC 964d0659; p2/3 typed by Senior from s7.mkv (his scratchpad s7/hen_p2.txt), checked here; 21 rows (PG_TOP 1)
+hens d: rays against a sweep, the same hens and room.
+HOLLY REV 0011 SB 0B. Cycles a step of 1/60 s, all hens (PRFC1).
+pre: the eyes or the sweep. post+sep: the push, hens apart.
+push + separation run in BOTH modes: not the rays' or sweep's.
+Effect labels: off in the measured stages, on in the live
+ view (d-pad left held + B hides them).
+model: the modules' cost tables on the counts, ESTIMATE.
+world 9 objects 1000 triangles; grid 16x16, 788 items
+9 rays + 2 down, tick 100 ms; sweeps look as far as the eyes
+ 4 EYES: pre 11453 worst 52973; post+sep 2686
+  /100 steps: tick 66 ray 735 box 4214 tri 5289 pair 234
+  model 6649; 299 steps 301 frames 16.4 ms, PVR 4964 us
+ 4 SWEEP GRID step: pre 49289 worst 86007; post+sep 2819
+  /100 steps: cast 400 tri 5481 rej 4785 cell 4305 pair 1200
+  model 15716; 299 steps 301 frames 16.5 ms, PVR 4873 us
+ 4 SWEEP GRID tick: pre 5655 worst 39823; post+sep 2536
+  /100 steps: cast 66 tri 343 rej 452 cell 717 pair 200
+  model 1429; 299 steps 301 frames 16.5 ms, PVR 4882 us
+ 4 SWEEP NAIVE: pre 321984 worst 355734; post+sep 3733
+  /100 steps: cast 400 tri 5481 rej 394518 cell 0 pair 1200
+  model 93016; 299 steps 301 frames 16.5 ms, PVR 4849 us
+16 EYES: pre 44803 worst 120027; post+sep 10141
+  /100 steps: tick 267 ray 2943 box 16856 tri 17872 pair 9484
+  model 38663; 299 steps 301 frames 16.5 ms, PVR 5582 us
+16 SWEEP GRID step: pre 218781 worst 294297; post+sep 11279
+  /100 steps: cast 1600 tri 25795 rej 22612 cell 18488 pair 24000
+  model 98735; 299 steps 301 frames 16.5 ms, PVR 5103 us
+16 SWEEP GRID tick: pre 36026 worst 112451; post+sep 10039
+  /100 steps: cast 267 tri 3306 rej 4117 cell 2973 pair 4013
+  model 14877; 299 steps 301 frames 16.5 ms, PVR 5110 us
+16 SWEEP NAIVE: pre 1314752 worst 1395711; post+sep 16031
+  /100 steps: cast 1600 tri 25798 rej 1574201 cell 0 pair 24000
+  model 406286; 298 steps 219 frames 22.7 ms, PVR 5099 us
+32 EYES: pre 100655 worst 218383; post+sep 25348
+  /100 steps: tick 534 ray 5878 box 33670 tri 37393 pair 39554
+  model 113770; 299 steps 253 frames 19.6 ms, PVR 6322 us
+32 SWEEP GRID step: pre 439302 worst 497781; post+sep 28598
+  /100 steps: cast 3200 tri 46217 rej 49486 cell 35430 pair 99200
+  model 256857; 299 steps 246 frames 20.2 ms, PVR 5431 us

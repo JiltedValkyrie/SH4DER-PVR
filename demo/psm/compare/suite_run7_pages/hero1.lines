@@ -1,0 +1,27 @@
+#: s7.mkv 04:11.3 (p1) and 04:13.0 (p2), hero1 p1/3 CRC 4b105ce8, p2/3 CRC 363b85be, 21 rows (PG_TOP 1)
+hero1 h1e: a skinned hero, each pass's cost. This run's numbers.
+HOLLY REV 0011 SB 0B. 5 s a stage, the first 0.5 s not counted; ms unless said
+effect labels: OFF in the autorun stages, ON in the live view (D-pad right hides them)
+hero: built-in (original), 1465 vertices, 1660 triangles, 515 strips, 33 bones, clips 60+24 frames
+1 all, IDLE        fr 18.77 SH4  7.39 PVR 10.53 TA 8603v 291K n238
+2 all, RUN+AIM     fr 18.45 SH4  7.31 PVR 10.35 TA 8434v 285K n242
+3 opaque only      fr 16.53 SH4  3.72 PVR  4.72 TA 3106v 112K n270
+4 opaque+detail    fr 16.51 SH4  5.24 PVR  5.72 TA 5857v 212K n271
+5 opaque+visor     fr 16.49 SH4  3.85 PVR  4.71 TA 3266v 119K n271
+6 opaque+shadow    fr 16.50 SH4  5.74 PVR  9.54 TA 5698v 184K n271
+7 no hero (set)    fr 16.53 SH4  0.36 PVR  3.97 TA  488v  13K n270
+8 all, room        fr 23.85 SH4 12.26 PVR 11.36 TA 16687v 411K n187
+9 all, room+hens   fr 23.63 SH4 12.80 PVR 10.62 TA 16169v 380K n189
+10 all, 2x distance fr 17.72 SH4  7.34 PVR  9.86 TA 8512v 293K n251
+stage 2 SH-4 parts: anim 0.07 palette 0.03 skin 0.81 light 0.39
+  sends: opaque 2.05 detail 1.42 visor 0.08 shadow 2.11 set 0.34
+  PVR: shadow target 3.47, screen 6.88; TA map 72K screen 214K
+DERIVED, each pass over stage 3 (opaque only): SH-4 / PVR ms, TA vertices
+  detail  SH-4 +1.52 PVR +1.00 TA +2751 v
+  visor   SH-4 +0.13 PVR -0.01 TA +160 v
+  shadow  SH-4 +2.02 PVR +4.82 TA +2592 v
+  hero, opaque (stage 3 - 7): SH-4 +3.36 PVR +0.76 TA +2618 v
+  room over clay (8 - 2): SH-4 +4.95 PVR +1.01, 2778 room tri drawn
+  4 hens (9 - 8): SH-4 +0.55 PVR -0.74 TA -518 v
+  2x distance (10 - 2): frame -0.74 PVR -0.49
+culling off on the hero (closed tubes): a back-face cull is not tried here

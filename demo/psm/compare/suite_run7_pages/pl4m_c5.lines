@@ -1,0 +1,36 @@
+#: s7.mkv 06:32.5 (p1) and 06:40.6 (p2), pl4m-c5 p1/3 CRC eb761232, p2/3 CRC a8d1b56f, 20 rows (PG_TOP 2)
+pl4m pl4m-c5: the new map (loop, overpass, strips, traffic), each stage's cost.
+HOLLY REV 0011 SB 0B. settle 3 s, count 8 s a stage, 1 frame in 8 sampled
+draw back 48 / fwd 336 m, RTT on, car 14 m/s, this run's numbers
+ms. fr frame (unsampled frames), SH4 CPU less PVR waits,
+look lookup, PVRs/PVRm render screen/mirror, TA KB a scene
+#  stage             fr   SH4  look  PVRs  PVRm TAs TAm
+1  on 256x128 day   110.17 109.97  0.94  8.42  3.60 391 168
+2  on 256 day blobs 114.71 114.57  0.92  6.44  3.62 398 173
+3  on 256 day no AO 112.66 112.50  0.97  7.92  3.62 393 180
+4  on 256 day split 113.20 113.04  0.92  8.65  3.63 399 175
+5  off day          69.23 69.12  0.00  4.92  0.00 345   0
+6  on 256x128 night 113.21 113.12  0.96  8.66  3.62 406 171
+7  off night        70.70 70.49  0.00  8.10  0.00 358   0
+8  on 128x64 night  113.13 112.90  0.95  9.08  3.55 407 152
+9  on 512x256 night 110.57 110.36  0.95  9.43  4.22 400 172
+10 on 256 day orbit 87.99 87.74  0.93  9.36  3.80 139 176
+11 on 256 nite orbit 85.63 85.61  0.96  8.53  3.80 138 171
+#  fr max TA peak s/m KB  tri s/m      VRAM  RAM tgt KB n/s
+1  115.77  405/172   6393/2857  3666 14497 128 54/71
+2  124.32  426/181   6381/2901  3666 14497 128 53/70
+3  120.25  413/199   6298/3014  3666 14497 128 53/67
+4  122.48  430/186   6359/2927  3666 14497 128 54/68
+5   77.42  394/0     5567/0     3666 14497   0 87/115
+6  120.74  424/180   6753/2973  3666 14497 128 53/70
+7   78.29  409/0     5843/0     3666 14497   0 84/112
+8  121.24  432/159   6634/2587  3762 14497  32 52/70
+9  118.56  416/183   6535/2947  3282 14497 512 54/72
+10 104.81  343/202   1996/3034  3666 14497 128 67/87
+11 102.52  326/195   2034/2929  3666 14497 128 69/92
+headers refused (wrong list or never compiled): 0
+PVR waits given up (200 ms each): 0
+each stage from s 60 m, lane -2 m, 14 m/s
+shadow tiles a stage, most seen: 4 0 4 3 0 0 0 0 0 3 0
+TA bytes include headers; PVR = rnd_last_time of the scene
+effect labels OFF in every stage (fill); stage 4: the split at the middle

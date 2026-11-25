@@ -1,0 +1,25 @@
+#: s7.mkv 03:08.6 (p1) and 03:12.0 (p2), ao-lamp p1/3 CRC 494a03b8, p2/3 CRC d21f9a01, 20 rows (PG_TOP 2)
+ao-lamp c: the lamp look. A stage's means; us unless said.
+HOLLY REV 0011 SB 0B
+Effect labels: off in the measured stages, on in the live
+ view (d-pad up held + B hides them).
+stage           frame PVR   verts  TA K  frames
+0 off, 2 lists  16206  4551  13410  177    224
+1 off, 3 lists  16212  4596  13413  177    224
+2 OFF | ON      16145  4576  14295  177    224
+3 SLOTS         16130  5030  15177  196    224
+4 ROOM LIGHT    20640  5034  15177  198    175
+5 OFF | ON near 16103  5156  14295   41    224
+6 ON alone      16210  4966   7600  189    224
+7 OFF alone     16213  4551   6718  168    224
+SH-4 a frame with the lamp on (stage 2): the room's light 1130,
+ dimming 1333, the shade 187 (65 v), the halo 205 (129 v)
+Point light (stage 4): 4530 us for 3883 vertices = 1166 ns each
+Sent: shade 96 triangles (punch-through), halo 240 a half
+DERIVED the third list, unused: frame +6, PVR +45 (1 - 0)
+DERIVED the lamp in a half: frame -67, PVR -20 (2 - 1)
+DERIVED the slots: frame -15, PVR +454 (3 - 2; 3 has two lamps)
+DERIVED the lamp at full width: frame -3, PVR +415 (6 - 7)
+A half hidden is not sent: 6 and 7 send one half each.
+One run, one console. The picture is not on this page:
+ photograph the live view (X: the three comparisons).

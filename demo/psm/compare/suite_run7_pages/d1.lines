@@ -1,0 +1,41 @@
+#: s7.mkv 07:48.2 (p1), 07:42.3 (p2), 07:51.4 (p3, one whole frame: d1p3 frame 9 of the 471.25 s pull), d1 p1/4 CRC 1f956711, p2/4 cdfc80cf, p3/4 6ff2b118, p4/4 graph 0e5f1f4f; 21 rows (PG_TOP 1)
+d1 a: a halo that fades at the scene, by a PVR depth map.
+HOLLY REV 0011 SB 0B. Three tests, a page each; this run's numbers.
+Effect labels: off in the run, on in the live view.
+T1 DESTINATION ALPHA, no depth map: 256 codes, Q 64, 5 bands
+ CLEAR (1,1,1,0) ZEROxDESTCOLOR; FADE bump (0,0,0,level)
+ ONExONE; SHOW white DESTALPHAxZERO. Model: K1+K3 cos, >= 0.
+fetch: PVR-DMA of 247808 bytes matches 256 words read from video memory
+T1 0 MODULATE K 0/255   as model 212/256, read 0..252
+   codes 64 96 128 160 192 0 read 252 172 0 0 0 0
+T1 1 MODULATE K 128/127 as model 234/256, read 0..252
+T1 2 MODALPHA K 0/255   as model 212/256, read 0..252
+   codes 64 96 128 160 192 0 read 252 172 0 0 0 0
+T1 3 REPLACE as colour  as model 19/256, read 252..252
+T1 4 no SHOW: backdrop  backdrop kept on 256 of 256 px
+   (model at those codes, K 0/255: 252 180 0 0 0 0)
+T1 RESULT: the FADE for T3 is NONE: T3's fade is not run
+@BREAK
+T2 DEPTH MAP: the ramp looked up by depth, read back
+T2a flat quad at 4 m: 160 of 160 px read code 85 (high byte 0)
+T2a tilted 3..6 m (about 4 codes a px): off by 0: 160, 1: 0,
+    2-3: 0, more: 0 of 160; worst +0
+T2b the room, 604 floor vertices on the map (21 off it):
+    code off by 0-2: 354, 3-8: 124, 9-24: 21, more: 105
+    (a vertex is not a pixel's middle, and the floor runs up
+     to 11 codes a pixel; furniture hides some: 'more')
+@BREAK
+T3 THE FADE: one glow 20 cm from a wall, left plain, right faded
+ fade 30 cm (a quarter turn), a turn 120 cm, map 320 x 240
+ T1 FOUND NO ALPHA-ONLY BUMP LAYER: stages 2..4 drew the plain glow
+stage            frame  PVR scr  PVR map  map send  verts
+0 no glow         16633    5430        0         0  12274
+1 plain | plain   16633    5503        0         0  12288
+2 plain | alpha   16633    5541        0         0  12288
+3 plain | fade    16633    5511        0         0  12288
+4 plain | no FAR  16633    5517        0         0  12288
+DERIVED the fade adds to a frame: +0 us (3 - 1)
+us; one run, one console. The LOOK is not on this page:
+ PASS on the screen: right of the line the glow's edge at the
+ wall is soft, the rest of it as on the left. Stage 4 (no FAR):
+ dark rings in the glow = the level comes round, as designed.
