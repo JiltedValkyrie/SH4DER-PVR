@@ -27,8 +27,9 @@
                       the bulb toward the eye; 0 is at the bulb, where the shade's near side hides its middle.
      ao4_lamp_pattern the slots' texture, ARGB1555, AO4_LAMP_TEX square: alpha 0 in a slot. One slot a segment.
 
-   Cost, counted not measured: shade 65 vertices (a normalise for the view, one for the light, sh4der_sss_rgb: three
-   exp); halo 129 vertices x the planes' dots; 96 + 240 triangles. ESTIMATE until a console stage times it. */
+   Cost, MEASURED in suite s7 (one console, one run, 2026-11-25; ledger SH4-083): the shade 187 us for its 65 vertices
+   (a normalise for the view, one for the light, sh4der_sss_rgb: three exp), the halo 205 us for its 129 (the planes'
+   dots). Sent: 96 + 240 triangles (PVR-157). */
 
 #ifndef AO4_LAMP_H
 #define AO4_LAMP_H
