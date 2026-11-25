@@ -188,10 +188,22 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
         printf("gfx: no video memory for a %u x %u reflection target\n", w, h);
         memset(&s_hdr[GFX_MAT_REFLECT], 0, sizeof s_hdr[0]);
         memset(&s_hdr[GFX_MAT_REFLECT_ADD], 0, sizeof s_hdr[0]);
+        memset(&s_hdr[GFX_MAT_SHADOW], 0, sizeof s_hdr[0]);
         return -1;
     }
     sh4der_pl4nar_layer_header(&s_rt, &s_hdr[GFX_MAT_REFLECT], 0u);
     sh4der_pl4nar_layer_header(&s_rt, &s_hdr[GFX_MAT_REFLECT_ADD], 1u);
+    {   /* the shadow tiles in the same target: texel x vertex colour, multiplied into the frame (DESTCOLOR x ZERO) */
+        pvr_poly_cxt_t c;
+        pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)s_rt.pitch, (int)s_rt.h, (pvr_ptr_t)s_rt.tex, PVR_FILTER_BILINEAR);
+        c.gen.culling = PVR_CULLING_NONE;
+        c.txr.alpha = PVR_TXRALPHA_DISABLE;
+        c.txr.env = PVR_TXRENV_MODULATE;
+        c.txr.uv_clamp = PVR_UVCLAMP_UV;
+        c.blend.src = PVR_BLEND_DESTCOLOR; c.blend.dst = PVR_BLEND_ZERO;
+        c.depth.write = PVR_DEPTHWRITE_DISABLE;
+        pvr_poly_compile(&s_hdr[GFX_MAT_SHADOW], &c);
+    }
     return 0;
 }
 unsigned gfx_be_reflect_bytes(void) { return s_rt.bytes; }

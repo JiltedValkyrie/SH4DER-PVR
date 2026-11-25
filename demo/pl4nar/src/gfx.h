@@ -23,6 +23,8 @@ enum {
     GFX_MAT_GLOW,                  /* translucent, the glow texture x vertex colour, added: halos */
     GFX_MAT_P_FACADE0, GFX_MAT_P_FACADE1, GFX_MAT_P_FACADE2, GFX_MAT_P_FACADE3,   /* the same world, 64 x 64, 16 colours, point sampled */
     GFX_MAT_P_ROAD,
+    GFX_MAT_SHADOW,                /* translucent: the reflection target's shadow tiles x vertex colour, multiplied into what is
+                                      there (DESTCOLOR x ZERO): white keeps the ground, grey darkens it */
     GFX_MAT_COUNT
 };
 enum { GFX_CULL_NONE = 0, GFX_CULL_BACK = 1, GFX_CULL_MIRROR = 2 };

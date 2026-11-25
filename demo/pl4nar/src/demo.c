@@ -19,9 +19,16 @@
 #define MAP_DRAW     300.0f        /* drawn round the camera, m */
 #define MAP_MIRROR   140.0f        /* mirrored round the camera */
 #define MAP_CAP_NIGHT 0.50f        /* the layer's alpha at night at most: the strips over the paint keep its colour */
+#define TILE_N       8u            /* car shadow tiles: 4 x 2 in the right half of the reflection target */
+#define TILE_M       10.0f         /* a tile's side on the ground, m */
+#define TILE_NEAR    50.0f         /* traffic nearer than this to the car may have a tile */
+#define TILE_Z       1.0e4f        /* the tiles' depth key in the mirror pass: in front of anything mirrored (z = 1 / w) */
+#define RT_W(w)      ((w) * 2u)    /* the target: the mirror on the left, the tiles on the right */
 #if MAP_MAX_NV > MDL_MAX_NV
 #define SCRATCH_MAP_NV MAP_MAX_NV  /* the map's largest model is larger than the bake's */
 #endif
+#else
+#define RT_W(w)      (w)
 #endif
 
 /* ------------------------------------------------------------------------------------------------ world numbers */
@@ -144,6 +151,15 @@ static unsigned s_haze_max = (unsigned)(HAZE_MAX * 256.0f);   /* this pass: the 
 static sh4der_pl4nar_view_t s_pv;
 static int s_pv_ok;                               /* this frame's reflection view was built: the layer may be drawn */
 static const sh4der_pl4nar_plane_t s_road_plane = { { 0.0f, 1.0f, 0.0f }, 0.0f };
+#ifdef PL4NAR_MAP
+/* Car shadow tiles: drawn in the mirror pass into the target's right half, read on the screen by a ground quad a car. */
+static int      s_tiles = 1;                       /* the switch (the autorun's "no tiles" stage) */
+static unsigned s_tile_n;                          /* this frame's tiles; 0: blobs only */
+static int      s_tile_car[TILE_N];                /* -1 the player, else the traffic index */
+static float    s_tile_c[TILE_N][2];               /* the tile's centre on the ground (x, z) */
+static float    s_tile_px;                         /* a tile's side in target pixels */
+void demo_auto_tiles(int on) { s_tiles = on; }
+#endif
 
 int demo_reflect_on(void) { return s_reflect; }
 
@@ -156,7 +172,7 @@ int demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit) {
     s_tod_mode = tod_mode % 4u;
     s_auto = orbit;
     s_info = 0;                                    /* the overlay's text is not part of what is measured */
-    if (size % 3u != s_size) { s_size = size % 3u; r = gfx_reflect_resize(s_sizes[s_size][0], s_sizes[s_size][1]); }
+    if (size % 3u != s_size) { s_size = size % 3u; r = gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]); }
     return r;
 }
 float demo_speed(void) { return s_car.v; }
@@ -168,6 +184,11 @@ void demo_counts(demo_counts_t *c) {
     c->tris_main = s_tris_main; c->tris_refl = s_tris_refl; c->lookup_us = s_pv_ok ? s_refl_cpu_us : 0u;
     c->tw = s_sizes[s_size][0]; c->th = s_sizes[s_size][1]; c->target_bytes = gfx_reflect_bytes();
     c->night = s_night; c->refl_ok = s_pv_ok; c->draw_back = DRAW_BACK; c->draw_fwd = DRAW_FWD;
+#ifdef PL4NAR_MAP
+    c->tiles = s_tile_n;
+#else
+    c->tiles = 0u;
+#endif
 }
 
 /* ------------------------------------------------------------------------------------------------ init */
@@ -240,7 +261,7 @@ void demo_init(void) {
 #endif
     s_car.x = -2.0f; s_car.z = 8.0f; s_car.h = 0.0f; s_car.v = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.clock = 0.0f;
     demo_place();
-    gfx_reflect_resize(s_sizes[s_size][0], s_sizes[s_size][1]);
+    gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]);
 }
 
 /* ------------------------------------------------------------------------------------------------ update */
@@ -266,7 +287,7 @@ void demo_update(const demo_input_t *in, float dt) {
     if (s_tod < 0.0f) s_tod += 1.0f;
     if (in->pressed & DEMO_BTN_SIZE) {
         s_size = (s_size + 1u) % 3u;
-        gfx_reflect_resize(s_sizes[s_size][0], s_sizes[s_size][1]);
+        gfx_reflect_resize(RT_W(s_sizes[s_size][0]), s_sizes[s_size][1]);
     }
     /* arcade car: each step is a x b + c, one FMAC (shz_fmaf); the rates are constants x dt */
     if (in->gas > 0.05f)        s_car.v = shz_fmaf(in->gas, 13.0f * dt, s_car.v);
@@ -685,6 +706,9 @@ static void draw_player(void) {
     {
         sh4der_pl4nar_material_t paint = sh4der_pl4nar_preset(SH4DER_PL4NAR_PAINT), glass = sh4der_pl4nar_preset(SH4DER_PL4NAR_GLASS);
         const float us = gfx_reflect_u_scale();
+#ifdef PL4NAR_MAP
+        const float umax = 1.0f - shz_invf((float)s_sizes[s_size][0]);   /* a mirror texel short of the tiles */
+#endif
         paint.f0 = s_f0; glass.f0 = s_f0 + 0.10f;
         paint.reach = glass.reach = s_reach;
         paint.gain = glass.gain = shz_lerpf(s_day_gain, s_lamp_gain, s_night);   /* at night the lamps want more of the layer */
@@ -697,7 +721,11 @@ static void draw_player(void) {
             if (s->cls != CLS_PAINT && s->cls != CLS_GLASS) continue;
             sh4der_pl4nar_shade(&s_pv, s_wp[i], s_wsn[i], mat, &smp);
             *o = s_body[i];                                   /* the opaque vertex's own x, y, z: the layer has its depth */
+#ifdef PL4NAR_MAP
+            o->u = shz_fminf(smp.u, umax) * us * 0.5f; o->v = smp.v;   /* the mirror is the target's left half */
+#else
             o->u = smp.u * us; o->v = smp.v;                  /* hand: one scale (1 on a KallistiOS with a sized target) */
+#endif
             o->argb = sh4der_pl4nar_argb(&smp, mat);
 #ifdef PL4NAR_MAP
             {   /* at night the layer's alpha is capped: a strip on the deck keeps the paint's red under it */
@@ -839,17 +867,143 @@ static void blob(float x, float z, float yaw, float alpha) {
     fan(p, sh4der_pool_disc(c, u, v, 8u, 0x00000000u, alpha, p), 1);
 }
 
-static void draw_shadows(void) {
-    const float alpha = shz_lerpf(0.50f, 0.25f, s_night);
-    unsigned i;
-    blob(s_car.wx, s_car.wz, s_car.wh, alpha);
 #ifdef PL4NAR_MAP
+/* The convex hull of n (<= 16) points, counter-clockwise, into h; its count. Monotone chain. */
+static unsigned hull2(float (*p)[2], unsigned n, float (*h)[2]) {
+    unsigned i, j, k = 0, lo;
+    for (i = 1; i < n; i++)                                          /* insertion sort by x, then y */
+        for (j = i; j > 0 && (p[j][0] < p[j - 1][0] || (p[j][0] == p[j - 1][0] && p[j][1] < p[j - 1][1])); j--) {
+            const float tx = p[j][0], ty = p[j][1];
+            p[j][0] = p[j - 1][0]; p[j][1] = p[j - 1][1]; p[j - 1][0] = tx; p[j - 1][1] = ty;
+        }
+    for (i = 0; i < n; i++) {                                        /* lower */
+        while (k >= 2u && shz_vec2_cross(shz_vec2_init(h[k - 1][0] - h[k - 2][0], h[k - 1][1] - h[k - 2][1]),
+                                         shz_vec2_init(p[i][0] - h[k - 2][0], p[i][1] - h[k - 2][1])) <= 0.0f) k--;
+        h[k][0] = p[i][0]; h[k][1] = p[i][1]; k++;
+    }
+    lo = k + 1u;
+    for (i = n - 1u; i-- > 0u;) {                                    /* upper */
+        while (k >= lo && shz_vec2_cross(shz_vec2_init(h[k - 1][0] - h[k - 2][0], h[k - 1][1] - h[k - 2][1]),
+                                         shz_vec2_init(p[i][0] - h[k - 2][0], p[i][1] - h[k - 2][1])) <= 0.0f) k--;
+        h[k][0] = p[i][0]; h[k][1] = p[i][1]; k++;
+    }
+    return k > 1u ? k - 1u : k;                                      /* the last point is the first */
+}
+
+/* One box of a car (model space lo .. hi), slid along the sun onto the ground, as a hull in tile k's pixels. */
+static void tile_box(unsigned k, float x, float z, float yaw, const float lo[3], const float hi[3], uint32_t argb) {
+    const shz_sincos_t sc = shz_sincosf(yaw);
+    const float iy = shz_invf(s_sun[1]), T = s_tile_px, x0 = s_tile_px * (float)(4u + (k & 3u)), y0 = s_tile_px * (float)(k >> 2);
+    const float ks = T * (1.0f / TILE_M), ox = x0 + 0.5f * T - s_tile_c[k][0] * ks, oz = y0 + 0.5f * T - s_tile_c[k][1] * ks;
+    float p[8][2], h[9][2];
+    gfx_vert_t v[9];
+    unsigned i, n;
+    for (i = 0; i < 8u; i++) {
+        const float lx = (i & 1u) ? hi[0] : lo[0], ly = (i & 2u) ? hi[1] : lo[1], lz = (i & 4u) ? hi[2] : lo[2];
+        const float wx = shz_fmaf(lx, sc.cos, shz_fmaf(lz, sc.sin, x)), wz = shz_fmaf(-lx, sc.sin, shz_fmaf(lz, sc.cos, z));
+        const float t = ly * iy;                                     /* along -sun to y = 0 */
+        p[i][0] = shz_clampf(shz_fmaf(shz_fmaf(-s_sun[0], t, wx), ks, ox), x0 + 2.0f, x0 + T - 2.0f);
+        p[i][1] = shz_clampf(shz_fmaf(shz_fmaf(-s_sun[2], t, wz), ks, oz), y0 + 2.0f, y0 + T - 2.0f);
+    }
+    n = hull2(p, 8u, h);
+    for (i = 0; i < n; i++) gfx_vert2d(&v[i], h[i][0], h[i][1], TILE_Z * 1.1f, 0.0f, 0.0f, argb);
+    for (i = 1; i + 1u < n; i++) gfx_tri(&v[0], &v[i], &v[i + 1u]);
+}
+
+/* A car's casters: the body to 55 % of its height, the cabin above it, narrower and shorter. */
+static void tile_car(unsigned k, float x, float z, float yaw, const mdl_t *m, uint32_t argb) {
+    const float L = m->hi[2] - m->lo[2], W = m->hi[0] - m->lo[0], H = m->hi[1] - m->lo[1];
+    const float blo[3] = { m->lo[0], m->lo[1], m->lo[2] }, bhi[3] = { m->hi[0], shz_fmaf(H, 0.55f, m->lo[1]), m->hi[2] };
+    const float clo[3] = { shz_fmaf(W, 0.08f, m->lo[0]), m->lo[1], shz_fmaf(L, 0.22f, m->lo[2]) };
+    const float chi[3] = { shz_fmaf(W, -0.08f, m->hi[0]), m->hi[1], shz_fmaf(L, -0.30f, m->hi[2]) };
+    const float T = s_tile_px, x0 = T * (float)(4u + (k & 3u)), y0 = T * (float)(k >> 2);
+    gfx_quad2d(x0, y0, x0 + T, y0 + T, TILE_Z, 0.0f, 0.0f, 0.0f, 0.0f, 0xffffffffu);
+    tile_box(k, x, z, yaw, blo, bhi, argb);
+    tile_box(k, x, z, yaw, clo, chi, argb);
+}
+
+/* The mirror pass's last opaque work: the player and the nearest traffic, a tile each. Day only (the sun up). */
+static void draw_tiles(float tw, float th) {
+    const float sy = s_sun[1];
+    const unsigned g = (unsigned)(shz_lerpf(0.50f, 1.0f, shz_saturatef(s_night * 2.0f)) * 255.0f);
+    const uint32_t argb = gfx_rgb(255u, g, g, g);
+    float d2[MAP_CARS];
+    unsigned i, k;
+    s_tile_n = 0u;
+    if (!s_tiles || s_night >= 0.5f || sy < 0.2f) return;
+    s_tile_px = th * 0.5f;
+    gfx_viewport(tw * 2.0f, th);
+    gfx_bind(GFX_MAT_FLAT);
+    gfx_cull(GFX_CULL_NONE);
     for (i = 0; i < map_traffic_n(); i++) {
         const map_pose_t q = map_traffic_pose(i);
         const float dx = q.x - s_car.wx, dz = q.z - s_car.wz;
-        if (dx * dx + dz * dz < 80.0f * 80.0f) blob(q.x, q.z, q.yaw, alpha);    /* hand: scalar products */
+        d2[i] = dx * dx + dz * dz;                                   /* hand: scalar products */
     }
+    for (k = 0; k < TILE_N; k++) {
+        float x, z, yaw;
+        const mdl_t *m;
+        int car = -1;
+        if (k > 0u) {                                                /* the nearest traffic not yet tiled */
+            float best = TILE_NEAR * TILE_NEAR;
+            for (i = 0; i < map_traffic_n(); i++) if (d2[i] < best) { best = d2[i]; car = (int)i; }
+            if (car < 0) break;
+            d2[car] = 1e30f;
+        }
+        if (car < 0) { x = s_car.wx; z = s_car.wz; yaw = s_car.wh; m = &mdl_player_body; }
+        else { const map_pose_t q = map_traffic_pose((unsigned)car); x = q.x; z = q.z; yaw = q.yaw; m = map_models[map_car[car].body]; }
+        {   /* the tile's ground square: on the car, moved half the shadow's reach away from the sun (at most 2 m) */
+            const float r = shz_fminf(0.5f * m->hi[1] * shz_invf(sy), 2.0f);
+            s_tile_c[k][0] = shz_fmaf(-s_sun[0], r, x); s_tile_c[k][1] = shz_fmaf(-s_sun[2], r, z);
+        }
+        s_tile_car[k] = car;
+        tile_car(k, x, z, yaw, m, argb);
+        s_tile_n = k + 1u;
+    }
+    gfx_viewport(tw, th);
+}
+
+static int tiled(int car) {
+    unsigned k;
+    for (k = 0; k < s_tile_n; k++) if (s_tile_car[k] == car) return 1;
+    return 0;
+}
+
+/* The screen's side: a ground quad a tile, its texels multiplied into the frame (GFX_MAT_SHADOW). XMTRX = s_vp. */
+static void draw_tile_quads(void) {
+    const float W = (float)RT_W(s_sizes[s_size][0]), H = (float)s_sizes[s_size][1], us = gfx_reflect_u_scale();
+    const float iw = shz_invf(W) * us, ih = shz_invf(H), h = TILE_M * 0.5f;
+    gfx_vert_t q[4];
+    unsigned k, c;
+    if (!s_tile_n) return;
+    gfx_bind(GFX_MAT_SHADOW);
+    for (k = 0; k < s_tile_n; k++) {
+        const float T = s_tile_px, x0 = T * (float)(4u + (k & 3u)), y0 = T * (float)(k >> 2);
+        for (c = 0; c < 4u; c++) {
+            const int ix = c == 1u || c == 2u, iz = c >= 2u;
+            gfx_xform(&q[c], shz_vec3_init(s_tile_c[k][0] + (ix ? h : -h), 0.02f, s_tile_c[k][1] + (iz ? h : -h)));
+            q[c].u = (x0 + (ix ? T - 0.5f : 0.5f)) * iw; q[c].v = (y0 + (iz ? T - 0.5f : 0.5f)) * ih;
+            q[c].argb = 0xffffffffu; q[c].oargb = 0u;
+        }
+        quad(q);
+    }
+}
+#endif
+
+static void draw_shadows(void) {
+    const float alpha = shz_lerpf(0.50f, 0.25f, s_night);
+    unsigned i;
+#ifdef PL4NAR_MAP
+    if (!tiled(-1)) blob(s_car.wx, s_car.wz, s_car.wh, alpha);
+    for (i = 0; i < map_traffic_n(); i++) {
+        const map_pose_t q = map_traffic_pose(i);
+        const float dx = q.x - s_car.wx, dz = q.z - s_car.wz;
+        if (dx * dx + dz * dz < 80.0f * 80.0f && !tiled((int)i)) blob(q.x, q.z, q.yaw, alpha);    /* hand: scalar products */
+    }
+    draw_tile_quads();
     return;
+#else
+    blob(s_car.wx, s_car.wz, s_car.wh, alpha);
 #endif
     for (i = 0; i < s_nprop; i++) {
         const prop_t *pr = &s_prop[i];
@@ -900,7 +1054,11 @@ static void overlay(const demo_stats_t *st) {
         hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "RT gas  LT brake  stick steer  B+stick camera  B+UP/DOWN night gain"); y += 16.0f;
         hud_text(24.0f, y, 1.0f, 0xffc0c0c0u, "X reflect  Y time  A look  B+A size  UP / DOWN F0  START info");
         if (s_reflect) {                                  /* the target itself, top centre: what the mirrored camera sees */
+#ifdef PL4NAR_MAP
+            const float w = 256.0f, h = 64.0f, x = 192.0f, y0 = 14.0f;  /* the mirror and its shadow tiles */
+#else
             const float w = 128.0f, h = 64.0f, x = 256.0f, y0 = 14.0f;
+#endif
             gfx_bind(GFX_MAT_HUD);
             gfx_quad2d(x - 2.0f, y0 - 2.0f, x + w + 2.0f, y0 + h + 2.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0xc0000000u);
             gfx_bind(GFX_MAT_REFLECT);
@@ -937,6 +1095,9 @@ void demo_draw(const demo_stats_t *st) {
     tod_eval();
     gfx_clear_colour(s_haze);
     s_pv_ok = 0;
+#ifdef PL4NAR_MAP
+    s_tile_n = 0u;
+#endif
     if (s_reflect) {
         const float tw = (float)s_sizes[s_size][0], th = (float)s_sizes[s_size][1], fov = FOV_MAIN * SH4DER_PL4NAR_FOV_SCALE;
         s_pv_ok = sh4der_pl4nar_view_build(&s_pv, &s_road_plane, eye3, at3, up3, fov, GFX_NEAR, tw, th, s_reach * 0.25f);   /* the fade: a quarter of the reach */
@@ -956,6 +1117,9 @@ void demo_draw(const demo_stats_t *st) {
             gfx_cull(GFX_CULL_MIRROR);
             draw_buildings(0);
             draw_props(1);
+#ifdef PL4NAR_MAP
+            draw_tiles(tw, th);
+#endif
             if (s_lamp > 0.02f) {                             /* the lamp heads, lit: what sweeps over the paint at night */
                 spark_view(eye, at);
                 gfx_list_translucent();

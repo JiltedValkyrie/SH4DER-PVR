@@ -83,12 +83,12 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 #define STR_(x) #x
 #define STR(x) STR_(x)
 
-typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit; } stage_t;
+typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs; } stage_t;   /* blobs: no shadow tiles */
 #ifdef PL4NAR_MAP
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0 }, { "off day",          0, 0, 1, 0 }, { "on 256x128 night", 1, 0, 2, 0 },
-    { "off night",        0, 0, 2, 0 }, { "on 128x64 night",  1, 1, 2, 0 }, { "on 512x256 night", 1, 2, 2, 0 },
-    { "on 256 day orbit", 1, 0, 1, 1 }, { "on 256 nite orbit", 1, 0, 2, 1 }
+    { "on 256x128 day",   1, 0, 1, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1 }, { "off day",          0, 0, 1, 0, 0 },
+    { "on 256x128 night", 1, 0, 2, 0, 0 }, { "off night",        0, 0, 2, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0 },
+    { "on 512x256 night", 1, 2, 2, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0 }, { "on 256 nite orbit", 1, 0, 2, 1, 0 }
 };
 #else
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
@@ -103,7 +103,7 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
 typedef struct acc {
     uint32_t n, dt_sum, dt_max, cpu_n, cpu_sum, lookup_sum, tri_main_sum, tri_refl_sum;   /* the unsampled frames */
     uint32_t s, ta_scr_sum, ta_scr_max, ta_mir_sum, ta_mir_max, rnd_scr_sum, rnd_mir_sum;   /* the sampled frames */
-    uint32_t vram_kb, ram_kb, target_bytes, resize_fail, bad_binds;
+    uint32_t vram_kb, ram_kb, target_bytes, resize_fail, bad_binds, tiles_max;
 } acc_t;
 static acc_t acc[STAGES];
 static unsigned auto_done;
@@ -154,6 +154,14 @@ static void report(void) {
     pg_say("headers refused (wrong list or never compiled): %u", (unsigned)gfx_pvr_bad_binds());
     pg_say("PVR waits given up (200 ms each): %u", (unsigned)gfx_pvr_timeouts());
     pg_say("each stage from s %u m, lane %d m, %u m/s", (unsigned)AUTO_Z, (int)AUTO_X, (unsigned)AUTO_SPEED);
+#ifdef PL4NAR_MAP
+    {   /* the car shadow tiles: by day with the reflection on; "blobs" stages, night and off keep the blob discs */
+        char t[80];
+        size_t o = (size_t)snprintf(t, sizeof t, "shadow tiles a stage, most seen:");
+        for (k = 0; k < STAGES && o < sizeof t - 4u; k++) o += (size_t)snprintf(t + o, sizeof t - o, " %u", (unsigned)acc[k].tiles_max);
+        pg_say("%s", t);
+    }
+#endif
     pg_say("TA bytes include headers; PVR = rnd_last_time of the scene");
     g = pg_plot("pl4m: frame and PVR a stage, ms", "stage", "ms", 1);
     for (k = 0; k < STAGES; k++) { char c[4]; snprintf(c, sizeof c, "%u", k + 1u); pg_cat(g, c); }
@@ -183,6 +191,9 @@ int main(int argc, char **argv) {
 #ifdef PL4NAR_AUTORUN
     if (psm_fault_init(&crumbs) < 0) pg_say("fault catcher: a hook was refused");
     acc[0].resize_fail = demo_auto_set(stages[0].reflect, stages[0].size, stages[0].tod, stages[0].orbit) != 0;
+#ifdef PL4NAR_MAP
+    demo_auto_tiles(!stages[0].blobs);
+#endif
     demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
     psm_fault_stage(&crumbs, stages[0].name);
     t_stage = timer_us_gettime64();
@@ -234,6 +245,7 @@ int main(int argc, char **argv) {
             demo_counts_t c;
             demo_counts(&c);
             if (!sampled && !drain) { a->cpu_n++; a->cpu_sum += st.cpu_us; a->lookup_sum += c.lookup_us; a->tri_main_sum += c.tris_main; a->tri_refl_sum += c.tris_refl; }
+            if (c.tiles > a->tiles_max) a->tiles_max = c.tiles;
             else {
                 const gfx_pvr_pass_t *ps0 = gfx_pvr_pass(0u), *ps1 = gfx_pvr_pass(1u);
                 a->s++;
@@ -254,6 +266,9 @@ int main(int argc, char **argv) {
             auto_done = ++stage;
             if (stage >= STAGES) break;
             acc[stage].resize_fail = demo_auto_set(stages[stage].reflect, stages[stage].size, stages[stage].tod, stages[stage].orbit) != 0;
+#ifdef PL4NAR_MAP
+            demo_auto_tiles(!stages[stage].blobs);
+#endif
             demo_auto_place(AUTO_Z, AUTO_X, AUTO_SPEED);
             psm_fault_stage(&crumbs, stages[stage].name);
             t_stage = t_prev = timer_us_gettime64();

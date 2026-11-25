@@ -114,6 +114,7 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
     s_rt_rgba = calloc((size_t)w * h, 4);
     s_tex[GFX_MAT_REFLECT].rgba = s_rt_rgba; s_tex[GFX_MAT_REFLECT].w = (int)w; s_tex[GFX_MAT_REFLECT].h = (int)h;
     s_tex[GFX_MAT_REFLECT_ADD] = s_tex[GFX_MAT_REFLECT];
+    s_tex[GFX_MAT_SHADOW] = s_tex[GFX_MAT_REFLECT];
     return 0;
 }
 unsigned gfx_be_reflect_bytes(void) { return (unsigned)(s_rt.w * s_rt.h * 2); }
@@ -156,7 +157,8 @@ static float edge(float ax, float ay, float bx, float by, float px, float py) { 
 void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
     const tex_t *tx = s_tex[s_mat].rgba ? &s_tex[s_mat] : NULL;
     const float area = edge(a->x, a->y, b->x, b->y, c->x, c->y);
-    const int refl = s_mat == GFX_MAT_REFLECT || s_mat == GFX_MAT_REFLECT_ADD;
+    const int refl = s_mat == GFX_MAT_REFLECT || s_mat == GFX_MAT_REFLECT_ADD || s_mat == GFX_MAT_SHADOW;
+    const int mul = s_mat == GFX_MAT_SHADOW;          /* DESTCOLOR x ZERO: the frame times texel x colour */
     const int added = s_mat == GFX_MAT_REFLECT_ADD || s_mat == GFX_MAT_ADD || s_mat == GFX_MAT_GLOW;
     int x0, x1, y0, y1, x, y, k;
     float mnx = fminf(a->x, fminf(b->x, c->x)), mxx = fmaxf(a->x, fmaxf(b->x, c->x));
@@ -191,6 +193,7 @@ void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
             for (k = 0; k < 3; k++) {
                 float v = t[k] * col[k + 1] + (tx && !refl && s_mat != GFX_MAT_FONT ? off[k] : 0.0f);
                 v = v > 1.0f ? 1.0f : v;
+                if (mul) { out[k] = v * (float)d[k] * (1.0f / 255.0f); continue; }
                 out[k] = v * alpha + (float)d[k] * (1.0f / 255.0f) * (added ? 1.0f : 1.0f - alpha);
                 out[k] = out[k] > 1.0f ? 1.0f : out[k];
             }
