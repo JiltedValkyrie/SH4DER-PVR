@@ -53,15 +53,17 @@ The block for `demo/psm/ao/tile_cut.h`:
 
 ```
    RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
-   Start with: every render target pass, cut to its own tiles (cw x ch from the target's size); TILE_CUT_TRIES = 3
-   Cost:       target pass 3,256 -> 344 us of PVR, the same texel sum (ao4-h, 128 x 128, 20 tiles): MEASURED
-               (PVR-156); 3,312 -> 375 us (c4's map, once): MEASURED (PVR-092). SH-4: not measured
-   Status:     PROVEN for those two passes; ADVISED for others (mirror, depth map: Q97). To prove: the
-               pass's PVR time cut and uncut, and the texel sum of both
+   Start with: one target pass cut to its own tiles (cw x ch), timed cut and uncut; TILE_CUT_TRIES = 3
+   Cost:       PVR: 3,256 -> 344 us (ao4-h), 3,312 -> 375 us (c4), 5,111 -> 1,442 us (d1-c): MEASURED
+               (PVR-156, PVR-092, PVR-192). SH-4: tile_cut_begin +3,930 us a frame in d1-c, and the frame
+               903 us slower: MEASURED (PVR-192)
+   Status:     the PVR saving PROVEN (three passes); a frame gain ADVISED: the first form did not pay in d1-c
+               (its begin read the whole tables from video memory); this form, tables kept in RAM, has not run
+               on a console. To prove: the whole frame cut and uncut, with the begin and end timed apart
    Do:         wait for render done after every cut pass (the table must not change under a render)
    Do not:     cut while the next scene fills during a render; carry on if tile_cut_end returns bad
                (shut the PVR down and pvr_init again)
-   Maturity:   ALPHA v0.4 (wiki/status/maturity.md)
+   Maturity:   ALPHA v0.5
 ```
 
 ## Related
