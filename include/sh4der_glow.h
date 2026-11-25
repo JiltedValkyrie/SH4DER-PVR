@@ -3,6 +3,18 @@
    sh4der_glow.h
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
+
+   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
+   Start with: the bloom alone, no rays; SH4DER_GLOW_THRESHOLD = 0.62, SH4DER_GLOW_POWER = 2,
+               SH4DER_GLOW_STRENGTH = 0.45, SH4DER_GLOW_RADIUS = 0.5, SH4DER_GLOW_DARKEN_MAX = 0.25
+   Cost:       not measured. ESTIMATE: the map, its shrink and the darken are three full-screen layers, about
+               +3.1 ms of PVR each at 640 x 480 (PVR-002); each ray copy up to one more (SH4DER_GLOW_RAYS = 4).
+               The grid read: ESTIMATE, from one port's REPORTED 1,196 us (VID-005)
+   Status:     ADVISED; to prove: the demo disc's glow row on and off, then rays on, PVR time
+   Do:         the cheapest version first: bloom, then halo, then rays; count your full-screen layers
+               (+3.1 ms each, PROVEN: PVR-002)
+   Do not:     draw the darken without the bloom (the scene's mean drops)
+   Maturity:   PROTOTYPE v0.1
 */
 
 /** \file    sh4der_glow.h

@@ -3,6 +3,18 @@
    sh4der_pool.h
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
+
+   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
+   Start with: a disc of 10 triangles a lamp, 8 for a blob shadow (the street demo); a wedge of 2 to 4;
+               SH4DER_POOL_MAX_N = 16; the centre lifted 2 to 4 cm; a blob at alpha about 0.4
+   Cost:       not measured (the street demo's blob stage was not the pool alone: PVR-160, PVR-175). A pool is
+               fill: ESTIMATE at most its share of the screen of a full-screen translucent layer, which is
+               +3.1 ms of PVR at 640 x 480 (PVR-002)
+   Status:     ADVISED; to prove: the same view with pools on and off, no key pressed, PVR time
+   Do:         limit lamps by distance; spread translucent triangles, never stack them in a tile (256 in one
+               tile 6.4 ms against 82 us spread: PVR-009, PROVEN)
+   Do not:     write depth from a pool; draw it before the ground
+   Maturity:   ALPHA v0.2
 */
 
 /** \file    sh4der_pool.h

@@ -3,8 +3,21 @@
    demo/psm/fakeaf.h
    Copyright (c) 2026 Jilted Valkyrie. See ../../LICENSE.
 
-   A test's helper, not yet the library's. NOTHING HERE HAS RUN ON A CONSOLE: every statement about what the PVR does
-   with it is an ESTIMATE, and the numbers in the default table are invented starting values.
+   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
+   Start with: the BIAS mode (no pass, no fill: faf_bias_code a polygon, polygons batched a header a bias;
+               FAF_BIAS_NONE = 4 is 1.00); the ranges only if the bias is not enough
+   Cost:       the corridor at 640 x 480: bias stages 7.20 to 7.71 ms of PVR against bilinear 6.17, MEASURED
+               (PVR-180); the +1.0 to +1.5 ms difference DERIVED; why: OPEN. The level the PVR then picks was
+               not read back. Ranges: not measured; three stretched copies take 112 KB (arithmetic)
+   Status:     the bias mode as a start: ADVISED; that a sharper bias costs PVR time: PROVEN (PVR-180's
+               stage means). To prove the mode: the bias stages with the mip level read back, and a ranges stage
+   Do:         treat a sharper bias as a cost; give it only to floor polygons at a grazing slope
+   Do not:     let one range span much more than a doubling of distance (a stretched copy has no mip levels)
+   Maturity:   ALPHA v0.2 (the bias code)
+
+   A test's helper, not yet the library's. Only faf_bias_code has run on a console (the corridor, PVR-180: its cost);
+   the ranges have not. The PVR's own level choice, the next paragraph, is MEASURED (PVR-167 to PVR-169); the rest is
+   ESTIMATE, and the numbers in the default table are invented starting values.
 
    WHAT IS MEASURED ABOUT THE PVR'S OWN CHOICE (the mip test, one console, one run; wiki PVR-167 to PVR-169): the mip
    level is chosen a pixel; it follows the LARGER of the two footprint axes (texels a pixel along the view, on a
@@ -54,6 +67,7 @@
 #include <stdint.h>
 
 #include "sh4der_core.h"                    /* the library's maths switch: SH4ZAM on the console, plain C on a host */
+#include "psm_ramp.h"
 
 #define FAF_RANGES_MAX 4u
 #define FAF_EDGES_MAX (2u * (FAF_RANGES_MAX - 1u))
@@ -118,13 +132,7 @@ static inline int faf_table_ok(const faf_range_t *t, unsigned n) {
 }
 
 /* How far range r has faded in at a distance, 0 .. 1. Range 0: 1 everywhere. */
-static inline float faf_in(const faf_range_t *r, float dist) {
-    float f;
-
-    if (!(r->ramp > 0.0f)) return dist >= r->from ? 1.0f : 0.0f;
-    f = (dist - r->from) * sh4der_recip_pos_(r->ramp);
-    return f <= 0.0f ? 0.0f : f >= 1.0f ? 1.0f : f;
-}
+static inline float faf_in(const faf_range_t *r, float dist) { return psm_ramp_in(r->from, r->ramp, dist); }   /* the shared ramp (psm_ramp.h) */
 
 /* The share of range k in the picture at a distance, 0 .. 1: the shares of all ranges add to 1. */
 static inline float faf_weight(const faf_range_t *t, unsigned n, unsigned k, float dist) {

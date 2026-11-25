@@ -6,6 +6,18 @@
    The flash and tracer rules (one additive quad for a flash; a line from the muzzle
    to the hit whose muzzle end retreats, with a least width in pixels) follow
    Halo: Dreamcast Evolved's src/fx.c and src/bullet_tracer.h, same author.
+
+   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
+   Start with: SH4DER_SPARK_MAX = 24 (96 vertices a frame at most), SH4DER_SPARK_MIN_PX = 0.8,
+               SH4DER_SPARK_INSET = 0.0078125 for a 64 x 64 atlas (VQ: 3 KB); one additive header a frame
+   Cost:       not measured: no ledger row names it (the street demo draws its halos with sh4der_spark_quad).
+               ESTIMATE: 96 vertices at 142 to 260 ns a vertex sent (BUS-001, BUS-003), under 25 us of SH-4;
+               the PVR's fill follows the quads' size on screen
+   Status:     ADVISED; to prove: a stage with the pool full against empty, PVR and SH-4 apart
+   Do:         give SH4DER_SPARK_KEEP only to what must never be pushed out (a flash, a tracer)
+   Do not:     draw outside the translucent list or before the world; send your own quads without the
+               area test (sh4der_tri_area_ok)
+   Maturity:   PROTOTYPE v0.1
 */
 
 /** \file    sh4der_spark.h

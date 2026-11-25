@@ -3,14 +3,25 @@
    demo/psm/ao/tile_cut.h
    Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
+   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
+   Start with: every render target pass, cut to its own tiles (cw x ch from the target's size); TILE_CUT_TRIES = 3
+   Cost:       target pass 3,256 -> 344 us of PVR, the same texel sum (ao4-h, 128 x 128, 20 tiles): MEASURED
+               (PVR-156); 3,312 -> 375 us (c4's map, once): MEASURED (PVR-092). SH-4: not measured
+   Status:     PROVEN for those two passes; ADVISED for others (mirror, depth map: Q97). To prove: the
+               pass's PVR time cut and uncut, and the texel sum of both
+   Do:         wait for render done after every cut pass (the table must not change under a render)
+   Do not:     cut while the next scene fills during a render; carry on if tile_cut_end returns bad
+               (shut the PVR down and pvr_init again)
+   Maturity:   ALPHA v0.4
+
    KallistiOS renders a target through the screen's whole tile table, 20 x 15 tiles whatever the target's size, and
    the PVR's ISP visits every one: about 3.2 ms a pass (wiki PVR-004). This makes the table end after the target's
    own tiles for the length of one pass and puts it back (../TILE_CUT_SCOPE.md; PVR-092: 3,312 -> 375 us for a 20-tile
    target, MEASURED once, as a single last stage of the c4 image).
 
-   STATUS: the table logic below is host tested (test/tile_cut_test.c). The per-pass use (rewrite before every target
-   pass, restore after it) has run only in a spike, ao4-e; until that spike's page is photographed on a console it is
-   NOT console-proven.
+   STATUS: the table logic below is host tested (demo/psm/ao/test/tile_cut_test.c; no make target runs it yet). The
+   per-pass use (rewrite before every target pass, restore after it) ran in ao4-h (PVR-156) and the single stage in
+   c4 (PVR-092), one console each.
 
    THE TABLE, as KallistiOS builds it at pvr_init (pvr_buffers.c pvr_init_tile_matrix, read at commit 568c3404; the
    lines want a new check against the current master before anything is offered upstream): a first entry of six words

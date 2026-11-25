@@ -3,6 +3,19 @@
    sh4der_pl4nar.h
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
+
+   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
+   Start with: a 256 x 128 target (64 KB with HAVE_RTT), and go down before anything else;
+               SH4DER_PL4NAR_FOV_SCALE = 1.55 for a body (1 for a flat surface); SH4DER_PL4NAR_F0_PAINT = 0.06,
+               SH4DER_PL4NAR_F0_GLASS = 0.10, SH4DER_PL4NAR_REACH = 18.0, SH4DER_PL4NAR_GROUND_KEEP = 0.55
+   Cost:       street demo c7: lookups 0.59 to 0.65 ms of SH-4 (PVR-174, MEASURED); a vertex about 2.0 us if the
+               car body has 320 looked-up vertices (PVR-160's count; DERIVED, not checked in c7). Mirror pass 3.0
+               to 3.3 ms of PVR at three sizes (PVR-174, PVR-175), MEASURED; its SH-4 not isolated
+   Status:     ADVISED; to prove: the demo's size stages with no key pressed, PVR and SH-4 apart
+   Do:         look up only the reflecting body (the per-vertex cost is DERIVED); cut the mirror pass to its
+               own tiles (it costs about 3.2 ms whatever its size; the cut is ADVISED here, Q97)
+   Do not:     allocate the target every frame; draw the layer before the opaque surface or write depth from it
+   Maturity:   ALPHA v0.5 (by the written client rule; v0.4 if the owner counts only outside clients)
 */
 
 /** \file    sh4der_pl4nar.h
