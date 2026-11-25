@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""SH4DER-PVR: the PVR-side compare spikes (cmp, vol, sub), build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+"""SH4DER-PVR: the PVR-side compare spikes (cmp, vol, sub, c4), build script.  Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
-    python demo/psm/compare/build.py [--spike cmp|vol|sub] [--tag <tag>] [--out <dir>] [--cdi-dir <dir>] [--mkdcdisc <exe>] [--host-cc <cc>] [--host-only] [--elf-only]
+    python demo/psm/compare/build.py [--spike cmp|vol|sub|c4] [--tag <tag>] [--out <dir>] [--cdi-dir <dir>] [--mkdcdisc <exe>] [--host-cc <cc>]
+                                     [--sh4zam <checkout>] [--host-only] [--elf-only]
 
 Run it in a shell where the KallistiOS environment is sourced (kos-cc on the PATH, KOS_BASE set). It fetches nothing
 and touches no file outside --out (default build/psm_cmp) and --cdi-dir (default demo/psm/out/cdi, the one place
@@ -13,6 +14,10 @@ the images are kept; git ignores it). Steps, each refusing to go on when it fail
 
 --spike cmp (default tag c1) is the compare by blending; --spike vol (default tag c2) is modifier volumes at scale;
 --spike sub (default tag c3) is the bump unit as a subtract, the frame buffer write threshold, punch-through and fog.
+--spike c4 (default tag c4) is the whole chain: a map the PVR draws, the bump unit as the compare, the mask, the shadow
+layer. It is written on the library's maths switch (include/sh4der_core.h) and on SH4ZAM-DCE: its host test is built
+twice (plain C, and on SH4ZAM's software back end), and its program with SH4ZAM (--sh4zam, default third_party/sh4zam;
+the checkout is only read) and the flags of the library's Dreamcast build.
 
 --host-only stops after step 1 (no KallistiOS needed). --elf-only stops after step 2 (no mkdcdisc needed).
 """
@@ -44,16 +49,17 @@ def find_kos_cc():
 
 def main():
     ap = argparse.ArgumentParser(description="Build the PVR-side compare spike.")
-    ap.add_argument("--spike", choices=("cmp", "vol", "sub"), default="cmp")
+    ap.add_argument("--spike", choices=("cmp", "vol", "sub", "c4"), default="cmp")
     ap.add_argument("--tag", default=None)
     ap.add_argument("--out", default=os.path.join(ROOT, "build", "psm_cmp"))
     ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "demo", "psm", "out", "cdi"))
     ap.add_argument("--mkdcdisc", default=os.environ.get("MKDCDISC", "mkdcdisc"))
     ap.add_argument("--host-cc", default=os.environ.get("HOST_CC", "gcc"))
+    ap.add_argument("--sh4zam", default=os.path.join(ROOT, "third_party", "sh4zam"))
     ap.add_argument("--host-only", action="store_true")
     ap.add_argument("--elf-only", action="store_true")
     a = ap.parse_args()
-    tag = a.tag or {"cmp": "c1", "vol": "c2", "sub": "c3"}[a.spike]
+    tag = a.tag or {"cmp": "c1", "vol": "c2", "sub": "c3", "c4": "c4"}[a.spike]
 
     out = os.path.abspath(a.out)
     os.makedirs(out, exist_ok=True)
@@ -62,17 +68,35 @@ def main():
     if not a.host_only and not a.elf_only and os.path.exists(image):
         raise SystemExit("refuse existing image: %s (pick a new --tag)" % image)
 
-    test = os.path.join(out, "%s_model_test%s" % (a.spike, ".exe" if os.name == "nt" else ""))
-    run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror",
-                                  os.path.join(HERE, "test", "%s_model_test.c" % a.spike), "-o", test, "-lm"])
-    run("1 host test (run)", [test])
+    exe = ".exe" if os.name == "nt" else ""
+    src = os.path.join(HERE, "test", "%s_model_test.c" % a.spike)
+    test = os.path.join(out, "%s_model_test%s" % (a.spike, exe))
+    lib_inc = ["-I" + os.path.join(ROOT, "include"), "-I" + os.path.join(ROOT, "sh4dow-dc", "include")]
+    shz_inc = ["-I" + os.path.join(a.sh4zam, "include"), "-I" + os.path.join(ROOT, "third_party", "sh4zam-dce", "include")]
+    if a.spike == "c4":
+        if not os.path.isfile(os.path.join(a.sh4zam, "include", "sh4zam", "shz_sh4zam.h")):
+            raise SystemExit("no SH4ZAM at %s (see AGENTS.md for the clone line, or give --sh4zam)" % a.sh4zam)
+        run("1 host test, plain C (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", "-DSH4DER_CORE_NO_SH4ZAM"] + lib_inc + [src, "-o", test, "-lm"])
+        run("1 host test, plain C (run)", [test])
+        test = os.path.join(out, "%s_model_test_shz%s" % (a.spike, exe))
+        run("1 host test, SH4ZAM software back end (compile)", [a.host_cc, "-O2", "-std=gnu11", "-Wall", "-Wextra", "-Werror"] + lib_inc + shz_inc +
+            [src, os.path.join(a.sh4zam, "source", "sw", "shz_xmtrx_sw.c"), "-o", test, "-lm"])
+        run("1 host test, SH4ZAM software back end (run)", [test])
+    else:
+        run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", src, "-o", test, "-lm"])
+        run("1 host test (run)", [test])
     if a.host_only:
         return 0
 
     kos_cc = find_kos_cc()
     if not os.environ.get("KOS_BASE") or not kos_cc:
         raise SystemExit("kos-cc is not on the PATH or KOS_BASE is not set: source the KallistiOS environment first")
-    run("2 elf", kos_cc + ["-O2", "-Wall", "-Wextra", os.path.join(HERE, "%s_spike.c" % a.spike), "-o", elf])
+    if a.spike == "c4":                    # the library's Dreamcast flags; SH4ZAM's compiled half only if the checkout has built it
+        lib = os.path.join(a.sh4zam, "build", "libsh4zam.a")
+        run("2 elf", kos_cc + ["-O3", "-Wall", "-Wextra", "-ffast-math", "-ffp-contract=fast", "-mfsrra", "-mfsca", "-fno-math-errno"] + lib_inc + shz_inc +
+            [os.path.join(HERE, "%s_spike.c" % a.spike)] + ([lib] if os.path.isfile(lib) else []) + ["-o", elf])
+    else:
+        run("2 elf", kos_cc + ["-O2", "-Wall", "-Wextra", os.path.join(HERE, "%s_spike.c" % a.spike), "-o", elf])
     if a.elf_only:
         print("ELF: %s" % elf)
         return 0

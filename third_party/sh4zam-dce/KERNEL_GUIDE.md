@@ -183,3 +183,29 @@ What the counts show, plainly: a win on the rejected texels only (12 -> 10 cycle
 Not measured, and said so: no Dreamcast and no emulator were used. Every cycle figure is the interpreter's pipeline model (E), not a console. Not measured: the real FIPR and FSRRA latencies and their pipelining, the load and store pairing with the FP unit, the cache, the branch costs, and the accuracy of FIPR and FSRRA on hardware. The checks ran the loops on the vendored bit-exact unit models in tests/third_party/sh4_fpu_approx (the runner's own models, not a console's), so the FIPR and FSRRA results are checked against that model, not the silicon.
 
 Bit identity, stated where it holds: the C form is bit-identical to the running-add row under strict IEEE flags (the host test; every texel of 20000 random triangles and the reference row for every count from 0 to 256). Under -ffast-math the contraction of the same expressions can differ (measured: 50128 texels of the same triangles, none in coverage, largest 748 units). The SH-4 loop is not bit-identical to either, by design (a dot product against running sums); its coverage is the running sums' own.
+
+## Entry: pvr (shz_dce_pvr.h, PVR vertices through XMTRX with the perspective divide)
+
+The routines: `shz_dce_pvr_project_c` (plain C on SH4ZAM's `shz_xmtrx_transform_vec4` and `shz_invf_fsrra`: the reference and the software back end), `shz_dce_pvr_project_sh4` (one asm block, two vertices in flight) and the dispatch `shz_dce_pvr_project`. The BEFORE is the plain loop: the C form, and the same loop with a divide for 1 / W.
+
+**What it does.** N 32-byte PVR vertices in (command word, x y z in model or world space, four words carried), N out: the same records with (X / W, Y / W, 1 / W) where the position was, (X, Y, Z, W) = XMTRX (x, y, z, 1), 1 / W = FSRRA(W W). The output is a block the tile accelerator takes as it is.
+
+**Alignment.** in: a multiple of 4. out: a multiple of 32 for the SH-4 loop (it allocates each record's cache line and writes all 32 bytes; off a multiple of 32 the C form runs). No overlap: the line is allocated before the source's last four words are read. XMTRX is read, not changed. Every W must be over 0.
+
+**Error bound.** FTRV's and FSRRA's own; none added. The checks hold the screen point to 2 x ((P + |X|) / W x 2^-21 + |X / W| x (W's own FTRV bound + 4 x 2^-21)) of the exact quotient.
+
+**Bit-identical.** YES against the C form on the SH-4, all 32 bytes of every record, counts 0 to 41 and 257, in the four flag sets (`pvr_check`). The same FTRV, the same FSRRA of the same product, one multiply each.
+
+**Cycles E** (`build/sh4zam-dce/cycles_pvr.txt`, a vertex, the same at -O2 and -O3):
+
+| Row | E a vertex | instructions |
+|---|---|---|
+| `_bench_pvr_project_divide` (plain loop, FDIV) | 39.0 | 38 |
+| `_bench_pvr_project_c` (plain loop, FSRRA) | 39.0 | 39 to 41 |
+| `_bench_pvr_project` | 19.5 | 30 |
+
+**Where the gain comes from.** The plain loop is the latency chain end to end: transform 7, square 3, reciprocal root 5, product 3, with the loads before and the stores after. The loop here begins the next vertex (its eight loads, its transform, its line and five stores) inside that wait, with the two vertices in fv4 and fv8 in turn so neither waits for a register. A step is 18 loads, stores and moves, one a cycle, and nothing else sets the pace; the loop branch adds 1.5.
+
+**What was tried and did not pay, with numbers.** The first form copied W to a scratch register and walked a second pointer for the screen point's stores: 22.0. Squaring W in place and storing through `@(r0, q)` with constant offsets took the copy and two trailing adds out: 19.5. Pair moves (FPSCR.SZ = 1) for the carried words would take four more loads and stores out; not tried: the position sits across a pair boundary (command word and x share a pair), so it needs a permuted XMTRX or two FSCHG a vertex.
+
+**Not measured, and not claimed.** Any console time: the spike `demo/psm/compare/c4_spike.c` (page 5) times this loop against its C form on a console and compares the bytes; until its pages exist the 19.5 is the model's. Cache misses (the model assumes hits; the loop prefetches the input 96 bytes ahead and allocates the output lines).

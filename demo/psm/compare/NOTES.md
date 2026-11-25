@@ -176,3 +176,69 @@ three above it.
 - Punch-through with the bump level under KallistiOS's default header.
 - The fog level routed into the low byte of a target.
 - Any time. A second run.
+
+## Spike c4: the whole chain (built, not run)
+
+`c4_spike.c`, `c4_model.h`, `test/c4_model_test.c`; image `demo/psm/out/cdi/psm-c4-c4.cdi`. Nothing below is a
+console result: it is the design and what the host MODEL says. The console's pages replace it when they exist.
+
+### The chain
+
+- MAP: faces toward the sun, drawn from the sun into a 128 x 128 RGB565 target through a ramp texture; a pixel's
+  16 bits are its depth code (0 .. 255, high byte 0). The PVR's depth test keeps the nearest. Faces are grown 0.75
+  map pixel in their own plane.
+- The ramp. The PVR divides the interpolated u z by the interpolated z. With u = 1 / (2 z) at every vertex, u z is a
+  constant, so each pixel gets 1 / (2 z) of its own depth: a lookup by depth, which a ramp texture turns into the
+  code (z = 1 - (code + 0.5) / 512). 1024 texels give one texel a code at the near end; a second ramp uses v =
+  1024 u to split each texel of u into 8 (8 rows). The MODEL of the plain ramp: about a quarter of the pixels near
+  the light can be one code off. Test 0 measures both.
+- MASK: 320 x 240 target. An opaque pass for depth, a clear (alpha 0), then the same polygons with the map as a
+  bump texture (not twiddled, point sampled), depth test "equal or nearer", no depth write, blend one / zero. The
+  target is written as ARGB1555 with the alpha threshold: the alpha bit is the shadow.
+- BANDS: Q is one value a polygon (c3b), so each face is cut along lines of equal depth code into bands 1, 2 or 4
+  codes wide. Two bands share a corner's bits (the cut is worked out from the face's own corners).
+- Window: Q = R + (w - b) + 128; lit while M - R is in (-b, 2 w - b). Threshold for w = 16 / 32 / 64: 10 / 38 / 128.
+- BIAS: b = b0 + half a band + half a map texel's depth on that face, in codes. b0 = 1.5.
+- SCREEN: one translucent layer textured with the mask (bilinear), black, alpha = bit x strength.
+
+### What the host model says (plain C and SH4ZAM's software back end give the same numbers)
+
+320 x 240 mask, bias rule as above, against a ray to the sun. "acne" must be 0 and is.
+
+| Sun az / el | Window | Grow | Bands 1 / 2 / 4 wide: corners | acne | edge | rim | lit in bias | other | wrap |
+|---|---|---|---|---|---|---|---|---|---|
+| 150 / 26.5 | 32 | 0 | 2428 / 1252 / 656 | 0 | 76 | 25 | 144 | 0 | 0 |
+| 150 / 26.5 | 32 | 0.75 | same | 0 | 707 / 634 / 572 | 0 | 4 / 4 / 13 | 0 | 0 |
+| 210 / 45 | 32 | 0.75 | 2866 / 1460 / 768 | 0 | 527 / 446 / 405 | 0 | 0 / 0 / 10 | 0 | 0 |
+| 100 / 13 | 32 | 0 | 2572 / 1312 / 692 | 0 | 111 | 654 | 176 | 0 | 0 |
+| 100 / 13 | 32 | 0.75 | same | 0 | 1785 / 1716 / 1594 | 0 | 0 | 5 | 4 |
+| 100 / 13 | 64 | 0.75 | same | 0 | 1717 / 1650 / 1531 | 0 | 0 | 746 / 726 / 689 | 865 |
+
+- Growing the faces removes the rim (a map pixel whose centre is off a face's edge holds what is far behind it, and
+  the cyclic compare reads that as shadow) and costs a wider shadow edge.
+- A window of 64 at a low sun wraps: casters more than 256 - 2 w + b codes nearer read lit. 32 does not here.
+
+### What each page line settles
+
+- 0 RAMP: whether the lookup by depth works at all, how many pixels are a code off with each ramp, and whether the
+  target holds only codes.
+- 1 WINDOW: the bump level against the level table at the three thresholds, straight into a 1555 target (c3b read it
+  through a multiply); "holes" = pixels the second pass did not draw at EQUAL depth.
+- 3 BIAS: the ground alone, so every shadow pixel is acne: the least b0 with 0 is the bias this console needs.
+- 4 SCENE: the map against the model's; the mask against the model run on the console's own map (inside faces and
+  at outlines apart); the mask against the ray (acne, edge, rim, in bias, other).
+- 5 COST: band cut, projection (asm loop against its C form, cycles a vertex, same bytes or not), sends; PVR render
+  time of the map, the mask and the screen with and without the layer.
+- 6 PUNCH: which single header setting made c3b's punch-through draw everything; whether the bump level is tested.
+- 7 DMA: PVR-DMA 128 KB and 512 KB with the end polled each 1 ms, each 250 us, and taken by interrupt.
+- LIVE (START): d-pad the sun, A band width, X / Y bias, B layer; costs are added to the pages on leaving.
+- TILES (Y, last): render time of the map and mask passes with a tile list that ends after 20 and 80 tiles, the
+  pictures compared, every table word restored and read back.
+
+### Not verified
+
+- Nothing ran on a console. Every PVR behaviour the chain rests on beyond c3b's lines is untested: the lookup by
+  depth, "equal or nearer" on a second pass, a 128 x 128 target as a bump texture (c3b: 256 x 256), a 320-wide pass
+  into a 512-wide texture, the 1555 texture's alpha bit through a bilinear filter.
+- The asm projection's cycle count is an estimate until page 5 prints (19.5 E a vertex against 39).
+- The interrupt form of test 7 uses event code 0x000b (the PVR-DMA end bit); KallistiOS has no name for it.
