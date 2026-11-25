@@ -24,5 +24,8 @@ SH4ZAM-DCE is based on SH4ZAM by Falco Girgis
 (https://github.com/gyrovorbis/sh4zam). SH4ZAM itself is a separate library and
 is not included here.
 
+SH4ZAM-DCE is not affiliated with, endorsed by or maintained by Falco Girgis or the
+SH4ZAM project. Report problems with it to the SH4DER-PVR repository, not to them.
+
 tests/third_party/sh4_fpu_approx holds a third party's file under its own MIT
 notice (see the LICENSE in that folder). It is used by the host tests only.

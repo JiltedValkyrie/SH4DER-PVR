@@ -1347,7 +1347,7 @@ SH4DOW-DC, by the same author, is included in the `sh4dow-dc` folder under its o
 
 Dreamcast math: [SH4ZAM](https://github.com/gyrovorbis/sh4zam), Copyright (c) 2025, 2026 Falco Girgis, MIT. Keep that notice with the library.
 
-Dreamcast kernels: [SH4ZAM-DCE](third_party/sh4zam-dce) (based on SH4ZAM by Falco Girgis), MIT, its LICENSE in the folder. Included whole and never edited here; the ocean demo uses `shz_dce_project_vertices` and `shz_dce_vec3_normalize_safe`. Keep that notice with the library.
+Dreamcast kernels: [SH4ZAM-DCE](third_party/sh4zam-dce) (based on SH4ZAM by Falco Girgis; **not affiliated with, endorsed by or maintained by Falco Girgis or the SH4ZAM project: report problems with it here, not to them**), MIT, its LICENSE in the folder. It is based on SH4ZAM because it uses SH4ZAM as its library and adds the batch and array kernels SH4ZAM does not have; where SH4ZAM has a routine it only wraps it. Included whole and never edited here; the ocean demo uses `shz_dce_project_vertices` and `shz_dce_vec3_normalize_safe`. Keep that notice with the library.
 
 Drawing: [KallistiOS](https://github.com/KallistiOS/KallistiOS), under its own license.
 
