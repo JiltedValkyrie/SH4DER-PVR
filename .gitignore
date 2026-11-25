@@ -4,6 +4,7 @@ demo/matchlight/assets/
 demo/pl4nar/out/
 __pycache__/
 demo/psm/assets/
+demo/psm/corr/assets/
 demo/psm/assets/hero/
 demo/psm/out/
 third_party/sh4zam/

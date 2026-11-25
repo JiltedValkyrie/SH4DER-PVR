@@ -4,6 +4,7 @@
     python tools/fetch.py            every pack; a pack that is already unpacked is left alone
     python tools/fetch.py --pin      also accept packs with no sha256 yet and print the hash to put in the table
     python tools/fetch.py --check    no network: say which packs are present, pinned, missing
+    python tools/fetch.py --root DIR another demo's fetch_table.json, its assets/ and assets/_dl (default: this demo)
 
 Nothing fetched is committed (assets/ is ignored). A file in the pack is found by its base name, whatever folder the
 pack keeps it in. A pack whose url is null is downloaded by hand from its page into assets/_dl/<file>.
@@ -20,6 +21,13 @@ import zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, "assets")
 DL = os.path.join(ASSETS, "_dl")
+
+
+def set_root(root):
+    global ROOT, ASSETS, DL
+    ROOT = os.path.abspath(root)
+    ASSETS = os.path.join(ROOT, "assets")
+    DL = os.path.join(ASSETS, "_dl")
 
 
 def table():
@@ -84,7 +92,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--pin", action="store_true")
     ap.add_argument("--check", action="store_true")
+    ap.add_argument("--root", default=ROOT, help="the folder that holds fetch_table.json and assets/")
     a = ap.parse_args()
+    set_root(a.root)
     ok = True
     for pack in table():
         if a.check:

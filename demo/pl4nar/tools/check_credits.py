@@ -2,6 +2,7 @@
 """Every pack in fetch_table.json has a row in CREDITS.md, and every art row in CREDITS.md is a pack in the table.
 
     python tools/check_credits.py      exit 0 and CREDITS_OK, or the names that are on one side only
+    python tools/check_credits.py --root DIR   another demo's fetch_table.json, CREDITS.md and licenses/
 
 An art row is a table row under "## Art" whose first cell is the pack's name. Also checks that each row carries the
 pack's page link and its licence, and that licenses/CC0-1.0.txt is there. Standard library only.
@@ -27,6 +28,12 @@ def art_rows(text):
 
 
 def main():
+    global ROOT
+    if len(sys.argv) == 3 and sys.argv[1] == "--root":
+        ROOT = os.path.abspath(sys.argv[2])
+    elif len(sys.argv) != 1:
+        print("usage: check_credits.py [--root DIR]")
+        return 2
     with open(os.path.join(ROOT, "fetch_table.json"), encoding="utf-8") as fh:
         packs = {p["name"]: p for p in json.load(fh)["packs"]}
     with open(os.path.join(ROOT, "CREDITS.md"), encoding="utf-8") as fh:
