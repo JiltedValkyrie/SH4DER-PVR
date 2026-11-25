@@ -4,6 +4,17 @@ Draft, 2026-11-25. A design document in the form of a paper. **No code has been 
 
 Revised 2026-11-25, the same day, after spikes c3b and c4 and chip benches h1 and h2 ran (one console, one run each; c4 twice). New facts F22 to F26; F10, F20, §4, §5.8, §5.9, §6 (P7 overturned), §7 and §8 brought up to date. Ledger IDs (PVR-, SH4-, BUS-) are those of `wiki/hardware/`.
 
+Revised again 2026-11-25, after the ray bench ray1 (one console, one run; SH4-051 to SH4-055). The grid walk and the proxy pass have now run as bench kernels, not as the design. Changes:
+
+- §5.2: new constants; the miss cost corrected to SH4-047's 27.7 to 40.3.
+- §5.3: the step cost, P1 overturned, and the stand-ins' mean n.
+- §5.6: the pair estimates are low.
+- §5.7: the worked example.
+- §5.9: the budgets redone; the cold load and OC-RAM.
+- §6: P1, P2 and P9.
+
+The real receivers' mean n at 16:00 stays OPEN.
+
 ## Status marks
 
 Every number and every claim about hardware carries one of these marks.
@@ -199,7 +210,9 @@ Sun visibility at a point changes only when the sun moves or a caster moves. In 
 | Sun | latitude 52.2°, declination −5.9°, clock 9:00 to 16:00; the clock advances dt x S / 3600 hours a second | FILE, `psm_town.h` |
 | Hand-driven sun | up to 30° of elevation a second at a full trigger | FILE, `psm_scene.h` (`PSM_SUN_SPEED`) |
 | H | 13.0 m: the receiver slab's top (`PSM_TOWN_SLAB_B`), taken as the tallest caster | FILE; the reading is Senior's ASSUMPTION. **The tower is 24 m with its roof to 28 m** (`TOWN_STORY.md` §3). See 5.3. |
-| Cache miss | 138 ns = 27.7 cycles a scattered read from RAM, loop included; 645 ns from video memory | MEASURED, s3 (F3) |
+| Cache miss | 27.7 to 40.3 cycles a scattered read from RAM, loop included: 27.7 (s2) and 27.8 (s3) on a 32 KB map, a mixed figure since some reads may hit; 37.6 on 128 KB; 40.3 on 512 KB, nearer a read that always misses. 645 ns from video memory | times MEASURED, s2 and s3 (F3); cycles a read by arithmetic (SH4-047); hit share ESTIMATE. The bare line miss is 18.41 cycles (SH4-003, F23) |
+| Grid walk | C_step 22.07 to 22.21 cycles a cell, C_setup 70.88 to 74.09 cycles a ray (the setup holds the loop's load and store); this text uses 22.1 and 72 | MEASURED cycles a ray, fits DERIVED (ray1 P1, SH4-052) |
+| Proxy pair | 137.87 cycles a pair with early outs, 187.89 without (8 capsules and 4 spheres at 16:00) | MEASURED (ray1 P9, SH4-055) |
 | Translucent fill | about 99 Mpx/s | MEASURED, c1 (F8) |
 
 ### 5.3 Static casters: a height grid and a DDA toward the sun
@@ -230,12 +243,16 @@ So L/c <= n <= 1.414 L/c, with a mean over azimuths of (4/π) L/c = 1.273 L/c.
 - The test in the cell being left: shadowed if h[i][j] > p_y + t_entry sin e (dark-side conservative) or > p_y + t_exit sin e (light-side conservative).
 - Stop at the first hit, at y >= H, or at the grid's edge.
 
-**Cost** (ESTIMATE: about 10 instructions a step, grid in cache):
+**Cost.** The first draft's ESTIMATE (about 10 instructions a step, grid in cache) was C_step = 12 to 16 cycles and C_setup ≈ 30. **The console overturned it** (P1; MEASURED 2026-11-25, one console, one run; SH4-052). Bench ray1 timed rays of known n on a 4 KB grid in the cache. Its straight-line fits over four sets of rows (zero grid and town grid, 14:00 and 16:00) give:
 
-    C_step = 12 to 16 cycles,   C_setup ≈ 30 cycles
-    C_ray  = C_setup + n C_step                                   (cycles)
+    C_step = 22.07 to 22.21 cycles,   C_setup = 70.88 to 74.09 cycles   (fits DERIVED from MEASURED cycles a ray)
+    C_ray  = C_setup + n C_step  ≈  72 + 22.1 n                        (cycles; the values used from here on)
 
-A fixed-point walk along the major axis is about 8 instructions, ESTIMATE 5 to 6 cycles a step, over n_major = (L/c) max(|cos a′|, |sin a′|) steps. It must test two cells a step to stay conservative where the ray clips a corner.
+- The step is 1.4 to 1.8 times the old estimate, and the setup about 2.4 times; C_setup holds the loop's load and store.
+- The town grid's rows lie within 0.5 % of the zero grid's, so the grid's content does not change the step.
+- The kernel gave the reference's bytes on every page.
+
+A fixed-point walk along the major axis is about 8 instructions, ESTIMATE 5 to 6 cycles a step, over n_major = (L/c) max(|cos a′|, |sin a′|) steps. It must test two cells a step to stay conservative where the ray clips a corner. It has not been timed. Since the float walk came out at 1.4 to 1.8 times its own estimate, this estimate should be read as low until a console times it (INF).
 
 **Worked** (DERIVED; sin e = sin(lat) sin(dec) + cos(lat) cos(dec) cos(15° x (hour − 12)); H − p_y = 13 m, c = 1.5 m):
 
@@ -246,7 +263,18 @@ A fixed-point walk along the major axis is about 8 instructions, ESTIMATE 5 to 6
 | 14:00 | 26.5° | 0.499 | 26.0 m | 17.4 | 17 .. 22 .. 25 |
 | 16:00 | 12.9° | 0.229 | 56.7 m | 37.8 | 38 .. 48 .. 53 |
 
-At 14:00, with mean n = 22 and C_step = 14, C_ray = 338 cycles = 1.7 µs. All 28,699 vertices in one frame would take 9.7 million cycles, 48.5 ms (ESTIMATE). That is why the term is cached. A shadowed vertex stops at its first hit, so n is a lit vertex's cost.
+At 14:00, with mean n = 22 (the table above, ESTIMATE) and the console's constants, C_ray = 72 + 22 x 22.1 = 558 cycles = 2.8 µs (DERIVED). The first draft had 338. All 28,699 vertices in one frame would take 16.0 million cycles, 80 ms (DERIVED from MEASURED constants on an ESTIMATE n; the first draft said 48.5 ms). That is why the term is cached.
+
+A shadowed vertex stops at its first hit, so the table's n is a lit vertex's cost. The ray bench's 1,024 stand-in receivers show how much early exits matter (host count, `demo/psm/bench/ray_mean_n.c`; the rays are those of P2):
+
+| Sun | Lit / shadowed | Mean n: all / lit / shadowed | Line 72 + 22.1 n (DERIVED) | Console, batched, grid warm (MEASURED, SH4-053) |
+|---|---|---|---|---|
+| 14:00 | 524 / 500 | 22.08 / 38.61 / 4.75 | 560 | 554.19 |
+| 16:00 | 432 / 592 | 21.47 / 41.64 / 6.75 | 546 | 539.68 |
+
+- The line meets the console within 1.5 % at both suns. So P2's slice is explained by P1's constants and the stand-ins' own n.
+- At 16:00 more stand-ins end in shadow, and early, so the mean n falls although a lit ray is longer. That is why the console's 16:00 slice cost less than its 14:00 slice.
+- The stand-ins are random points over the casters' box, not the town's vertices. **The real receivers' mean n at 16:00 (48 in the table above, with H = 13 m) is OPEN.**
 
 **Three limits of the height grid, and their fixes** (ours, INF):
 
@@ -366,10 +394,13 @@ Compute u and Lit as for the sphere.
 
 | Pair | Cycles | Tag |
 |---|---|---|
-| vertex, sphere: early out | 15 to 20 | ESTIMATE |
-| vertex, sphere: full path (one FSRRA, one divide) | 40 to 50 | ESTIMATE |
-| vertex, capsule | about 2 x sphere | ESTIMATE |
-| vertex, box | 60 to 90 | ESTIMATE |
+| vertex, sphere: early out | 15 to 20 | ESTIMATE, **low** (see below) |
+| vertex, sphere: full path (one FSRRA, one divide) | 40 to 50 | ESTIMATE, **low** |
+| vertex, capsule | about 2 x sphere | ESTIMATE, **low** |
+| vertex, box | 60 to 90 | ESTIMATE, not timed |
+| **the pass as run:** 8 capsules (r 0.20 m) and 4 spheres (r 0.15 m), each against the 0.5 m ground points in its 16:00 run, 454 pairs (393 capsule, 61 sphere) | **137.87** with early outs; 187.89 without | MEASURED 2026-11-25, one console, one run (ray1 P9, SH4-055) |
+
+**The pair estimates are too low.** The measured 137.87 cycles a pair is a mix of mostly capsule pairs. It lies above every row of the estimate, including a full capsule path at about twice 40 to 50 (80 to 100). The early outs save 27 % (137.87 against 187.89). The ray bench did not time sphere and capsule pairs apart, so the split between them is OPEN. The kernel gave the reference's bytes; 88 of the 454 points were shadowed, as the host test gives.
 
 **Which vertices.** Only those in a proxy's shadow run are tested: the box swept from the caster to the end of its shadow, of length (caster height) / tan e. A 1.7 m person reaches 3.4 m at 14:00 (the water girl's shadow, `TOWN_STORY.md`) and about 7.4 m at 16:00 (DERIVED). So the cost is Σ_j V_j x C_pair, where V_j is the vertices in proxy j's run, not N x proxies.
 
@@ -388,7 +419,7 @@ Compute u and Lit as for the sphere.
     Per group:   cost = (N/g) C_g + (1 − φ_g) N C_s,       pays when φ_g > C_g / (g C_s)
     C_g ≈ 30 (1 + occluders) cycles                        (ESTIMATE: 6 view planes, 5 planes an occluder box)
 
-**Worked** (ESTIMATE): N = 28,699, g = 64 (449 groups), 4 occluders: C_g = 150, C_s = 338. Break-even is φ_g = 0.7 %. At φ_g = 0.5 a full refresh saves 4.85 million cycles (24.3 ms) for 67,350 (0.34 ms).
+**Worked** (ESTIMATE): N = 28,699, g = 64 (449 groups), 4 occluders: C_g = 150, C_s = 558 (14:00's ray at the console's constants, 5.3; the first draft used 338). Break-even is φ_g = 0.42 %. At φ_g = 0.5 a full refresh saves 8.0 million cycles (40 ms) for 67,350 (0.34 ms). C_g itself is not timed.
 
 **Culling orders the refresh; it does not discard.** The term is in world space, so a culled vertex keeps its byte, and culling only sets the order:
 
@@ -440,12 +471,31 @@ Inside a triangle, Lit is affine in position (ASSUMPTION: it is interpolated in 
 
 **Room at 30 fps:** 33.3 − 22.6 = 10.7 ms of SH-4 time (DERIVED). For 60 fps T_sh4 must fall under 16.7 ms, and T_pvr = 16.0 ms just fits.
 
-**Slice from a budget B:** k <= B F / C_ray.
+**Slice from a budget B:** k <= B F / C_ray, with B F = 2 ms x 200.006 MHz = 400,012 cycles.
 
-- B = 2 ms and 338 cycles a ray (14:00) give k <= 1,183, so P = 28,699 / (1,183 x 30) = 0.81 s. That is inside 14:00's 2.65 s at S = 60.
-- At 16:00 a ray is 30 + 48 x 14 = 702 cycles, so k <= 570 and P = 1.68 s. That is outside the 0.66 s needed: the shift is up to 1.9 m at h = 13 m (ESTIMATE).
+This was redone on 2026-11-25 with the console's constants. The first draft's figures (338 and 702 cycles a ray, k <= 1,183 and 570, P = 0.81 and 1.68 s) used 5.3's overturned estimate.
 
-So at x60 near sunset the interval variant (5.4) or a looser ε is needed.
+The constants:
+
+- C_ray = 72 + 22.1 n: MEASURED, ray1 P1, SH4-052.
+- Interleaved, with the vertex transform evicting the grid, a ray costs 89 to 117 cycles more: MEASURED on stand-ins, ray1 P2, SH4-053.
+- n is 5.3's table: ESTIMATE at 14:00, OPEN for real receivers at 16:00.
+
+P = 28,699 / (k x 30).
+
+| Sun | n | C_ray batched | k at 2 ms | P | C_ray interleaved | k at 2 ms | P | Needed P at S = 60 |
+|---|---|---|---|---|---|---|---|---|
+| 14:00 | 22 (ESTIMATE) | 558 | 716 | 1.34 s | 675 (+117) | 592 | 1.62 s | 2.65 s: **inside** |
+| 16:00 | 48 (OPEN) | 1,133 | 353 | 2.71 s | 1,222 (+89) | 327 | 2.93 s | 0.66 s: **outside, by about 4 times** |
+| check: P2's stand-ins, 14:00 / 16:00 | 22.08 / 21.47 (host count) | 554.19 / 539.68 (MEASURED) | 721 / 741 (741 printed by the page) | — | — | — | — | not the town's receivers |
+
+Everything in the 14:00 and 16:00 rows is DERIVED from MEASURED constants on the n shown. Read from the table:
+
+- **14:00 still fits.** Meeting 2.65 s needs k >= 361 rays a frame: 1.01 ms batched, 1.22 ms interleaved (DERIVED).
+- **16:00 does not fit at 2 ms.** Meeting 0.66 s needs k >= 1,450 rays a frame: 8.2 ms batched, 8.9 ms interleaved (DERIVED, on n = 48), most of the 10.7 ms of room at 30 fps.
+  - At 2 ms the shift grows with P. If it grows in proportion (ASSUMPTION), the first draft's 1.9 m at 1.68 s becomes about 3.1 m at 2.71 s, and 3.3 m interleaved, at h = 13 m (ESTIMATE).
+- **The first draft's conclusion holds, more strongly:** at x60 near sunset the interval variant (5.4) or a looser ε is needed. The 16:00 rows rest on n = 48 for real receivers, which is OPEN. The stand-ins' 21.47 shows how far early exits can pull it down (5.3). A host count over the town's own vertices would settle it without a console.
+- **The proxy pass is cheap beside the slice:** 312 µs a frame at the load places (MEASURED, ray1 P9, SH4-055), 15.6 % of a 2 ms slice. P9 stands. Other places on the walkers' routes are not timed.
 
 | Memory | Size | Tag |
 |---|---|---|
@@ -453,13 +503,19 @@ So at x60 near sunset the interval variant (5.4) or a looser ε is needed.
 | Height grid | 4 KB (64 x 64) | DERIVED |
 | Ground map, 0.5 m | 18.3 KB | ESTIMATE |
 | Interval variant | about 35 KB | ESTIMATE (5.4) |
-| OC-RAM | 8 KB of the 16 KB D$. It holds the grid, not the vertex cache. No faster than a hit; halves the cache for everything else. | MEASURED (F23, h1); DOC for the 16 KB D$ |
+| OC-RAM | 8 KB of the 16 KB D$. It holds the grid, not the vertex cache. No faster than a hit; halves the cache for everything else. For the interleaved slice it loses overall (below). | MEASURED (F23, h1; ray1 P2.C and P2.D, SH4-054); DOC for the 16 KB D$ |
 
 **Cache behaviour.**
 
-- A grid of 4 KB is 128 of the 512 D$ lines. The vertex transform streams more than a megabyte a frame and will evict it. So refresh the slice in one batch: the grid is loaded once a frame, at most 128 lines x 27.7 cycles = 18 µs (DERIVED).
-- Without that, each step that misses costs about 27.7 more cycles (MEASURED miss cost, loop included, s2). Bench h1 measured the bare line: 18.41 cycles a read miss against 3.17 for a hit (F23).
-- OC-RAM keeps the grid resident at the price of half the D$. Bench h1 measured that price: OC-RAM is no faster than a hit, and 8 KB of ordinary RAM data ran 59 % slower beside it (F23). With the slice batched (above), the grid is loaded once a frame anyway, so OC-RAM looks unlikely to pay here (INF; P2 tests it).
+- A grid of 4 KB is 128 of the 512 D$ lines. The vertex transform streams more than a megabyte a frame and will evict it. So refresh the slice in one batch, and the grid is loaded once a frame.
+  - The first draft priced that load at 128 lines x 27.7 cycles = 18 µs. That used the mixed scattered-read figure where a line miss belongs: 128 x 18.41 (SH4-003) = 12 µs for the grid alone (DERIVED).
+  - The ray bench measured the whole cold start, grid, points, bytes and vertices purged: 47 µs at 14:00 and 46 µs at 16:00 (cold − warm, MEASURED, SH4-053). That is more than P2's predicted 18 µs, and is the figure to budget; the arrays other than the grid are the rest (ESTIMATE).
+- Without the batch, each step that misses costs more. A scattered read from RAM costs 27.7 to 40.3 cycles, loop included (SH4-047: 27.7 is a mixed figure on a 32 KB map, measured in s2 and s3 alike; 40.3 on 512 KB is nearer a read that always misses). Bench h1 measured the bare line: 18.41 cycles a read miss against 3.17 for a hit (F23).
+  - Interleaved with the 28,699 PVR vertices, the ray bench's slice cost 117 cycles a ray more at 14:00 and 89 at 16:00 (MEASURED, SH4-053), 16 to 21 % of a batched ray. At 27.7 to 40.3 cycles a miss, that is 2.9 to 4.2 and 2.2 to 3.2 missing reads a ray (ESTIMATE: all the extra taken as grid misses).
+- OC-RAM keeps the grid resident at the price of half the D$. Bench h1 measured that price: OC-RAM is no faster than a hit, and 8 KB of ordinary RAM data ran 59 % slower beside it (F23). The ray bench settled it for this slice (SH4-054, MEASURED 2026-11-25, one console, one run):
+  - with the grid in OC-RAM the cold start is gone (1 and 0 µs), and the interleaving extra falls to 25 and 11 cycles a ray;
+  - but the vertices cost 6.8 % more, so the interleaved slice is slower: 12,027 against 11,893 µs at 14:00, and 11,903 against 11,694 µs at 16:00.
+  - **OC-RAM does not pay here; batch the slice instead.**
 - Placing matters as much as the cache: two arrays a multiple of 16 KB apart share every cache entry, and the same transform ran 13.16 or 38.67 cycles a vertex by placing alone (F24). The grid, the vertex term and the vertex buffers must not sit at such distances (INF from F24).
 
 **Moving results between chips, for comparison.**
@@ -514,21 +570,21 @@ The screen pass took 3,161 us alone and 9,646 us with the shadow layer. The map 
 
 The benches:
 
-- **h1 and h2** are Senior's chip benches (`demo/psm/bench/`, `bench/NOTES.md`). Both ran on 2026-11-25, one console, one run each. They measured the cache, the transform, the TA, uploads and DMA (F23 to F25). They did not time a ray step, a slice or a proxy, so P1, P2 and P9 still need a **ray bench**: rays and slices on the town grid, not yet built.
+- **h1 and h2** are Senior's chip benches (`demo/psm/bench/`, `bench/NOTES.md`). Both ran on 2026-11-25, one console, one run each. They measured the cache, the transform, the TA, uploads and DMA (F23 to F25). They did not time a ray step, a slice or a proxy. That was left to the **ray bench** (ray1), which ran on 2026-11-25, one console, one run (SH4-051 to SH4-055). It timed rays and slices on the town grid with stand-in receivers, and the proxy pass at the walkers' load places. Its verdicts are in the table: P1 overturned, P2 holds in form, P9 stands.
 - **Spike c3** is the subtract spike (`compare/sub_spike.c`). It ran once as image c3b (F20). **Spike c4** is the bump-compare chain; it ran twice, and its test 6 is the punch-through test (F22).
 - **"Console"** means a later test image, not yet named.
 
 | # | Prediction | Falsified if | Test | Bench | Evidence so far |
 |---|---|---|---|---|---|
-| P1 | C_step is 12 to 16 cycles and C_setup about 30, with the grid in cache (5.3) | the console's cycles a ray, over n, fall well outside that | rays of known n on a 4 KB grid, timed with the KOS ns timer and performance counter 1 (the s2 clock pair) | ray bench | none |
-| P2 | One batch a frame keeps the grid resident: a slice costs k x C_ray plus at most 18 µs of loads (5.9) | the slice's cost grows with misses (27.7 cycles each) beyond that | the same slice batched, then interleaved with the vertex transform, then with the grid in OC-RAM | ray bench | none on the slice. h1 gives the line costs and OC-RAM's price (F23) |
+| P1 | C_step is 12 to 16 cycles and C_setup about 30, with the grid in cache (5.3) | the console's cycles a ray, over n, fall well outside that | rays of known n on a 4 KB grid, timed with the KOS ns timer and performance counter 1 (the s2 clock pair) | ray bench | **OVERTURNED** (MEASURED 2026-11-25, one console, one run; **SH4-052**): fits give C_step 22.07 to 22.21 and C_setup 70.88 to 74.09 on four sets of rows. The ns column is not used: it disagrees with the cycles on two rows (SH4-051) |
+| P2 | One batch a frame keeps the grid resident: a slice costs k x C_ray plus at most 18 µs of loads (5.9) | the slice's cost grows with misses (27.7 to 40.3 cycles each, SH4-047) beyond that | the same slice batched, then interleaved with the vertex transform, then with the grid in OC-RAM | ray bench | **Holds in form; the load figure was low** (MEASURED 2026-11-25, one console, one run; **SH4-053**, **SH4-054**):<br>- the batched slice is k x C_ray to within 1.5 % at the stand-ins' host-counted n;<br>- the cold start was 46 to 47 µs, not at most 18;<br>- interleaving added 89 to 117 cycles a ray, so batching is right;<br>- OC-RAM made the interleaved slice slower overall |
 | P3 | At 14:00 and S = 60, a 2 ms slice keeps the shadow within 0.75 m of truth; at 16:00 it does not (5.9 gives 1.9 m) | a capture at x60 shows the lag outside those bounds | the measured slice rate put into 5.5's rule, then captures at x60 at 14:00 and 16:00 | console | none |
 | P4 | On the clock, the interval variant matches a fresh ray cast within a quarter hour of sun travel (5.4) | edges differ by more than one quarter hour's shift (5.5 with θ = w x 900 s) | host first (deterministic), then the console's bytes | host; console | none |
 | P5 | A per-vertex term with cut receivers agrees with route B's `lit_plane` on the same vertices and sun | the share that differs exceeds a threshold fixed before the run | the two compared on the host over the town's receivers | host | none |
 | P6 | The step-texture overlay draws a two-valued edge on the line Lit = ½, within 5.8's error bound, on a coplanar copy | gaps or double darkening on shared edges (CORE 25), or the copy fails the depth test | a 32 x 32 triangle grid with a known Lit field, read back, pixels counted | console (new) | none. c4's second pass at equal depth left 0 holes (`compare/NOTES.md` c4), a sign for the coplanar copy, not a test of it |
 | P7 | The punch-through overlay does not threshold vertex alpha | a run where the test acts on vertex alpha at a set reference | texel alpha alone, then vertex alpha alone | spike c4 test 6 | **OVERTURNED** (MEASURED 2026-11-25, one console, one run; **PVR-064**): with vertex alpha 128 the 4444 ramp drew 2,048 of 32,768 pixels at reference 128, so the tested alpha is texture x vertex. F10, on which P7 rested, used blend ONE / ZERO, which writes the failing pixels too (PVR-061). The rounding of the product is OPEN |
 | P8 | Group culling pays above φ_g = 0.7 %, and saves about φ_g x 22.6 ms of the a3 frame's vertex work (5.7) | the a3 view's visible share is near 1, or the saving is not proportional | vertices sent with and without, counted on the host and on the console's HUD | host; console | none |
-| P9 | Proxies for 8 people and 4 hens cost less than one slice (5.6) | their cost a frame exceeds k x C_ray | the proxy pass timed at 16:00 (the longest runs) with every walker in view | ray bench | none |
+| P9 | Proxies for 8 people and 4 hens cost less than one slice (5.6) | their cost a frame exceeds k x C_ray | the proxy pass timed at 16:00 (the longest runs) with every walker in view | ray bench | **Stands** (MEASURED 2026-11-25, one console, one run, load places only; **SH4-055**): 312 µs a pass, 15.6 % of a 2 ms slice. The pair cost, 137.87 cycles, is above 5.6's estimates |
 | P10 | The frame model of 5.9 explains the a3 HUD | the HUD's 25 fps stays unexplained by max(T_sh4, T_pvr) | the frame's waits (render-done, vblank, the KOS tick) timed on the console | console | against, in another program: c4's frames are 39.9 / 49.9 ms for 19–27 ms of work (F26, PVR-094, cause OPEN) |
 
 ## 7. Threats to validity and what we do not know
