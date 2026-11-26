@@ -109,15 +109,17 @@ def build(kos, sh4zam):
     art += wrap("ambientCG (ambientcg.com): Asphalt025A, Bricks075A, Concrete034, PaintedPlaster017.")
     art += wrap("The numbers on that demo's own screen are Pillow's built-in bitmap font, drawn into a texture when the demo is built (Pillow: MIT-CMU licence).")
     art += [""] + wrap("The car, the street's props and structures, the map, the sky and the code of that demo are SH4DER-PVR's own work.")
-    return t, art
+    square = [PAGE, "WALLED SQUARE"]
+    square += wrap("Fantasy Town Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0.")
+    return t, art, square
 
 
 def c_str(s):
     return '"%s"' % s.replace("\\", "\\\\").replace('"', '\\"').replace("\f", "\\f")
 
 
-def render(t, art):
-    for ln in FOOT + t + art:
+def render(t, art, square):
+    for ln in FOOT + t + art + square:
         if len(ln) > COLS:
             raise SystemExit("over %u columns: %r" % (COLS, ln))
         if any(ord(c) < 32 and c != PAGE or ord(c) > 126 for c in ln):
@@ -130,7 +132,8 @@ def render(t, art):
          "",
          "   psm_credits_foot   two lines for the foot of every menu screen",
          "   psm_credits_text   the CREDITS screen's lines, 64 columns; \"\\f\" alone starts a new page",
-         "   PSM_CREDITS_PL4NAR defined: the disc carries the street demo, and its art's page is in. */",
+         "   PSM_CREDITS_PL4NAR defined: the disc carries the street demo, and its art's page is in.",
+         "   PSM_CREDITS_SQUARE defined: the disc carries the walled square, and its art's page is in. */",
          "",
          "#ifndef PSM_CREDITS_H",
          "#define PSM_CREDITS_H",
@@ -141,6 +144,8 @@ def render(t, art):
     o += ["    %s," % c_str(ln) for ln in t]
     o += ["#ifdef PSM_CREDITS_PL4NAR"]
     o += ["    %s," % c_str(ln) for ln in art]
+    o += ["#endif", "#ifdef PSM_CREDITS_SQUARE"]
+    o += ["    %s," % c_str(ln) for ln in square]
     o += ["#endif", "};", "#define PSM_CREDITS_N ((unsigned)(sizeof psm_credits_text / sizeof psm_credits_text[0]))", "", "#endif /* PSM_CREDITS_H */", ""]
     return "\n".join(o)
 

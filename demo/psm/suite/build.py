@@ -55,7 +55,7 @@ LOAD = 0x8C010000
 RAM_END = 0x8D000000
 STACK_ROOM = 1 << 20                        # kept free under the top of RAM for the stack and the exec's copy loop
 GROUPS = {"tools": 0, "demos": 1}           # suite_nav.h: NAV_TOOLS, NAV_DEMOS
-CREDITS = {"pl4nar": "PSM_CREDITS_PL4NAR"}  # a table's "credits" key -> the switch of ../psm_credits.h
+CREDITS = {"pl4nar": "PSM_CREDITS_PL4NAR", "square": "PSM_CREDITS_SQUARE"}  # a table's "credits" key -> the switch of ../psm_credits.h
 
 
 def run(step, argv):
@@ -146,7 +146,7 @@ def main():
     ap.add_argument("--host-cc", default=os.environ.get("HOST_CC", "gcc"))
     ap.add_argument("--host-only", action="store_true")
     ap.add_argument("--no-image", action="store_true")
-    ap.add_argument("--title", default="PSM TEST SUITE")
+    ap.add_argument("--title", default="SH4DER-PVR SUITE")
     ap.add_argument("--prefix", default="psm-suite")
     ap.add_argument("--image", help="the image's file name in --cdi-dir, in place of <prefix>-<tag>.cdi")
     a = ap.parse_args()
