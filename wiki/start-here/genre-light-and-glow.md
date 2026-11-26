@@ -66,7 +66,7 @@ The header's distances assume one world unit of about 3 metres (torch.h:68-69). 
 **Starting settings:**
 - A disc of 10 triangles for a lamp, 8 for a blob shadow, and a wedge of 2 to 4 for a headlight (include/sh4der_pool.h:8). ADVISED (pool.h:13).
 - `SH4DER_POOL_MAX_N` = 16, the most triangles in one fan (pool.h:9, macro at pool.h:74). ADVISED.
-- Lift the fan 2 to 4 cm off the ground, with a blob alpha of about 0.4 (pool.h:9). ADVISED.
+- Lift the fan 2 to 4 cm off the ground, with a blob alpha of 0.50 by day and 0.25 at night (pool.h:9, the street demo's values). ADVISED.
 - Limit lamps by distance, because a pool's cost is translucent fill. ADVISED ([recommended limits](../limits/recommended-limits.md), Fill).
 
 ### Dark shafts of light [shafts]
@@ -105,7 +105,7 @@ Screen bloom [glow] and dark shafts [shafts] read the finished picture back, so 
 | Effect | Video memory | Triangles or vertices | SH-4 time | Status |
 |---|---|---|---|---|
 | Glowing tubes [blade] | 0 bytes. FACT: the draw is untextured (README, blade cost note) | None added: the work is done in the model's own vertex colours (FACT, blade.h:37-38) | Not measured (OPEN: time `sh4der_blade_prepare` and the vertex loop) | PROTOTYPE v0.1. No console row ([maturity](../status/maturity.md)) |
-| Mesh bloom [bloom] | 0 bytes. FACT: no texture (README, bloom cost note) | Blade glow: 24 vertices, 24 triangles. Largest ring glow: 193 and 360 (FACT, bloom.h:59-62) | Rings: 205 us for 129 vertices, a lamp's halo. MEASURED, one console, one run (SH4-083; the row gives no date, only the photo name 03:08.6). Blade glow: not measured (OPEN) | Blade glow: PROTOTYPE v0.1, NOT RUN on a console (host only). Rings: ALPHA v0.3 |
+| Mesh bloom [bloom] | 0 bytes. FACT: no texture (README, bloom cost note) | Blade glow: 24 vertices, 24 triangles. Largest ring glow: 193 and 360 (FACT, bloom.h:59-62) | Rings: 205 us for 129 vertices in the lamp program's halo, which uses the library's ring indices. MEASURED, one console, one run (SH4-083; the row gives no date, only the photo name 03:08.6). The timed loop is the lamp program's own. Blade glow: not measured (OPEN) | Blade glow: PROTOTYPE v0.1, NOT RUN on a console (host only). Rings: ALPHA v0.3 |
 | Screen bloom [glow] | 16 KB texture (128 x 64 at 2 bytes a texel) and a 1 KB shrink. FACT (glow.h:107-112) | Three full-screen layers, plus up to 4 ray copies (glow.h:118). FACT | Frame read: 1,196 us in another port. REPORTED (VID-005). Our time: not measured (OPEN) | PROTOTYPE v0.1. The demo disc runs it (REPORTED). No ledger row |
 | Screen spotlight [torch] | 0 bytes. FACT: no texture (README, torch section) | 306 vertices and 288 triangles a frame, in two meshes (FACT, torch.h:113) | Not measured (OPEN: time both meshes and the near add) | PROTOTYPE v0.1. No ledger row |
 | Light pools [pool] | 0 bytes. FACT (README, pool cost) | A 10-triangle disc has 11 vertices. FACT (design) | A rim vertex takes one sine and cosine pair and six multiply-adds. FACT (README). Time and PVR fill: not measured (OPEN) | ALPHA v0.2. The street demo's blob stage ran, not the pool alone (PVR-160) |

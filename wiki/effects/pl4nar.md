@@ -46,13 +46,13 @@ Times (README:869-873). **Measured on a console so far: the street demo's lookup
 | Lookup, body | 0.43 ms for 1,623 vertices, one run of an older version | REPORTED (emulator, not evidence). This version is estimated 15-20 % less. |
 | Lookup, flat | under the body's | ESTIMATE |
 | Mirror pass, CPU | the world pass × the mirrored share | ESTIMATE |
-| Mirror pass, PVR | 32 tiles at 256 × 128, 128 tiles at 512 × 256. "15 ms at 512 × 256" in the first client was emulator queue time, not pass time. | OPEN |
+| Mirror pass, PVR, street demo | 3.23, 3.31 and 3.26 ms at 256 × 128 in stages 1, 4 and 11 of PVR-174 (no key pressed); 3.20 ms at 128 × 64 in PVR-175 stage 13 (a key was pressed there, so that stage is TOUCHED). The "15 ms at 512 × 256" in the first client was emulator queue time, not pass time. | MEASURED, 1 console (PVR-174, PVR-175) |
 | Layer, PVR | under 0.5 ms for a car body | ESTIMATE |
 
 ## Recommended limits
 
 - One plane per target. Two planes need two targets and two passes (README:859).
-- Start the target at 256 × 128, and go down before anything else (`AGENTS.md`). The mirror pass is the largest cost. This is ADVISED; see [recommended limits](../limits/recommended-limits.md).
+- Start the target at 256 × 128, the header's start size. In the car runs the target's size did not change the mirror pass's PVR time (PVR-174, PVR-175, MEASURED, one console), so measure the mirror before you cut size. `AGENTS.md` says to go down in size first; the ledger does not support that order. This is ADVISED; see [recommended limits](../limits/recommended-limits.md).
 - Nothing reflects itself. A body needs normals (README:859).
 
 ## Tuning

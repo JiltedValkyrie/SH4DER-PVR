@@ -10,7 +10,13 @@
                (70 x 103 there), and during the bake only the triangles' boxes, the cell table and its lists. A frame: one
                table read a vertex: ESTIMATE
    Start with: SH4DER_AOMESH_RAYS 12, SH4DER_AOMESH_REACH 1.6f, SH4DER_AOMESH_GCELL 0.5f; the bake at load, a lookup a frame
-   Pin:        SH4ZAM software path against plain C on the host: 6 of 15,907 bytes differ, the largest by 20 (MEASURED on the host, 2026-11-26; the console's FSRRA path NOT RUN, so the console's bytes are neither). Cause OPEN.
+   Edges:      the edge tests are on the numerators against det; a reciprocal is taken only for a triangle that passed them:
+               134,879 on the town's mesh, against one a test past the |det| check before (at most 1,594,130); counted on
+               the host (exact). The time it saves is NOT MEASURED. The change moved 3 of the town's 15,907 plain C bytes (the
+               largest by 21), and the pin was taken again on purpose (2026-11-26).
+   Pin:        SH4ZAM software path against plain C on the host: 6 of 15,907 bytes differ, the largest by 21 (MEASURED on the host,
+               2026-11-26; before the edge change 6 and 20, two of them closed and two new). The console's FSRRA path NOT RUN, so the
+               console's bytes are neither. Cause OPEN, upstream of the edge tests (the two paths' ray directions differ by an ulp).
    Status:     PROTOTYPE v0.1: host tested (test/aomesh_test.c; the town's bytes pinned in demo/psm/test/psm_ao_test.c);
                the bake's time and the look on a console are NOT MEASURED
    Do:         multiply the ambient light only; give the bake a tick so a watchdog stays quiet over it
@@ -104,7 +110,7 @@ typedef struct sh4der_aomesh_grid {
 } sh4der_aomesh_grid_t;
 
 /* The counts of the last bake (optional, may be NULL). */
-typedef struct sh4der_aomesh_stats { uint32_t rays, tests; } sh4der_aomesh_stats_t;
+typedef struct sh4der_aomesh_stats { uint32_t rays, tests, recips; } sh4der_aomesh_stats_t;   /* recips: reciprocals taken (a triangle that passed the edge tests) */
 
 /* One triangle's box, from its three vertices (the order of the box entries: lo x, lo y, lo z, hi x, hi y, hi z). */
 static inline void sh4der_aomesh_box_(const sh4der_aomesh_tris_t *m, unsigned t, float b[6]) {
@@ -174,21 +180,25 @@ static inline int sh4der_aomesh_need(const sh4der_aomesh_tris_t *m, const sh4der
     return 1;
 }
 
-/* A ray against a triangle, both sides: the distance, or a negative number for none within (1e-4, reach). */
-static inline float sh4der_aomesh_tri_(const float o[3], const float d[3], const float a[3], const float b[3], const float c[3], float reach) {
+/* A ray against a triangle, both sides: the distance, or a negative number for none within (1e-4, reach). The edge
+   tests are on the numerators against det (no reciprocal, so its error cannot move a ray across a shared edge; the
+   numerators' own rounding still can: the two host paths differ at 6 bytes); the reciprocal is taken only for a triangle that passed them, for t (*recips counts it). */
+static inline float sh4der_aomesh_tri_(const float o[3], const float d[3], const float a[3], const float b[3], const float c[3], float reach,
+                                       uint32_t *recips) {
     const float e1[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, e2[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
-    float h[3], s[3], q[3], det, inv, u, v, t;
+    float h[3], s[3], q[3], det, inv, un, vn, t;
 
     sh4der_cross_(d, e2, h);
     det = sh4der_dot3_(e1, h);
     if (det > -1e-9f && det < 1e-9f) return -1.0f;
-    inv = det > 0.0f ? sh4der_recip_pos_(det) : -sh4der_recip_pos_(-det);
     s[0] = o[0] - a[0]; s[1] = o[1] - a[1]; s[2] = o[2] - a[2];
-    u = sh4der_dot3_(s, h) * inv;
-    if (u < 0.0f || u > 1.0f) return -1.0f;
+    un = sh4der_dot3_(s, h);
+    if (det > 0.0f ? (un < 0.0f || un > det) : (un > 0.0f || un < det)) return -1.0f;
     sh4der_cross_(s, e1, q);
-    v = sh4der_dot3_(d, q) * inv;
-    if (v < 0.0f || u + v > 1.0f) return -1.0f;
+    vn = sh4der_dot3_(d, q);
+    if (det > 0.0f ? (vn < 0.0f || un + vn > det) : (vn > 0.0f || un + vn < det)) return -1.0f;
+    inv = det > 0.0f ? sh4der_recip_pos_(det) : -sh4der_recip_pos_(-det);
+    (*recips)++;
     t = sh4der_dot3_(e2, q) * inv;
     return t > 1e-4f && t < reach ? t : -1.0f;
 }
@@ -201,7 +211,7 @@ typedef struct sh4der_aomesh_ctx {
     const uint16_t *list;
     float cx0, cz0;
     unsigned cw, ch;
-    uint32_t rays, tests;
+    uint32_t rays, tests, recips;
 } sh4der_aomesh_ctx_t;
 
 /* The closed share of one ray from o along d (unit): the nearest hit within the reach, against the ground (y 0, when
@@ -238,7 +248,7 @@ static inline float sh4der_aomesh_ray_(sh4der_aomesh_ctx_t *c, const float o[3],
                 if (b[0] > hi[0] || b[3] < lo[0] || b[1] > hi[1] || b[4] < lo[1] || b[2] > hi[2] || b[5] < lo[2]) continue;
                 c->tests++;
                 hit = sh4der_aomesh_tri_(o, d, m->pos + (size_t)m->idx[t][0] * m->stride, m->pos + (size_t)m->idx[t][1] * m->stride,
-                                         m->pos + (size_t)m->idx[t][2] * m->stride, best);
+                                         m->pos + (size_t)m->idx[t][2] * m->stride, best, &c->recips);
                 if (hit >= 0.0f) best = hit;
             }
         }
@@ -287,9 +297,9 @@ static inline int sh4der_aomesh_bake(const sh4der_aomesh_tris_t *m, const float 
     if ((need.box && !w->box) || (need.cell && !w->cell) || (need.list && !w->list) || (need.grid && !w->grid)) return 0;
 
     if (need.grid) sh4der_aomesh_gdims_(ground, &gx0, &gz0, &gw, &gh);
-    if (stats) stats->rays = stats->tests = 0u;
+    if (stats) stats->rays = stats->tests = stats->recips = 0u;
     c.m = m; c.box = w->box; c.cell = w->cell; c.list = w->list;
-    c.cx0 = need.cx0; c.cz0 = need.cz0; c.cw = need.cw; c.ch = need.ch; c.rays = c.tests = 0u;
+    c.cx0 = need.cx0; c.cz0 = need.cz0; c.cw = need.cw; c.ch = need.ch; c.rays = c.tests = c.recips = 0u;
 
     for (i = 0; i < SH4DER_AOMESH_RAYS; i++) {          /* golden-ratio spiral, cosine weighted: the same for every vertex */
         const float r2 = ((float)i + 0.5f) * (1.0f / (float)SH4DER_AOMESH_RAYS);
@@ -338,7 +348,7 @@ static inline int sh4der_aomesh_bake(const sh4der_aomesh_tris_t *m, const float 
             if (tick && (z & 7u) == 7u) tick();
         }
     }
-    if (stats) { stats->rays = c.rays; stats->tests = c.tests; }
+    if (stats) { stats->rays = c.rays; stats->tests = c.tests; stats->recips = c.recips; }
     return 1;
 }
 

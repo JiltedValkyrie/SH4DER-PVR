@@ -56,7 +56,7 @@ Strength falls in a straight line from 40 to 50 m (`demo.c:1988`). A slot is giv
 
 The rules: wait for render done after every cut pass; never cut while a render reads the table; if the end check fails, restart the PVR. The demo's backend keeps them (`gfx_pvr.c:278-319`), and cuts only on autorun stages that ask (`demo.c:363`). Warning: with one of two tables cut, the hills build's frame got 3.05 ms slower (PVR-200, MEASURED). The refusal that prevents this has not run on a console.
 
-**The cheap fallback: a blob.** A disc of 8 triangles at alpha about 0.4 is ADVISED (`include/sh4der_pool.h:8-9`). The demo's blob is also 8 triangles (`demo.c:1829`, `1831`), at alpha 0.50 by day and 0.25 at night (`demo.c:2134`), compiled only with `-DPL4NAR_BLOBS` (`demo.c:2126`, `2133`). In an earlier hills build at 128 x 64, the frame averaged 17.85 ms with blobs and 18.63 ms with tiles laid on the ground (the ledger's "mesh" stage; frame budget section 6 calls it the shadow laid on the ground's triangles): +0.78 ms, a DERIVED difference (PVR-199, MEASURED, one run).
+**The cheap fallback: a blob.** A disc of 8 triangles at alpha 0.50 by day, down to 0.25 at night, is ADVISED: the header's note gives the street demo's values (`include/sh4der_pool.h:9`). The demo's blob is also 8 triangles (`demo.c:1829`, `1831`), at alpha 0.50 by day and 0.25 at night (`demo.c:2134`), compiled only with `-DPL4NAR_BLOBS` (`demo.c:2126`, `2133`). In an earlier hills build at 128 x 64, the frame averaged 17.85 ms with blobs and 18.63 ms with tiles laid on the ground (the ledger's "mesh" stage; frame budget section 6 calls it the shadow laid on the ground's triangles): +0.78 ms, a DERIVED difference (PVR-199, MEASURED, one run).
 
 **Two shadow routes.** Route A: the chip draws the caster map. Route B: the main CPU draws a depth map in RAM ([psm routes](../shadows/psm-routes.md)). The car demo uses neither. Its tile copies route A's first step (dark casters into a target, then a multiply layer), but the casters are the car's two boxes slid along the sun, not a depth map. For scale only, the town gave route A PVR 15.9 ms (PVR-108) and route B SH-4 40.2 ms (PVR-112), one console each.
 
@@ -186,7 +186,7 @@ A pool is a flat fan of triangles that lies on the road. A lamp gets a **disc**.
 
 The header's fade runs across the fan. A disc's centre has full alpha and its rim has 0 (`sh4der_pool.h:32-33`). A wedge's apex has full alpha and its far arc has 0 (`:35-36`). The header says the light "dies with distance". That distance runs along the fan from its apex. It is not the distance from the camera.
 
-In the code committed at e48edf3, the library did **not** fade a pool with its distance from the camera. The working tree now adds that fade (not committed when this page was written; see the next part). A fade that softens a glow where it meets any shape (a camera depth map) is **not in the library**. A fade against the planes and rectangles you name is a separate header, `sh4der_softfade.h` (below).
+The library fades a pool by its distance from the eye from commit 083d3f6. Before that commit, at e48edf3, it did not. A fade that softens a glow where it meets any shape (a camera depth map) is **not in the library**. A fade against the planes and rectangles you name is a separate header, `sh4der_softfade.h` (below).
 
 ### The distance fade (PROTOTYPE, not run on a console)
 
@@ -386,7 +386,7 @@ Five common problems. Each gives the likely cause from the code and the pages, w
 
 **Try this:**
 1. Tile route: lower the 0.50f at [demo.c:1929](../../demo/pl4nar/src/demo.c) for a darker shadow.
-2. Blob, with `-DPL4NAR_BLOBS` ([demo README](../../demo/pl4nar/README.md), line 6): the demo uses 0.50 by day and 0.25 at night ([demo.c:2134](../../demo/pl4nar/src/demo.c), ADVISED). That is not the 0.4 in `sh4der_pool.h`. Pick one.
+2. Blob, with `-DPL4NAR_BLOBS` ([demo README](../../demo/pl4nar/README.md), line 6): the demo uses 0.50 by day and 0.25 at night ([demo.c:2134](../../demo/pl4nar/src/demo.c), ADVISED). The header gives the same values (`sh4der_pool.h:9`), so there is no conflict to pick between.
 3. Shadow-map route: change the bias, `SH4DER_PSM_BIAS_A` 0.02 m and `SH4DER_PSM_BIAS_B` 1.5 texels ([sh4der_psm.h:91-92](../../include/sh4der_psm.h), ADVISED). From the code, a smaller bias gives a darker shadow ([sh4der_psm_raster.h:369, 386](../../include/sh4der_psm_raster.h)). Not measured.
 
 **If that is not it:** not known yet. Test: one flat caster on flat ground under one sun, the grey at the shadow's edge read at three bias values.
@@ -439,13 +439,9 @@ The car programs have not run on a console (suite 13 pending), so these fixes co
 ## Where the sources disagree
 
 - **Tile layouts and the fade (conflict a).** [frame-budget.md:178](../limits/frame-budget.md) gives four 128 px tiles, faded from 40 m, as the car default; the row's practice text does not name the hills build, though its evidence comes from it. The code has those layouts and the fade only in the hills build (`demo.c:44-60`, `340-347`, `355`, `1960`, `1988`); the map build has eight tiles, no fade and a 50 m cut (`demo.c:2012-2058`). The guide follows the code. DISPUTED: the frame budget row needs "hills build".
-- **Blob alpha (conflict c).** [include/sh4der_pool.h:9](../../include/sh4der_pool.h) and AGENTS.md ("Call order: pool", step 4) say "about 0.4"; `demo.c:2134` uses 0.50 by day and 0.25 at night. No ledger row times either value. The guide gives both and marks 0.4 ADVISED. OPEN.
-- **Mirror pass PVR time (conflict d).** [wiki/effects/pl4nar.md:49](../effects/pl4nar.md) says OPEN; [include/sh4der_pl4nar.h:12-13](../../include/sh4der_pl4nar.h) and PVR-175 say MEASURED (3.02 to 3.23 ms). The guide follows the ledger: the PVR time is MEASURED, and the cause (the whole tile walk) and the SH-4 share stay open. DISPUTED: the effect page is stale.
 - **Start size (conflict g).** [include/sh4der_pl4nar.h:8](../../include/sh4der_pl4nar.h) and AGENTS.md say start at 256 x 128; `demo.c:550, 559` start the wet and hills builds at 128 x 64 (the comment at 559 gives the owner's choice). The guide gives both. OPEN: no run compares the two starts.
 - **Paint F0 (conflict h).** [include/sh4der_pl4nar.h:112](../../include/sh4der_pl4nar.h) and the README's pl4nar table say 0.06 (physical). `demo.c:239` uses 0.14 in the street build and `demo.c:237` 0.25 in the map build; README line 1018 says 0.14 read best in the first client, as a stylised look. The guide gives 0.06 as the preset and the demo values as the demo's. OPEN: no console run says which looks right.
 - **Cut and tuning order (conflict j).** [demo/pl4nar/README.md](../../demo/pl4nar/README.md) "What to turn down" (size, rate, triangles) is a cost order; AGENTS.md "Tuning, in the order that matters" (size, world, f0, reach, field of view) is a tuning order; AGENTS.md's engine section, step 4, tunes f0, then gain, then ground_keep (the order this guide's tuning list follows). PVR-175 (size left the mirror near 3.2 ms) and PVR-200 (a one-table tile cut added 3.05 ms) do not back size first. The guide gives the README's order and says the numbers do not back it. DISPUTED.
-- **NULL plane (conflict n).** [demo/pl4nar/AGENT_WORKFLOW.md:24](../../demo/pl4nar/AGENT_WORKFLOW.md) says a NULL plane gives an upright picture; [include/sh4der_pl4nar.h:293](../../include/sh4der_pl4nar.h) makes `sh4der_pl4nar_view_build` return 0 for NULL, and the header at line 219 gives an upright view only from `sh4der_pl4nar_viewproj_rows`. The guide follows the code. DISPUTED: the workflow note needs the same qualification.
-- **Reflection key (not on the list; found on the way).** [demo/pl4nar/src/demo.h:68](../../demo/pl4nar/src/demo.h) says DEMO_BTN_REFLECT is X; `controls.h:51` gives X to the heat and has no reflection row; [demo/pl4nar/README.md:92](../../demo/pl4nar/README.md) says no key turns the reflection off; PVR-175 (build c7) says X switched it. The guide follows `controls.h` and the README. DISPUTED: the `demo.h` comment is stale.
 
 ## Related
 

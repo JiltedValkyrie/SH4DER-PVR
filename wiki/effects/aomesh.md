@@ -32,7 +32,7 @@ The town and square demo does this through `demo/psm/psm_ao.h`, an adapter that 
 
 | Item | Cost | Status |
 |---|---|---|
-| Rays, the walled square's static mesh (8,697 vertices, 5,320 triangles, 70 x 103 ground grid) | 190,884 rays, 1,594,130 ray-triangle tests (8.4 a ray) | exact, counted on the host (`demo/psm/test/psm_ao_test.c`) |
+| Rays, the walled square's static mesh (8,697 vertices, 5,320 triangles, 70 x 103 ground grid) | 190,884 rays, 1,594,130 ray-triangle tests (8.4 a ray), 134,879 reciprocals (the edge tests are on the numerators: a reciprocal only for a triangle that passed them) | exact, counted on the host (`demo/psm/test/psm_ao_test.c`) |
 | Host time of that bake | 66 to 78 ms on the development PC | MEASURED on the host only; not a console figure |
 | Load-time bake on a console | NOT MEASURED | the AO row in the walled square shows it when the program runs |
 | Per ray and per vertex on the SH-4 | ESTIMATE: 12 rays times the triangles a ray's cells hold | not measured |
@@ -40,7 +40,7 @@ The town and square demo does this through `demo/psm/psm_ao.h`, an adapter that 
 | RAM | one byte a vertex, one byte a ground cell; scratch during the bake: 24 B a triangle, 4 B a cell, 2 B a reference | exact, by the code |
 | VRAM | 0 | |
 
-The bake's bytes are pinned for the town's kit mesh (8,697 vertices, 5,320 triangles) on the plain C path: the FNV-1a checksum in `demo/psm/test/psm_ao_test.c`, which prints "pin NOT RUN" on any other mesh. SH4ZAM software path against plain C on the host: 6 of 15,907 bytes differ, the largest by 20 (MEASURED on the host, 2026-11-26; the console's FSRRA path NOT RUN, so the console's bytes are neither). Cause OPEN; the same difference was there before the move.
+The bake's bytes are pinned for the town's kit mesh (8,697 vertices, 5,320 triangles) on the plain C path: the FNV-1a checksum in `demo/psm/test/psm_ao_test.c`, which prints "pin NOT RUN" on any other mesh. SH4ZAM software path against plain C on the host: 6 of 15,907 bytes differ, the largest by 21 (MEASURED on the host, 2026-11-26; the console's FSRRA path NOT RUN, so the console's bytes are neither). Cause OPEN. Before the move and before the edge change it was 6 and 20; the edge tests on the numerators (2026-11-26) closed two of those bytes and two others flipped, so the cause is upstream of the edge tests: the two paths' ray directions differ by an ulp (vertex 3808, ray 0: 1 ulp in z, det 12 ulp apart). The clearest case is vertex 6360: the edge change moved it on the SH4ZAM path only (6 to 27) and left it at 6 on plain C, so the same test on inputs an ulp apart decides one ray two ways. What it means for a user (ADVISED, host only): the bytes are not the same across maths paths and will not be on the console either; expect a few vertices a whole ray apart (about 21 of 255), which is not visible. The edge change moved 3 plain C bytes (the largest by 21), and the pin was taken again on purpose.
 
 ## Recommended limits
 

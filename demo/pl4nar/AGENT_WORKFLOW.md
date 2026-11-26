@@ -21,7 +21,7 @@ Write the triangle and vertex counts down now. They are your budget and your rep
 `sh4der_pl4nar_target_init`, `sh4der_pl4nar_view_build`, `sh4der_pl4nar_pass` with your cheap world draw. Show the target as a quad in a corner of the screen.
 
 - PASS: the world upside down, the horizon near the top, the sky at the bottom. It follows the camera.
-- Upright world: the plane was not given (NULL), or its normal points away from the camera.
+- Upright world: the rows have no mirror (built by hand with `sh4der_pl4nar_viewproj_rows` and a NULL plane, which is a main view), or the plane's normal points away from the camera. `sh4der_pl4nar_view_build` refuses a NULL plane (it returns 0): draw no layer.
 - Empty target: the cull is the wrong way round (a mirrored world has reversed winding), or the draw closed no list.
 - A 0 from the init: no video memory. A 0 from the build: the view has no direction. In both cases draw no layer; never use a view that was refused.
 

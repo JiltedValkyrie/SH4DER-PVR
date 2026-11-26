@@ -242,7 +242,8 @@ The map and hills autoruns keep the old high camera so their stage numbers compa
 | Item | Cost |
 | --- | --- |
 | Reflection target, RGB565, street build | the mirror's own size: 128 x 64 = 16 KB, 256 x 128 = 64 KB (the street default), 512 x 256 = 256 KB of video memory with `--rtt` (exact) |
-| Reflection target, RGB565, map build | twice the mirror's width (`RT_W`: the mirror on the left, the car shadow tiles on the right; the pitch is the width): mirror 128 x 64 = target 256 x 64 = 32 KB (the hills build's default), 256 x 128 = 512 x 128 = 128 KB (the c7 and c8 default), 512 x 256 = 1024 x 256 = 512 KB (exact, with `--rtt`) |
+| Reflection target, RGB565, map build | twice the mirror's width (`RT_W`: the mirror on the left, the car shadow tiles on the right; the pitch is the width): mirror 128 x 64 = target 256 x 64 = 32 KB, 256 x 128 = 512 x 128 = 128 KB (the c7 and c8 default), 512 x 256 = 1024 x 256 = 512 KB (exact, with `--rtt`) |
+| Reflection target, RGB565, hills build | the mirror at the top left, the tiles' 256 x 256 region to its right, each side a power of two (`RT_W`, `RT_H` in `src/demo.c`): mirror 128 x 64 (the hills build's default) or 256 x 128 = target 512 x 256 = 256 KB, 512 x 256 = 1024 x 256 = 512 KB (exact) |
 | Glow texture | 32 x 32 RGB565 = 2 KB (exact) |
 | World textures, low look | 5 x 64 x 64 at 4 bits a texel: 10 KB, and 80 palette entries (exact) |
 | World textures, full look | 4 facades 128 x 128 and the road 256 x 256, RGB565 with mipmaps: 381 KB (exact); both sets stay loaded for the switch |

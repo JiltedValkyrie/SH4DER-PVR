@@ -32,7 +32,7 @@ static void tick(void) { ticks++; }
 /* The pin is for the town's mesh from the Fantasy-kit zip (demo/psm/assets/_dl/modular_village_collection.zip), the mesh
    with PIN_MESH_VERT static vertices and PIN_MESH_TRI static triangles. Any other mesh (no zip: the stand-in; SQUARE=square:
    the walled square) prints "pin NOT RUN" and passes: the pin is not its bytes. */
-#define PIN_VERT_FNV   0x7f1f04588085b50full
+#define PIN_VERT_FNV   0x6b3016ac8abc6a74ull   /* retaken 2026-11-26 for the edge tests on the numerators (was 0x7f1f04588085b50f: 3 bytes moved) */
 #define PIN_GROUND_FNV 0x9eacf14eb738d88full
 #define PIN_MESH_VERT  8697u
 #define PIN_MESH_TRI   5320u
@@ -66,8 +66,8 @@ int main(int argc, char **argv) {
     psm_scene_init_town(&scene);
     t0 = clock();
     CHECK(psm_ao_bake(&ao, &scene, tick) && ao.ok && ticks > 0u);
-    printf("bake: %u static vertices, %u static triangles, %u rays, %u ray-triangle tests (%.1f a ray), ground grid %u x %u, %.0f ms on this host\n",
-           scene.mdyn0, scene.tdyn0, (unsigned)ao.rays, (unsigned)ao.tests, (double)ao.tests / (double)(ao.rays ? ao.rays : 1u), ao.gw, ao.gh,
+    printf("bake: %u static vertices, %u static triangles, %u rays, %u ray-triangle tests (%.1f a ray), %u reciprocals, ground grid %u x %u, %.0f ms on this host\n",
+           scene.mdyn0, scene.tdyn0, (unsigned)ao.rays, (unsigned)ao.tests, (double)ao.tests / (double)(ao.rays ? ao.rays : 1u), (unsigned)ao.recips, ao.gw, ao.gh,
            (double)(clock() - t0) * 1000.0 / CLOCKS_PER_SEC);
     CHECK(ao.rays == (scene.mdyn0 + ao.gw * ao.gh) * SH4DER_AOMESH_RAYS);
     for (i = 0; i < scene.mdyn0; i++) {

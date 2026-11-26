@@ -6,7 +6,8 @@
 
    RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
    Start with: a disc of 10 triangles a lamp, 8 for a blob shadow (the street demo); a wedge of 2 to 4;
-               SH4DER_POOL_MAX_N = 16; the centre lifted 2 to 4 cm; a blob at alpha about 0.4
+               SH4DER_POOL_MAX_N = 16; the centre lifted 2 to 4 cm; a blob at alpha 0.50 by day down to 0.25 at
+               night (the street demo's values)
    Cost:       not measured (the street demo's blob stage was not the pool alone: PVR-160, PVR-175). A pool is
                fill: ESTIMATE at most its share of the screen of a full-screen translucent layer, which is
                +3.1 ms of PVR at 640 x 480 (PVR-002)

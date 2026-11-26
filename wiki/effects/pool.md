@@ -29,7 +29,7 @@ The full steps are in `AGENTS.md` "Call order: pool":
 1. At load: compile two untextured translucent headers, depth test on, depth write off, no culling. One is additive, for light; one is blended, for shadow.
 2. Each frame, in the translucent list after the ground: `sh4der_pool_disc` per lamp near the camera, `sh4der_pool_wedge` per headlight.
 3. Transform the vertices and send the fan. Test each triangle with `sh4der_tri_area_ok`.
-4. A blob shadow is a disc of colour 0, alpha about 0.4, through the blended header.
+4. A blob shadow is a disc of colour 0, alpha 0.50 by day down to 0.25 at night (the street demo's values), through the blended header.
 5. The fade by distance: `sh4der_pool_reach_make` once a frame; `sh4der_pool_reach_fade` a lamp; skip the lamp at 0, else multiply the pool's and the halo's alpha by it. For another car's headlight, `sh4der_pool_beam` with the reach and the eye, and `sh4der_pool_beam_tris`.
 
 ## Cost

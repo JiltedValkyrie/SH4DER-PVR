@@ -119,8 +119,24 @@ int main(void) {
     CHECK(grid.g == NULL && grid.gw == 0u && grid.gh == 0u);
     CHECK(sh4der_aomesh_ground(&grid, 0.0f, 0.0f) == 255u && sh4der_aomesh_ground(&grid, 1e9f, 0.0f) == 255u);
     CHECK(sh4der_aomesh_ground(&grid, (float)NAN, 0.0f) == 255u);
-    CHECK(st.rays == m.nv * SH4DER_AOMESH_RAYS && st.tests > 0u);
+    CHECK(st.rays == m.nv * SH4DER_AOMESH_RAYS && st.tests > 0u && st.recips > 0u && st.recips <= st.tests);
     memcpy(vert_again, vert, m.nv);
+
+    /* the edge tests on the numerators: a ray straight through the edge two triangles share is taken (by one or both), on
+       either winding (det of both signs); a ray just outside both is refused, and no reciprocal is taken for it */
+    {
+        const float o[3] = { 0.3f, 0.0f, 0.3f }, up[3] = { 0.0f, 1.0f, 0.0f }, off[3] = { 1.5f, 0.0f, 0.3f };
+        const float p0[3] = { -1, 1, -1 }, p1[3] = { 1, 1, -1 }, p2[3] = { 1, 1, 1 }, p3[3] = { -1, 1, 1 };
+        uint32_t nr = 0u;
+        float t0 = sh4der_aomesh_tri_(o, up, p0, p1, p2, 2.0f, &nr), t1 = sh4der_aomesh_tri_(o, up, p0, p2, p3, 2.0f, &nr);
+        float t2b = sh4der_aomesh_tri_(o, up, p0, p2, p1, 2.0f, &nr), t3 = sh4der_aomesh_tri_(o, up, p0, p3, p2, 2.0f, &nr);
+
+        CHECK((t0 > 0.999f && t0 < 1.001f) || (t1 > 0.999f && t1 < 1.001f));
+        CHECK((t2b > 0.999f && t2b < 1.001f) || (t3 > 0.999f && t3 < 1.001f));
+        nr = 0u;
+        CHECK(sh4der_aomesh_tri_(off, up, p0, p1, p2, 2.0f, &nr) < 0.0f && sh4der_aomesh_tri_(off, up, p0, p2, p1, 2.0f, &nr) < 0.0f && nr == 0u);
+        CHECK(sh4der_aomesh_tri_(o, up, p0, p1, p2, 0.5f, &nr) < 0.0f && nr == 1u);   /* past the reach: one reciprocal, no hit */
+    }
     CHECK(bake(&m, NULL, vert, &grid, &st, NULL) == 1 && memcmp(vert, vert_again, m.nv) == 0);
 
     /* a box with no top, 6 m by 6 m by 3 m: the inside corner darkest, the edge darker than the centre (255) */
@@ -183,7 +199,7 @@ int main(void) {
         memset(&st, 0x5a, sizeof st);
         e.nt = 0u;                               /* no triangles: the helper takes the count from the mesh */
         CHECK(bake(&e, NULL, vert, &grid, &st, NULL) == 0);
-        CHECK(vert[0] == 9u && st.rays == 0x5a5a5a5au && st.tests == 0x5a5a5a5au);
+        CHECK(vert[0] == 9u && st.rays == 0x5a5a5a5au && st.tests == 0x5a5a5a5au && st.recips == 0x5a5a5a5au);
     }
 
     /* a zero normal: 255, and it casts no rays: the ray count is the other vertices' and the grid's cells' */

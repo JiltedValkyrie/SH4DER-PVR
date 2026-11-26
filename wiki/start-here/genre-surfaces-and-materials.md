@@ -41,7 +41,7 @@ A floor or a wall can show grooves and ribs that catch a moving torch, with no b
 **Where it is:** [header](../../include/sh4der_pl4nar.h) and [effect page](../effects/pl4nar.md).
 
 **Starting settings:** the header's block gives these as ADVISED. The street driving demo ([demo/pl4nar](../../demo/pl4nar/README.md)) has run on a console, so no NOT RUN tag applies.
-- A target of 256 × 128, 64 KB with `-DSH4DER_PL4NAR_HAVE_RTT` (include/sh4der_pl4nar.h:8, 76-78). ADVISED. The header says to go down in size before anything else.
+- A target of 256 × 128, 64 KB with `-DSH4DER_PL4NAR_HAVE_RTT` (include/sh4der_pl4nar.h:8, 76-78). ADVISED. The header says to go down in size first, but in the car runs the size did not change the mirror pass's PVR time (PVR-174 and PVR-175, MEASURED, one console), so measure the mirror at each size before you cut.
 - `SH4DER_PL4NAR_FOV_SCALE` = 1.55 for a body, and 1 for a flat surface (include/sh4der_pl4nar.h:118). ADVISED.
 - `SH4DER_PL4NAR_F0_PAINT` = 0.06 (line 112) and `SH4DER_PL4NAR_F0_GLASS` = 0.10 (line 113). ADVISED. Paint and glass were judged on a picture from the host. The other materials are untested gains (README "Materials").
 - `SH4DER_PL4NAR_REACH` = 18.0 (line 116) and `SH4DER_PL4NAR_GROUND_KEEP` = 0.55 (line 121). ADVISED.
@@ -93,7 +93,7 @@ A floor or a wall can show grooves and ribs that catch a moving torch, with no b
 | Planar reflection [pl4nar], lookup | 64 KB at 256 × 128 (FACT, include/sh4der_pl4nar.h:76-78) | 320 looked-up vertices on the car body (FACT, host count) | 0.92 to 0.97 ms (MEASURED, 1 console, 1 run, PVR-160) | ALPHA v0.5 |
 | Planar reflection [pl4nar], mirror pass | The same target | Not counted for a fixed scene (OPEN) | About 41 ms of frame added (ESTIMATE, a difference of two frame times, PVR-160) | ALPHA v0.5 |
 | Texture ripple [uvwarp] | None (FACT: the header allocates nothing) | Per vertex; no count | Not measured (OPEN). Test: time a loop of `sh4der_uvwarp_offset_p` with the cycle counter, as in [benchmarking](../methods/benchmarking.md) | PROTOTYPE v0.1; NOT RUN on a console |
-| Light through thin parts [sss] | None (FACT: the header allocates nothing) | Per vertex; no count | 187 us for a shade of 65 vertices (MEASURED, 1 console, 1 run, SH4-083) | ALPHA v0.3 |
+| Light through thin parts [sss] | None (FACT: the header allocates nothing) | Per vertex; no count | 187 us for 65 vertices in the lamp program's shade loop, which calls the sss maths and normalises (MEASURED, 1 console, 1 run, SH4-083; the loop is not the library call alone) | ALPHA v0.3 |
 | Inner light [holo] | None (FACT: the header allocates nothing) | 64 multiply-adds a frame and one table load a vertex (ESTIMATE, counts from the README) | Not measured (OPEN). Test: time `sh4der_holo_prepare` and a vertex loop with the cycle counter | PROTOTYPE v0.1; NOT RUN on a console |
 
 Video memory is the 8 MB the graphics chip keeps its textures and render targets in, a triangle is one flat shape it draws, and a vertex is one corner the SH-4 works out before the chip draws it.
@@ -102,7 +102,7 @@ Some pages call their counts "as-stated". Here those counts are tagged ESTIMATE:
 
 The effect pages lag the ledger in two places, and the table follows the ledger:
 - **Planar reflection.** The effect page lists one console run for the lookup. The ledger adds 0.59 to 0.65 ms (PVR-174) and 0.96 to 0.97 ms (PVR-199), both MEASURED. The mirror pass's PVR time, about 3.2 ms at all three target sizes, is MEASURED (PVR-175). The effect page still marks it OPEN (Q97). The layer's PVR time is ESTIMATE, under 0.5 ms.
-- **Light through thin parts.** The effect index says no console cost exists, but SH4-083 times the shade. The header's cost line names SH4ZAM's `shz_expf` (include/sh4der_sss.h:33-34); the code uses its own exponential (lines 71-84). A sea demo's wave crests use the same maths through the water module: see the [water effect page](../effects/water.md).
+- **Light through thin parts.** The effect index says no console cost exists, but SH4-083 times the lamp program's shade loop, which calls the sss maths; it does not time the library call alone. The header's cost line names SH4ZAM's `shz_expf` (include/sh4der_sss.h:33-34); the code uses its own exponential (lines 71-84). A sea demo's wave crests use the same maths through the water module: see the [water effect page](../effects/water.md).
 
 Open items, each with its test, are in [open questions](../open-questions.md): Q42 (bump) and Q43 (planar reflection).
 

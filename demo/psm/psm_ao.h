@@ -32,7 +32,7 @@ typedef struct psm_ao {
     uint8_t *g;                          /* the ground's grid, gw x gh, row by row along x; NULL: none (open) */
     unsigned gw, gh;
     float gx0, gz0;
-    uint32_t rays, tests;                /* rays cast, ray-triangle tests made (sh4der_aomesh_stats_t) */
+    uint32_t rays, tests, recips;        /* rays cast, ray-triangle tests made, reciprocals taken (sh4der_aomesh_stats_t) */
 } psm_ao_t;
 
 static inline void psm_ao_free(psm_ao_t *a) { free(a->g); a->g = NULL; a->gw = a->gh = 0u; a->ok = 0; memset(a->mao, 255, sizeof a->mao); }
@@ -49,11 +49,11 @@ static inline int psm_ao_bake(psm_ao_t *a, const psm_scene_t *s, void (*tick)(vo
     sh4der_aomesh_need_t need, cap;
     sh4der_aomesh_work_t w;
     sh4der_aomesh_grid_t g;
-    sh4der_aomesh_stats_t st = { 0u, 0u };
+    sh4der_aomesh_stats_t st = { 0u, 0u, 0u };
     int ok;
 
     psm_ao_free(a);
-    a->rays = a->tests = 0u;
+    a->rays = a->tests = a->recips = 0u;
     if (!vn || !tn) return 0;
     m.pos = &s->mv[0][0]; m.stride = 3u; m.idx = s->mt; m.ntri = tn;
     r.x0 = s->x0; r.z0 = s->z0; r.x1 = s->x1; r.z1 = s->z1;
@@ -70,7 +70,7 @@ static inline int psm_ao_bake(psm_ao_t *a, const psm_scene_t *s, void (*tick)(vo
     ok = sh4der_aomesh_bake(&m, &s->mn[0][0], 3u, vn, &r, &cap, &w, a->mao, &g, &st, tick);
     if (ok) { a->g = g.g; a->gw = g.gw; a->gh = g.gh; a->gx0 = g.x0; a->gz0 = g.z0; }
     else free(w.grid);
-    a->rays = st.rays; a->tests = st.tests;
+    a->rays = st.rays; a->tests = st.tests; a->recips = st.recips;
     a->ok = ok;
     free(w.box); free(w.cell); free(w.list);
     return ok;

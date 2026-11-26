@@ -62,13 +62,7 @@ The current `heat.h` copies a window of the frame and draws it back through a me
 
 ## Pictures
 
-The pictures are outside the repository, in `D:/tmp/scholar/heatref/`, so the video's frames stay out:
-
-- `out_mean_diff_x4.png`: where the haze is, averaged over the run.
-- `out_tracks_on_still.png`: the tracked hexagons' paths drawn on the still (blue: start, red: path; the green box is the band).
-- `out_rings_x10.png`: six clear rings at 10×.
-- `out_zoom_6steps.png`: six steps in a row at 3×.
-- `out_zoom_still_vs_diff.png`: the still beside the difference at 5×.
+The reference pictures were recycled (restorable from the Recycle Bin). They were kept outside the repository, so the video's frames stayed out.
 
 ## Related
 

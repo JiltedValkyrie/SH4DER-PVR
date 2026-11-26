@@ -65,7 +65,7 @@
 #endif
 
 enum {
-    DEMO_BTN_REFLECT = 1u << 0,    /* reflection on / off (X; the keys of every action: controls.h) */
+    DEMO_BTN_REFLECT = 1u << 0,    /* reflection on / off (no pad key: X is the heat, DEMO_BTN_HEAT; the keys of every action: controls.h) */
     DEMO_BTN_SIZE    = 1u << 1,    /* next reflection target size */
     DEMO_BTN_MORE    = 1u << 2,    /* F0 up */
     DEMO_BTN_LESS    = 1u << 3,    /* F0 down */
@@ -151,6 +151,8 @@ unsigned demo_hex_band_tris(void);                 /* triangles sent a second ti
 void  demo_auto_beam(int on);                      /* the headlights' fade by distance (sh4der_pool_beam, the lamps' reach): 0 the
                                                       two wedges (the start, unless -DPL4NAR_HEAD_BEAM), 1 the beam. Shows only
                                                       where the camera is far from the car (the fly-by). NOT RUN on a console */
+void  demo_auto_cine_far(void);                    /* the fly-by's shot from CINE_FAR_Y up (the same place, hold and dolly): the
+                                                      still camera looks down on the road, for the headlights' fade by distance */
 void  demo_auto_cine(void);                        /* the fly-by shot from here (CINE_TOTAL s, then the follow camera again) */
 int   demo_cine_on(void);                          /* the fly-by shot is running */
 void  demo_heat_copy(uint32_t *us, uint32_t *copies);   /* the heat's last copy time and copies made (0, 0 off the Dreamcast) */

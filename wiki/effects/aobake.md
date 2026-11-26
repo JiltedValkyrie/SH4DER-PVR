@@ -34,7 +34,7 @@ The steps are in `AGENTS.md`'s "Files" list and the header's top comment:
 | Load-time bake, scene B (2,544 vertices) | 391 to 393 ms | MEASURED, one console (SH4-082) |
 | Per ray | 1.85 to 2.41 us | DERIVED from SH4-076 (371 to 483 cycles) |
 | Per vertex | ESTIMATE: 64 rays times the occluders a ray tests | not measured as its own number |
-| Run time | 0 (one byte a vertex, read by the light) | as-stated in `recommended-limits.md` |
+| Run time, the lit vertices | +222 us of SH-4 a frame for 2,142 vertices, +280 us for 2,544 (ao4-i, two runs); +69 and +113 us in an earlier build, cause OPEN (Q91) | MEASURED, one console (PVR-176, SH4-082, SH4-077; the frame-budget row 'Baked AO at draw') |
 | RAM | one byte a vertex, plus the 64-ray array (768 B) | as-stated by the code |
 | VRAM | 0 | |
 
