@@ -86,6 +86,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [methods/fault-catcher.md](methods/fault-catcher.md) | The fault catcher | method, debug | 2026-11-25 | what the fault catcher shows when a console crashes or hangs, how to read its screen, and what it cannot catch.
 - [methods/host-test-first.md](methods/host-test-first.md) | Host test first | method, test | 2026-11-25 | how code is checked on a PC before it reaches a console, and what a host test can and cannot prove.
 - [methods/sh4zam-rule.md](methods/sh4zam-rule.md) | The SH4ZAM rule | method, sh4 | 2026-11-25 | why all maths goes through SH4ZAM, what to do when SH4ZAM has no call for it, and what counts as "slow".
+- [methods/suite-12.md](methods/suite-12.md) | Suite 12: what each program tests and what to read | method, suite, run, ledger | 2026-11-25 | what each program on the suite 12 disc shows, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to. IDs BUS-054 to VID-017 (11 rows).
 
 ## research
 

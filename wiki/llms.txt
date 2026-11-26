@@ -42,6 +42,7 @@
 - [Host test first](methods/host-test-first.md): make test, make test-shz, make dc
 - [The SH4ZAM rule](methods/sh4zam-rule.md): all maths through SH4ZAM; hooks in sh4zam-dce
 - [Fault catcher](methods/fault-catcher.md): reading a crash or hang screen on a console
+- [Suite 12](methods/suite-12.md): what each program on the suite 12 disc tests, what to read on its pages, the rows they go to
 
 ## Shadows and research
 

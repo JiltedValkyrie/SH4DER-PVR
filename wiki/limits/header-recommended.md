@@ -36,7 +36,7 @@ It goes in the header's top comment, after the copyright lines and before the lo
 |---|---|---|
 | Start with | The settings a new client starts from: the macro names and their values, a target size, a pool size | Use the macro's full name (`SH4DER_PL4NAR_REACH`, not `REACH`), and write its value exactly as the macro and the README tuning table give it. If one changes, change all three in the same edit. Write `NAME = value`, never a `#define` line: a reader should never mistake the block for code, and a later parser may not strip comments as `tools/check_tuning.py` does. |
 | Cost | SH-4 and PVR time for the stated case, or the bytes where the bytes are the cost | Only a number the ledger holds, with its row. A number from a related feature (a full-screen layer for a glow) is an ESTIMATE and says what it is from. No number: "not measured". MEASURED and ESTIMATE never share a number. |
-| Status | PROVEN or ADVISED, as [frame budget](frame-budget.md) uses them. The line may split it when the start setting and a cost differ (for example: the mode ADVISED, its cost PROVEN) | PROVEN only where a MEASURED row backs the start settings. A difference worked out from two MEASURED stage means is DERIVED, and so is a per-vertex cost from a count read in the code: say so. Otherwise ADVISED, and name the test that would measure it. An emulator result is never MEASURED. A label that depends on an open owner's call (the client rule in maturity) says so. |
+| Status | PROVEN or ADVISED, as [frame budget](frame-budget.md) uses them. The line may split it when the start setting and a cost differ (for example: the mode ADVISED, its cost PROVEN) | PROVEN only where a MEASURED row backs the start settings. A difference worked out from two MEASURED stage means is DERIVED, and so is a per-vertex cost from a count read in the code: say so. Otherwise ADVISED, and name the test that would measure it. An emulator result is never MEASURED. The client rule is decided (demos and suite programs count as clients, [open questions](../open-questions.md) D2): a Maturity line no longer gives a second version for it. |
 | Do | One or two practices from [frame budget](frame-budget.md) section 3 that apply to this header | Each with its number and its status. Typical ones: cut a render target pass to its own tiles; give a shadow a maximum distance with a fade; the cheapest version first; limit per-vertex work to the vertices that need it. |
 | Do not | One or two things that break the effect or cost the most | Take them from the header's own pitfalls, AGENTS.md's call order or the ledger. |
 | Maturity | The part's label and version | Copy it from [maturity](../status/maturity.md); update it at each re-rank. |
@@ -68,6 +68,27 @@ The block for `demo/psm/ao/tile_cut.h`:
                (shut the PVR down and pvr_init again)
    Maturity:   ALPHA v0.5
 ```
+
+## Proposed for the car demo (for Cortana)
+
+Header text is Cortana's to change; these are proposals, from section 6 of [frame budget](frame-budget.md).
+
+**`demo/pl4nar/src/heat.h`, a new block** (it has the costs as ESTIMATE in its head already):
+
+```
+   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
+   Start with: a 128 x 64 texture (16 KB video memory), the band HEAT_DIST = 30.0 m ahead, HEAT_ALPHA = 0.6;
+               by day on a dry road only (heat_gate)
+   Cost:       not measured. ESTIMATE (this header): SH-4 0.4 to 0.8 ms for 8,192 uncached reads of the frame,
+               about 0.1 ms through the store queue; TA 6.4 KB; PVR a layer of 24,576 pixels, about 0.25 ms
+               scaled from a full-screen layer's 3.1 ms (PVR-002). Off: 0
+   Status:     ADVISED; to prove: car-tech stage 11 against stage 1 (suite 12) and its "last copy" line
+   Do:         gate it off at night and in rain (a gate of 0 copies and sends nothing); copy before any scene opens
+   Do not:     keep the texture across a pvr_init (heat_reset); trust a near object's edge in the band (OPEN)
+   Maturity:   PROTOTYPE v0.1 (demo code)
+```
+
+**`include/sh4der_pl4nar.h`, one line:** its Maturity line reads "ALPHA v0.5 (by the written client rule; v0.4 if the owner counts only outside clients)". With D2 decided it becomes "ALPHA v0.5".
 
 ## Related
 
