@@ -18,7 +18,6 @@ ifneq ($(findstring -m4-single-only,$(KOS_CFLAGS)),)
 $(error KOS_CFLAGS has -m4-single-only, not -m4-single: put the toolchain on PATH before sourcing environ.sh)
 endif
 LIB        ?= ../..
-SH4DOW     ?= $(LIB)/sh4dow-dc
 SH4ZAM_LIB  = $(SH4ZAM)/build/libsh4zam.a
 DEMO_BUILD ?= 0
 RTT        ?= 0
@@ -26,7 +25,7 @@ BUILD      ?= build
 MAP        ?= 0
 GEN        ?= $(BUILD)/gen
 MATHFLAGS   = -isystem $(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-CFLAGS_ALL  = -O2 -std=gnu11 -Wall -Wextra -Wcast-align=strict $(MATHFLAGS) -Isrc -I$(GEN) -I$(LIB)/include -I$(SH4DOW)/include -DDEMO_BUILD=$(DEMO_BUILD) -MD -MP
+CFLAGS_ALL  = -O2 -std=gnu11 -Wall -Wextra -Wcast-align=strict $(MATHFLAGS) -Isrc -I$(GEN) -I$(LIB)/include -DDEMO_BUILD=$(DEMO_BUILD) -MD -MP
 ifeq ($(RTT),1)
 CFLAGS_ALL += -DSH4DER_PL4NAR_HAVE_RTT
 endif

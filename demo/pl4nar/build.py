@@ -96,7 +96,7 @@ def map_ao_cmd(cc, sh4zam, exe):
     lib = os.path.dirname(os.path.dirname(ROOT))
     j = os.path.join
     return [cc, "-O2", "-std=gnu11", "-Wall", "-Wextra", "-I" + j(ROOT, "src"), "-I" + GEN_MAP, "-I" + j(lib, "include"),
-            "-I" + j(lib, "sh4dow-dc", "include"), "-I" + j(sh4zam, "include"),
+            "-I" + j(sh4zam, "include"),
             j(ROOT, "tools", "map_ao.c"), j(ROOT, "src", "map.c"), j(GEN_MAP, "assets_gen.c"), j(GEN_MAP, "map_gen.c"),
             shz_sw(sh4zam), "-lm", "-o", exe]
 

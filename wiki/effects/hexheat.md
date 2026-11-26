@@ -9,17 +9,17 @@ sources: [include/sh4der_hexheat.h, test/hexheat_test.c, README.md "The hexheat 
 **What you will learn:** how the hexagon heat haze is built (a honeycomb fixed on the screen, a smooth wave that nudges each cell, and a ray to the ground for each cell), where its picture comes from, and what it costs.
 **For:** a programmer who wants heat shimmer over a hot far view on the PVR, with no copy of the screen.
 
-> **In plain words.** Hot air over a far road makes the far picture wobble. Here the far part of the picture is cut into a honeycomb of small six-sided tiles. Every tile keeps its own place and is only nudged a little, at most 2 pixels, by a slow, smooth wave that drifts up through the honeycomb. Tiles next to each other move almost the same way, so the picture shimmers. No tile pops in, jumps or flickers. The design and its maths are the owner's.
+> **In plain words.** Hot air over a far road makes the far picture wobble. Here the far part of the picture is cut into a honeycomb of small six-sided tiles. Every tile keeps its own place and is only nudged a little, about 2 pixels at most, by a slow, smooth wave that drifts up through the honeycomb. The wave is stripes: tiles along a stripe move together, tiles across the stripes do not. No tile leaves its place, and nothing is rolled at random. The design and its maths are the owner's.
 
 ## Try this first
 
 For heat shimmer over a far view by day, when you already draw into a render target every frame.
 
-1. Keep the header's start values; they are the owner's. `SH4DER_HEXHEAT_S` = 8.0 (a hexagon 13.9 pixels wide and 16 high), `SH4DER_HEXHEAT_LAYERS` = 3, `SH4DER_HEXHEAT_WAVE_HEX` = 7.0 and `SH4DER_HEXHEAT_WAVE_HEX_UP` = 7.0 (the longest wave is 7 hexagon widths), `SH4DER_HEXHEAT_RISE_HEX` = 1.5 and `SH4DER_HEXHEAT_WIND` = 0.35 (README "Hexheat tuning"; include/sh4der_hexheat.h:79-94). ADVISED, NOT RUN.
-2. The size of the nudge: `SH4DER_HEXHEAT_PEAK` = 0.25, a quarter of s, which is 2 pixels. `SH4DER_HEXHEAT_OFFSET_MAX` = 0.32 holds every nudge under a third of s, so two neighbours never overlap (include/sh4der_hexheat.h:103, 111). ADVISED. On the host the street scene's largest nudge is 1.86 pixels (test/hexheat_test.c).
-3. Where the haze stands: `SH4DER_HEXHEAT_LAYER_FRAC` = 0.125 (the haze layer is one eighth of the screen's height) and `SH4DER_HEXHEAT_D0` = 30.0 m (include/sh4der_hexheat.h:97, 100). The street demo stands the haze 70 m ahead (`HEAT_DIST`) and keeps everything nearer than 64 m out of the band (`HEXH_NEAR_BACK` = 6 m, demo/pl4nar/src/heat_hex.h:20). ADVISED.
-4. The band: `SH4DER_HEXHEAT_BAND_W` = 256 by `SH4DER_HEXHEAT_BAND_H` = 128 texels, one texel a screen pixel, in a render target you already fill (include/sh4der_hexheat.h:116-117). Sample it filtered (bilinear). ADVISED.
-5. In a driving game: `SH4DER_HEXHEAT_DRIVE` = 0.5 lets the pattern stream toward the camera as the car speeds up (include/sh4der_hexheat.h:109). Read [Stripes, and the speed where they stand still](#stripes-and-the-speed-where-they-stand-still) first. ADVISED.
+1. Keep the header's start values; they are the owner's. `SH4DER_HEXHEAT_S` = 8.0 (a hexagon 13.9 pixels wide and 16 high), `SH4DER_HEXHEAT_LAYERS` = 3, `SH4DER_HEXHEAT_WAVE_HEX` = 7.0 and `SH4DER_HEXHEAT_WAVE_HEX_UP` = 7.0 (the longest wave is 7 hexagon widths along the screen's x and along its y; from crest to crest that is 4.95 widths), `SH4DER_HEXHEAT_RISE_HEX` = 1.5 and `SH4DER_HEXHEAT_WIND` = 0.35 (README "Hexheat tuning"; include/sh4der_hexheat.h:83-98). ADVISED, NOT RUN.
+2. The size of the nudge: `SH4DER_HEXHEAT_PEAK` = 0.25, a quarter of s, which is 2 pixels: the aim at the haze's far line. `SH4DER_HEXHEAT_OFFSET_MAX` = 0.32 holds every nudge at 0.32 of s, which is 2.56 pixels, so a tile's middle stays in its own cell (include/sh4der_hexheat.h:107, 115). ADVISED. On the host the street scene's largest nudge is 1.86 pixels and a high camera's is 2.34 (test/hexheat_test.c). Two tiles that share an edge do overlap and part: see [Neighbours](#neighbours).
+3. Where the haze stands: `SH4DER_HEXHEAT_LAYER_FRAC` = 0.125 (the haze layer is one eighth of the screen's height) and `SH4DER_HEXHEAT_D0` = 30.0 m (include/sh4der_hexheat.h:101, 104). The street demo stands the haze 70 m ahead (`HEAT_DIST`) and keeps everything nearer than 64 m out of the band (`HEXH_NEAR_BACK` = 6 m, demo/pl4nar/src/heat_hex.h:20). ADVISED.
+4. The band: `SH4DER_HEXHEAT_BAND_W` = 256 by `SH4DER_HEXHEAT_BAND_H` = 128 texels, one texel a screen pixel, in a render target you already fill (include/sh4der_hexheat.h:122-123). Sample it filtered (bilinear). ADVISED.
+5. In a driving game: `SH4DER_HEXHEAT_DRIVE` = 0.5 lets the pattern stream toward the camera as the car speeds up (include/sh4der_hexheat.h:113). Read [Stripes, and the speed where they stand still](#stripes-and-the-speed-where-they-stand-still) first. ADVISED.
 
 On a console: NOT RUN. Nothing on this page has run on a Dreamcast. Every count is from the host, and a host count is not a console time.
 
@@ -85,9 +85,9 @@ h is the height over the road and D the distance from the camera. H is how thick
 scale = 1 + c * A * sum of a_i (k_i^2 + m_i^2) sin(theta_i)
 ```
 
-The owner's rules for the numbers, which the start values follow: the largest offset stays under s / 3; the longest wave is 6 to 8 hexagon widths; the rise is 1 to 2 hexagon widths a second; the wind is 0.2 to 0.5 of the rise; the haze layer is 10 to 15 % of the screen's height; the peak offset is 0.25 s. The header tunes A0 for each view, so that the largest offset is `SH4DER_HEXHEAT_PEAK` x s at the foot of the sheet (the road's far line).
+The owner's rules for the numbers, which the start values follow: the largest offset stays under s / 3; the longest wave is 6 to 8 hexagon widths (the header takes that along the screen's x and along its y, as the formula has k and m; whether she means crest to crest is under [Open](#open)); the rise is 1 to 2 hexagon widths a second; the wind is 0.2 to 0.5 of the rise; the haze layer is 10 to 15 % of the screen's height; the peak offset is 0.25 s. The header tunes A0 for each view, so that the largest offset is `SH4DER_HEXHEAT_PEAK` x s at the foot of the sheet (the road's far line).
 
-What that is in the street scene (arithmetic from the start values and that view's 6.75 pixels a metre at the sheet): a hexagon is 2.05 m wide out there, the longest wave is 14.4 m, the rise is 3.1 m a second, the wind 1.1 m a second and the haze layer 8.9 m thick.
+What that is in the street scene (arithmetic from the start values and that view's 6.75 pixels a metre at the sheet): a hexagon is 2.05 m wide out there, the longest wave is 14.4 m along an axis and 10.2 m from crest to crest (68.6 pixels, 4.95 hexagon widths; the middle layer 2.47 widths, the finest 1.24), the rise is 3.1 m a second, the wind 1.1 m a second and the haze layer 8.9 m thick.
 
 ### Back to pixels
 
@@ -102,6 +102,7 @@ The picture under the hexagons is not read back from the screen. It is drawn a s
 1. A render pass that already runs (the street demo: its reflection pass) also draws the far end of the world into a 256 x 128 region of its own target, the band. It uses the screen's camera, so one texel is one screen pixel.
 2. The band holds only what is farther than a near distance. The street demo cuts its triangles to the band and to that distance on the SH-4 (`gfx_window` in its gfx layer). The road alone is not cut by distance, so a hexagon that sits over the cut's line still carries road.
 3. On the screen's translucent list each hexagon is a strip of 6 vertices. It takes its texels from the band at its home and is drawn at home + offset: no blend, filtered (bilinear), depth tested at the near cut's depth, no depth write. What is nearer covers the hexagon, so a hexagon never shows a piece of a near thing.
+4. A hexagon replaces what is under it with the band. So everything the screen shows beyond the cut must be in the band too, translucent layers as well (a far shadow, smoke, a light's glow). The street demo puts the opaque world and the player's car in the band, and fades the road's baked darkening out over 6 m short of the cut while a band is drawn. Far blob shadows and the car's reflection layer beyond the cut are not in the band.
 
 No pass is added, no wait, no copy and no tile cut. Nothing is a frame late.
 
@@ -109,7 +110,7 @@ No pass is added, no wait, no copy and no tile cut. Nothing is a frame late.
 
 `sh4der_hexheat_follow` puts what the camera did since the frame before into the wave's scroll:
 
-- **A turn.** The far picture slides sideways on the screen, and the pattern slides with it. On the host a turn that moves the far picture 9.49 pixels changes a far point's offset by 0.0009 pixels (test/hexheat_test.c).
+- **A turn.** The far picture slides sideways on the screen, and the pattern slides with it. On the host a turn that moves the far picture 9.49 pixels changes a far point's offset by 0.0009 pixels (test/hexheat_test.c). But the tiles stay on the screen while the pattern slides through them, so in a turn each tile's nudge changes fast: at 0.5 rad a second up to 0.9 pixels a frame at 60 frames a second, against 0.07 on a straight (host, a review program; not in the test). Nothing holds or fades it yet: see [Open](#open).
 - **Driving forward.** The pattern streams toward the camera, by `SH4DER_HEXHEAT_DRIVE` of the way driven. 1 would leave the wave standing in the world; the start value is 0.5.
 
 The wave is a pure function of the home, the camera, the time and those two sums. It keeps no other state: 8 bytes.
@@ -124,14 +125,18 @@ Read this before you judge the look. It follows from the formulas above, and the
 
 A layer with a direction of its own would end both the stripes and the standstill. That is not in the owner's formulas, so it is not in the header. It is listed under [Open](#open).
 
+### Neighbours
+
+Along a stripe two tiles move together. Across the stripes the finest layer is only 1.24 hexagon widths from crest to crest, so two tiles side by side are about half a wave apart and move differently. On the host, in the street scene's view: the nudges of two tiles that share an edge differ by 0.64 pixels on average (rms) and 2.5 at most; about half of such pairs overlap, by up to 1.7 pixels; the others part, by up to 2.4 pixels, and the frame under them shows in the gap (a review program over 600 frames; not in the test). Where the far picture has hard edges this shows as small breaks along the tiles' edges. With `SH4DER_HEXHEAT_LAYERS` = 4 the finest wave is 0.62 widths, shorter than one tile, and neighbours no longer agree at all.
+
 ## Call order
 
 The full steps are in `README.md` "The hexheat effect". A frame:
 
 1. `sh4der_hexheat_view_look` (eye, target, up, the field of view, the screen), then `sh4der_hexheat_view_ground` (the ground's plane, the haze sheet's distance, the near cut). A 0 from either: draw no hexagons this frame.
 2. `sh4der_hexheat_follow` with the `g` and `eye` of the view before. Not on the first frame.
-3. `sh4der_hexheat_band` with the sheet's foot on the screen gives the band's place. Draw the far world into the band in a pass that already runs.
-4. `sh4der_hexheat_mesh` gives 6 vertices a hexagon in strip order. Draw them on the translucent list, after the world.
+3. `sh4der_hexheat_band` with the sheet's foot on the screen gives the band's place. Draw the far world into the band in a pass that already runs: everything the screen shows beyond the cut.
+4. `sh4der_hexheat_mesh` gives 6 vertices a hexagon in strip order. Draw them on the translucent list, after the far translucent polygons and before every nearer one (with the PVR's autosort on, anywhere in the list).
 
 ## Cost
 
@@ -140,12 +145,12 @@ Nothing here is measured on a console. COUNTED means a count from a host run of 
 | Item | Cost | Status |
 |---|---|---|
 | VRAM | the band: 256 x 128 x 2 B = 64 KB of texels. The street demo's targets grow by more than this, because a side must be a power of two: street 64 to 128 KB, map 128 to 256 KB, hills 0 (a spare region at 256 x 128) | as-stated (exact bytes) |
-| RAM | 8 B state and a 192 B view; your vertex array (the street demo: 200 hexagons x 6 vertices x 16 B = 19.2 KB); the demo's glue 36 B | as-stated |
-| SH-4, the lattice | about 180 cells walked a frame, a ray each; a drawn cell costs two exp, a square root and 3 sine-cosine pairs | counts; time NOT MEASURED |
-| Hexagons drawn | 131 a frame in each of the street, map and hills scenes; 4 triangles each, 524 a frame | COUNTED on the host, 2026-11-26 |
+| RAM | 8 B state and a 192 B view; your vertex array (the street demo: 200 hexagons x 6 vertices x 16 B = 19,200 B, 18.75 KB); the demo's glue 36 B | as-stated |
+| SH-4, the lattice | about 160 cells walked a frame (153 to 175 by the band's place; 158 in the street scene), a ray each; a cell that passes the fade costs two exp and a square root (all 158 there); a drawn cell (131) adds 3 sine-cosine pairs | counts; time NOT MEASURED |
+| Hexagons drawn | 131 a frame in each of the street, map and hills scenes in the run below (113 to 132 over two minutes of the hills, by the road's shape); 4 triangles each, 524 a frame | COUNTED on the host, 2026-11-26 |
 | TA | as strips, 786 vertices: 24.6 KB with the header. The street demo sends 4 separate triangles a hexagon (12 vertices), 1,572 vertices: 49.1 KB | arithmetic from the count |
 | Fill | 131 hexagons of 166 square pixels: about 22,000 pixels of the translucent list, textured, no blend (7 % of 640 x 480) | arithmetic; PVR time NOT MEASURED |
-| Triangles sent again into the band (600 frames, 256 x 128, day, driving) | street mean 599, most 762; map mean 396, most 430; hills mean 385, most 416 | COUNTED on the host, 2026-11-26 |
+| Triangles sent again into the band (600 frames at 60 a second from the start line: 5 s of throttle with a short steer, then the brake; 256 x 128, day, the gate off; another stretch of road gives other counts) | street mean 599, most 762; map mean 396, most 430; hills mean 385, most 416 | COUNTED on the host, 2026-11-26 |
 | The whole reflection pass with the band, same run | street mean 1,151 (532 with no band); map 818 (268); hills 808 (268). More than the band alone: while a band is drawn the mirror's own triangles are cut to its region on the SH-4, and a cut triangle becomes several | COUNTED on the host, 2026-11-26 |
 | Console time | not measured | OPEN |
 
@@ -153,10 +158,11 @@ Nothing here is measured on a console. COUNTED means a count from a host run of 
 
 All ADVISED: no number here is measured.
 
-- `SH4DER_HEXHEAT_OFFSET_MAX` 0.32 must stay under a third of s, and `SH4DER_HEXHEAT_PEAK` at or under it: the header refuses to compile otherwise (include/sh4der_hexheat.h:121-122). To prove the look: the street scene's hexagon stage on a console, on a television.
-- `SH4DER_HEXHEAT_CELLS_MAX` 200 hexagons a frame; the band holds about 180 homes at s = 8 (include/sh4der_hexheat.h:115).
-- `SH4DER_HEXHEAT_LAYERS` 3 or 4 (1 to 4 compile). Each layer is one more sine-cosine pair a drawn cell.
-- Keep near things out of the band, and never draw the hexagons nearer than the band's cut. Test: the street scene with traffic crossing the far end.
+- `SH4DER_HEXHEAT_OFFSET_MAX` 0.32 must stay under a third of s, and `SH4DER_HEXHEAT_PEAK` at or under it: the header refuses to compile otherwise (include/sh4der_hexheat.h:127-128). It also refuses a `SH4DER_HEXHEAT_PEAK` x s under 4 x `SH4DER_HEXHEAT_CUT` pixels (hardly a tile would be drawn) and an s too small for `SH4DER_HEXHEAT_CELLS_MAX` (the rows at the road's far line, the strongest, would be left out): lines 130-131. To prove the look: the street scene's hexagon stage on a console, on a television.
+- `SH4DER_HEXHEAT_CELLS_MAX` 200 hexagons a frame; the band holds about 160 homes at s = 8, 180 at most (include/sh4der_hexheat.h:120). With a smaller s, raise it (`-DSH4DER_HEXHEAT_CELLS_MAX=`): s = 7 needs 258 by the header's bound.
+- `SH4DER_HEXHEAT_LAYERS` 3 (1 to 4 compile). Each layer is one more sine-cosine pair a drawn cell. With 4 the finest wave is shorter than one tile: see [Neighbours](#neighbours).
+- `SH4DER_HEXHEAT_D0`: keep it under about 4 times the near cut on the Dreamcast path. SH4ZAM's fast `exp` is coarse for a small distance over D0: on the host a ground cell 26 m off is 8 % out at D0 = 100 m and 16 % at 300 m (a review program).
+- Keep near things out of the band, never draw the hexagons nearer than the band's cut, and put everything the screen shows beyond the cut in the band. Test: the street scene with traffic crossing the far end, and its fly-by, where the player's car drives away past the cut.
 
 ## Tuning
 
@@ -166,17 +172,22 @@ See `README.md` "Hexheat tuning". Turn the knobs in this order: `SH4DER_HEXHEAT_
 
 - **Point sampling looks like cracked glass.** With a point-sampled band a hexagon's picture moves by whole pixels and its edges show. Sample filtered. The street demo's `-DPL4NAR_HEAT_HEX_POINT` builds the point-sampled form to compare (host pictures only).
 - **A soft patch.** A filtered sample moved by a part of a pixel blurs a little. So the far picture under the honeycomb is slightly softer than the sharp picture round it, all the time (host pictures; not seen on a console).
-- **Faint edges on a smooth sky.** Where the far picture is a smooth gradient, the hexagons' edges can show faintly (host pictures; not seen on a console).
+- **Faint edges on a smooth sky, on the host.** The host preview cuts the band to 16 bits and the screen not, so on the host every tile is up to 7 levels of 255 darker than the picture round it, and its edges show on smooth colour. That is the host's own error. The host does not model the PVR's packing or its dither: see [Open](#open) for what the console may show instead.
+- **Breaks along the tiles' edges.** Two tiles side by side across the stripes move differently ([Neighbours](#neighbours)). On hard edges in the far picture this shows as small steps, with filtering too.
+- **A thing beyond the cut that is not in the band vanishes.** A tile replaces what is under it. The street demo's player car was missing from the band at first, and on the host it disappeared in the fly-by once it was farther than 64 m.
 - **A 2D vertex in the window.** A 2D vertex (w = 1) drawn through the demo's window gets the depth key 1 and covers everything. Draw a background quad before the window is set.
 - **One target, two pictures.** The band and the mirror share a target. Cut the mirror to its own region too, so nothing of it spills into the band.
 - **The tile cut.** The hills' tile cut must keep the band's tiles. The street demo widens the cut while a band is drawn.
 - **No room, no hexagons.** At a size where no 256 x 128 region is free (the hills at 128 x 64 and 512 x 256), the demo draws no hexagons.
-- **The fast exp.** On the Dreamcast path the envelope uses SH4ZAM's fast `exp`, good to a few per cent. On the host an offset differs from a double-precision check by at most 0.029 pixels (test/hexheat_test.c, the SH4ZAM path). A test of your own needs that much room.
+- **The fast exp.** On the Dreamcast path the envelope uses SH4ZAM's fast `exp`, good to a few per cent. On the host an offset differs from a double-precision check by up to 0.01 pixels plus 7 % of the cell's largest offset: 0.029 pixels in the street scene's view, 0.051 in the test's high camera (test/hexheat_test.c, the SH4ZAM path). A test of your own needs that much room.
 
 ## Open
 
 - **A console run.** The time of the band and of the hexagons; the look on a television. Test: the street scene's hexagon stage (`XS_HEX`) against its neighbour stage.
-- **Is a filtered sample the same picture?** With an offset of 0, does a bilinear sample at one texel a pixel give the picture back bit for bit on the PVR? Test: the hexagon stage with `SH4DER_HEXHEAT_PEAK` near 0, compared with the stage before it.
+- **Is a tile on its home the same picture?** Two things stand against it on the PVR. One is the bilinear sample at one texel a pixel. The other is packing: the band is packed and dithered into the 16-bit target, and then the tile is packed and dithered again onto the screen, so the whole patch may come out a little lighter (worked out on the host: about +6 / +3 / +6 levels of 255 on the day's sky), with the lattice's outline showing even at rest. Test: a build with `-DSH4DER_HEXHEAT_TEST_STILL`, which draws the same tiles with no nudge (never a build for players), once as built and once with the frame buffer's dither off. A tile that is seen at all in it is this error. (A small `SH4DER_HEXHEAT_PEAK` is no test: under the cut no tile is drawn.)
+- **A turn.** In a turn each tile's nudge changes up to about 1 pixel a frame (see [Turns and driving](#turns-and-driving)). Two ways out, the owner's call: fade the heat in a turn, or hold the slip a frame as the travel is held.
+- **6 to 8 widths: along an axis, or crest to crest?** The header takes the owner's 7 widths along x and along y. Crest to crest at 7 widths needs `SH4DER_HEXHEAT_WAVE_HEX` and `_UP` at about 9.9.
+- **Should neighbours agree more?** See [Neighbours](#neighbours). It follows from the doubling rule and the 3 layers; the owner's call.
 - **The stripes and the standstill.** Whether the look wants a direction for each layer (see above). The owner's call; the formulas would change.
 - **The still-camera rule.** The street demo shows no heat while its camera moves, so in a normal drive the streaming is never on screen. Only the autorun's hexagon stage, which turns that rule off, shows it.
 - **Haze nearer than the band.** The envelope gives haze from about 30 m (`SH4DER_HEXHEAT_D0`), but the band holds only what is farther than 64 m, so nothing nearer shimmers. A nearer cut would put near things (traffic, lamp posts) in the band.

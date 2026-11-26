@@ -6,7 +6,7 @@
        back, the round trip holds, D is right, a ray at or over the horizon is refused;
      the haze's point: the ground short of the sheet, else the sheet, with h and D right, one piece at the join;
      the field: the offset against the numeric derivative of T', a pure function of the time (no state), a small and
-       bounded change a frame, the largest offset under s / 3 on the screen;
+       bounded change a frame, the largest offset at most OFFSET_MAX s on the screen;
      the mesh: every drawn hexagon against the transcription (ray, envelope, field, back to pixels), its picture's
        place fixed, the band's edge, the near cut, the gate.
    Tolerance of the float path against the transcription: TOL pixels on the plain C path. On the SH4ZAM path the
@@ -493,13 +493,13 @@ int main(void) {
             CHECK(misses == 0u);
         }
         CHECK(bad == 0u && worst_sc < 0.01);
-        CHECK(big > 0.5 && big < (double)s / 3.0 && big <= (double)SH4DER_HEXHEAT_PEAK * (double)s * 1.05);   /* neighbours never overlap */
-        CHECK(step < 0.25);                                                               /* a smooth field: no jump a frame */
+        CHECK(big > 0.5 && big < (double)s / 3.0 && big <= (double)SH4DER_HEXHEAT_PEAK * (double)s * 1.05);   /* a hexagon's middle stays in its own cell */
+        CHECK(step < 0.04 * (double)(1u << SH4DER_HEXHEAT_LAYERS));                       /* a smooth field: no jump a frame (0.32 px for 3 layers: 0.126 there; the finest layer doubles it, 0.254 for 4) */
         CHECK(lo > 0.9 && hi < 1.1);
         printf("the demo's view (eye 3.3 m up, sheet 70 m, near cut 64 m): %u hexagons a frame (%u on the ground short of the sheet), %u strip vertices, %.1f KB of TA with the header\n",
                n0, on_ground, n0 * 6u, ((double)(n0 * 6u) + 1.0) * 32.0 / 1024.0);
-        printf("offset, camera still: peak %.2f px (the aim at the sheet's foot: %.2f; the limit s / 3 = %.2f); largest change a frame at 60 Hz %.3f px; scale %.3f .. %.3f\n",
-               big, (double)SH4DER_HEXHEAT_PEAK * (double)s, (double)s / 3.0, step, lo, hi);
+        printf("offset, camera still: peak %.2f px (the aim at the sheet's foot: %.2f; the limit OFFSET_MAX s = %.2f); largest change a frame at 60 Hz %.3f px; scale %.3f .. %.3f\n",
+               big, (double)SH4DER_HEXHEAT_PEAK * (double)s, (double)SH4DER_HEXHEAT_OFFSET_MAX * (double)s, step, lo, hi);
         printf("float path against the world-unit transcription: offset %.5f px, scale %.5f (allowed: %.3f px + %.0f %% of a cell's largest offset)\n", worst, worst_sc, TOL, 100.0 * TOL_REL);
     }
 
@@ -628,10 +628,48 @@ int main(void) {
             }
             CHECK((double)peak <= (double)SH4DER_HEXHEAT_OFFSET_MAX * (double)s + 1e-3);
         }
-        CHECK(bad == 0u && grounded > 10u && kbig > 1.2 && big < (double)s / 3.0);
-        (void)worst;
-        printf("a high camera, the cut at 25 m: %u cells on the ground, the nearest's offsets x %.2f (focal / D), held at x %.2f; peak %.2f px (under s / 3 = %.2f)\n",
-               grounded, kbig, (double)(SH4DER_HEXHEAT_OFFSET_MAX / SH4DER_HEXHEAT_PEAK), big, (double)s / 3.0);
+        CHECK(bad == 0u && grounded > 10u && kbig > 1.2 && big <= (double)SH4DER_HEXHEAT_OFFSET_MAX * (double)s + 1e-3);
+        printf("a high camera, the cut at 25 m: %u cells on the ground, the nearest's offsets x %.2f (focal / D), held at x %.2f; peak %.2f px (at most OFFSET_MAX s = %.2f); against the transcription %.5f px\n",
+               grounded, kbig, (double)(SH4DER_HEXHEAT_OFFSET_MAX / SH4DER_HEXHEAT_PEAK), big, (double)SH4DER_HEXHEAT_OFFSET_MAX * (double)s, worst);
+    }
+
+    /* the band's bottom edge: the same high camera, the band where sh4der_hexheat_band puts it (the sheet's foot), the
+       camera pitching slowly. The near cut's line is far under the band's lowest home there, so the offsets must be 0 at
+       the lowest home instead: a cell that comes or goes, at any edge, does it with a small offset (the float path alone:
+       the transcription has no band edge). */
+    {
+        static int hq[2][SH4DER_HEXHEAT_CELLS_MAX], hr[2][SH4DER_HEXHEAT_CELLS_MAX];
+        static double ho[2][SH4DER_HEXHEAT_CELLS_MAX];
+        const float eye2[3] = { 0.0f, 9.0f, 0.0f }, foot[3] = { 0.0f, 0.0f, 70.0f };
+        unsigned cnt[2] = { 0u, 0u }, cur = 0u, changed = 0u, j;
+        double worst = 0.0;
+        for (fr = 0; fr < 600u; fr++, cur ^= 1u) {
+            const float tgt2[3] = { 0.0f, 0.0f, 45.0f + 15.0f * (float)fr * (1.0f / 600.0f) };
+            sh4der_hexheat_view_t v2;
+            float fx, fy, bx = 0.0f, by = 0.0f;
+            CHECK(sh4der_hexheat_view_look(&v2, eye2, tgt2, up, fov, 640.0f, 480.0f) && sh4der_hexheat_view_ground(&v2, nrm, 0.0f, 70.0f, 25.0f));
+            CHECK(sh4der_hexheat_world_to_screen(&v2, foot, &fx, &fy) && sh4der_hexheat_band(fx, fy, &bx, &by));
+            n = sh4der_hexheat_mesh(&x, &v2, (float)fr * dt, 1.0f, bx, by, m1, SH4DER_HEXHEAT_CELLS_MAX, NULL);
+            CHECK(n > 20u);
+            for (i = 0; i < n; i++) {
+                const sh4der_hexheat_vtx_t *h = &m1[i * 6u];
+                double hx, hy, mx = 0.0, my = 0.0;
+                home_of(h, bx, by, &hx, &hy, &hq[cur][i], &hr[cur][i]);
+                for (k = 0; k < 6u; k++) { mx += (double)h[k].x; my += (double)h[k].y; }
+                mx = mx / 6.0 - hx; my = my / 6.0 - hy;
+                ho[cur][i] = sqrt(mx * mx + my * my);
+            }
+            cnt[cur] = n;
+            if (fr) for (k = 0; k < 2u; k++) {                 /* k 0: this frame's cells the last had not; 1: the reverse */
+                const unsigned a = k ? cur ^ 1u : cur, b = a ^ 1u;
+                for (i = 0; i < cnt[a]; i++) {
+                    for (j = 0; j < cnt[b]; j++) if (hq[a][i] == hq[b][j] && hr[a][i] == hr[b][j]) break;
+                    if (j == cnt[b]) { changed++; if (ho[a][i] > worst) worst = ho[a][i]; }
+                }
+            }
+        }
+        CHECK(changed > 20u && worst < 0.75);                                              /* the band steps a whole pixel: a quarter of the 4 pixel ramp (2.05 px before the bottom had its own 0) */
+        printf("the band's bottom edge (eye 9 m, the cut at 25 m, the camera pitching): %u cells came or went, the largest with an offset of %.2f px\n", changed, worst);
     }
 
     /* an anchor no screen holds: no band */

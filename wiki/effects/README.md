@@ -73,7 +73,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [Rising lights [rise]](rise.md) | Lights that lift off, drift up and become stars | v0.10 | no |
 | [Old film wear [film]](film.md) | Old projector wear: flicker, scratches, dust, gate weave | v0.1 | no |
 | [Tape wobble [timebase]](timebase.md) | A video tape's bent picture: one sideways shift a row, drawn as bands of the frame texture | v0.1 | no |
-| [Heat haze hexagons [hexheat]](hexheat.md) | Heat haze as a honeycomb of small hexagons fixed on the screen, each nudged up to 2 pixels by a smooth rising wave; the picture comes from a band of a render target | v0.1 | no |
+| [Heat haze hexagons [hexheat]](hexheat.md) | Heat haze as a honeycomb of small hexagons fixed on the screen, each nudged about 2 pixels at most by a smooth rising wave; the picture comes from a band of a render target | v0.1 | no |
 | [Cloud deck [cloudvolume]](cloudvolume.md) | A ray-marched cloud deck you fly through | v0.50 | no |
 
 ## Related

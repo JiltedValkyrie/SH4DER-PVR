@@ -6,27 +6,28 @@
  * RECOMMENDED (no console run: every number an ESTIMATE; wiki/limits/header-recommended.md)
  * Cost:       video memory: a band of SH4DER_HEXHEAT_BAND_W x _BAND_H texels (64 KB at 16 bit) in a target the client
  *             already renders; SH-4 a frame: the far world sent a second time into the band (the client's count); the
- *             lattice's cells in the band walked (about 180: a ray to the ground each, two reciprocals); for a drawn
- *             cell (about 130 at the defaults: test/hexheat_test.c prints the count) two exp, a square root and
- *             SH4DER_HEXHEAT_LAYERS sine-cosine pairs (FSCA); TA: 6 vertices a drawn hexagon as a strip
+ *             lattice's cells in the band walked (about 160; 158 in the street demo's view: a ray each, two reciprocals,
+ *             and for a cell that passes the fade two exp and a square root); a drawn cell (about 130 at the defaults:
+ *             test/hexheat_test.c) adds SH4DER_HEXHEAT_LAYERS sine-cosine pairs (FSCA); TA: 6 strip vertices a hexagon
  * Start with: the defaults (the owner's starting values): s 8 px (a hexagon 13.9 x 16 px), 3 layers, longest wave 7
  *             hexagon widths, rise 1.5 widths a second, wind 0.35 of the rise, haze layer 12.5 % of the screen's
- *             height, D0 30 m, peak offset 0.25 s (2 px), lens 0.1, the camera's travel in the scroll x 0.5
+ *             height, D0 30 m, offset 0.25 s (2 px) at the sheet's foot, 0.32 s (2.56 px) at most, lens 0.1, travel x 0.5
  * Use it for: a hot far view by day: a road's or a runway's far end, a desert horizon, the air over a far fire
  * Status:     ADVISED: host tested (test/hexheat_test.c, against a double-precision transcription of the formulas);
  *             NOT RUN on a console
  * Do:         fill the band in a pass that already runs (a render target's spare region), a texel a screen pixel, and
  *             sample it filtered (bilinear); give the field the time and the camera, never last frame's place
  * Do not:     put near things in the band (cut it to the near distance); move a hexagon's home; roll random numbers
- *             a frame; draw the hexagons nearer than the band's cut (they would cover what the band does not hold)
+ *             a frame; draw the hexagons nearer than the cut; leave out of the band anything the screen shows beyond
+ *             the cut, translucent layers too (a far shadow, smoke, a light): a hexagon replaces it with the band
  * Maturity:   PROTOTYPE v0.1 (the lattice is the second design; no console run, so the label stays: wiki/status/maturity.md)
  *
  * How, on the PVR. The picture behind the hexagons is not read from the screen. A render pass the client already runs
  * (the street demo: its reflection pass) also draws the far end of the world as THIS frame's camera sees it into a band
  * region of its own target: BAND_W x BAND_H texels, a texel a screen pixel, holding only what is farther than the near
  * cut. A hexagon takes its texels from the band at its HOME and is drawn on the screen's translucent list at
- * home + offset (no blend, depth tested at the near cut's depth, not written). With no offset a hexagon is the picture
- * under it, pixel for pixel, so only the field's offsets show.
+ * home + offset (no blend, depth tested at the near cut's depth, not written). With no offset a hexagon is meant to be
+ * the picture under it. OPEN on the PVR: the band is packed (and dithered) into the target, then again onto the screen.
  *
  * The lattice is the screen's (a post effect lives in the frame buffer): pointy-top hexagons of size s (centre to
  * corner, pixels), homes from the integers (q, r) alone:  x0 = s sqrt(3) (q + r / 2),  y0 = 1.5 s r  (sh4der_hexheat_home).
@@ -51,7 +52,7 @@
  *   phases phi_i:     a fixed table (the only "random" values; never rolled again)
  *   back to pixels:   the offset is a bend of the line of sight: world offset / depth, x the focal length. The lattice's
  *                     own scale is the sheet's foot (a hexagon width in the world = its pixels x depth / focal there), so
- *                     a nearer cell's offset is larger by focal / D, held under OFFSET_MAX s (neighbours never overlap).
+ *                     a nearer cell's offset is larger by focal / D, held under OFFSET_MAX s (its middle stays in its own cell).
  * A hexagon keeps ONE size on the screen: world-sized hexagons (focal / D each) on homes that do not move cannot tile.
  * On the ground short of the sheet Y runs along the road (under 0, in metres short of the sheet), so the field is one
  * piece from the road up the sheet. The scrolls are wrapped to the longest wave (every layer repeats on it), so a long
@@ -66,6 +67,9 @@
  * run down; at the one speed where the two are equal they stand still and every offset holds (the street demo's view
  * at the defaults: 8.3 m/s, 30 km/h; test/hexheat_test.c pins it). A layer with a direction of its own would end both
  * the stripes and the standstill. It is not in the owner's formulas, so it is not here: wiki/effects/hexheat.md "Open".
+ * Across the stripes the finest layer is 1.24 hexagon widths crest to crest at the defaults (the longest 4.95: WAVE_HEX
+ * is along an axis), so two neighbours there do not move alike: their edges overlap by up to 1.7 px and part by up to
+ * 2.4 px (host, the street demo's view). With 4 layers the finest is 0.62 widths, under one hexagon.
  *
  * Maths only (sh4der_core.h: SH4ZAM's FSCA sine and cosine, its exp, FSRRA reciprocals and roots on the Dreamcast;
  * plain C under SH4DER_CORE_NO_SH4ZAM). The band's pass and the draw are the client's (demo/pl4nar/src/demo.c). */
@@ -79,10 +83,10 @@
 #define SH4DER_HEXHEAT_S           8.0f     /* s: a hexagon's centre to corner, screen pixels (pointy top: 13.9 wide, 16 high) */
 #endif
 #ifndef SH4DER_HEXHEAT_LAYERS
-#define SH4DER_HEXHEAT_LAYERS      3u       /* N: the stacked waves, 3 or 4 */
+#define SH4DER_HEXHEAT_LAYERS      3u       /* N: the stacked waves, 3 or 4 (with 4 the finest wave is shorter than a hexagon) */
 #endif
 #ifndef SH4DER_HEXHEAT_WAVE_HEX
-#define SH4DER_HEXHEAT_WAVE_HEX    7.0f     /* the longest wave across the view, hexagon widths (6 to 8): k_1 */
+#define SH4DER_HEXHEAT_WAVE_HEX    7.0f     /* the longest wave along the screen's x, hexagon widths (6 to 8): k_1 (with the same upward, crest to crest is this / sqrt(2): 4.95) */
 #endif
 #ifndef SH4DER_HEXHEAT_WAVE_HEX_UP
 #define SH4DER_HEXHEAT_WAVE_HEX_UP 7.0f     /* the longest wave upward, hexagon widths (the owner's start: the same as across): m_1 */
@@ -97,7 +101,7 @@
 #define SH4DER_HEXHEAT_LAYER_FRAC  0.125f   /* H: the haze layer's thickness, as a share of the screen's height seen at the sheet (0.10 to 0.15) */
 #endif
 #ifndef SH4DER_HEXHEAT_D0
-#define SH4DER_HEXHEAT_D0          30.0f    /* D0: metres from the camera where the haze becomes plain */
+#define SH4DER_HEXHEAT_D0          30.0f    /* D0: metres from the camera where the haze becomes plain (keep it under about 4 x the near cut: SH4ZAM's exp is coarse for a small D / D0, host) */
 #endif
 #ifndef SH4DER_HEXHEAT_PEAK
 #define SH4DER_HEXHEAT_PEAK        0.25f    /* the largest offset at the sheet's foot (the road's far line), in s */
@@ -108,19 +112,24 @@
 #ifndef SH4DER_HEXHEAT_DRIVE
 #define SH4DER_HEXHEAT_DRIVE       0.5f     /* the camera's travel in the scroll: 1 = the field stands in the world, 0 = no streaming */
 #endif
-#define SH4DER_HEXHEAT_OFFSET_MAX  0.32f    /* the largest offset on the screen, in s: under 1 / 3, so neighbours never overlap */
+#define SH4DER_HEXHEAT_OFFSET_MAX  0.32f    /* the largest offset on the screen, in s (2.56 px at s = 8): under 1 / 3, so a hexagon's middle stays in its own cell */
 #define SH4DER_HEXHEAT_NEAR_FADE   0.5f     /* in s: the offset grows from 0 at the near cut's line to whole this far above it */
 #define SH4DER_HEXHEAT_EDGE        24.0f    /* pixels: the offset grows from 0 over this from the band's left, right and top */
 #define SH4DER_HEXHEAT_CUT         0.25f    /* pixels: a cell whose largest offset is under this is not drawn */
-#define SH4DER_HEXHEAT_CELLS_MAX   200u     /* the most hexagons a frame (the band holds about 180 homes at s = 8) */
+#ifndef SH4DER_HEXHEAT_CELLS_MAX
+#define SH4DER_HEXHEAT_CELLS_MAX   200u     /* the most hexagons a frame (the band holds about 160 homes at s = 8, 180 at most); raise it with a smaller s */
+#endif
 #define SH4DER_HEXHEAT_BAND_W      256u     /* the band, screen pixels = target texels: 8 x 4 tiles of 32 */
 #define SH4DER_HEXHEAT_BAND_H      128u
-#define SH4DER_HEXHEAT_FOOT        12.0f    /* rows of the band under the anchor: s, the near cut's line and a row to spare */
+#define SH4DER_HEXHEAT_FOOT        (SH4DER_HEXHEAT_S + 4.0f)   /* rows of the band under the anchor (12 at s = 8): s, the near cut's line and a row to spare; it follows s, so the lowest home is 3 rows under the anchor at any s */
 
 _Static_assert(SH4DER_HEXHEAT_LAYERS >= 1u && SH4DER_HEXHEAT_LAYERS <= 4u, "SH4DER_HEXHEAT_LAYERS is 1 to 4");
-_Static_assert(SH4DER_HEXHEAT_OFFSET_MAX < 1.0f / 3.0f, "SH4DER_HEXHEAT_OFFSET_MAX must be under a third of s: neighbours would overlap");
+_Static_assert(SH4DER_HEXHEAT_OFFSET_MAX < 1.0f / 3.0f, "SH4DER_HEXHEAT_OFFSET_MAX must be under a third of s: a hexagon's middle would leave its cell");
 _Static_assert(SH4DER_HEXHEAT_PEAK > 0.0f && SH4DER_HEXHEAT_PEAK <= SH4DER_HEXHEAT_OFFSET_MAX, "SH4DER_HEXHEAT_PEAK is over 0 and at most SH4DER_HEXHEAT_OFFSET_MAX");
 _Static_assert(SH4DER_HEXHEAT_CUT > 0.0f && SH4DER_HEXHEAT_S >= 2.0f, "SH4DER_HEXHEAT_CUT is over 0 and SH4DER_HEXHEAT_S at least 2");
+_Static_assert((float)SH4DER_HEXHEAT_BAND_W * (float)SH4DER_HEXHEAT_BAND_H <= 2.5980762f * SH4DER_HEXHEAT_S * SH4DER_HEXHEAT_S * (float)SH4DER_HEXHEAT_CELLS_MAX, "SH4DER_HEXHEAT_CELLS_MAX is too small for this SH4DER_HEXHEAT_S (a hexagon's area is 2.598 s s): the rows at the sheet's foot, the strongest, would be left out");
+_Static_assert(SH4DER_HEXHEAT_PEAK * SH4DER_HEXHEAT_S >= 4.0f * SH4DER_HEXHEAT_CUT, "SH4DER_HEXHEAT_PEAK x SH4DER_HEXHEAT_S must be at least 4 x SH4DER_HEXHEAT_CUT pixels: hardly a hexagon would be drawn");
+_Static_assert(SH4DER_HEXHEAT_FOOT >= SH4DER_HEXHEAT_S + 2.0f && SH4DER_HEXHEAT_FOOT + 2.0f * SH4DER_HEXHEAT_S < (float)SH4DER_HEXHEAT_BAND_H, "SH4DER_HEXHEAT_FOOT holds a hexagon under the anchor and leaves the band a row over it");
 
 typedef struct sh4der_hexheat {
     float sx;                      /* the far picture's sideways slip, summed, wrapped to the longest wave, pixels at the sheet */
@@ -401,7 +410,9 @@ static inline int sh4der_hexheat_band(float ax, float ay, float *x0, float *y0) 
    point (sh4der_hexheat_screen_to_haze) at `seconds`; gate 0 .. 1 scales the offsets. 6 vertices a hexagon in strip
    order: triangle k is vertices k, k + 1, k + 2 (k = 0 .. 3). The screen corners are home + offset + scale x corner;
    the band corners are home + corner less (x0, y0): the picture a cell carries. Returns the hexagons written (at most
-   `max`, and SH4DER_HEXHEAT_CELLS_MAX); out holds 6 x that. peak (NULL: not wanted): the largest offset written, pixels. */
+   `max`, and SH4DER_HEXHEAT_CELLS_MAX); out holds 6 x that. peak (NULL: not wanted): the largest offset written, pixels.
+   -DSH4DER_HEXHEAT_TEST_STILL draws the same cells with no offset and no swell: on a console, a hexagon that is then
+   seen at all is the band's own error (the sampling, the target's packing and dither), not the field. */
 static inline unsigned sh4der_hexheat_mesh(const sh4der_hexheat_t *x, const sh4der_hexheat_view_t *v, float seconds, float gate,
                                            float x0, float y0, sh4der_hexheat_vtx_t *out, unsigned max, float *peak) {
     const float s = SH4DER_HEXHEAT_S, hexw = sh4der_hexheat_hexw_(), hw = hexw * 0.5f, rowp = 1.5f * s, ihexw = 1.0f / hexw;
@@ -409,7 +420,7 @@ static inline unsigned sh4der_hexheat_mesh(const sh4der_hexheat_t *x, const sh4d
     const float kmax = SH4DER_HEXHEAT_OFFSET_MAX / SH4DER_HEXHEAT_PEAK;
     float left = x0 + 1.0f, right = x0 + (float)SH4DER_HEXHEAT_BAND_W - 1.0f, top = y0 + 1.0f, bottom = y0 + (float)SH4DER_HEXHEAT_BAND_H - 1.0f;
     const float lim = SH4DER_HEXHEAT_OFFSET_MAX * s;
-    float a0g, most = 0.0f;
+    float a0g, h0, most = 0.0f;
     unsigned n = 0;
     int r, r1;
 
@@ -422,6 +433,14 @@ static inline unsigned sh4der_hexheat_mesh(const sh4der_hexheat_t *x, const sh4d
     if (bottom > v->sh) bottom = v->sh;
     if (!(right - left >= hexw) || !(bottom - top >= 2.0f * s)) return 0u;
     a0g = v->a0 * sh4der_sat_(gate);
+    h0 = v->h_cut;
+    {   /* The band's bottom edge. The offsets are 0 at the near cut's line; when that line is under the band's lowest
+           home (a high eye, a road that falls away, a band the client placed by hand) the 0 is at the lowest home
+           instead, so a cell never comes or goes at the bottom with an offset. */
+        sh4der_hexheat_hit_t low;
+        float lab[2];
+        if (sh4der_hexheat_ray_(v, 0.5f * (left + right), bottom - s, &low, lab) && low.hs > h0) h0 = low.hs;
+    }
     r = -(int)sh4der_floor_(-(top + s) * (1.0f / rowp));
     r1 = (int)sh4der_floor_((bottom - s) * (1.0f / rowp));
     for (; r <= r1 && n < max; r++) {
@@ -439,7 +458,7 @@ static inline unsigned sh4der_hexheat_mesh(const sh4der_hexheat_t *x, const sh4d
 
             taper = sh4der_sat_(edge * (1.0f / SH4DER_HEXHEAT_EDGE));
             if (!(taper > 0.0f) || !sh4der_hexheat_ray_(v, hx, hy, &hit, ab)) continue;
-            fade = sh4der_sat_((hit.hs - v->h_cut) * v->inv_fade);          /* 0 at the near cut's line and under it */
+            fade = sh4der_sat_((hit.hs - h0) * v->inv_fade);                /* 0 at the near cut's line (or the band's lowest home) and under it */
             if (!(fade > 0.0f) || hit.h * v->inv_h > v->h_lim) continue;
             hit.dist = hit.w * sh4der_sqrt_(1.0f + ab[0] * ab[0] + ab[1] * ab[1]);
             A = a0g * (1.0f - sh4der_exp_(-hit.dist * (1.0f / SH4DER_HEXHEAT_D0))) * sh4der_exp_(-hit.h * v->inv_h) * fade * taper;
@@ -451,6 +470,9 @@ static inline unsigned sh4der_hexheat_mesh(const sh4der_hexheat_t *x, const sh4d
             sh4der_hexheat_field(x, hit.lat * v->ppm, hit.up * v->ppm, seconds, A, d, &sc);
             ox = (d[0] * v->rr + d[1] * v->nr) * k;                         /* the world's across and up, as the screen sees them */
             oy = (d[0] * v->rd + d[1] * v->nd) * k;
+#ifdef SH4DER_HEXHEAT_TEST_STILL                                            /* a console test, never a build for players: the same cells, on their homes */
+            ox = oy = 0.0f; sc = 1.0f;
+#endif
             if (peak) { const float o2 = ox * ox + oy * oy; if (o2 > most) most = o2; }
             for (c = 0; c < 6u; c++) {
                 sh4der_hexheat_vtx_t *o = &out[n * 6u + c];

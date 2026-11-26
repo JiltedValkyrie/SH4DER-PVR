@@ -5,7 +5,8 @@
  * RECOMMENDED (no console run: every number an ESTIMATE)
  * Cost:       the band: 256 x 128 texels in the reflection target, 64 KB (street), 128 KB (map), 0 (hills: a spare
  *             region); the far world sent a second time (COUNTED on the host: README "Heat haze, hexagons"); the
- *             hexagons: 131 a frame, 4 triangles each (COUNTED on the host, the three layouts)
+ *             hexagons: 131 a frame on the start's straight, 4 triangles each (COUNTED on the host, the three layouts;
+ *             113 to 132 over the hills by the road's shape)
  * Start with: the haze sheet HEAT_DIST = 70 m ahead; HEXH_NEAR_BACK = 6 m: the band holds what is farther than
  *             HEAT_DIST - 6 = 64 m along the view, and the hexagons stand at that depth
  * Status:     ADVISED: host tested (host/heat_hex_test.c); nothing of it has run on a console
@@ -37,7 +38,9 @@ static inline int hexh_camera(sh4der_hexheat_view_t *v, const float eye[3], cons
 
 /* A frame's start, its view made: the camera's turn and its travel since the view before go into the field's scroll
    (sh4der_hexheat_follow), so the pattern stays on the far picture in a turn and streams toward the camera as the car
-   drives. The first view after a reset adds nothing. */
+   drives. The hexagons stay on the screen, so in a turn the pattern runs through them: an offset then changes about
+   1 px a frame at 0.5 rad/s (host); nothing fades or holds it (the owner's call). The first view after a reset adds
+   nothing. */
 static inline void hexh_view(hexh_t *x, const sh4der_hexheat_view_t *v) {
     if (x->frame) sh4der_hexheat_follow(&x->h, v, x->pg, x->pe);
     memcpy(x->pg, v->g, sizeof x->pg); memcpy(x->pe, v->eye, sizeof x->pe);

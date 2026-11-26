@@ -44,7 +44,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | rise | Points of light that sit still, lift off one after another, drift up with a sway, shrink and cool, and come to rest as stars that twinkle. Nothing stored per light. | Candles becoming stars, lanterns released, fireflies leaving a bush, sparks that turn into a night sky. | RAM 84 B parameter block, 0 a light; VRAM 0 of its own; about 50 multiplies and one sine-cosine pair a light a frame; at most N quads on the translucent list, additive (counts, not measured) | `sh4der_rise.h` | header comment |
 | film | The wear of old film in a projector: a brightness that swings a few per cent (never a strobe: at most 8 % peak to peak and 3 hertz), thin scratches that come and go, dust specks, and a gate weave of a pixel. Nothing stored: every value is computed from the time and a seed. | Old newsreel, silent film, flashback, found footage; with the lens vignette and grain for the whole look. | RAM 92 B parameter block; VRAM 0 of its own; one multiply rectangle, up to 3 lines and 12 small squares a frame on the translucent list; two sines a frame (counts, not measured) | `sh4der_film.h` | header comment |
 | timebase | A video tape deck's line timing errors as a television shows them: for one field, how far each row of the picture sits sideways (the head switching step on the bottom rows, the drum's flutter, the top hook of a tape under the wrong tension, all seen through the set's horizontal lock loop). A port to C of the time-base model of NTSCRT by Finn McKenty (MIT; the notice is in the header). Draw the frame texture as bands with `sh4der_ca_channel_rows` and move each band by its row's shift. | A tape look for a cutscene, a security monitor, a flashback, a broken broadcast. | RAM 40 B parameter block and 4 B state; about 4.2 KB of stack during a call; VRAM 0; two sines a line and, with the line noise on, a logarithm and six hashes a line (counts, not measured) | `sh4der_timebase.h` | header comment |
-| hexheat | Heat haze as a lattice of small hexagons fixed on the screen over a hot far view. Each hexagon carries the picture behind it and is moved a little (at most a quarter of its size: 2 pixels at the defaults) by a smooth wave field that rises through the lattice, goes with the far picture in a turn and streams toward the camera as it drives: a shimmer, nothing pops and nothing is rolled at random. Each cell is judged at its world point, found by a ray from the camera through the cell to the ground (the step a strategy game uses to find where the mouse points). The picture is this frame's: the client draws the far world a second time into a 256 x 128 band of a render target it already fills (no copy, no frame late). | A road's or a runway's far end by day, a desert horizon, the air over a far fire. | VRAM the band, 64 KB at 16 bit, in a target already allocated; RAM 8 B state and a 192 B view; SH-4 about 180 cells walked a frame (a ray each), 131 of them drawn in the street demo's view (two exp, a root and 3 sine-cosine pairs each), and the far world sent again into the band; TA 131 hexagons, 786 strip vertices a frame there (counts on the host, not measured) | `sh4der_hexheat.h` | header comment |
+| hexheat | Heat haze as a lattice of small hexagons fixed on the screen over a hot far view. Each hexagon carries the picture behind it and is moved a little (about a quarter of its size, 2 pixels at the defaults, at the haze's far line; never more than 0.32 of it, 2.56 pixels) by a smooth wave field that rises through the lattice, goes with the far picture in a turn and streams toward the camera as it drives: a shimmer, no hexagon leaves its place and nothing is rolled at random (in a turn the offsets change faster: about 1 pixel a frame at 0.5 rad/s, host). Each cell is judged at its world point, found by a ray from the camera through the cell to the ground (the step a strategy game uses to find where the mouse points). The picture is this frame's: the client draws the far world a second time into a 256 x 128 band of a render target it already fills (no copy, no frame late). | A road's or a runway's far end by day, a desert horizon, the air over a far fire. | VRAM the band, 64 KB at 16 bit, in a target already allocated; RAM 8 B state and a 192 B view; SH-4 about 160 cells walked a frame (158 in the street demo's view: a ray each, and two exp and a root for a cell that passes the fade), 131 of them drawn there (3 sine-cosine pairs each), and the far world sent again into the band; TA 131 hexagons, 786 strip vertices a frame there (counts on the host, not measured) | `sh4der_hexheat.h` | header comment |
 | cloudvolume | A cloud deck you fly through: a software ray march through a cloud slab (cover map, tiling noise erosion, sun light with Beer and forward scatter) into a small 8-bit buffer that the PVR draws as one filtered quad over its own sky; real fly-through, so whiteout falls out of the march. Dreamcast demo with a sea under the clouds (three options) and on-screen controls. | A flight over and through cumulus, 1970s and 1980s cinema sky fly-through, any scene that needs a lit cloud layer. | RAM about 143 KB; VRAM 32 KB for the cloud texture at the default, 128 KB at the top resolution; one blended full-screen quad; CPU 14 to 22 ms a frame at the default (ESTIMATE, not measured on a console) | `sh4der_cloudvolume.h` | header comment, `demo/cloudvolume.c` |
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); 0.92 to 0.97 ms for the player car's 320 looked-up vertices on a console (street demo, one run, PVR-160); 0.43 ms for 1,623 vertices on an emulator, earlier version | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
 | softfade | Soft edges for light: a glow, a pool or a beam fades out at a wall or a floor the SH-4 knows (planes and rectangles), with no depth read. | Lamp halos near walls, headlight beams and pools that run into a barrier. | CPU only: a dot and a smooth step a surface a vertex; VRAM 0; no PVR pass | `sh4der_softfade.h` (header only) | [section](#the-softfade-effect-soft-edges-for-light) |
@@ -1555,7 +1555,7 @@ from the camera through the cell's home and is met with the ground: `sh4der_hexh
 step a strategy game uses to find where the mouse points. That gives the world point and its distance D. A ray that lands
 beyond the haze, or never lands (the cells over the road's far line), takes its point where it crosses an upright sheet
 across the ground at the haze's distance; h is the ray's height over the ground there (`sh4der_hexheat_screen_to_haze`).
-Seen from a car's camera the ground beyond a 64 m cut is a strip about 2 pixels high, so nearly every cell is on the sheet.
+Seen from a car's camera the ground between a 64 m cut and the sheet at 70 m is a strip about 2 pixels high, so nearly every cell is on the sheet.
 
 **The field** is a sum of N waves in the world, X across the view and Y up, in metres:
 theta_i = k_i (X - U t) + m_i (Y - W t) + phi_i, each layer twice as fine and half as strong as the one before. The offset is
@@ -1564,12 +1564,17 @@ A = A0 exp(-h / H) (1 - exp(-D / D0)): strongest at the road's far line, fading 
 offset is `SH4DER_HEXHEAT_PEAK` x s at the sheet's foot. A hexagon also swells and shrinks a little (the lensing scale). The
 world offset goes back to pixels as a bend of the line of sight: offset / depth x the focal length. A hexagon keeps one size
 on the screen (world-sized hexagons on homes that do not move could not tile), and no offset passes
-`SH4DER_HEXHEAT_OFFSET_MAX` x s, so neighbours never overlap.
+`SH4DER_HEXHEAT_OFFSET_MAX` x s (2.56 pixels at the defaults), so a hexagon's middle stays in its own cell.
 
 **What the doubling rule gives: stripes.** k and m double together, so every layer runs along one line, (k_1, m_1). The field
 is stripes across that line, and every hexagon slides back and forth along it: at the starting values the diagonal, up to
 the right and down to the left. `SH4DER_HEXHEAT_WAVE_HEX_UP` turns the line; it does not end the stripes. A layer with a
 direction of its own would, and that is not in the owner's formulas, so it is not in the header.
+`SH4DER_HEXHEAT_WAVE_HEX` is the wave along the screen's x (and `_UP` along its y); with both at 7 the crests are 7 / sqrt(2) =
+4.95 hexagon widths apart (68.6 pixels, 10.2 m in the street demo's view), the middle layer 2.47 and the finest 1.24. So along
+a stripe neighbours move together, and across the stripes they do not: two hexagons that share an edge overlap by up to
+1.7 pixels and part by up to 2.4 (host, the street demo's view; where they part, the frame under them shows). With 4 layers
+the finest wave is 0.62 widths, shorter than a hexagon.
 
 **The camera.** `sh4der_hexheat_follow` puts what the camera did since the frame before into the field's scroll: a turn takes
 the pattern sideways with the far picture, and the way forward streams it toward the camera (`SH4DER_HEXHEAT_DRIVE`: 1 is the
@@ -1577,8 +1582,10 @@ field standing in the world; the default is half of that). The stripes cross the
 at the defaults) and the stream takes `SH4DER_HEXHEAT_DRIVE` x the speed x the view's pixels a metre off that. So a slow
 camera sees them climb, a fast one sees them run down, and at one speed they stand still and every offset holds: 8.3 m/s
 (30 km/h) in the street demo's view, pinned by `test/hexheat_test.c`. A frame's step is also held at a quarter of the finest
-layer's wave, so a large step never reads as a small one the other way. Worked out, not measured: with the street demo's
-view (6.7 pixels a metre at the sheet) and 30 frames a second that hold starts at about 54 m/s (27 m/s with a drive of 1).
+layer's wave, so a large step never reads as a small one the other way. A turn's slip has no such hold and no fade: at
+0.5 rad/s the offsets change by up to 0.9 pixels a frame at 60 frames a second (0.07 on a straight; host), and a client may
+fade the gate in a turn. Worked out, not measured: with the street demo's
+view (6.75 pixels a metre at the sheet) and 30 frames a second that hold starts at about 54 m/s (27 m/s with a drive of 1).
 
 Order, a frame:
 
@@ -1590,37 +1597,45 @@ Order, a frame:
 3. `sh4der_hexheat_band(ax, ay, &x0, &y0)` with the sheet's foot on the screen. In a render pass that already runs, draw the
    far world as this frame's camera sees it into a 256 x 128 region of the target, a texel a screen pixel, cut to that
    region and to the near cut (the street demo cuts on the SH-4 in its gfx layer, `gfx_window`). The ground itself is not cut
-   by depth: a hexagon over the cut's line carries the ground under it.
+   by depth: a hexagon over the cut's line carries the ground under it. Everything the screen shows beyond the cut must
+   be in the band, translucent layers too (a far shadow, smoke, a light's glow): a hexagon replaces what is under it with
+   the band. The street demo draws the opaque world and the player's car, and fades the road's baked occlusion out short
+   of the cut while a band is drawn.
 4. `sh4der_hexheat_mesh(&h, &view, seconds, gate, x0, y0, out, max, &peak)`. Draw each hexagon as a strip of its 6 vertices
    on the translucent list: no blend (one / zero), filtered (bilinear), the band's texel at (u, v) plus the band's place in
-   the target, depth tested at the near cut's depth and not written.
+   the target, depth tested at the near cut's depth and not written. Send them after the far translucent polygons and
+   before every nearer one (with the PVR's autosort on, anywhere in the list). The offsets are 0 at the near cut's line,
+   or at the band's lowest home when that line is under it, so no cell comes or goes at the bottom with an offset.
 
-Nothing of it is measured on a console: the costs are counts. Open on a console: whether a filtered sample at a texel a
-pixel is the picture bit for bit when a hexagon sits on its home.
+Nothing of it is measured on a console: the costs are counts. Open on a console: whether a hexagon on its home is the
+picture under it. Two things stand against it: the filtered sample at a texel a pixel, and the packing, since the band is
+packed and dithered into the 16-bit target and then again onto the screen (the lattice may show as a lighter patch even at
+rest). The test: a build with `-DSH4DER_HEXHEAT_TEST_STILL` (the same cells drawn with no offset; never a build for players),
+once as built and once with the frame buffer's dither off.
 
 ### Hexheat tuning
 
 | Name | Default | Meaning |
 | --- | --- | --- |
 | SH4DER_HEXHEAT_S | 8.0 | s: a hexagon's centre to corner, screen pixels (13.9 wide, 16 high) |
-| SH4DER_HEXHEAT_LAYERS | 3 | N: the stacked waves (3 or 4) |
-| SH4DER_HEXHEAT_WAVE_HEX | 7.0 | The longest wave across the view, hexagon widths (6 to 8): k_1 |
+| SH4DER_HEXHEAT_LAYERS | 3 | N: the stacked waves (3 or 4; with 4 the finest wave is shorter than a hexagon) |
+| SH4DER_HEXHEAT_WAVE_HEX | 7.0 | The longest wave along the screen's x, hexagon widths (6 to 8): k_1. With the same upward, crest to crest is 4.95 |
 | SH4DER_HEXHEAT_WAVE_HEX_UP | 7.0 | The longest wave upward, hexagon widths: m_1 (the owner's start: the same as across) |
 | SH4DER_HEXHEAT_RISE_HEX | 1.5 | W: the field's rise, hexagon widths a second (1 to 2) |
 | SH4DER_HEXHEAT_WIND | 0.35 | U as a share of W, sideways (0.2 to 0.5) |
 | SH4DER_HEXHEAT_LAYER_FRAC | 0.125 | H: the haze layer's thickness, a share of the screen's height seen at the sheet (0.10 to 0.15) |
-| SH4DER_HEXHEAT_D0 | 30.0 | D0: metres from the camera where the haze becomes plain |
-| SH4DER_HEXHEAT_PEAK | 0.25 | The largest offset at the sheet's foot (the road's far line), in s |
+| SH4DER_HEXHEAT_D0 | 30.0 | D0: metres from the camera where the haze becomes plain (keep it under about 4 x the near cut on the SH4ZAM path) |
+| SH4DER_HEXHEAT_PEAK | 0.25 | The largest offset at the sheet's foot (the road's far line), in s. PEAK x s must be at least 4 x CUT pixels |
 | SH4DER_HEXHEAT_LENS | 0.1 | c: the swell and shrink (0: none) |
 | SH4DER_HEXHEAT_DRIVE | 0.5 | The camera's travel in the scroll: 1 = the field stands in the world, 0 = no streaming |
-| SH4DER_HEXHEAT_OFFSET_MAX | 0.32 | The largest offset on the screen, in s (under a third: neighbours never overlap) |
+| SH4DER_HEXHEAT_OFFSET_MAX | 0.32 | The largest offset on the screen, in s (2.56 pixels; under a third: a hexagon's middle stays in its own cell) |
 | SH4DER_HEXHEAT_NEAR_FADE | 0.5 | In s: the offset grows from 0 at the near cut's line to whole this far above it |
 | SH4DER_HEXHEAT_EDGE | 24.0 | Pixels: the offset grows from 0 over this from the band's left, right and top |
 | SH4DER_HEXHEAT_CUT | 0.25 | Pixels: a cell whose largest offset is under this is not drawn |
-| SH4DER_HEXHEAT_CELLS_MAX | 200 | The most hexagons a frame |
+| SH4DER_HEXHEAT_CELLS_MAX | 200 | The most hexagons a frame; raise it with a smaller s (the header refuses an s the cap cannot hold) |
 | SH4DER_HEXHEAT_BAND_W | 256 | The band's width, screen pixels = target texels |
 | SH4DER_HEXHEAT_BAND_H | 128 | Its height |
-| SH4DER_HEXHEAT_FOOT | 12.0 | Band rows under the anchor: s, the near cut's line and a row to spare |
+| SH4DER_HEXHEAT_FOOT | 12.0 | Band rows under the anchor, s + 4 (it follows s): s, the near cut's line and a row to spare |
 
 ## The cloudvolume effect (a cloud deck you fly through)
 

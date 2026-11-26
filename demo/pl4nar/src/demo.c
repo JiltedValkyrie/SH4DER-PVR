@@ -87,6 +87,8 @@ static int s_hex;
 static int s_hex_free = HEX_SHOW;                  /* the hexagons drawn under a moving camera too (the still gate off) */
 static int hex_hud_line(char *t, size_t max);      /* the HUD's line for the hexagons (the heat's hexagons, below) */
 static int s_hex_band;                             /* this frame's band is drawn (the hills' tile cut keeps its tiles) */
+static float s_hex_cut, s_hex_ao;                  /* the band's cut, metres of view depth, and how far the road's occlusion beyond it is faded out (0 .. 1) */
+static float s_hex_t;                              /* the field's own time, seconds: it runs on through DRIVE's restart (the car's clock goes back to 0 there, and every offset would jump) */
 static inline unsigned hex_pow2(unsigned n) { unsigned p = 8u; while (p < n) p <<= 1; return p; }
 
 /* ------------------------------------------------------------------------------------------------ world numbers */
@@ -689,6 +691,7 @@ void demo_update(const demo_input_t *in, float dt) {
         s_car.orbit -= shz_clampf(s_car.orbit * shz_saturatef(1.2f * dt), -0.9f * dt, 0.9f * dt);   /* at most 0.9 rad/s: no whip
                                                                                                   round from half a turn */
     s_car.clock += dt;
+    s_hex_t += dt;
     demo_place(dt);
 }
 
@@ -777,7 +780,9 @@ static inline float wrap_z(float z) {
 #endif
 }
 
-/* 1 = a sphere (centre c, radius r) may be on the target. Leaves XMTRX = s_vp. */
+/* 1 = a sphere (centre c, radius r) may be on the target. Leaves XMTRX = s_vp. s_seen_near (0: none) is a pass's own
+   near depth: the hexagons' band holds only what is farther than its cut, so a model wholly nearer is not transformed. */
+static float s_seen_near;
 static int sphere_seen(float x, float y, float z, float r) {
     gfx_vert_t c;
     c.x = c.y = 0.0f;
@@ -788,6 +793,7 @@ static int sphere_seen(float x, float y, float z, float r) {
 #else
     if (c.w < -r || c.w > DRAW_FWD + CAM_DIST + r) return 0;
 #endif
+    if (c.w + r < s_seen_near) return 0;
     if (c.w > r + GFX_NEAR) {
         const float rp = r * s_focal * shz_invf(c.w);         /* hand: scalar products */
         if (c.x + rp < 0.0f || c.x - rp > s_vw || c.y + rp < 0.0f || c.y - rp > s_vh) return 0;
@@ -1340,11 +1346,15 @@ static void draw_props(int reflect_pass) {
 }
 
 /* The road's baked occlusion: the kept rows of tools/map_ao.c's 2 m grid, multiplied over the road (GFX_MAT_MUL) at
-   1 cm. A patch is a run of joined rows; a row is drawn within MAP_AO_DRAW, a quad when a corner darkens. XMTRX = s_vp. */
+   1 cm. A patch is a run of joined rows; a row is drawn within MAP_AO_DRAW, a quad when a corner darkens. XMTRX = s_vp.
+   While the hexagons' band is drawn (s_hex_band) the darkening fades to none over HEX_AO_FADE metres short of the
+   band's cut: the band holds the opaque world alone, so a hexagon would show the far road without it. */
+#define HEX_AO_FADE 6.0f
 static void draw_road_ao(void) {
     static gfx_vert_t row[2][MAP_AOG_COLS];
     unsigned r, c, cur = 0;
     int prev = 0;                                      /* the row before is near and in row[cur ^ 1] */
+    const float cut = s_hex_band ? s_hex_cut : 0.0f;   /* 0: no band this frame */
     if (!s_ao) return;
     gfx_bind(GFX_MAT_MUL);
     for (r = 0; r < MAP_AOG_ROWS; r++) {
@@ -1352,18 +1362,20 @@ static void draw_road_ao(void) {
         if (dx * dx + dz * dz > MAP_AO_DRAW * MAP_AO_DRAW) { prev = 0; continue; }     /* hand: scalar products */
         cur ^= 1u;
         for (c = 0; c < MAP_AOG_COLS; c++) {
-            const unsigned g = (unsigned)(map_aog[r][c][2] * 255.0f);
+            unsigned g = (unsigned)(map_aog[r][c][2] * 255.0f);
 #ifdef PL4NAR_HILLS
             gfx_xform(&row[cur][c], shz_vec3_init(map_aog[r][c][0], s_aoy[r][c] + 0.01f, map_aog[r][c][1]));
 #else
             gfx_xform(&row[cur][c], shz_vec3_init(map_aog[r][c][0], 0.01f, map_aog[r][c][1]));
 #endif
+            if (cut > 0.0f) g = 255u - (unsigned)((float)(255u - g) * (1.0f - s_hex_ao * (1.0f - shz_saturatef((cut - row[cur][c].w) * (1.0f / HEX_AO_FADE)))));
             row[cur][c].argb = gfx_rgb(255u, g, g, g); row[cur][c].oargb = 0u; row[cur][c].u = row[cur][c].v = 0.0f;
         }
         if (!prev || !map_aog_join[r]) { prev = 1; continue; }
         for (c = 0; c + 1u < MAP_AOG_COLS; c++) {
             if (map_aog[r - 1u][c][2] >= MAP_AOG_OPEN && map_aog[r - 1u][c + 1u][2] >= MAP_AOG_OPEN &&
                 map_aog[r][c][2] >= MAP_AOG_OPEN && map_aog[r][c + 1u][2] >= MAP_AOG_OPEN) continue;   /* nothing to darken */
+            if (s_hex_ao >= 1.0f && cut > 0.0f && row[cur ^ 1u][c].w >= cut && row[cur ^ 1u][c + 1u].w >= cut && row[cur][c].w >= cut && row[cur][c + 1u].w >= cut) continue;   /* beyond the band's cut: faded to none */
             gfx_tri(&row[cur ^ 1u][c], &row[cur ^ 1u][c + 1u], &row[cur][c + 1u]);
             gfx_tri(&row[cur ^ 1u][c], &row[cur][c + 1u], &row[cur][c]);
         }
@@ -1405,11 +1417,12 @@ static void draw_props(int reflect_pass) {
 #endif
 
 /* ------------------------------------------------------------------------------------------------ the player's car */
-/* Opaque body; fills s_refl (the reflection layer's vertices) when the reflection is on. */
-static void draw_player(void) {
+/* The opaque car through s_vp: the wheels, then the body (s_wp, s_wn, s_wsn and s_body are filled). 0: the body was
+   refused. The screen's pass calls it through draw_player; the hexagons' band calls it too (hex_band_pass), before the
+   screen's pass fills the arrays again. */
+static int player_opaque(void) {
     const mdl_t *m = &mdl_player_body;
     unsigned i;
-    uint64_t t0;
 #ifdef PL4NAR_HILLS
     s_my = s_cy; s_mp = s_cp; s_mr = s_cr;
 #endif
@@ -1419,7 +1432,7 @@ static void draw_player(void) {
 #endif
     if (m->nv > MDL_PLAYER_BODY_NV) {
         if (!(s_refused & 2u)) { s_refused |= 2u; printf("demo: player body of %u vertices refused (arrays hold %u)\n", (unsigned)m->nv, (unsigned)MDL_PLAYER_BODY_NV); }
-        return;
+        return 0;
     }
     /* world positions + normals (model matrix in XMTRX) */
     shz_xmtrx_init_translation(s_car.wx, CAR_Y, s_car.wz);
@@ -1450,7 +1463,15 @@ static void draw_player(void) {
     }
     gfx_bind(GFX_MAT_FLAT);
     for (i = 0; i + 2u < m->ni; i += 3u) gfx_tri(&s_body[m->idx[i]], &s_body[m->idx[i + 1u]], &s_body[m->idx[i + 2u]]);
-    if (!s_pv_ok) return;
+    return 1;
+}
+
+/* Opaque body; fills s_refl (the reflection layer's vertices) when the reflection is on. */
+static void draw_player(void) {
+    const mdl_t *m = &mdl_player_body;
+    unsigned i;
+    uint64_t t0;
+    if (!player_opaque() || !s_pv_ok) return;
     /* pl4nar: one lookup + Fresnel per paint / glass vertex. Two materials from the library's presets, tuned here. */
     t0 = plat_us();
     {
@@ -2496,6 +2517,8 @@ static void hex_prepare(const float eye3[3], const float at3[3], const float up3
     s_hb.row[2] = r[2]; s_hb.row[3] = r[3];
     s_hb.ox = ox; s_hb.oy = oy; s_hb.x0 = x0; s_hb.y0 = y0; s_hb.near_w = c.w - HEXH_NEAR_BACK;
     s_hb.z = shz_invf(s_hb.near_w);
+    s_hex_cut = s_hb.near_w;
+    s_hex_ao = shz_saturatef(hex_gate() * 8.0f);   /* whole before the first hexagon is drawn (SH4DER_HEXHEAT_CUT: a gate of about 0.13), so the fade follows a gate that ramps */
     s_hb.on = s_hex_band = 1;
 }
 /* Inside the mirror's pass, its opaque list: the far world a second time, through the band's window. */
@@ -2514,8 +2537,12 @@ static void hex_band_pass(shz_vec3_t eye) {
     gfx_window(s_hb.ox, s_hb.oy, (float)SH4DER_HEXHEAT_BAND_W, (float)SH4DER_HEXHEAT_BAND_H, GFX_NEAR);   /* the road whole (no depth cut) */
     draw_road();
     gfx_window(s_hb.ox, s_hb.oy, (float)SH4DER_HEXHEAT_BAND_W, (float)SH4DER_HEXHEAT_BAND_H, s_hb.near_w);
+    s_seen_near = s_hb.near_w;                     /* a model wholly nearer than the cut: not transformed */
     draw_buildings(1);
     draw_props(0);
+    if (sphere_seen(s_car.wx, CAR_Y + mdl_player_body.radius * 0.5f, s_car.wz, mdl_player_body.radius))
+        (void)player_opaque();                     /* the player's car beyond the cut (the fly-by: it drives away into the shimmer) */
+    s_seen_near = 0.0f;
     gfx_window(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
     s_tris_band = gfx_tris_sent() - n0;
     s_hb.drawn = 1;
@@ -2529,7 +2556,7 @@ static void hex_draw(void) {
     const float us = gfx_reflect_u_scale(), iw = shz_invf((float)RT_W(s_sizes[s_size][0])), ih = shz_invf((float)RT_H(s_sizes[s_size][1]));
     unsigned n, i, k;
     if (!s_hb.drawn) return;
-    n = sh4der_hexheat_mesh(&s_hx.h, &s_hb.view, s_car.clock, hex_gate(), s_hb.x0, s_hb.y0, m, SH4DER_HEXHEAT_CELLS_MAX, &s_hex_peak);
+    n = sh4der_hexheat_mesh(&s_hx.h, &s_hb.view, s_hex_t, hex_gate(), s_hb.x0, s_hb.y0, m, SH4DER_HEXHEAT_CELLS_MAX, &s_hex_peak);
     s_hex_n = n;
     gfx_bind(GFX_MAT_HEAT);
     gfx_cull(GFX_CULL_NONE);

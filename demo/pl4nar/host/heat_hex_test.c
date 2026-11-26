@@ -3,7 +3,7 @@
    and the near cut HEXH_NEAR_BACK short of it; the first view after a reset adds nothing to the scroll, a still camera
    nothing, a drive streams the pattern down, a turn takes it with the far picture, a cut adds nothing. The lattice, the
    screen-to-world step and the field are test/hexheat_test.c's. Plain C:
-   gcc -std=c99 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include demo/pl4nar/host/heat_hex_test.c -lm */
+   gcc -std=c99 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude demo/pl4nar/host/heat_hex_test.c -lm */
 #include <math.h>
 #include <stdio.h>
 

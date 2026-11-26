@@ -1,7 +1,7 @@
 /* Host test of the heat shimmer's maths (src/heat.h, version 2): the gate, the anchor, the 1 : 1 window and copy, the
    drift (small, smooth, slow), the mesh and its fade, the slip of a turn, and which frame's picture the copy holds.
    Plain C:
-   gcc -std=c11 -O2 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include demo/pl4nar/host/heat_test.c -lm */
+   gcc -std=c11 -O2 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude demo/pl4nar/host/heat_test.c -lm */
 
 #include <math.h>
 #include <stdio.h>
