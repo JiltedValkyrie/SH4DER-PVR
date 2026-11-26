@@ -74,4 +74,4 @@ From `AGENTS.md` "Where it looks best on the PVR":
 
 ## Related
 
-- [Water waves](water.md), [Corner darkening](ao.md), [Soft character shadows](sh4dow-dc.md) (its heightfield visibility fits `visibility`)
+- [Water waves](water.md), [Corner darkening](ao.md), [Soft character shadows](sh4dow.md) (its heightfield visibility fits `visibility`)

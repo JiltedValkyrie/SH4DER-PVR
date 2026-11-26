@@ -65,7 +65,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [Bake tool [ao-bake]](ao-bake.md) | Host build tool: baked occlusion over any triangle list (not a console effect) | v0.1 | no |
 | [Colour fringe [ca]](ca.md) | The frame texture and chromatic aberration | v0.50 | no |
 | [Dark shafts of light [shafts]](shafts.md) | Dark shapes cast away from a light | v0.50 | no |
-| [Soft character shadows [sh4dow-dc]](sh4dow-dc.md) | Soft character shadows by limb columns (separate library) | separate | no: its numbers are the original author's run (REPORTED) |
+| [Soft character shadows [sh4dow]](sh4dow.md) | Soft character shadows by limb columns, foot cones and a heightfield sun, in this library | not stated in the source | no: the shade's numbers are REPORTED (one run); the foot cones and packed loops are NOT MEASURED |
 | [Dented ground [deform]](deform.md) | Ground that keeps a dent: footprints and tracks, plus decal prints | v0.10 | no |
 | [Mist bank [mist]](mist.md) | A fog bank with a shape, as upright translucent sheets | v0.10 | no |
 | [Rising lights [rise]](rise.md) | Lights that lift off, drift up and become stars | v0.10 | no |

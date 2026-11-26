@@ -2,7 +2,7 @@
 title: Recommended limits
 tags: [limits]
 updated: 2026-11-25
-sources: [wiki/hardware/, demo/psm/bench/NOTES.md, demo/psm/ROUTE_AB_NOTES.md, sh4dow-dc/README.md]
+sources: [wiki/hardware/, demo/psm/bench/NOTES.md, demo/psm/ROUTE_AB_NOTES.md, README.md 'The sh4dow effect']
 ---
 # Recommended limits
 
@@ -95,7 +95,7 @@ These are faults the console showed and an emulator hid. Break them and the cons
 | Route B (SH-4 depth map) cost 40-44 ms of SH-4 time in the town view: do not use it for a whole town at 30 fps. | PROVEN (one view, one run, one console; suite s1's autorun, at another view, ran route B at 42 to 45 ms, SH4-069) | PVR-112, PVR-113 ([scenes](scenes.md)) |
 | Shadow map at most 256 × 256 for route AB: 512 × 512 needs 13.7 ms of download alone by its interrupt (14.8 ms polled) and does not render past row 479. | PROVEN (s3 and h2: one run each, one console) | PVR-026, BUS-021 |
 | **sh4dow-dc: shade only the first N characters within R metres of the camera.** N and R are not yet known. | **OPEN** | See the bench request below. |
-| Drop sh4dow-dc's foot cones past 20 units of camera distance (they fade from 18). | ADVISED (the library's default, not measured) | `sh4dow-dc/README.md:207` |
+| Drop sh4dow-dc's foot cones past 20 units of camera distance (they fade from 18). | ADVISED (the library's default, not measured) | `README.md`, 'The sh4dow effect' (line 1794) |
 
 The poll row in one picture:
 
@@ -109,9 +109,9 @@ The picture places the SH-4 work between the waits (the 2.05, 0.94 and 0.13 ms g
 
 **What we have:**
 
-- 6 characters, 84 columns, 5,406 vertices took 14.70 ms before column lists and 4.5 ms after, on one console. The original game's author timed it, with no date. REPORTED, not our console (`sh4dow-dc/README.md:274-284`).
-- Packed lists: emulator numbers only, REPORTED, "emulator, not evidence" (`sh4dow-dc/README.md:286-297`).
-- The original budget was 14 casting limbs a character and the six nearest characters a frame (`sh4dow-dc/README.md:160`). That is a choice, not a measured limit.
+- 6 characters, 84 columns, 5,406 vertices took 14.70 ms before column lists and 4.5 ms after, on one console. The original game's author timed it, with no date. REPORTED, not our console (README.md, 'The sh4dow effect', line 1759).
+- Packed lists: emulator numbers only, REPORTED, "emulator, not evidence" (README.md, 'The sh4dow effect' (line 1761)).
+- The original budget was 14 casting limbs a character and the six nearest characters a frame (README.md, 'The sh4dow effect' (line 1755)). That is a choice, not a measured limit.
 
 **Proposed test (for Junior or Senior):**
 

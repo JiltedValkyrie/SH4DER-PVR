@@ -1,10 +1,10 @@
 ---
-title: "sh4dow (soft character shadows, foot cones, heightfield sun)"
+title: "Soft character shadows [sh4dow]: limb columns, foot cones and a heightfield sun"
 tags: [effect, shadows, character, cpu, foot, heightfield]
 updated: 2026-11-26
 sources: [include/sh4dow_dc.h, src/sh4dow_dc.c, src/sh4dow_foot.c, include/sh4dow_heightfield.h, test/shade_test.c, test/foot_test.c, test/water_test.c, example/example.c, example/quickstart.c, example/feet.c, bench/bench.c, README.md "The sh4dow effect (soft character shadows)", AGENTS.md "Call order: sh4dow"]
 ---
-# sh4dow (soft character shadows, foot cones, heightfield sun)
+# Soft character shadows [sh4dow]: limb columns, foot cones and a heightfield sun
 
 **What you will learn:** how a limb casts a soft column of shade on a character's vertices, how the two foot cones are drawn, what the library's published numbers are worth, and which limits are not yet proven.
 **For:** a programmer giving a skinned character soft self-shadow on the Dreamcast without a shadow map.
@@ -62,6 +62,7 @@ The 14.70 and 4.5 ms figures are a client's run, not a benchmark suite: the 4.5 
 | Radii in the vertices' space | required | A column the wrong size is a units error | ADVISED | none |
 | Column lists for a ball | a ball that really holds the vertices | The list is exact only inside the ball | ADVISED (the header's rule) | none |
 | `sh4dow_strength_list` on a column far thinner than its distance from the origin | keep such a limb out of the list loop, or use `sh4dow_strength` | Expanded square loses precision: about one colour step at 1:100, a wrong answer near 1:3000 | ADVISED (the header's note; test/shade_test.c) | none |
+| Casters within a radius (N characters within R metres) | not set | The bench would set N and R (open question Q1) | OPEN | none |
 | Foot cones on hardware | not proven | No console run of the cone | NOT MEASURED | none |
 
 A limit is PROVEN only when a measured number backs it (wiki STRUCTURE rule). None of these is PROVEN.
@@ -85,11 +86,14 @@ See the tuning tables in `README.md` "The sh4dow effect". The first knob is `SH4
 - Packed loops on a console: the bench (`make bench SH4ZAM=...`) prints the three loops. Test: one console run, logged, against the every-column loop.
 - The heightfield sun on a console: not run. Test: the ocean demo's shadow pass timed on hardware.
 - The ledger row for the 14.70 and 4.5 ms figures: none yet. Test: a console run of the bench, logged in `wiki/hardware/`.
+- How many characters (N) within what distance (R) fit a 3 ms budget: the bench in [recommended limits](../limits/recommended-limits.md#bench-request-sh4dow-dc-n-casters--r-metres) (open question Q1).
 
 ## Related
 
 - [aomesh](aomesh.md) and [aobake](aobake.md): baked occlusion, a different method (no per-frame columns).
-- [sh4dow-dc](sh4dow-dc.md): the earlier page for the same library, written while it was a separate folder.
+- [sh4dow-dc](sh4dow-dc.md): the earlier name of this page; it now only points here.
+- [What do you want to make?](../start-here/what-do-you-want.md): the starter, for a picture you have in mind.
+- [Shadows and depth](../start-here/genre-shadows.md): the genre guide that puts this beside the other shadow methods.
 - [sss](sss.md): transmission, which takes a visibility term such as the heightfield sun.
 - [water](water.md): the ocean demo, which uses the heightfield sun.
 - The library's own feather (`sh4dow_feather_in_`) is the soft edge of every effect: [core](core.md).

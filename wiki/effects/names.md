@@ -45,7 +45,7 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | ground | Paving slab texture | A tiling texture of stone slabs made from a seed at load, so a floor needs no file | Surfaces and materials |
 | aomesh | Mesh corner shading | Corner shading baked at load against a whole triangle mesh (walls, buildings), with a byte grid for the ground | Shadows |
 | aosky | Sky shading | Darkens flat ground under props, drawn into the sun's shadow target | Shadows |
-| sh4dow-dc | Soft character shadows | Soft shadows on characters from limb columns (a separate library) | Shadows |
+| sh4dow | Soft character shadows | Soft shadows on characters from limb columns, foot cones and a heightfield sun (folded into this library; it began as SH4DOW-DC) | Shadows |
 | bump | Normal map | Lit surface bumps with no bump unit: blend passes | Surfaces and materials |
 | pl4nar | Planar reflection | Mirror reflection of the world in a floor, car paint or a wet road | Surfaces and materials |
 | uvwarp | Texture ripple | Moves texture coordinates per vertex from a small scrolling table | Surfaces and materials |

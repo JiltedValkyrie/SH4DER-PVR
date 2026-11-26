@@ -2,7 +2,7 @@
 title: "Genre guide: shadows and depth"
 tags: [guide, genre, shadows, effect]
 updated: 2026-11-26
-sources: [wiki/STRUCTURE.md, wiki/effects/names.md, wiki/start-here/what-do-you-want.md, wiki/start-here/call-orders.md, wiki/glossary.md, wiki/limits/header-recommended.md, wiki/limits/recommended-limits.md, wiki/status/maturity.md (rows found by search), wiki/effects/psm.md, wiki/effects/ao.md, wiki/effects/aobake.md, wiki/effects/aosky.md, wiki/effects/sh4dow-dc.md, wiki/shadows/psm-routes.md, README.md (the psm, ao, aobake and aosky effect sections; the SH4DOW-DC paragraph), include/sh4der_psm.h, include/sh4der_psm_raster.h, include/sh4der_psm_pvr.h, include/sh4der_ao.h, include/sh4der_aobake.h, include/sh4der_aosky.h, sh4dow-dc/README.md (lines found by search), sh4dow-dc/include/sh4dow_dc.h, AGENTS.md]
+sources: [wiki/STRUCTURE.md, wiki/effects/names.md, wiki/start-here/what-do-you-want.md, wiki/start-here/call-orders.md, wiki/glossary.md, wiki/limits/header-recommended.md, wiki/limits/recommended-limits.md, wiki/status/maturity.md (rows found by search), wiki/effects/psm.md, wiki/effects/ao.md, wiki/effects/aobake.md, wiki/effects/aosky.md, wiki/effects/sh4dow-dc.md, wiki/shadows/psm-routes.md, README.md (the psm, ao, aobake and aosky effect sections; the SH4DOW-DC paragraph), include/sh4der_psm.h, include/sh4der_psm_raster.h, include/sh4der_psm_pvr.h, include/sh4der_ao.h, include/sh4der_aobake.h, include/sh4der_aosky.h, README.md 'The sh4dow effect', include/sh4dow_dc.h, AGENTS.md]
 ---
 # Genre guide: shadows and depth
 
@@ -84,15 +84,15 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 - `SH4DER_AOSKY_FLOOR` 0.5f (include/sh4der_aosky.h:87): PROVEN for the same start.
 - One side of closed casters: ADVISED. The header's block counts it in its PROVEN start, but the [recommended limits](../limits/recommended-limits.md) hold it at ADVISED until open question Q78 closes. This page follows the limits page.
 
-### Soft character shadows [sh4dow-dc]
+### Soft character shadows [sh4dow]
 
 **What it looks like:** a character's limbs cast soft dark columns along the light, and two small cones of shadow sit under its feet.
 **Use it when:** a few characters near the camera need soft shadows. The cost grows with each character and column.
-**Where it is:** SH4DOW-DC is a separate library in the repository's `sh4dow-dc` folder, not in `include/`. Its header is [sh4dow_dc.h](../../sh4dow-dc/include/sh4dow_dc.h), and its [LICENSE](../../sh4dow-dc/LICENSE) applies. Put `sh4dow-dc/include` on the include path (the SH4DOW-DC paragraph of the [README](../../README.md)). Effect page: [sh4dow-dc](../effects/sh4dow-dc.md). Credit and use rules: [licence and credit](license-and-credit.md).
+**Where it is:** in this library: `include/sh4dow_dc.h`, `src/sh4dow_dc.c` and `src/sh4dow_foot.c`, with the heightfield sun in `include/sh4dow_heightfield.h`. Effect page: [sh4dow](../effects/sh4dow.md). Credit and use rules: [licence and credit](license-and-credit.md).
 **Starting settings:** NOT RUN on a console in this library. The numbers below are the original author's (REPORTED).
-- `SH4DOW_COLUMN_MAX` 32 (sh4dow-dc/README.md:135): the columns one frame's state holds, about 3 KB. ADVISED, a cap in the code.
-- `sh4dow_foot_range_fade` is 1 up to 18 and 0 at 20 (sh4dow-dc/README.md:207). These are the original game's units, where 1 unit is 3.048 m (sh4dow-dc/README.md:211). ADVISED: the library's default, not measured.
-- The count of shadowed characters: none is recommended. The original game shaded its six nearest, with 14 limbs each (sh4dow-dc/README.md:160). That is one game's choice. The bench that would set the count is OPEN.
+- `SH4DOW_COLUMN_MAX` 32 (README.md, 'The sh4dow effect', line 1755): the columns one frame's state holds, about 3 KB. ADVISED, a cap in the code.
+- `sh4dow_foot_range_fade` is 1 up to 18 and 0 at 20 (README.md, line 1794). These are the original game's units, where 1 unit is 3.048 m (README.md, line 1753). ADVISED: the library's default, not measured.
+- The count of shadowed characters: none is recommended. The original game shaded its six nearest, with 14 limbs each (README.md, 'The sh4dow effect', line 1755). That is one game's choice. The bench that would set the count is OPEN.
 
 ## What it costs
 
@@ -104,7 +104,7 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 | Corner darkening [ao] | not stated | the crease bake costs nothing at run time (as-stated by the header) | not measured. OPEN: time the crease bake and the screen cue on a console | NOT RUN on a console. PROTOTYPE v0.1 |
 | Baked corner shading [aobake] | 0 (by the code) | 2,142 vertices in scene A, 2,544 in scene B, 64 rays each (exact counts) | load: 252 to 254 ms (A) and 391 to 393 ms (B) (MEASURED, one console, SH4-076, SH4-082). The frame moved by under 0.6 ms (PROVEN, PVR-135, PVR-138, SH4-073, SH4-076, SH4-077) | ALPHA v0.5. This copy has NOT RUN on a console since the move. Placing cost OPEN (Q91) |
 | Sky shading [aosky] | 0 more (it uses the sun's target) | 1,164 caster triangles, one side (exact count) | 522 ns a vertex (MEASURED, one scene, SH4-071). Town scene at 4 directions: frame +10.0 ms (MEASURED, PVR-135) | PROVEN for the start. This copy has NOT RUN on a console since the move |
-| Soft character shadows [sh4dow-dc] | nothing extra (as-stated) | 6 characters, 84 columns, 5,406 vertices (REPORTED) | 14.70 ms before the column lists, 4.5 ms after (REPORTED, one run, no date) | NOT RUN on a console in this library |
+| Soft character shadows [sh4dow] | nothing extra (as-stated) | 6 characters, 84 columns, 5,406 vertices (REPORTED) | 14.70 ms before the column lists, 4.5 ms after (REPORTED, one run, no date) | NOT RUN on a console in this library |
 
 Video memory is the graphics chip's own memory for pictures and textures. A triangle or vertex is one corner the chip is sent each frame, and the count is the work it does.
 

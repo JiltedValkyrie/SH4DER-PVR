@@ -28,7 +28,7 @@ Header: [include/sh4der_core.h](../../include/sh4der_core.h). Call order: [Call 
 
 `sh4der_core.h` and `src/sh4der_core.c` hold the parts every effect uses (core.h:8-40; README:121-127, 1130-1136):
 
-- the soft column **feather** edge, taken from [SH4DOW-DC](sh4dow-dc.md);
+- the soft column **feather** edge, taken from [sh4dow](sh4dow.md);
 - the **tube** and **blocker** shapes the [Glowing tubes](blade.md) uses;
 - the **breath tracker**, a number from 0 (out) to 1 (in) that follows a body's chest, for [Inner light](holo.md);
 - the **glint**, which sets how bright a flare quad is by its depth from the camera;
@@ -65,11 +65,11 @@ The `SH4DER_BREATH_*`, `SH4DER_GLINT_*` and `SH4DER_RAMP_*` macros. Their defaul
 
 ## Pitfalls
 
-- `sh4dow-dc/include` must be on the include path (README:1136).
+- The library's `include` folder must be on the include path: `sh4dow_dc.h` is in it.
 - A non-finite input reads as "no effect this frame" (README:1136). Nothing crashes, but the effect goes dark.
 
 ## Related
 
 - [Effects index](README.md)
 - [The SH4ZAM rule](../methods/sh4zam-rule.md)
-- [Soft character shadows](sh4dow-dc.md)
+- [Soft character shadows](sh4dow.md)

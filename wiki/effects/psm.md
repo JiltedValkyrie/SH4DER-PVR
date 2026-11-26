@@ -103,5 +103,5 @@ See `README.md` "Psm tuning" (line 1158 on).
 ## Related
 
 - [PSM routes](../shadows/psm-routes.md), [bump compare chain](../shadows/bump-compare-chain.md)
-- [Soft character shadows](sh4dow-dc.md), [Light pools](pool.md) (blob shadows)
+- [Soft character shadows](sh4dow.md), [Light pools](pool.md) (blob shadows)
 - [PVR ledger](../hardware/ledger-pvr.md), [Bus and DMA ledger](../hardware/ledger-bus-dma.md)

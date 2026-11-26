@@ -92,4 +92,4 @@ See `README.md` "Pool tuning" (README:968-972).
 
 ## Related
 
-- [Soft edges for light](softfade.md), [Send checks](guard.md), [Sparks and tracers](spark.md), [Planar reflection](pl4nar.md), [Soft character shadows](sh4dow-dc.md)
+- [Soft edges for light](softfade.md), [Send checks](guard.md), [Sparks and tracers](spark.md), [Planar reflection](pl4nar.md), [Soft character shadows](sh4dow.md)

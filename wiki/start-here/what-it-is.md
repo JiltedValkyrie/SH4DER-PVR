@@ -24,7 +24,7 @@ The library is licensed work, not a free sample. Before using any of it, read [L
 |---|---|---|
 | The effects | `include/sh4der_*.h`, `src/sh4der_*.c` | One header (and often one `.c`) per effect. Headers are portable and host-tested; the `.c` files are the drawing code for the Dreamcast. See [the effect pages](../effects/). |
 | Shared core | `include/sh4der_core.h`, `src/sh4der_core.c` | Maths helpers, the soft edge ("feather"), shapes, the breath tracker and the glint. |
-| SH4DOW-DC | `sh4dow-dc/` | The soft shadow library, included whole. Its own page: [Soft character shadows [sh4dow-dc]](../effects/sh4dow-dc.md). |
+| SH4DOW-DC | `include/sh4dow_dc.h`, `src/sh4dow_*.c` | The soft shadow library, now part of this library. Its page: [Soft character shadows [sh4dow]](../effects/sh4dow.md). |
 | Tests | `test/*.c`, `make test` | Host tests for every header. |
 | Demos | `demo/` | The demo disc, the ocean, the street reflection demo, the torch walk, the shadow research programs in `demo/psm/`. |
 
@@ -32,7 +32,7 @@ The library is licensed work, not a free sample. Before using any of it, read [L
 
 - **SH4ZAM** (MIT, Falco Girgis): the maths library for the SH-4, version 0.10 or later. It is upstream, used as a library and never edited here; our own SH-4 kernels live in a separate layer, `sh4zam-dce`. Every square root, sine, reciprocal and matrix step goes through it on the Dreamcast. It is not shipped here: see [Setup](setup.md).
 - **KallistiOS** (KOS): the Dreamcast operating system and drawing library the `.c` files call.
-- **SH4DOW-DC**: included in `sh4dow-dc/`, kept whole.
+- **SH4DOW-DC**: part of this library now (folded in from its own folder); see its page.
 
 Without SH4ZAM, `SH4DER_CORE_NO_SH4ZAM` compiles the same steps as plain C. Host tools and tests use that.
 

@@ -138,7 +138,7 @@ Video memory is the 8 MB the graphics chip keeps for frame buffers, render targe
 
 This recipe adds send checks [guard] to one fan or ring. When it works, a ring seen edge-on has no bright stray lines across it.
 
-1. Include `sh4der_guard.h` in the file that sends the triangles. It pulls in `sh4der_core.h`, so `sh4dow-dc/include` must be on the include path, and SH4ZAM (the SH-4 maths library) must be linked, as KallistiOS says. Using the library means following its [licence and credit](license-and-credit.md) rule.
+1. Include `sh4der_guard.h` in the file that sends the triangles. It pulls in `sh4der_core.h`, so the library's `include` folder must be on the include path (`sh4dow_dc.h` is in it), and SH4ZAM (the SH-4 maths library) must be linked, as KallistiOS says. Using the library means following its [licence and credit](license-and-credit.md) rule.
 2. At load, compile every polygon header the program draws with, using KallistiOS's `pvr_poly_compile`. A header that was never compiled is all zeros.
 3. In a debug build, call `sh4der_poly_hdr_ok` on each header's eight 32-bit words before you draw with it. A 0 means the header was never compiled.
 4. For each triangle of the ring, turn its three points into view space (x right, y up, z forward and positive in front). Call `sh4der_tri_area_ok(a, b, c, near_z, SH4DER_GUARD_MIN_AREA2)`, send the triangle on a 1, and count the drops. A point behind `near_z` also returns 1, so clip those triangles before this check.

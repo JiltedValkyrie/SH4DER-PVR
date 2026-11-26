@@ -189,7 +189,7 @@ Items already above (warp mesh Q9, psm Q2/Q5/Q6, sh4dow-dc Q1) are not repeated.
 | Q45 | Pool: PVR fill of a fan | `pvr_get_stats` with pools on and off | [Light pools [pool]](effects/pool.md) |
 | Q46 | psm: route A's target pass and layer as library code | Write them | [Sun shadow map [psm]](effects/psm.md) |
 | Q47 | ca: the second scene's cost on a console | Time it | [Colour fringe [ca]](effects/ca.md) |
-| Q48 | sh4dow-dc: packed lists, foot cones and shade cost on our console | Part of Q1's bench | [Soft character shadows [sh4dow-dc]](effects/sh4dow-dc.md) |
+| Q48 | sh4dow-dc: packed lists, foot cones and shade cost on our console | Part of Q1's bench | [Soft character shadows [sh4dow-dc]](effects/sh4dow.md) |
 | Q49 | Guard: photos of the three hardware faults for the ledger | Photograph each on a console | [Send checks [guard]](effects/guard.md), PVR-080, PVR-081, VID-009 |
 | Q50 | Look and frame: the 80 × 60 frame read's time; whether a cached read pays for a sparse grid | Time both | [Exposure and grade [look]](effects/look.md), [Frame read [frame]](effects/frame.md), Q34 |
 | Q51 | mist, rise, film, deform, cloudvolume: any console time | Time each in a demo | the five pages |

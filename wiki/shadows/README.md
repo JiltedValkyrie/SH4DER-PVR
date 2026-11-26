@@ -2,7 +2,7 @@
 title: Shadows on the Dreamcast
 tags: [shadows]
 updated: 2026-11-26
-sources: [demo/psm/, sh4dow-dc/README.md, demo/psm/PRIOR_ART.md]
+sources: [demo/psm/, README.md 'The sh4dow effect', demo/psm/PRIOR_ART.md]
 ---
 # Shadows on the Dreamcast
 
