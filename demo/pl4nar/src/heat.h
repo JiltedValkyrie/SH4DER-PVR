@@ -2,6 +2,16 @@
  * copied into a small texture and drawn back over the same place through a mesh whose samples wander a pixel or two.
  * By day on a dry road only (heat_gate); at night or in rain nothing is copied and nothing is drawn.
  *
+ * RECOMMENDED (no console run: every number an ESTIMATE; wiki/limits/header-recommended.md)
+ * Cost:       video memory 16 KB, RAM 16 KB; SH-4 a frame: 8,192 uncached reads (0.4 to 0.8 ms) and 16 KB by store
+ *             queue (about 0.1 ms); TA 6.4 KB; PVR one translucent layer of 384 x 64 px: all ESTIMATE. Off: 0
+ * Start with: HEAT_ALPHA = 0.6 at half strength (the demo's LIGHT), HEAT_AMP_X = 2.0, HEAT_AMP_Y = 1.0, HEAT_DIST = 30.0
+ * Status:     ADVISED: host tested (host/heat_test.c); the copy's time is not measured (the demo's label shows it)
+ * Do:         heat_copy before any scene is open; heat_draw after the world in the translucent list; heat_reset
+ *             after every pvr_init
+ * Do not:     run it at night or in rain (heat_gate gives 0 there); expect a sharp band (3.5 px a texel across)
+ * Maturity:   PROTOTYPE v0.1
+ *
  * Cost, the screen at 640 x 480 (ESTIMATE, nothing here has run on a console):
  *   video memory  16 KB (HEAT_TW x HEAT_TH, RGB565, not twiddled)
  *   RAM           16 KB (the copy's rows, before the store queue takes them) and under 1 KB of state
