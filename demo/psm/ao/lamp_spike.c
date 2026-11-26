@@ -17,7 +17,7 @@
                               vertices (a point light a vertex: no shadow, the shade does not block it)
      LAMP OFF | LAMP OFF      the same picture twice: the base the others are read against
 
-   The divider (../psm_split.h): LT / RT move it a tile column (32 pixels) a step, held they repeat. At an end one half
+   The divider (sh4der_split.h): LT / RT move it a tile column (32 pixels) a step, held they repeat. At an end one half
    is hidden and is NOT SENT: the other half then shows its own cost on the frame's time.
 
    The shade goes through the punch-through list, a third list for pvr_init (one more bin a tile). What that list
@@ -34,22 +34,22 @@
    WHAT IS TIMED: the SH-4's parts with its cycle counter (PRFC1), the PVR's render from pvr_get_stats, a frame from
    its first line to its render's end. The effect labels (../psm_effects.h) are OFF in the measured stages.
    Waits: "ready" and "render done" are polled; no wait is longer than LIMIT_NS. Only PVR registers and video memory
-   are written. The fault catcher (../psm_fault.h) is in; the program goes back to the suite's menu.
+   are written. The fault catcher (include/sh4der_fault.h) is in; the program goes back to the suite's menu.
    Build: python demo/psm/ao/build.py --spike lamp --tag <new tag>. NOT RUN ON A CONSOLE when this file was written:
    the punch-through list, the 1-bit texture, a divider that moves and the lamp's whole look are untested there. */
 
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "ao4_scene.h"
 #include "ao4_draw.h"
 #include "ao4_room.h"
 #include "ao4_hens.h"
 #include "ao4_lamp.h"
-#include "../psm_split.h"
+#include "sh4der_split.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -76,11 +76,11 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "ao_fx.h"
 
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -186,7 +186,7 @@ static void headers(void) {
    A change of user clip takes effect one polygon too soon on every revision of the chip (Sega's bug list, CORE 18),
    so a polygon that does not matter goes first and takes the early change: a triangle with area, off the screen's
    left edge. The sequence is ao4_spike.c's, which ran on a console with a clip that did not move (PVR-144). */
-static void user_clip(const pvr_poly_hdr_t *dummy, const split_half_t *h) {
+static void user_clip(const pvr_poly_hdr_t *dummy, const sh4der_split_half_t *h) {
     static uint32_t cmd[8] __attribute__((aligned(32)));
 
     flush();
@@ -285,7 +285,7 @@ static int scene_close(void) {
     if (rd_hooked) {
         while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
     } else {
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
         if (t == 20u) return 0;
     }
     if (pvr_get_stats(&st) < 0) return 0;
@@ -371,13 +371,13 @@ static int frame(const view_t *v, cost_t *c) {
     const side_t side[2] = { sl, sr };
     const uint64_t c_frame = cyc();
     const uint32_t *colour[2];
-    split_half_t half[2];
+    sh4der_split_half_t half[2];
     ao4_cam_t cam;
     uint64_t t0;
     unsigned i, k, st, sd, any_lamp = 0, any_pl = 0;
 
     memset(c, 0, sizeof *c);
-    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &half[0], &half[1]);
+    sh4der_split_halves(v->div, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &half[0], &half[1]);
     for (sd = 0; sd < 2u; sd++) if (!half[sd].hidden && lamp_ok) { any_lamp |= (unsigned)side[sd].lamp; any_pl |= (unsigned)(side[sd].lamp && side[sd].light); }
     ao4_cam_at(&room, &cam, v->t, v->turn, v->lift);
     if (v->close && lamp_ok) {              /* the room's eye, a long lens aimed at the bulb */
@@ -471,13 +471,13 @@ static int frame(const view_t *v, cost_t *c) {
         }
         flush();
     }
-    if (!split_at_end(v->div, SPLIT_COLS)) {
+    if (!sh4der_split_at_end(v->div, SH4DER_SPLIT_COLS)) {
         flush(); pvr_prim(&h_dim, sizeof h_dim);
-        rect(split_x(v->div) - 1.0f, 0.0f, split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
+        rect(sh4der_split_x(v->div) - 1.0f, 0.0f, sh4der_split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
     }
     for (sd = 0; sd < 2u; sd++) {           /* each half's name, centred on it */
         const unsigned n = (unsigned)strlen(mode_name[v->mode][(v->swap ? 1u : 0u) ^ sd]);
-        const int x = split_label_x(&half[sd], n * 8u + 4u);
+        const int x = sh4der_split_label_x(&half[sd], n * 8u + 4u);
 
         if (x >= 0) text_put(0u, sd * 32u, sd * 32u + n, (float)x + 2.0f, 52.0f, NULL);
     }
@@ -563,11 +563,11 @@ static int pad_hit(void) {
 /* The text of this view and these costs (a mean the caller keeps). */
 static void labels(const view_t *v, const cost_t *c) {
     const side_t sl = mode_side[v->mode][v->swap ? 1 : 0], sr = mode_side[v->mode][v->swap ? 0 : 1];
-    split_half_t hl, hr;
+    sh4der_split_half_t hl, hr;
     fx_entry_t e[6];
     int lamp_on, slots, light;
 
-    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &hl, &hr);
+    sh4der_split_halves(v->div, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &hl, &hr);
     lamp_on = lamp_ok && ((!hl.hidden && sl.lamp) || (!hr.hidden && sr.lamp));
     slots = (!hl.hidden && sl.lamp && sl.slots) || (!hr.hidden && sr.lamp && sr.slots);
     light = (!hl.hidden && sl.lamp && sl.light) || (!hr.hidden && sr.lamp && sr.light);
@@ -643,14 +643,14 @@ static const stage_t auto_stage[AUTO_STAGES] = {
 static sums_t auto_sum[AUTO_STAGES];
 static unsigned auto_done;
 
-static void view_default(view_t *v) { memset(v, 0, sizeof *v); v->div = split_middle(SPLIT_COLS); v->hens = 1; }
+static void view_default(view_t *v) { memset(v, 0, sizeof *v); v->div = sh4der_split_middle(SH4DER_SPLIT_COLS); v->hens = 1; }
 
 /* Frames: the run's stages first .. last on this PVR (auto_run 1), or the live view until START (0). */
 static void loop(int auto_run, unsigned first, unsigned last) {
     view_t v;
     sums_t win;
     cost_t c, shown;
-    split_step_t trig = { 0, 0u };
+    sh4der_split_step_t trig = { 0, 0u };
     unsigned held = ~0u, frames = 0, stage = first;
     uint64_t t_prev = ns(), t_stage = ns();
 
@@ -685,7 +685,7 @@ static void loop(int auto_run, unsigned first, unsigned last) {
                 run_stage = (int)stage;
             }
         } else {
-            const unsigned d = st ? split_step(&trig, v.div, SPLIT_COLS, st->ltrig > 128, st->rtrig > 128) : v.div;
+            const unsigned d = st ? sh4der_split_step(&trig, v.div, SH4DER_SPLIT_COLS, st->ltrig > 128, st->rtrig > 128) : v.div;
 
             if (st) {
                 if (st->joyx > 24 || st->joyx < -24) v.turn += (float)st->joyx * (1.0f / 128.0f) * dt * 1.2f;
@@ -798,7 +798,7 @@ int main(void) {
     perf_cntr_start(PRFC1, PMCR_ELAPSED_TIME_MODE, PMCR_COUNT_CPU_CYCLES);
     build();
     if (start(0)) {                         /* the first stage: a PVR without the punch-through list */
-        if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
+        if (!fault_on) { fault_on = 1; if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
         loop(1, 0u, 0u);
         stop("auto 2 lists");
     }
@@ -817,7 +817,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

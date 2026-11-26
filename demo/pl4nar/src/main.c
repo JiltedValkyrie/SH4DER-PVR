@@ -15,8 +15,8 @@
 #include "gfx_pvr.h"
 #include "version.h"
 #ifdef PL4NAR_AUTORUN
-#define PSM_FAULT_IMPL
-#include "psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "psm_suite.h"
 #define PG_PREFIX "pl4m"
 #define PG_LINES_MAX 160u
@@ -114,15 +114,16 @@ static void read_pad(demo_input_t *in, uint32_t *held) {
 
 typedef struct stage { const char *name; int reflect; unsigned size, tod; int orbit, blobs, noao, split; float lod; unsigned sun, xs; } stage_t;   /* xs (the hills): XS_* */
 #define XS_SMALL 1u                                /* the eight small tiles (the c8 set), not four of 128 */
-#define XS_CUT   2u                                /* the mirror pass through its own tiles (tile_cut.h) */
+#define XS_CUT   2u                                /* the mirror pass through its own tiles (sh4der_tilecut.h) */
 #define XS_INFO  4u                                /* the overlay on */
 #define XS_STOP  8u                                /* the car stands: traffic crosses the tiles' fade band */
 #define XS_HEAT  16u                               /* (the map) the heat shimmer on STRONG; every other stage has it OFF */
 #define XS_CINE  32u                               /* the fly-by shot from the stage's start (demo_auto_cine: the heat on in it, 7 s) */
+#define XS_HEX   64u                               /* the heat as hexagons on STRONG, the still gate off (driving): their band in the target */
 #define AUTO_V(k) ((stages[k].xs & XS_STOP) ? 0.0f : AUTO_SPEED)   /* blobs: no shadow tiles (the hills: 2 the flat quad); noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default; sun: 1 the sweep (the hills) */
 #if defined(PL4NAR_HILLS)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night; blobs 0 mesh, 1 off, 2 flat quad */
-    /* 9 stages, 63 s: the sizes, the fly-by, the tile cut; the mesh shadow and the reflection on in every one (the owner's word:
+    /* 10 stages, 70 s: the sizes, the fly-by, the tile cut, the hexagons; the mesh shadow and the reflection on in every one (the owner's word:
        no flat, blob or reflection-off stage). Dropped for the 90 s limit: the two sun sweeps, no AO, the orbit, the overlay. */
     { "128x64 day mesh",  1, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "256x128 day mesh", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "512x256 day mesh", 1, 2, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
@@ -130,18 +131,20 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
     { "128x64 night",     1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "t8 small uncut",   1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_SMALL }, { "t8 small cut", 1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_SMALL | XS_CUT },
     { "t4 128 cut",       1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_CUT },
-    { "t4 fade band",     1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_STOP }
+    { "t4 fade band",     1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_STOP },
+    { "256 day hexagons", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_HEX }
 };
 #elif defined(PL4NAR_MAP)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    /* 8 stages, 56 s, the reflection on in every one (the owner's word: no blob or reflection-off stage). Dropped for the
-       90 s limit: the split, the night orbit. The heat stage waits for the owner's look at the new heat (heat OFF throughout). */
+    /* 9 stages, 63 s, the reflection on in every one (the owner's word: no blob or reflection-off stage). Dropped for the
+       90 s limit: the split, the night orbit. The layer's heat stage waits for the owner's look at the new heat; the last stage is the hexagons. */
     { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day flyby", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_CINE },
     { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f, 0, 0 },
     { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
-    { "on 256 day lod30", 1, 0, 1, 0, 0, 0, 0, 30.0f, 0, 0 }
+    { "on 256 day lod30", 1, 0, 1, 0, 0, 0, 0, 30.0f, 0, 0 },
+    { "on 256 day hexes", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_HEX }
 };
 #elif defined(PL4NAR_WET)
 #define WET_STAGE(rain, streak) ((unsigned)(rain) | ((streak) ? 0u : 4u))   /* in the sun field: the rain, 4 = the streak off, 8 = the pools undimmed */
@@ -158,21 +161,33 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
     { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
-    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f, 0, 0 }
-};                                                 /* 9 stages, 63 s, the reflection on in every one */
+    { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f, 0, 0 },
+    { "on 256 day hexes", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_HEX }
+};                                                 /* 10 stages, 70 s, the reflection on in every one */
 #endif
 _Static_assert(sizeof stages / sizeof stages[0] * (AUTO_SETTLE_S + AUTO_COUNT_S) <= 84u, "an autorun over 84 s of stages: the suite's limit is 90 s with the boot");
 #define STAGES (sizeof stages / sizeof stages[0])
+/* A stage's heat: STRONG with XS_HEAT (the layer) or XS_HEX (the hexagons, drawn while the car drives), else OFF; the
+   hexagons' band is in the target in their stage alone, so every other stage measures what it did before. */
+static void stage_heat(unsigned k) {
+#ifdef PL4NAR_WET
+    (void)k;
+#else
+    demo_auto_heat((stages[k].xs & (XS_HEAT | XS_HEX)) ? 2u : 0u);
+    demo_auto_hex(!!(stages[k].xs & XS_HEX), 1);
+#endif
+}
 
 typedef struct acc {
     uint32_t n, dt_sum, dt_max, cpu_n, cpu_sum, lookup_sum, tri_main_sum, tri_refl_sum;   /* the unsampled frames */
     uint32_t s, ta_scr_sum, ta_scr_max, ta_mir_sum, ta_mir_max, rnd_scr_sum, rnd_mir_sum;   /* the sampled frames */
     uint32_t vram_kb, ram_kb, target_bytes, resize_fail, bad_binds, tiles_max, touched;
     uint32_t band_frames, cut_passes, cut_refused;  /* the hills: frames with a car in the fade band; cut passes, refused */
+    uint32_t hex_frames, hex_tris_max;              /* frames with the hexagons' band drawn; its triangles, the most a frame */
 } acc_t;
 static acc_t acc[STAGES];
 static unsigned auto_done;
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void report(void) {
     char rev[32];
@@ -231,6 +246,8 @@ static void report(void) {
     pg_say("headers refused (wrong list or never compiled): %u", (unsigned)gfx_pvr_bad_binds());
     pg_say("PVR waits given up (200 ms each): %u", (unsigned)gfx_pvr_timeouts());
     pg_say("one drive from s %u m, lane %d m, %u m/s: no stage restarts the car", (unsigned)AUTO_Z, (int)AUTO_X, (unsigned)AUTO_SPEED);
+    for (k = 0; k < STAGES; k++) if (stages[k].xs & XS_HEX)
+        pg_say("%u hexagons: band drawn %u frames, %u tris at most (sent twice)", k + 1u, (unsigned)acc[k].hex_frames, (unsigned)acc[k].hex_tris_max);
 #ifdef PL4NAR_MAP
     {   /* the car shadow tiles: by day; night has no car shadow (no blobs) */
         char t[80];
@@ -245,7 +262,7 @@ static void report(void) {
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
     pg_say("effect labels OFF in every stage (fill); hills on, no split");
-    pg_say("shadow: mesh = laid on the ground's triangles, every stage (9, 63 s)");
+    pg_say("shadow: mesh = laid on the ground's triangles, every stage (10, 70 s)");
     pg_say("no shadow at night (the tiles are day only; no blobs)");
     pg_say("4: the fly-by (a fixed camera at the kerb, heat on)");
     pg_say("6-9 tiles: t4 = 4 of 128 x 128 (1, the default), t8 = 8 small");
@@ -264,7 +281,7 @@ static void report(void) {
         for (k = 0; k < STAGES; k++) if (stages[k].xs) pg_say("%-2u %-16s %5u / %-5u   %u", k + 1u, stages[k].name, (unsigned)acc[k].cut_passes, (unsigned)acc[k].cut_refused, (unsigned)acc[k].band_frames);
     }
 #else
-    pg_say("effect labels OFF in every stage (fill); no split stage (8 stages, 56 s)");
+    pg_say("effect labels OFF in every stage (fill); no split stage (9 stages, 63 s)");
     pg_say("buildings boxed past %u m (traffic %u), stage 8 past 30 m", 50u, 40u);
     pg_say("stage 2: the fly-by (a fixed camera at the kerb, heat on)");
     {
@@ -302,7 +319,7 @@ int main(int argc, char **argv) {
     memset(&st, 0, sizeof st);
     printf("video memory free after load: %lu KB, main memory free: %lu KB\n", (unsigned long)(pvr_mem_available() / 1024u), (unsigned long)ram_free_kb());
 #ifdef PL4NAR_AUTORUN
-    if (psm_fault_init(&crumbs) < 0) pg_say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) pg_say("fault catcher: a hook was refused");
     acc[0].resize_fail = demo_auto_set(stages[0].reflect, stages[0].size, stages[0].tod, stages[0].orbit) != 0;
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
@@ -311,7 +328,6 @@ int main(int argc, char **argv) {
     demo_auto_tile_set(!!(stages[0].xs & XS_SMALL)); demo_auto_cut(!!(stages[0].xs & XS_CUT)); demo_auto_info(!!(stages[0].xs & XS_INFO));
 #else
     demo_auto_tiles(!stages[0].blobs);
-    demo_auto_heat((stages[0].xs & XS_HEAT) ? 2u : 0u);
 #endif
     demo_auto_ao(!stages[0].noao);
     demo_auto_split(stages[0].split);
@@ -328,7 +344,8 @@ int main(int argc, char **argv) {
 #ifndef PL4NAR_WET
     if (stages[0].xs & XS_CINE) demo_auto_cine();
 #endif
-    psm_fault_stage(&crumbs, stages[0].name);
+    stage_heat(0u);
+    sh4der_fault_stage(&crumbs, stages[0].name);
     t_stage = timer_us_gettime64();
 #endif
     t_prev = timer_us_gettime64();
@@ -359,7 +376,7 @@ int main(int argc, char **argv) {
         in.gas = demo_speed() < AUTO_SPEED ? 1.0f : 0.0f;
 #endif
         gfx_pvr_sample(sampled ? 1 : drain ? 2 : 0);
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         crumbs.frame++;
 #else
         read_pad(&in, &held);
@@ -386,6 +403,10 @@ int main(int argc, char **argv) {
             demo_counts(&c);
             if (c.tiles > a->tiles_max) a->tiles_max = c.tiles;
             a->band_frames += c.tiles_band != 0u;
+            {   /* the hexagons' band: the far world sent a second time */
+                const uint32_t hb = demo_hex_band_tris();
+                a->hex_frames += hb != 0u; if (hb > a->hex_tris_max) a->hex_tris_max = hb;
+            }
             if (!sampled && !drain) { a->cpu_n++; a->cpu_sum += st.cpu_us; a->lookup_sum += c.lookup_us; a->tri_main_sum += c.tris_main; a->tri_refl_sum += c.tris_refl; }
             else if (sampled) {                       /* the sampled frame alone: the drain frame's passes are not its own */
                 const gfx_pvr_pass_t *ps0 = gfx_pvr_pass(0u), *ps1 = gfx_pvr_pass(1u);
@@ -423,7 +444,6 @@ int main(int argc, char **argv) {
             demo_auto_tile_set(!!(stages[stage].xs & XS_SMALL)); demo_auto_cut(!!(stages[stage].xs & XS_CUT)); demo_auto_info(!!(stages[stage].xs & XS_INFO));
 #else
             demo_auto_tiles(!stages[stage].blobs);
-            demo_auto_heat((stages[stage].xs & XS_HEAT) ? 2u : 0u);
 #endif
             demo_auto_ao(!stages[stage].noao);
             demo_auto_split(stages[stage].split);
@@ -436,14 +456,15 @@ int main(int argc, char **argv) {
 #ifndef PL4NAR_WET
             if (stages[stage].xs & XS_CINE) demo_auto_cine();   /* the shot from where the car is: no jump */
 #endif
-            psm_fault_stage(&crumbs, stages[stage].name);
+            stage_heat(stage);
+            sh4der_fault_stage(&crumbs, stages[stage].name);
             t_stage = t_prev = timer_us_gettime64();
             sampled_prev = 1;                        /* the resize's wait is not a frame */
         }
 #endif
     }
 #ifdef PL4NAR_AUTORUN
-    psm_fault_stage(&crumbs, "pages");
+    sh4der_fault_stage(&crumbs, "pages");
     gfx_shutdown();
     vid_set_mode(DM_640x480, PM_RGB565);
     pg_init();
@@ -453,7 +474,7 @@ int main(int argc, char **argv) {
         maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
         cont_state_t *cs = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = cs ? cs->buttons : 0u, hit = now & ~held;
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

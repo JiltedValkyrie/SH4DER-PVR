@@ -59,7 +59,7 @@ KallistiOS's `timer_ns_gettime64` steps 2,502,400 ns ahead once every reload of 
 | `PSM_COLOUR_TABLE` | 1 | a model vertex's colour is read from a table (a row a palette entry, a column a sun share), made again only when the light or the palette changes: 64 KB of RAM in `psm_frame_t` |
 | `PSM_COLOUR_SEEN` | 2 | only the vertices `psm_place_geo` marked as sent get a colour; call `psm_place_geo` before `psm_colour` |
 
-**The tile cut's tables** (`ao/tile_cut.h`). `tile_cut_t.need` is the number of tile tables a cut wants found before `tile_cut_begin` or `tile_cut_begin_cols` will write: `TILE_CUT_TABLES` (2) from `tile_cut_init`; a program that knows it has one table sets it to 1 after the init. A cut with one table of two cut cost the street demo 3.05 ms (PVR-200, MEASURED, one console). The refusal itself is host tested (`ao/test/tile_cut_test.c`) and has not run on a console.
+**The tile cut's tables** (`include/sh4der_tilecut.h`, moved from `ao/tile_cut.h`). `sh4der_tilecut_t.need` is the number of tile tables a cut wants found before `sh4der_tilecut_begin` or `sh4der_tilecut_begin_cols` will write: `SH4DER_TILECUT_TABLES` (2) from `sh4der_tilecut_init`; a program that knows it has one table sets it to 1 after the init. A cut with one table of two cut cost the street demo 3.05 ms (PVR-200, MEASURED, one console). The refusal itself is host tested (`ao/test/tile_cut_test.c`) and has not run on a console.
 
 ## Baked occlusion and the clean picture (`psm_dc.c`)
 
@@ -81,7 +81,7 @@ Suite 13 (`suite/suite_13.json`) has the square with both, as `square` (`build/s
 
 ## One disc for every test: the suite
 
-New test programs go on the suite disc, not on a disc each. A test takes three lines from `psm_suite.h` (after `psm_fault.h`): `suite_init();` first in main, and `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }` in the loop that shows its result pages. The same ELF still works on a disc of its own. `suite/NOTES.md` has the disc, what a start through the menu clears and does not clear, and how to add a test.
+New test programs go on the suite disc, not on a disc each. A test takes three lines from `psm_suite.h` (after `sh4der_fault.h`): `suite_init();` first in main, and `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }` in the loop that shows its result pages. The same ELF still works on a disc of its own. `suite/NOTES.md` has the disc, what a start through the menu clears and does not clear, and how to add a test.
 
 ## The walled square (`SQUARE=square`)
 

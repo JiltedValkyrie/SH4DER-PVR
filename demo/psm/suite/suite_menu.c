@@ -22,15 +22,15 @@
    panels of the UI Pack by Kenney, CC0, through suite_skin.h, then ../psm_page.h's glyphs over them, inside the
    title-safe area); the CREDITS pages are the page kit's own. Video memory: the frame buffer only. RAM: the skin's
    9-slices (suite_skin.h says how many bytes). Drawn after a key press only: no cost a frame. Nothing is written but
-   the frame buffer and RAM. The fault catcher (../psm_fault.h) is in. The waits: 20 ms
+   the frame buffer and RAM. The fault catcher (include/sh4der_fault.h) is in. The waits: 20 ms
    between two reads of the pad, and the disc read of a program (KallistiOS's own, a few seconds).
 */
 
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -60,7 +60,7 @@ static void show(int y0, int y1) {
     sq_cpy(vram_s + y0 * 640, frame + y0 * 640, (size_t)(y1 - y0 + 1) * 1280u);
 }
 
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 static char note[PG_COLS + 1u];
 static nav_t nav;
 
@@ -128,7 +128,7 @@ static void *load_beat(void *arg) {
     unsigned n;
 
     (void)arg;
-    for (n = 0; loading && n < 300u; n++) { psm_fault_beat(&crumbs); thd_sleep(100); }
+    for (n = 0; loading && n < 300u; n++) { sh4der_fault_beat(&crumbs); thd_sleep(100); }
     return NULL;
 }
 
@@ -140,7 +140,7 @@ static void launch(unsigned i, unsigned chain) {
     size_t size = 0;
     void *image;
 
-    psm_fault_stage(&crumbs, "load");
+    sh4der_fault_stage(&crumbs, "load");
     plain_begin();
     line(0, PG_WHITE, "%s %s", SUITE_TITLE, SUITE_TAG);
     line(2, PG_WHITE, "loading %s (%u KB) ...", e->title ? e->title : e->name, (e->bytes + 1023u) / 1024u);
@@ -148,17 +148,17 @@ static void launch(unsigned i, unsigned chain) {
     line(4, PG_GREY, "%.63s", e->read);
     plain_show();
     snprintf(path, sizeof path, "/cd/%s", e->file);
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     loading = 1;
     thd_create(1, load_beat, NULL);
     image = suite_load(path, &size);
     loading = 0;
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     if (!image) { snprintf(note, sizeof note, "%s: could not be read from the disc", e->file); return; }
     mail = suite_mail_find(image, size);
     if (mail) { mail->chain = chain; mail->index = i; mail->status = 0u; }
     else if (e->returns) { free(image); snprintf(note, sizeof note, "%s: not the binary the build checked", e->file); return; }
-    psm_fault_stage(&crumbs, "exec");
+    sh4der_fault_stage(&crumbs, "exec");
     suite_exec(image, size);
 }
 
@@ -177,7 +177,7 @@ static int countdown(unsigned i) {
             line(NAV_FOOT_ROW, PG_GREY, "%s", psm_credits_foot[0]);
             plain_show();
         }
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         if (pad() & CONT_B) return 0;
         thd_sleep(20);
     }
@@ -192,7 +192,7 @@ int main(void) {
 
     (void)pg_say; (void)pg_text; (void)pg_plot; (void)pg_series; (void)pg_point; (void)suite_init; (void)suite_tick; (void)suite_keys_text; (void)suite_exit;
     vid_set_mode(DM_640x480, PM_RGB565);
-    if (psm_fault_init(&crumbs) < 0) snprintf(note, sizeof note, "fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) snprintf(note, sizeof note, "fault catcher: a hook was refused");
     pg_init();
     credits_fill();
     nav_init(&nav, suite_list, SUITE_N, from);
@@ -212,7 +212,7 @@ int main(void) {
                              (down & CONT_B ? NAV_B : 0u) | (down & CONT_Y ? NAV_Y : 0u) | (down & CONT_START ? NAV_START : 0u);
         int index, act;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         crumbs.frame++;
         held = now;
         act = hit ? nav_key(&nav, suite_list, SUITE_N, hit, pg_pages(), &index) : NAV_NONE;
@@ -223,7 +223,7 @@ int main(void) {
         }
         if (act != NAV_NONE) redraw = 1;
         if (redraw) {
-            psm_fault_stage(&crumbs, "menu");
+            sh4der_fault_stage(&crumbs, "menu");
             if (nav.screen == NAV_CREDITS) {
                 char keys[64];
 

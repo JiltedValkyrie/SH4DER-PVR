@@ -5,7 +5,7 @@
    Dreamcast maths and copies under test: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT), used as a library.
 
    A test program for a real console, after bench_h1.c. Many small tests, one number a line, each in its own stage so
-   a hang names the test it was in (the fault catcher, ../psm_fault.h, shows it). Every line goes to the serial line
+   a hang names the test it was in (the fault catcher, include/sh4der_fault.h, shows it). Every line goes to the serial line
    ("h2:") as soon as it exists and to result pages (A next, B back). The tests run in four groups; the pages are
    shown after each, and START goes on to the next, so what has been measured can be photographed before anything
    less certain runs.
@@ -49,8 +49,8 @@
 #include "sh4zam_dce/shz_dce.h"
 #include "sh4der_warp.h"
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -63,7 +63,7 @@ _Static_assert(sizeof(double) == 8, "the exact sums of test 1 need a real double
 #define LINES_MAX 420u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 /* A line for the pages and the serial line. A line over the page's width goes on, indented, on the next. */
 static void say(const char *fmt, ...) {
@@ -98,8 +98,8 @@ static void page_draw(unsigned page, unsigned pages, const char *next) {
 }
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -479,9 +479,9 @@ static int scene_close(void) {
     unsigned t;
 
     pvr_scene_finish();
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) return 0;
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u || pvr_get_stats(&st) < 0) return 0;
     last_render_ns = st.rnd_last_time;
     return 1;
@@ -698,7 +698,7 @@ static const sh4der_warp_frame_t warp_frame = { 3u, {
 static uint64_t warp_frame_ns(pvr_ptr_t tex, int what, int prim) {
     uint64_t t0, t;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     pvr_wait_ready();
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_OP_POLY);
@@ -988,7 +988,7 @@ static void group1(void) {
 
     say("GROUP 1: SH4ZAM beside KallistiOS, video memory to RAM. One run, this console.");
     if (!pvr_start()) return;
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     run_tests(t, sizeof t / sizeof t[0]);
     step("group 1 end");
     pvr_shutdown();
@@ -1030,7 +1030,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         pages = (nlines + ROWS - 1u) / ROWS;
         if (!pages) pages = 1u;
         if (held == ~0u) page_draw(page, pages, next[done - 1u]);

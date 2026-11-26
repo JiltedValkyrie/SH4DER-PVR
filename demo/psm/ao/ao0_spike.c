@@ -26,15 +26,15 @@
 
    Waits: the PVR's "ready" and "render done" are polled on the timer (the render-done interrupt is noted by this
    program's handler in front of KallistiOS's, which still runs); no wait is longer than LIMIT_NS. Only PVR registers
-   and video memory are written. The fault catcher (../psm_fault.h) is in.
+   and video memory are written. The fault catcher (include/sh4der_fault.h) is in.
    Every number comes from the run that prints it; only a real console's run is evidence.
    Build: python demo/psm/ao/build.py --tag <new tag>. Not run on a console when this file was written. */
 
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "sh4der_core.h"
 #include "ao0_model.h"
@@ -53,11 +53,11 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define PG_LINES_MAX 120u
 #include "../psm_page.h"
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -172,7 +172,7 @@ static int scene_close(void) {
     if (rd_hooked) {
         while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
     } else {                                /* our handler was refused: KallistiOS's sleeping wait, and the page says so */
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
         if (t == 20u) return 0;
     }
     if (pvr_get_stats(&st) < 0) return 0;
@@ -272,7 +272,7 @@ static void read_back(unsigned which) {
 
     for (i = 0; i < AO0_SIZE * AO0_SIZE; i++) {
         rb[which][i] = src[i];
-        if ((i & 8191u) == 0u) psm_fault_beat(&crumbs);
+        if ((i & 8191u) == 0u) sh4der_fault_beat(&crumbs);
     }
 }
 
@@ -334,7 +334,7 @@ static void reading(unsigned which, ao0_read_t *r, int *flip) {
     ao0_read(rb[which], m_bits, m_edge, 0, r);
     *flip = 0;
     if (r->bad * 20u <= r->tested) return;
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     ao0_read(rb[which], m_bits, m_edge, 1, &r1);
     if (r1.bad < r->bad) { *r = r1; *flip = 1; }
 }
@@ -399,7 +399,7 @@ static void t_cost(void) {
 
         step("2 cost");
         for (f = 0; f <= FRAMES; f++) {
-            psm_fault_beat(&crumbs);
+            sh4der_fault_beat(&crumbs);
             if (!map_pass(k, way, 1)) { say("2 k%u %s NO RENDER END (frame %u)", k, way_name[way], f); return; }
             if (!f) continue;               /* the first is not counted */
             ao += ao_ns; sun += sun_ns; pvr += last_render_ns;
@@ -429,7 +429,7 @@ static void run(void) {
         say("%s", rev);
     }
     if (!start()) return;
-    if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
+    if (!fault_on) { fault_on = 1; if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
     if (!rd_hooked) say("render-done handler refused: KallistiOS's sleeping wait used");
     t_union();
     t_cost();
@@ -536,7 +536,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

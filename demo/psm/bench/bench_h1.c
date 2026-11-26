@@ -4,7 +4,7 @@
    Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
    A test program for a real console. Many small tests, one number a line, each in its own stage so a hang names the
-   test it was in (the fault catcher, ../psm_fault.h, shows it). Every line goes to the serial line ("h1:") as soon as
+   test it was in (the fault catcher, include/sh4der_fault.h, shows it). Every line goes to the serial line ("h1:") as soon as
    it exists and to result pages (A next, B back). The tests run in three groups; the pages are shown after each, and
    START goes on to the next, so what has been measured can be photographed before anything riskier runs.
 
@@ -26,8 +26,8 @@
 #include <dc/cache.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -38,7 +38,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define LINES_MAX 260u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 /* A line for the pages and the serial line. A line over the page's width goes on, indented, on the next. */
 static void say(const char *fmt, ...) {
@@ -73,8 +73,8 @@ static void page_draw(unsigned page, unsigned pages, const char *next) {
 }
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -254,9 +254,9 @@ static int scene_close(void) {
     unsigned t;
 
     pvr_scene_finish();
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) return 0;
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u || pvr_get_stats(&st) < 0) return 0;
     last_render_ns = st.rnd_last_time;
     return 1;
@@ -314,7 +314,7 @@ static unsigned layers_us(const kind_t *k, unsigned n, float u1, float v1) {
     kind_header(&h0, &flat);
     if (k) kind_header(&h, k);
     for (r = 0; r < 2u; r++) {
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         pvr_wait_ready();
         pvr_scene_begin();
         pvr_list_begin(PVR_LIST_OP_POLY);
@@ -384,7 +384,7 @@ static unsigned tris_us(int one_tile, int translucent) {
     pvr_vertex_t v;
     unsigned i, k;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     kind_header(&h0, &op);
     kind_header(&h, translucent ? &tr : &op);
     pvr_wait_ready();
@@ -642,9 +642,9 @@ static void t_beside(void) {
         for (i = 0; i < 8u; i++) quad(&h, 0.0f, 0.0f, 640.0f, 480.0f, 1.0f + 0.01f * (float)i, 0.0f, 0.0f, 0x80c0c0c0u);
         pvr_list_finish();
         pvr_scene_finish();
-        for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);     /* the render has begun */
+        for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);     /* the render has begun */
         rate = spin((int)ram, NULL, 15000000u, &took);
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
         say_beside("PVR render, 8 layers", (int)ram, rate, took);
     }
 }
@@ -764,7 +764,7 @@ static void group1(void) {
 
     say("GROUP 1: SH-4 and PVR. One run, this console.");
     if (!pvr_start(1)) return;
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     run_tests(t, sizeof t / sizeof t[0]);
     step("group 1 end");
     pvr_shutdown();
@@ -798,7 +798,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         pages = (nlines + ROWS - 1u) / ROWS;
         if (!pages) pages = 1u;
         if (held == ~0u) page_draw(page, pages, next[done - 1u]);

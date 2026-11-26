@@ -29,6 +29,8 @@ enum {
     GFX_MAT_WET,                   /* opaque: the reflection target x vertex colour + offset colour (the wet road: one pass) */
     GFX_MAT_GRIT,                  /* translucent: the wet road's grit (tex_grit, ARGB4444, mips) x vertex colour, alpha =
                                       texel x vertex alpha, src alpha / 1 - src alpha; loaded in the wet build only */
+    GFX_MAT_HEAT,                  /* translucent list, no blend (one / zero): the reflection target's texel as it is, point
+                                      sampled, depth tested and not written: the heat's hexagons (heat_hex.h) */
     GFX_MAT_COUNT
 };
 enum { GFX_CULL_NONE = 0, GFX_CULL_BACK = 1, GFX_CULL_MIRROR = 2 };
@@ -43,8 +45,14 @@ typedef struct gfx_vert {          /* 48 B */
 } gfx_vert_t;
 
 /* World (or model) point -> vertex position fields. XMTRX = screen x projection x view (x model). */
+#ifdef GFX_COUNT_XFORM
+extern unsigned gfx_xform_n;       /* a host count build only: points transformed (the caller zeroes it) */
+#endif
 static inline void gfx_xform(gfx_vert_t *o, shz_vec3_t p) {
     const shz_vec4_t c = shz_xmtrx_transform_vec4(shz_vec3_vec4(p, 1.0f));
+#ifdef GFX_COUNT_XFORM
+    gfx_xform_n++;
+#endif
     o->cx = c.x; o->cy = c.y; o->w = c.w;
     if (c.w >= GFX_NEAR) {
         const float iw = shz_invf(c.w);
@@ -68,7 +76,7 @@ void gfx_reflect_end(void);
 void gfx_frame_begin(void);
 void gfx_list_translucent(void);
 void gfx_frame_end(void);
-/* The tile cut (a stage, demo/psm/ao/tile_cut.h): the next reflection passes go through the screen's top left cw x ch
+/* The tile cut (a stage, include/sh4der_tilecut.h): the next reflection passes go through the screen's top left cw x ch
    tiles alone, not the whole 20 x 15; 0 x 0 off (the default). A cut that is refused runs the pass uncut and is counted;
    a table that does not read back after a pass turns the cut off for good, restarts the PVR and is counted (failed). */
 typedef struct gfx_cut_stats {
@@ -84,6 +92,12 @@ void gfx_tile_cut_stats(gfx_cut_stats_t *o);
 
 void gfx_clear_colour(uint32_t argb);                     /* what shows where nothing is drawn (the next screen scene) */
 void gfx_viewport(float w, float h);                      /* triangles wholly outside 0 .. w, 0 .. h are dropped */
+/* A window of the open target (a region of the reflection target with a view of its own): the matrix maps the view to
+   0 .. w, 0 .. h; every triangle is CUT to that rectangle and to clip w >= near_w (so nothing of it lands in a
+   neighbouring region, and what is nearer than near_w is left out), then moved by (ox, oy). w <= 0: no window (the
+   default; gfx_viewport's reject alone). The cut is the SH-4's: clip space, so u, v and the colours stay right. For
+   transformed vertices only: a 2D vertex (gfx_vert2d, w = 1) would get the depth key 1; draw those with no window. */
+void gfx_window(float ox, float oy, float w, float h, float near_w);
 void gfx_cull(int mode);                                  /* GFX_CULL_*: MIRROR for a mirrored world (winding reversed) */
 void gfx_bind(int mat);
 void gfx_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c);

@@ -23,7 +23,7 @@
    every row. "err a..b" is where it did begin, against that, over the rows; "rag" rows with more than one edge;
    "btw" pixels that are neither lit nor shadow.
 
-   The fault catcher (../psm_fault.h) is in: a hang or an exception shows its own screen, with the step it was in.
+   The fault catcher (include/sh4der_fault.h) is in: a hang or an exception shows its own screen, with the step it was in.
    Every number comes from the run that prints it. Only a real console's run is evidence.
    Build: python demo/psm/compare/build.py. Not run on a console when this file was written.
 */
@@ -31,8 +31,8 @@
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "cmp_model.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
@@ -44,7 +44,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define LINES_MAX 80u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void say(const char *fmt, ...) {
     char big[160];
@@ -70,8 +70,8 @@ static void page_draw(unsigned page, unsigned pages) {
 
 /* A step begins: the heartbeat, and its name in the breadcrumbs for the fault screen. */
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -175,9 +175,9 @@ static int scene_close(void) {
     unsigned t;
 
     pvr_scene_finish();
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) return 0;
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     render_addr = PVR_GET(PVR_RENDER_ADDR);
     return t < 20u;
 }
@@ -279,7 +279,7 @@ static unsigned long layers_us(pvr_ptr_t mem, unsigned w, unsigned h, unsigned n
     mk(&h0, PVR_LIST_OP_POLY, TEX_NONE, 0u, PVR_BLEND_ONE, PVR_BLEND_ZERO, PVR_TXRENV_REPLACE);
     mk(&h1, PVR_LIST_TR_POLY, TEX_NONE, 0u, PVR_BLEND_ONE, PVR_BLEND_ONE, PVR_TXRENV_REPLACE);
     for (r = 0; r < 2u; r++) {
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         if (!scene_open(mem, w, h)) return 0;
         pvr_list_begin(PVR_LIST_OP_POLY);
         quad(&h0, 0.0f, 0.0f, (float)w, (float)h, UV_NONE, 0u, 0xff202020u, 0xff202020u, 0xff202020u, 0xff202020u, 1.0f, 1.0f);
@@ -377,7 +377,7 @@ static unsigned long volume_pass(int with) {
     pvr_poly_hdr_t h;
     pvr_mod_hdr_t mh, mlast;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.modifier_mode = PVR_MODIFIER_CHEAP_SHADOW;
@@ -447,7 +447,7 @@ static void run(void) {
     init.autosort_disabled = 1;                                  /* translucent layers in the order they are sent */
     say("numbers below: measured by this run");
     if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return; }
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     pvr_set_bg_color(0.0f, 0.0f, 0.0f);
     if (!load()) { say("video memory allocation FAIL"); pvr_shutdown(); return; }
     vid_set_dithering(false);
@@ -480,7 +480,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         pages = (nlines + ROWS - 1u) / ROWS;
         if (!pages) pages = 1u;
         if (held == ~0u) page_draw(page, pages);                 /* the first pass: nothing counts as a press */

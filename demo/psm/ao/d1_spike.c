@@ -32,7 +32,7 @@
          Q = the quad's depth, depth test on), FAR (alpha 255 from a quad D1_FADE behind, depth test on: without it
          the level comes round every D1_TURN), HALO (DESTALPHA x ONE). Stages: no glow; plain; the fade's alpha as
          grey; the fade; the fade with the halves swapped; the fade without FAR; the fade with the depth map's pass
-         cut to its own 10 x 8 tiles (tile_cut.h; wiki PVR-156: the cut ran in ao4 on s7).
+         cut to its own 10 x 8 tiles (sh4der_tilecut.h; wiki PVR-156: the cut ran in ao4 on s7).
          d1-b (suite s8) ran the fade but showed nothing of it: its glow, 0.2 m from one wall beside the lamp, lay
          left of the divider (wiki PVR-173). Its cost was the depth map: 4.9 ms of PVR, 3.2 ms of SH-4 (PVR-172).
 
@@ -51,15 +51,15 @@
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "ao4_scene.h"
 #include "ao4_draw.h"
 #include "ao4_room.h"
 #include "d1_model.h"
-#include "tile_cut.h"
-#include "../psm_split.h"
+#include "sh4der_tilecut.h"
+#include "sh4der_split.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -84,12 +84,12 @@ static const fx_entry_t d1_fx[2] = {        /* the room's baked vertex AO (ao4_l
 };
 
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
-static tile_cut_t tcut;                     /* the tile tables, for the depth map's pass through its own tiles */
+static sh4der_fault_crumbs_t crumbs;
+static sh4der_tilecut_t tcut;                     /* the tile tables, for the depth map's pass through its own tiles */
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -258,7 +258,7 @@ static void headers(void) {
 }
 
 /* The user clip, with the polygon that takes its early change first (ao4_spike.c's sequence, CORE 18). */
-static void user_clip(const pvr_poly_hdr_t *dummy, const split_half_t *h) {
+static void user_clip(const pvr_poly_hdr_t *dummy, const sh4der_split_half_t *h) {
     static uint32_t cmd[8] __attribute__((aligned(32)));
 
     flush();
@@ -364,12 +364,12 @@ static int scene_close(void) {
     if (rd_hooked) {
         while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
     } else {
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
         if (t == 20u) return 0;
     }
     if (pvr_get_stats(&st) < 0) return 0;
     last_render_ns = st.rnd_last_time;
-    tile_cut_find(&tcut);                   /* the table this render went through, until both are known (not while a cut is on) */
+    sh4der_tilecut_find(&tcut);                   /* the table this render went through, until both are known (not while a cut is on) */
     return 1;
 }
 
@@ -569,7 +569,7 @@ static void t2(void) {
     flush();
     pvr_list_finish();
     pvr_list_begin(PVR_LIST_TR_POLY);       /* this list has a bin: never left empty */
-    user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
+    user_clip(&h_dummy, &(sh4der_split_half_t){ 0u, 0u, 19u, 14u, 0 });
     pvr_list_finish();
     if (!scene_close()) { say("T2a: NO RENDER END"); return; }
     fetch(FETCH_BYTES);
@@ -607,7 +607,7 @@ static void t2(void) {
     flush();
     pvr_list_finish();
     pvr_list_begin(PVR_LIST_TR_POLY);
-    user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
+    user_clip(&h_dummy, &(sh4der_split_half_t){ 0u, 0u, 19u, 14u, 0 });
     pvr_list_finish();
     if (!scene_close()) { say("T2b: NO RENDER END"); return; }
     fetch(FETCH_BYTES);
@@ -637,7 +637,7 @@ typedef struct view {
     unsigned div, wall;                     /* the divider; the glow's distance from each wall of the corner: wall_m[] */
     int swap;                               /* the faded half is the left one */
     int far_on;
-    int cut;                                /* the depth map's pass through its own tiles (tile_cut.h) */
+    int cut;                                /* the depth map's pass through its own tiles (sh4der_tilecut.h) */
     int zoom;                               /* the room's eye with a long lens aimed at the glow */
     int geo;                                /* 1: the halves cut at the divider by geometry, no user clip in the screen's lists; 0: a user clip a half (d1-c) */
     unsigned stage;                         /* the run's stage, for the text */
@@ -674,13 +674,13 @@ static int frame(const view_t *v, cost_t *c) {
     const int fade = (v->show == SHOW_ALPHA || v->show == SHOW_FADE) && fade_env >= 0;
     const unsigned fside = v->swap ? 0u : 1u;                    /* the half that is faded */
     const float centre[3] = { -3.0f + wall_m[v->wall], GLOW_Y, -3.0f + wall_m[v->wall] };   /* in the corner of the walls x = -3 and z = -3: straight ahead of the room's eye */
-    split_half_t half[2];
+    sh4der_split_half_t half[2];
     ao4_cam_t cam;
     float q[4][3], depth, zq, zfar;
     unsigned i, k, st, sd;
 
     memset(c, 0, sizeof *c);
-    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &half[0], &half[1]);
+    sh4der_split_halves(v->div, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &half[0], &half[1]);
     ao4_cam_at(&room, &cam, v->t, v->turn, v->lift);
     if (v->zoom) {                          /* the same eye, aimed at the glow (ao-lamp's near camera does the same for the bulb) */
         const float up[3] = { 0.0f, 1.0f, 0.0f };
@@ -715,7 +715,7 @@ static int frame(const view_t *v, cost_t *c) {
         if (v->cut) {                       /* the cut's own time, apart from the send's (d1-c had it inside: PVR-192) */
             const uint64_t tb = cyc();
 
-            did = v->cut == 2 ? tile_cut_begin_cols(&tcut, CUT_W) : tile_cut_begin(&tcut, CUT_W, CUT_H);
+            did = v->cut == 2 ? sh4der_tilecut_begin_cols(&tcut, CUT_W) : sh4der_tilecut_begin(&tcut, CUT_W, CUT_H);
             c->cut_begin = cyc() - tb;
             c->cut_on = (unsigned)did; c->cut_refused = (unsigned)!did;
         }
@@ -735,7 +735,7 @@ static int frame(const view_t *v, cost_t *c) {
             pvr_list_finish();
             if (!v->geo) {
                 pvr_list_begin(PVR_LIST_TR_POLY);
-                user_clip(&h_dummy, &(split_half_t){ 0u, 0u, 19u, 14u, 0 });
+                user_clip(&h_dummy, &(sh4der_split_half_t){ 0u, 0u, 19u, 14u, 0 });
                 pvr_list_finish();
             }
             c->map_send = cyc() - t0;
@@ -743,7 +743,7 @@ static int frame(const view_t *v, cost_t *c) {
         }
         if (did) {                          /* the tables back before anything else is drawn */
             const uint64_t te = cyc();
-            const unsigned bad = tile_cut_end(&tcut);
+            const unsigned bad = sh4der_tilecut_end(&tcut);
 
             c->cut_end = cyc() - te;
             if (bad) { cut_fatal = 1; return 0; }
@@ -787,7 +787,7 @@ static int frame(const view_t *v, cost_t *c) {
 
             if (half[sd].hidden) continue;
             if (g) {                        /* this half's part of the rectangle: cut at the divider, the glow's u cut with it */
-                const float dx = split_x(v->div);
+                const float dx = sh4der_split_x(v->div);
 
                 if (sd == 0u) { if (xb > dx) xb = dx; } else if (xa < dx) xa = dx;
                 if (!(xb > xa)) continue;
@@ -806,9 +806,9 @@ static int frame(const view_t *v, cost_t *c) {
             else layer(g ? &h_halo_g : &h_halo_c, xa, y0, xb, y1, zq, ua, 0.0f, ub, 1.0f, GLOW_C, 0u);
         }
     }
-    if (!split_at_end(v->div, SPLIT_COLS)) {
+    if (!sh4der_split_at_end(v->div, SH4DER_SPLIT_COLS)) {
         flush(); pvr_prim(&h_dim, sizeof h_dim);
-        rect(split_x(v->div) - 1.0f, 0.0f, split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
+        rect(sh4der_split_x(v->div) - 1.0f, 0.0f, sh4der_split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
     }
     text_put(0u, 64.0f, 52.0f);
     text_put(1u, 64.0f, 392.0f);
@@ -860,12 +860,12 @@ static void loop(int auto_run) {
     view_t v;
     sums_t win;
     cost_t c;
-    split_step_t trig = { 0, 0u };
+    sh4der_split_step_t trig = { 0, 0u };
     unsigned held = ~0u, frames = 0;
     uint64_t t_prev = ns(), t_stage = ns();
 
     memset(&v, 0, sizeof v);
-    v.div = split_middle(SPLIT_COLS); v.wall = WALL_RUN; v.zoom = 1; v.geo = 1;
+    v.div = sh4der_split_middle(SH4DER_SPLIT_COLS); v.wall = WALL_RUN; v.zoom = 1; v.geo = 1;
     stage_set(&v, auto_run ? T3_NONE : T3_FADE);
     fx_live = !auto_run;
     memset(&win, 0, sizeof win);
@@ -889,7 +889,7 @@ static void loop(int auto_run) {
                 stage_set(&v, v.stage + 1u);
             }
         } else {
-            const unsigned d = st ? split_step(&trig, v.div, SPLIT_COLS, st->ltrig > 128, st->rtrig > 128) : v.div;
+            const unsigned d = st ? sh4der_split_step(&trig, v.div, SH4DER_SPLIT_COLS, st->ltrig > 128, st->rtrig > 128) : v.div;
 
             v.t += dt < 0.1f ? dt : 0.1f;
             if (st) {
@@ -1006,7 +1006,7 @@ static int start(void) {
     init.autosort_disabled = 1;             /* the layers work only in the order sent */
     init.opb_overflow_count = 4;
     if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return 0; }
-    tile_cut_init(&tcut, 20u, 15u);         /* the screen's tiles; the tables are found as scenes render */
+    sh4der_tilecut_init(&tcut, 20u, 15u);         /* the screen's tiles; the tables are found as scenes render */
     cut_fatal = 0;
     pvr_set_bg_color(0.0f, 0.0f, 0.0f);
     tgt_mem = pvr_mem_malloc(TW * TH * 2u);
@@ -1068,7 +1068,7 @@ int main(void) {
     say("Effect labels: off in the run, on in the live view.");
     if (start()) {
         fault_on = 1;
-        if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+        if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
         t1();
         if (!pad_stop) t2(); else { pg_break(); say("T2: not run (the pad ended the run)"); }
         if (!pad_stop) loop(1);
@@ -1083,7 +1083,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

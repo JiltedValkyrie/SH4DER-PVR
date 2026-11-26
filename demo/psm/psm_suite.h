@@ -29,13 +29,13 @@
      index   the menu's row of the test (the menu puts its cursor back there).
      status  how the test ended: SUITE_OK, SUITE_KEYS (the four buttons), SUITE_FAULT (from the fault page).
 
-   IN A TEST. After <kos.h>, and after psm_fault.h when the test has it:
+   IN A TEST. After <kos.h>, and after sh4der_fault.h when the test has it:
        suite_init();                              once, early in main: loads the menu's binary while all is well
        ... in the loop that shows the result pages, every pass:
        if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }
    suite_tick does not come back when A + B + X + Y are all held, or when a chained run has shown the last page for
    its time: it goes to the menu. suite_chained() is 1 in a chained run: skip what waits for a button.
-   With psm_fault.h (PSM_FAULT_IMPL) in the same file, suite_init also has the fault page go back to the menu after
+   With sh4der_fault.h (SH4DER_FAULT_IMPL) in the same file, suite_init also has the fault page go back to the menu after
    SUITE_FAULT_SHOWS redraws (60 s). That is a try from a broken program: it may hang, and then the console is
    switched off as before.
 */
@@ -130,7 +130,7 @@ static void suite_exit(unsigned status) {
     suite_exec(suite_menu_image, suite_menu_size);
 }
 
-#ifdef PSM_FAULT_IMPL
+#ifdef SH4DER_FAULT_IMPL
 static void suite_fault_leave_(void) {
     suite_menu_mail->chain = 0u;            /* a fault ends a chained run: the owner looks before going on */
     suite_menu_mail->index = suite_mail.index;
@@ -145,8 +145,8 @@ static int suite_init(void) {
     if (!suite_menu_image) return 0;
     suite_menu_mail = suite_mail_find(suite_menu_image, suite_menu_size);
     if (!suite_menu_mail) { free(suite_menu_image); suite_menu_image = NULL; return 0; }
-#ifdef PSM_FAULT_IMPL
-    psm_fault_leave(suite_fault_leave_, SUITE_FAULT_SHOWS);
+#ifdef SH4DER_FAULT_IMPL
+    sh4der_fault_leave(suite_fault_leave_, SUITE_FAULT_SHOWS);
 #endif
     return 1;
 }

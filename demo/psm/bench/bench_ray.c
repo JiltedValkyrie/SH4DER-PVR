@@ -44,8 +44,8 @@
 #include "sh4zam_dce/shz_dce.h"
 #include "ray_kernels.h"
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -60,7 +60,7 @@ void h3_project_np(void *out, const void *in, unsigned n);   /* bench_ray_np.c *
 #define LINES_MAX 1400u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 /* A line for the pages and the serial line. A line over the page's width goes on, indented, on the next. */
 static void say(const char *fmt, ...) {
@@ -107,8 +107,8 @@ static void page_draw(unsigned page, unsigned pages, const char *next) {
 }
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -177,7 +177,7 @@ static void t_clock(void) {
             jumps += d > 1000000;
             pc = c; pn = n;
         }
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
     }
     say("RESULT CLOCK.1 ns timer least step: %u ns", (unsigned)least);
     say("RESULT CLOCK.2 cycles in %u ns: %u", (unsigned)t, (unsigned)c1);
@@ -527,7 +527,7 @@ int main(void) {
     unsigned page = 0, pages, held = ~0u, done = 1;
 
     pvr_init_defaults();
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     group1();
     pvr_shutdown();
     vid_set_mode(DM_640x480, PM_RGB565);
@@ -536,7 +536,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         pages = (nlines + ROWS - 1u) / ROWS;
         if (!pages) pages = 1u;
         if (held == ~0u) page_draw(page, pages, next[done - 1u]);

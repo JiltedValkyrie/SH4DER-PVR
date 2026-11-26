@@ -24,7 +24,7 @@
    It runs by itself first: scene A then scene B, each for the three splits OFF | 1, OFF | 2, 1 | 2, then scene C for
    OFF | 1, 1 | 3, OFF | 3, 3 | 2 with the hens and 3 | 2 without, 3 | 3+M, 3+M | 2, 3+M | 3+M and that with the quads
    and their target left out, AO4_AUTO_S seconds each; then two short stages for the clip guard (below) and, LAST, two
-   for the tile list cut (tile_cut.h): 3+M | 3+M with the hens standing still, target M's pass through the screen's
+   for the tile list cut (sh4der_tilecut.h): 3+M | 3+M with the hens standing still, target M's pass through the screen's
    whole tile table and then through a table cut to its own 4 x 5 tiles, the target's texels summed after each. With the costs counted; then the result pages and one graph. START on the pages: the live view, no time limit.
 
      left + Y  the clip guard off / on (the polygon sent before each change of user clip, CORE 18): with it off, a
@@ -33,7 +33,7 @@
      X  the next split                            Y  swap the sides          A  EXAGGERATE x2 on / off
      B  the look: CLAY, COLOUR, AO ONLY           LT + RT together  the scene      up / down  K: 2, 4, 8 (scene C: up K, down the hens on / off)
      left / right  method 2's reach              stick  turn and lift the camera      START  back to the pages
-     LT / RT  the divider (../psm_split.h): a tile column (32 pixels) a step, held they repeat. At an end one half is
+     LT / RT  the divider (sh4der_split.h): a tile column (32 pixels) a step, held they repeat. At an end one half is
               hidden and is NOT SENT (no light, no vertices, no target pass that only it used): the other half then
               shows its method's cost on the frame's time. The run that counts keeps the divider at the middle.
      up + B   the effect labels on / off (../psm_effects.h)
@@ -49,7 +49,7 @@
 
    Waits: "ready" and "render done" are polled on the timer (the render-done interrupt noted by this program's handler
    in front of KallistiOS's); no wait is longer than LIMIT_NS. The text texture is uploaded only after a render is
-   done. Only PVR registers and video memory are written. The fault catcher (../psm_fault.h) is in.
+   done. Only PVR registers and video memory are written. The fault catcher (include/sh4der_fault.h) is in.
    Every number comes from the run that prints it; only a real console's run is evidence.
    ANY BUTTON OR TRIGGER DURING THE RUN (ao4-i) ends the run there and opens the live view at once, as that stage; the
    pages after it say the run was stopped. The stick moves the eye in the run too, as it always did.
@@ -58,15 +58,15 @@
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "ao4_scene.h"
 #include "ao4_draw.h"
 #include "ao4_room.h"
 #include "ao4_hens.h"
-#include "tile_cut.h"
-#include "../psm_split.h"
+#include "sh4der_tilecut.h"
+#include "sh4der_split.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -88,14 +88,14 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "../psm_effects.h"
 #include "ao_fx.h"
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
-static void beat(void) { psm_fault_beat(&crumbs); }
+static void beat(void) { sh4der_fault_beat(&crumbs); }
 
 /* ---- clocks ------------------------------------------------------------------------ */
 
@@ -134,7 +134,7 @@ static ao4_hens_t hens;                     /* the room's movers */
 static pvr_ptr_t m_mem;                     /* target M: the movers' atlas */
 static pvr_poly_hdr_t h_mq, h_mdummy;       /* a mover's quad on the floor; the polygon before a change of clip in the translucent list */
 static uint64_t hens_ns;                    /* what their walk and placing took this frame */
-static tile_cut_t tcut;                     /* the tile tables, for target M's pass through its own tiles */
+static sh4der_tilecut_t tcut;                     /* the tile tables, for target M's pass through its own tiles */
 static int clip_guard = 1;                  /* user_clip sends its polygon first (0: the test of what happens without) */
 static int cut_fatal;                       /* a tile table did not restore: the PVR is stopped */
 static float scr[AO4_V_MAX][3];
@@ -347,13 +347,13 @@ static int scene_close(void) {
     if (rd_hooked) {
         while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
     } else {
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
         if (t == 20u) return 0;
     }
     if (pvr_get_stats(&st) < 0) return 0;
     last_render_ns = st.rnd_last_time;
     last_vbuf = (uint32_t)st.vtx_buffer_used;
-    tile_cut_find(&tcut);                   /* the table this render went through, until both are known */
+    sh4der_tilecut_find(&tcut);                   /* the table this render went through, until both are known */
     return 1;
 }
 
@@ -365,7 +365,7 @@ typedef struct view {
     int mq;                                 /* 3+M draws its target and its quads (0: the run's stage that leaves them out) */
     int cut, still;                         /* target M's pass through its own tiles; the hens stand at their start (the cut's two stages) */
     int marks;                              /* a mark as each half's last polygon (the clip guard's test) */
-    unsigned div;                           /* the divider: the tile column where the right half starts (../psm_split.h); 10 in the run that counts */
+    unsigned div;                           /* the divider: the tile column where the right half starts (sh4der_split.h); 10 in the run that counts */
     float turn, lift, t;
 } view_t;
 
@@ -470,14 +470,14 @@ static int m_pass(const ao4_scene_t *s, const view_t *v, cost_t *c, unsigned fra
     int did = 0, ok;
 
     if (v->cut) {
-        did = tile_cut_begin(&tcut, AO4_HEN_ATLAS / 32u, (AO4_HEN_ATLAS + 2u + 31u) / 32u);
+        did = sh4der_tilecut_begin(&tcut, AO4_HEN_ATLAS / 32u, (AO4_HEN_ATLAS + 2u + 31u) / 32u);
         c->cut_ns = ns() - t0;
         c->cut_on = (unsigned)did; c->cut_refused = (unsigned)!did;
     }
     ok = m_pass_(s, v, c);
     if (did) {
         t0 = ns();
-        c->cut_bad = tile_cut_end(&tcut);
+        c->cut_bad = sh4der_tilecut_end(&tcut);
         c->cut_ns += ns() - t0;
         if (c->cut_bad) { cut_fatal = 1; return 0; }
     }
@@ -585,14 +585,14 @@ static int frame(const view_t *v, cost_t *c, unsigned frame_no) {
     const unsigned ml = split_lr[v->scene][v->split][v->swap ? 1 : 0], mr = split_lr[v->scene][v->split][v->swap ? 0 : 1];
     const unsigned method[2] = { ml, mr };
     const uint64_t tf = ns();
-    split_half_t hf[2];
+    sh4der_split_half_t hf[2];
     ao4_cam_t cam;
     uint64_t t0;
     unsigned side, i;
     int hdr = -1;
 
     memset(c, 0, sizeof *c);
-    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &hf[0], &hf[1]);   /* a half the divider hides is not lit and not sent */
+    sh4der_split_halves(v->div, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &hf[0], &hf[1]);   /* a half the divider hides is not lit and not sent */
     c->hens = hens_ns;
     t0 = ns();
     ao4_cam_at(s, &cam, v->t, v->turn, v->lift);
@@ -633,7 +633,7 @@ static int frame(const view_t *v, cost_t *c, unsigned frame_no) {
             if (method[side] == AO4_LMAP_M && !hf[side].hidden) { user_clip(&h_mdummy, hf[side].tx0, hf[side].ty0, hf[side].tx1, hf[side].ty1); c->mq_px = m_quads(&cam); }
     }
     pvr_prim(&h_dim, sizeof h_dim); hdr = 0;
-    if (!split_at_end(v->div, SPLIT_COLS)) rect(split_x(v->div) - 1.0f, 0.0f, split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
+    if (!sh4der_split_at_end(v->div, SH4DER_SPLIT_COLS)) rect(sh4der_split_x(v->div) - 1.0f, 0.0f, sh4der_split_x(v->div) + 1.0f, 480.0f, 10.0f, 0, 0, 0, 0, 0xff101010u);
     text_put(0u, 0u, 31u, 68.0f, 52.0f, &hdr);
     text_put(0u, 32u, 63u, 328.0f, 52.0f, &hdr);
     text_put(1u, 0u, 31u, 68.0f, 372.0f, &hdr);
@@ -679,11 +679,11 @@ static void labels(const view_t *v, const cost_t *c) {
     const unsigned method[2] = { ml, mr };
     const int room = v->scene == SCENE_ROOM;
     char half_cost[2][33], tail[40];
-    split_half_t hf[2];
+    sh4der_split_half_t hf[2];
     unsigned side;
 
     text_set(0u, "%-32.32s%-32.32s", method_name[ml], method_name[mr]);
-    split_halves(v->div, SPLIT_COLS, SPLIT_ROWS, &hf[0], &hf[1]);
+    sh4der_split_halves(v->div, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &hf[0], &hf[1]);
     for (side = 0; side < 2u; side++) {
         if (hf[side].hidden) snprintf(half_cost[side], sizeof half_cost[0], "half hidden: not sent");
         else if (room && method[side] != AO4_MAP && method[side] != AO4_LMAP_M)   /* the room: what a half sends is the comparison */
@@ -758,7 +758,7 @@ static int start(void) {
     vid_set_dithering(false);
     rd_prev = asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_evt, NULL);
     rd_hooked = rd_prev.hdl != NULL;
-    tile_cut_init(&tcut, 20u, 15u);         /* the screen's tiles: 640 / 32 by 480 / 32; the tables are found as scenes render */
+    sh4der_tilecut_init(&tcut, 20u, 15u);         /* the screen's tiles: 640 / 32 by 480 / 32; the tables are found as scenes render */
     clip_guard = 1; cut_fatal = 0;
     if (!rd_hooked) asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, NULL, NULL);
     for (i = 0; i < 3u; i++) {
@@ -789,7 +789,7 @@ static void stop(const char *stage) {
 static void view_default(view_t *v) {
     memset(v, 0, sizeof *v);
     v->split = split_first[0]; v->ki = 1u; v->hens = 1; v->mq = 1; v->reach = AO4_REACH_DEFAULT; v->look = AO4_CLAY;
-    v->div = split_middle(SPLIT_COLS);
+    v->div = sh4der_split_middle(SH4DER_SPLIT_COLS);
 }
 
 typedef struct sums {
@@ -856,7 +856,7 @@ static void loop(int auto_run) {
     cost_t c, shown;
     unsigned held = ~0u, frames = 0, stage = 0;
     uint64_t t_prev = ns(), t_stage = ns();
-    split_step_t trig = { 0, 0u };
+    sh4der_split_step_t trig = { 0, 0u };
     int trig_was = 1;
 
     view_default(&v);
@@ -917,7 +917,7 @@ static void loop(int auto_run) {
             if ((hit & CONT_DPAD_LEFT) && !(now & CONT_Y)) { v.reach = (v.reach + AO4_REACHES - 1u) % AO4_REACHES; changed = 1; }
             {                               /* a trigger moves the divider; both together are one more button: the next scene */
                 const int lt = st && st->ltrig > 128, rt = st && st->rtrig > 128, both = lt && rt;
-                const unsigned d = split_step(&trig, v.div, SPLIT_COLS, lt, rt);
+                const unsigned d = sh4der_split_step(&trig, v.div, SH4DER_SPLIT_COLS, lt, rt);
 
                 if (d != v.div) { v.div = d; changed = 1; }
                 if (both && !trig_was) { v.scene = (v.scene + 1u) % N_SCENES; v.split = split_first[v.scene]; v.turn = 0.0f; v.lift = 0.0f; changed = 1; }
@@ -1044,7 +1044,7 @@ static void bake_all(void) {
     for (sc = 0; sc < AO4_SCENES; sc++) {
         const uint64_t t0 = ns();
 
-        psm_fault_stage(&crumbs, "ao4 bake   ");
+        sh4der_fault_stage(&crumbs, "ao4 bake   ");
         ao4_build(&scenes[sc], sc);
         ao4_bake(&scenes[sc], beat);
         bake_ms[sc] = (unsigned)((ns() - t0) / 1000000ull);
@@ -1064,7 +1064,7 @@ int main(void) {
     pg_text(PG_X0, PG_Y0, PG_WHITE, "ao4: BAKING scenes A and B's AO (64 rays a vertex) ...");
     bake_all();
     if (start()) {
-        if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
+        if (!fault_on) { fault_on = 1; if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
         loop(1);
         if (pad_stop) loop(0);              /* a button during the run: the live view at once, the pages after it */
         stop("auto end");
@@ -1076,7 +1076,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

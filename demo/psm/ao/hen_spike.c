@@ -28,14 +28,14 @@
 
    Waits: "ready" and "render done" are polled (the render-done interrupt noted by this program's handler in front of
    KallistiOS's); no wait is longer than LIMIT_NS. Only PVR registers and video memory are written. The fault catcher
-   (../psm_fault.h) is in. Every number comes from the run that prints it; only a real console's run is evidence.
+   (include/sh4der_fault.h) is in. Every number comes from the run that prints it; only a real console's run is evidence.
    Build: python demo/psm/ao/build.py --spike hen --tag <new tag>. Not run on a console when this file was written. */
 
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "ao4_scene.h"
 #include "ao4_room.h"
@@ -67,11 +67,11 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "../psm_effects.h"
 #include "ao_fx.h"
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -240,7 +240,7 @@ static int scene_close(void) {
     if (rd_hooked) {
         while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
     } else {
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
         if (t == 20u) return 0;
     }
     if (pvr_get_stats(&st) < 0) return 0;
@@ -607,7 +607,7 @@ int main(void) {
     ao4_light(&room, AO4_BAKED, AO4_CLAY, 0, room_col);
     world_ok = henr_init(&hr);
     if (start()) {
-        if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
+        if (!fault_on) { fault_on = 1; if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
         loop(1);
         if (pad_stop) loop(0);              /* a button during the run: the live view at once, the pages after it */
         stop("auto end");
@@ -619,7 +619,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

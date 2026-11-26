@@ -21,7 +21,7 @@
      last     the picture: the quad at vertex alpha 16, 24, 40, 64, 120, 240 (reference 16), 256 x 64 each, as read
               back from the frame buffer, with its alpha beside it.
 
-   Only PVR registers and video memory are written. The fault catcher (../psm_fault.h) is in; every wait is bounded.
+   Only PVR registers and video memory are written. The fault catcher (include/sh4der_fault.h) is in; every wait is bounded.
    Every number comes from the run that prints it; only a real console's run is evidence. The numbers the host model
    expects are printed beside each line, marked "model": they are ESTIMATE.
    Build: python demo/psm/compare/build.py --spike r3 --tag <new tag> --sh4zam <checkout>. Not run on a console when
@@ -31,8 +31,8 @@
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "r3_model.h"
 
@@ -51,11 +51,11 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "../psm_page.h"
 #define say pg_say
 #define page_break pg_break
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -89,7 +89,7 @@ static void rect(float h, unsigned a) {
 static int wait_ready(void) {
     unsigned t;
 
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);
     return t < 20u;
 }
 
@@ -99,7 +99,7 @@ static int punch_pass(unsigned ref) {
     const volatile uint16_t *fb;
     unsigned x, y, t;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     PVR_SET(PVR_PT_ALPHA_REF, ref);
     if (!wait_ready()) return 0;
     pvr_scene_begin();
@@ -110,7 +110,7 @@ static int punch_pass(unsigned ref) {
     PVR_SET(PVR_PT_ALPHA_REF, ref);
     pvr_scene_finish();
     if (!wait_ready()) return 0;
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) return 0;
     fb = (const volatile uint16_t *)(uintptr_t)(0xa5000000u | (PVR_GET(PVR_RENDER_ADDR) & 0x00ffffffu));
     for (y = 0; y < R3_H; y++) for (x = 0; x < R3_W; x++) scr_px[y * R3_W + x] = fb[y * 640u + x];
@@ -152,7 +152,7 @@ static void run(void) {
 
     say("TEST R3 PT PRODUCT  %s: numbers below are measured by this run", R3_STR(R3_TAG));
     if (!start()) return;
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     say("(a: vertex alpha, r: reference, n: nibbles drawn, lo: first drawn");
     say(" nibble, px: pixels of 32768, s: 1 a clean step;");
     say(" model: n by VTX256 BOTH256 ROUND FLOOR, ESTIMATE)");
@@ -251,7 +251,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages() + 1u;                                   /* the text pages, the graph, and the picture */
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

@@ -1,7 +1,7 @@
-/* SH4DER-PVR: demo/psm/tools/ao_bake_core.h, host test.  Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
+/* SH4DER-PVR: tools/ao_bake_core.h, host test.  Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-   cc -O2 -std=gnu11 -Wall -Wextra -Idemo/psm/tools -Idemo/psm/ao -I<room dir> \
-      demo/psm/ao/test/ao_bake_core_test.c -lm -o ao_bake_core_test && ./ao_bake_core_test
+   cc -O2 -std=gnu11 -Wall -Wextra -Itools -Idemo/psm/ao -I<room dir> \
+      test/ao_bake_test.c -lm -o ao_bake_test && ./ao_bake_test
 
    <room dir> holds room_mesh.h and room_ao.h (demo/psm/ao/build.py --room-only --out <dir>). The core, run over the
    room's occluders with room_bake.c's order (every vertex, an object's own vertices inside a solid moved into their

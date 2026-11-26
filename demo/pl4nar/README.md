@@ -193,6 +193,19 @@ The owner's rule: the shimmer is never on screen while the camera moves (a movin
 
 A fly-by stage lasts 8.5 s (`CINE_HOLD + CINE_BLEND`), so its dolly runs into the next stage's 2 s settle, before that stage counts.
 
+### The hexagons (`PL4NAR_HEAT_HEX`)
+
+The heat can be drawn as a few floating hexagons in place of the layer: the library's `sh4der_hexheat.h`, through the demo's glue `src/heat_hex.h`. Each hexagon shows the far picture behind it 1 to 5 pixels off, and that shift changes ten times a second. The picture is this frame's, not a copy. The mirror's pass also draws the far end of the world, as the screen's camera sees it, into a 256 x 128 band of the same target, a texel a screen pixel. In the street and the map the band is under the mirror. In the hills it is in the spare region under the mirror, at 256 x 128 only; at the other sizes no band fits and no hexagon is drawn. The band holds only what is farther than `HEAT_DIST - HEXH_NEAR_BACK` (64 m) along the view. Its triangles are cut to the band and to that depth on the SH-4 (`gfx_window`), and the mirror is cut to its own region while a band is drawn. The hexagons are drawn last of the world on the translucent list (`GFX_MAT_HEAT`: point sampled, one / zero, depth tested at the far view's depth, no depth write), so nearer things cover them.
+
+| What | Where | Value |
+|---|---|---|
+| `PL4NAR_HEAT_HEX` | build flag (`EXTRA=-DPL4NAR_HEAT_HEX`) | starts with the hexagons in place of the layer (not the wet build) |
+| `HEXH_NEAR_BACK` | `src/heat_hex.h` | 6 m: the band holds what is farther than the anchor less this |
+| `demo_auto_hex(on, gate_free)` | `src/demo.h` | the switch: on resizes the target for the band; `gate_free` draws them under a moving camera too (the still gate off; `heat_shown()` is unchanged) |
+| `XS_HEX` | `src/main.c` | the autorun's hexagon stage: 256 x 128, day, STRONG, driving, the gate off. The last stage of the street, map and hills autoruns; every other stage has no band, so its numbers compare with the runs before |
+
+The result page gives, for that stage, the frames with a band and the most triangles sent into it in a frame. The macros of the hexagons themselves are in the library README's "Hexheat tuning".
+
 ## Camera and thumbnail
 
 The values are macros in `src/demo.h` (each can be set with `-D` through `EXTRA=`).
@@ -221,6 +234,7 @@ The map and hills autoruns keep the old high camera so their stage numbers compa
 | World textures, full look | 4 facades 128 x 128 and the road 256 x 256, RGB565 with mipmaps: 381 KB (exact); both sets stay loaded for the switch |
 | Resident in video memory, all at once | full textures 381 KB + low textures 10 KB + glow 2 KB + font 32 KB = 425 KB, plus the target. Street build at 256 x 128: 489 KB. Map build: 457 KB at 128 x 64 (the hills build's default), 553 KB at 256 x 128 (c7, c8; not 489 KB as this table said before), 937 KB at 512 x 256 (exact, with `--rtt`). Add the heat haze's 16 KB in the street, map and hills builds once its texture is made (the first frame it is on). Wet build at 128 x 64: 425 + 16 + 42.7 (the road layer) = 483.7 KB (exact) |
 | Heat haze | video memory 16 KB (256 x 32 RGB565, exact), RAM 16 KB (the copy's rows) and under 1 KB of state; 165 vertices, 264 sent, 8.5 KB of TA (exact); the SH-4's 8,192 uncached reads and the store-queue load about 0.5 to 0.9 ms a frame, the PVR's 256 x 32 px translucent layer about 0.1 to 0.2 ms (both ESTIMATE, not measured); 0 when it is off, at night or in rain |
+| Heat haze, hexagons | the target grows for the band (exact, with `--rtt`): street at 256 x 128 from 64 to 128 KB (256 x 256), map from 128 to 256 KB (512 x 256), hills 0 (256 KB as before); at 128 x 64 the street's target becomes 256 x 256 (128 KB); at 512 x 256 the street's becomes 512 x 512 (512 KB) and the map's 1024 x 512 (1 MB). The far world sent a second time into the band, COUNTED on the host (600 frames, 256 x 128, day, driving): street mean 595 triangles, at most 755 (the mirror alone sends 532); map 381, at most 412 (399); hills 369, at most 408 (402). About 17 hexagons a frame, 4 triangles each. SH-4 and PVR time not measured (ESTIMATE: the band's cost is near a second mirror pass) |
 | Wet road, the pool | 35 rows x 13 columns = 455 vertices, each looked up once (455 lookups); 34 x 12 x 2 = 816 triangles a layer, 1,632 for the reflection and the road layer together (exact). Lookup time not measured on a console (the wet result page reads it). Dry: the road layer alone, no lookup |
 | Wet road, the road layer | 128 x 128 ARGB4444 with mipmaps: 43,696 B of video memory (exact), the wet build only |
 | Lookup | 320 looked-up vertices (364 in the body, the player car only): the page's column read 0.92 to 0.97 ms on a console, one run (PVR-160), about 2.9 to 3.0 us a vertex (DERIVED). (Earlier: 0.43 ms for 1,623 vertices on an emulator, an older, heavier car.) |
@@ -232,6 +246,7 @@ The map and hills autoruns keep the old high camera so their stage numbers compa
 From the library's root, `make test` runs these through its `test-demo` target (plain C; nothing here is a console result):
 
 - `host/heat_test.c`: the heat haze's window, copy, slip and mesh.
+- `host/heat_hex_test.c`: the hexagons' glue: a turn moves them with the far picture (the library's `test/hexheat_test.c` tests the hexagons).
 - `host/controls_test.c`: `src/controls.h` against the pad read it replaced, every pad state, in each of the seven builds (street, map, hills, wet; the first three also as DRIVE); the keys added since (X heat, B + X fly-by, B + Y hide) each on their own.
 - `host/snap_test.c`: the autorun never snaps the car or the camera: 2,100 frames through the kinds of stage change (a fly-by among them), each step within the car's speed, the eye under 2 m a frame but at the fly-by's one cut; heat never drawn with a moving eye, at least 5 s of it in the fly-by, and with the car stopped it comes within 1 s and goes the first frame the car moves off. It is the demo itself on the host, so it needs the baked assets (`build/gen/assets_gen.c`) and SH4ZAM's software matrix file; `make test` runs the street layout when both are there and says NOT RUN when not.
 - `python tools/grit_gen.py --self-test`, `python tools/check_coupe.py --self-test`: the two build tools that need no Pillow.

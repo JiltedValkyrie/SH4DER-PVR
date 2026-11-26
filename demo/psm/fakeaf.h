@@ -67,7 +67,7 @@
 #include <stdint.h>
 
 #include "sh4der_core.h"                    /* the library's maths switch: SH4ZAM on the console, plain C on a host */
-#include "psm_ramp.h"
+#include "sh4der_ramp.h"                    /* the shared ramp (include/sh4der_ramp.h; was psm_ramp.h) */
 
 #define FAF_RANGES_MAX 4u
 #define FAF_EDGES_MAX (2u * (FAF_RANGES_MAX - 1u))
@@ -132,7 +132,7 @@ static inline int faf_table_ok(const faf_range_t *t, unsigned n) {
 }
 
 /* How far range r has faded in at a distance, 0 .. 1. Range 0: 1 everywhere. */
-static inline float faf_in(const faf_range_t *r, float dist) { return psm_ramp_in(r->from, r->ramp, dist); }   /* the shared ramp (psm_ramp.h) */
+static inline float faf_in(const faf_range_t *r, float dist) { return sh4der_ramp_in(r->from, r->ramp, dist); }   /* the shared ramp (sh4der_ramp.h) */
 
 /* The share of range k in the picture at a distance, 0 .. 1: the shares of all ranges add to 1. */
 static inline float faf_weight(const faf_range_t *t, unsigned n, unsigned k, float dist) {

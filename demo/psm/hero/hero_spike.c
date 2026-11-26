@@ -32,14 +32,14 @@
    measured autorun stages, on the result pages under the title.
 
    Waits are polled on the timer (the render-done interrupt noted by this program's handler in front of KallistiOS's), no
-   longer than LIMIT_NS. The fault catcher (../psm_fault.h) is in. Only a real console's run is evidence. */
+   longer than LIMIT_NS. The fault catcher (include/sh4der_fault.h) is in. Only a real console's run is evidence. */
 
 #include <kos.h>
 #include <stdarg.h>
 #include <stdio.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "hero_model.h"
 #include "hero_file.h"
@@ -68,9 +68,9 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "../psm_effects.h"
 #include "hero_fx.h"
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
-static void step(const char *name) { psm_fault_beat(&crumbs); psm_fault_stage(&crumbs, name); crumbs.frame++; }
+static void step(const char *name) { sh4der_fault_beat(&crumbs); sh4der_fault_stage(&crumbs, name); crumbs.frame++; }
 
 #define LIMIT_NS 200000000ull
 static inline uint64_t ns(void) { const uint64_t n = timer_ns_gettime64(); return n - n / 1000000000ull * 2502400ull; }   /* ao4: the TMU2 reload step out */
@@ -226,7 +226,7 @@ static int scene_close(void) {
     if (!wait_ready()) return 0;
     t0 = ns();
     if (rd_hooked) { while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0; }
-    else { for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs); if (t == 20u) return 0; }
+    else { for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs); if (t == 20u) return 0; }
     if (pvr_get_stats(&st) < 0) return 0;
     last_render_ns = st.rnd_last_time;
     last_vbuf = (uint32_t)st.vtx_buffer_used;
@@ -772,7 +772,7 @@ int main(void) {
     pg_text(PG_X0, PG_Y0, PG_WHITE, "hero1: loading the hero ...");
     file_state = hero_load();
     if (start()) {
-        if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
+        if (!fault_on) { fault_on = 1; if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
         loop(1);
         stop("auto end");
     }
@@ -783,7 +783,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

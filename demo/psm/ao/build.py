@@ -105,15 +105,16 @@ def main():
         room_inc = ["-I" + room, "-DAO4_TEST_ROOM"]
     # the lamp look draws its halo with the library's ring glow: sh4der_bloom.c and what it calls, on the host and in the ELF
     lamp_src = [os.path.join(ROOT, "src", n) for n in ("sh4der_bloom.c", "sh4der_blade.c", "sh4der_core.c")] if a.spike == "lamp" else []
-    for name in ("ao_layer_test", {"ao0": "ao0_model_test", "ao4": "ao4_scene_test", "hen": "hen_room_test", "pd": "ao_layer_test", "lamp": "ao4_lamp_test", "d1": "d1_model_test", "mip": "mip_model_test"}[a.spike]) + (("tile_cut_test",) if a.spike == "ao4" else ()):
+    for name in ("ao_layer_test", {"ao0": "ao0_model_test", "ao4": "ao4_scene_test", "hen": "hen_room_test", "pd": "ao_layer_test", "lamp": "ao4_lamp_test", "d1": "d1_model_test", "mip": "mip_model_test"}[a.spike]):
         test = os.path.join(out, name + exe)
         run("1 host test %s (compile)" % name, host + (room_inc if name in ("ao4_scene_test", "hen_room_test", "ao4_lamp_test") else []) + [os.path.join(HERE, "test", name + ".c")] +
             (lamp_src if name == "ao4_lamp_test" else []) + ["-o", test, "-lm"])
         run("1 host test %s (run)" % name, [test])
     if a.spike in ("lamp", "d1"):           # the divider's maths and the label lines
-        for name in ("psm_split_test", "psm_effects_test"):
+        for name, src, inc in (("split_test", os.path.join(ROOT, "test", "split_test.c"), os.path.join(ROOT, "include")),
+                               ("psm_effects_test", os.path.join(HERE, "..", "test", "psm_effects_test.c"), os.path.join(HERE, ".."))):
             test = os.path.join(out, name + exe)
-            run("1 host test %s (compile)" % name, [a.host_cc, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I" + os.path.join(HERE, ".."), os.path.join(HERE, "..", "test", name + ".c"), "-o", test])
+            run("1 host test %s (compile)" % name, [a.host_cc, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I" + inc, src, "-o", test])
             run("1 host test %s (run)" % name, [test])
     if a.town_inc:
         test = os.path.join(out, "ao_layer_test_town" + exe)

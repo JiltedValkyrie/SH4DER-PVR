@@ -7,7 +7,7 @@ Run it in a shell where the KallistiOS environment is sourced (kos-cc on the PAT
 and touches no file outside --out (default build/psm_fault) and --cdi-dir (default demo/psm/out/cdi, the one place
 the images are kept; git ignores it). Steps, each refusing to go on when it fails:
 
-  1 host test  test/psm_fault_test.c with the host compiler: the report's text, the watchdog's logic, the stack scan
+  1 host test  test/fault_test.c with the host compiler: the report's text, the watchdog's logic, the stack scan
   2 elf        kos-cc psm_fault_f1.c -> <out>/psm-fault-<tag>.elf
   3 image      mkdcdisc -> <cdi-dir>/psm-fault-<tag>.cdi. An image that is there is never overwritten: pick a new --tag
 
@@ -57,9 +57,9 @@ def main():
     if not a.host_only and not a.elf_only and os.path.exists(image):
         raise SystemExit("refuse existing image: %s (pick a new --tag)" % image)
 
-    test = os.path.join(out, "psm_fault_test.exe" if os.name == "nt" else "psm_fault_test")
-    run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror",
-                                  os.path.join(ROOT, "test", "psm_fault_test.c"), "-o", test])
+    test = os.path.join(out, "fault_test.exe" if os.name == "nt" else "fault_test")
+    run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", "-I" + os.path.join(ROOT, "include"),
+                                  os.path.join(ROOT, "test", "fault_test.c"), "-o", test])
     run("1 host test (run)", [test])
     if a.host_only:
         return 0
@@ -67,7 +67,7 @@ def main():
     kos_cc = find_kos_cc()
     if not os.environ.get("KOS_BASE") or not kos_cc:
         raise SystemExit("kos-cc is not on the PATH or KOS_BASE is not set: source the KallistiOS environment first")
-    run("2 elf", kos_cc + ["-O2", "-Wall", "-Wextra", os.path.join(HERE, "psm_fault_f1.c"), "-o", elf])
+    run("2 elf", kos_cc + ["-O2", "-Wall", "-Wextra", "-I" + os.path.join(ROOT, "include"), os.path.join(HERE, "psm_fault_f1.c"), "-o", elf])
     if a.elf_only:
         print("ELF: %s" % elf)
         return 0

@@ -141,10 +141,13 @@ void  demo_auto_split(int on);                     /* the split at its middle (t
 #ifdef PL4NAR_HILLS
 void  demo_auto_sun(unsigned mode);                /* the hills build: the sun 0 FIXED, 1 SWEEP (from its start), 2 HOLD */
 void  demo_auto_tile_set(int small);               /* the shadow tiles: 0 four of 128 x 128, 1 eight small (the c8 set) */
-void  demo_auto_cut(int on);                       /* the mirror pass through its own tiles (tile_cut.h) */
+void  demo_auto_cut(int on);                       /* the mirror pass through its own tiles (sh4der_tilecut.h) */
 void  demo_auto_info(int on);                      /* the overlay (after demo_auto_set, which turns it off) */
 #endif
 void  demo_auto_heat(unsigned level);              /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (heat.h; by day, dry) */
+void  demo_auto_hex(int on, int gate_free);        /* the heat as hexagons (heat_hex.h) in place of the layer, their band in the
+                                                      target (a resize); gate_free: drawn under a moving camera too. Not wet */
+unsigned demo_hex_band_tris(void);                 /* triangles sent a second time into the band, the last frame */
 void  demo_auto_cine(void);                        /* the fly-by shot from here (CINE_TOTAL s, then the follow camera again) */
 int   demo_cine_on(void);                          /* the fly-by shot is running */
 void  demo_heat_copy(uint32_t *us, uint32_t *copies);   /* the heat's last copy time and copies made (0, 0 off the Dreamcast) */

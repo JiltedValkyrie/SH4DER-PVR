@@ -7,7 +7,7 @@
    gate and torches, 1 m cells, the tiles of Retro Textures Fantasy (Kenney, CC0: CREDITS.md) upscaled to 256 x 256 (the
    floor and the walls; 128 x 128 by the size key) with full mip chains, RGB565, twiddled. A floor and walls seen edge
    on far off are where a mip map blurs most and shimmers most: this program shows the PVR's filters there, one or two
-   at once (the screen split at a divider, ../psm_split.h, each half its own mode), with their costs.
+   at once (the screen split at a divider, sh4der_split.h, each half its own mode), with their costs.
 
    The modes, the guard and the labels are corr_modes.h's. Trilinear is two passes of the same vertices: pass A
    (PVR_FILTER_TRILINEAR1) in the opaque list, pass B (PVR_FILTER_TRILINEAR2) in the translucent list, ONE x ONE, depth
@@ -29,15 +29,15 @@
    skmp's model, for non-twiddled bump textures; nothing here is one). The guards: a filtered header on a non-twiddled
    or bump texture is refused (a); every header is checked by sh4der_poly_hdr_ok before it is sent (b); every triangle by
    sh4der_tri_area_ok (c); every wait on the PVR is polled on the timer and given up after LIMIT_NS (d), counted.
-   The fault catcher (../psm_fault.h) is in. A plain program: on a disc of its own it ends in its page loop; in the suite
+   The fault catcher (include/sh4der_fault.h) is in. A plain program: on a disc of its own it ends in its page loop; in the suite
    (../psm_suite.h) it goes back to the menu. Only a real console's run is evidence. */
 
 #include <kos.h>
 #include <stdarg.h>
 #include <stdio.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "corr_scene.h"
 #include "corr_tex_data.h"                   /* generated: tools/corr_bake.py */
@@ -60,12 +60,12 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define PG_TOP 2u
 #include "../psm_page.h"
 #include "../psm_effects.h"
-#include "../psm_split.h"
+#include "sh4der_split.h"
 #include "corr_modes.h"
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
-static void step(const char *name) { psm_fault_beat(&crumbs); psm_fault_stage(&crumbs, name); crumbs.frame++; }
+static void step(const char *name) { sh4der_fault_beat(&crumbs); sh4der_fault_stage(&crumbs, name); crumbs.frame++; }
 
 #define LIMIT_NS 200000000ull
 static inline uint64_t ns(void) { const uint64_t n = timer_ns_gettime64(); return n - n / 1000000000ull * 2502400ull; }   /* ao4: the TMU2 reload step out */
@@ -238,7 +238,7 @@ static int wait_render(void) {
     unsigned t;
 
     if (rd_hooked) { while (!rd_seen) if (ns() - t0 > LIMIT_NS) { giveups++; return 0; } return 1; }
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) { giveups++; return 0; }
     return 1;
 }
@@ -337,12 +337,12 @@ static void count_half(const corr_list_t *l, unsigned mode, unsigned c0, unsigne
 
 /* What the first design (no far cap) would put on one bin, this eye, this mode: count-only, outside the timed frames. */
 static unsigned uncapped_bins(const view_t *v) {
-    split_half_t half[2];
+    sh4der_split_half_t half[2];
     unsigned h, nh;
 
     corr_frame(kinds, &v->eye, 0, CORR_NO_CAP, &list_u);
-    if (v->split) { split_halves(v->d, SPLIT_COLS, SPLIT_ROWS, &half[0], &half[1]); nh = 2u; }
-    else { half[0].tx0 = 0u; half[0].tx1 = SPLIT_COLS - 1u; half[0].hidden = 0; nh = 1u; }
+    if (v->split) { sh4der_split_halves(v->d, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &half[0], &half[1]); nh = 2u; }
+    else { half[0].tx0 = 0u; half[0].tx1 = SH4DER_SPLIT_COLS - 1u; half[0].hidden = 0; nh = 1u; }
     corr_bins_clear(&bins_op); corr_bins_clear(&bins_tr);
     for (h = 0; h < nh; h++) if (!half[h].hidden) count_half(&list_u, v->mode[h], half[h].tx0, half[h].tx1);
     return corr_bins_max(&bins_op);
@@ -350,7 +350,7 @@ static unsigned uncapped_bins(const view_t *v) {
 
 static int frame(view_t *v, cost_t *c, float dt) {
     const uint64_t t0 = ns();
-    split_half_t half[2];
+    sh4der_split_half_t half[2];
     unsigned h, i, nh;
     const int any_bias = eff_mode(v->mode[0]) == CORR_M_BIAS || (v->split && eff_mode(v->mode[1]) == CORR_M_BIAS);
     uint64_t tw, t1, t2;
@@ -369,8 +369,8 @@ static int frame(view_t *v, cost_t *c, float dt) {
         if (any_bias) pcode[i] = (uint8_t)corr_sel_code(corr_sel(v->sel), list.p[i].ndv);
     }
     c->xf = ns() - t0;
-    if (v->split) { split_halves(v->d, SPLIT_COLS, SPLIT_ROWS, &half[0], &half[1]); nh = 2u; }
-    else { half[0].tx0 = half[0].ty0 = 0u; half[0].tx1 = SPLIT_COLS - 1u; half[0].ty1 = SPLIT_ROWS - 1u; half[0].hidden = 0; nh = 1u; }
+    if (v->split) { sh4der_split_halves(v->d, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &half[0], &half[1]); nh = 2u; }
+    else { half[0].tx0 = half[0].ty0 = 0u; half[0].tx1 = SH4DER_SPLIT_COLS - 1u; half[0].ty1 = SH4DER_SPLIT_ROWS - 1u; half[0].hidden = 0; nh = 1u; }
     tw = ns();
     if (!wait_ready()) return 0;
     tw = ns() - tw;
@@ -388,7 +388,7 @@ static int frame(view_t *v, cost_t *c, float dt) {
             user_clip(&h_dum_tr, half[h].tx0, half[h].ty0, half[h].tx1, half[h].ty1); send_half(v, v->mode[h], half[h].tx0, half[h].tx1, 1);
         }
     if (bucket_n[CORR_T_FLAME] && hdr(&h_flame)) for (i = 0; i < bucket_n[CORR_T_FLAME]; i++) send_poly(&list.p[bucket[CORR_T_FLAME][i]]);
-    if (v->split && !split_at_end(v->d, SPLIT_COLS) && hdr(&h_dim)) rect(split_x(v->d) - 1.0f, 0.0f, split_x(v->d) + 1.0f, 480.0f, 12.0f, 0, 0, 0, 0, 0xc0ffffffu);
+    if (v->split && !sh4der_split_at_end(v->d, SH4DER_SPLIT_COLS) && hdr(&h_dim)) rect(sh4der_split_x(v->d) - 1.0f, 0.0f, sh4der_split_x(v->d) + 1.0f, 480.0f, 12.0f, 0, 0, 0, 0, 0xc0ffffffu);
     text_line(0u, 16.0f); text_line(1u, 34.0f); text_line(2u, 52.0f);
     if (fx_on) text_line(3u, 446.0f);
     if (fx_on && !fx_hidden && fx_t.lines > 0u) { text_line(4u, 408.0f); if (fx_t.lines > 1u) text_line(5u, 426.0f); }
@@ -518,11 +518,11 @@ static void view_stage(view_t *v, unsigned k) {
     const stage_t *s = &stages[k];
 
     v->mode[0] = s->l; v->mode[1] = s->r; v->split = s->split; v->sel = s->sel; v->big = s->big;
-    v->d = split_middle(SPLIT_COLS); v->speed = CORR_AUTO_SPEED; v->walking = 1;
+    v->d = sh4der_split_middle(SH4DER_SPLIT_COLS); v->speed = CORR_AUTO_SPEED; v->walking = 1;
     v->eye.s = 2.0f; v->eye.x = 0.0f; v->eye.yaw = 0.0f; v->t = 0.0f; v->steer = 0.0f;
 }
 
-static split_step_t sstep;
+static sh4der_split_step_t sstep;
 
 static void loop(int auto_run) {
     view_t v;
@@ -561,7 +561,7 @@ static void loop(int auto_run) {
             if (hit & CONT_Y) { v.big = !v.big; changed = 1; }
             if (fx_hide_chord(1, (hit & CONT_START) != 0u, &fx_hidden)) changed = 1;
             if (st && v.split) {
-                const unsigned d = split_step(&sstep, v.d, SPLIT_COLS, st->ltrig > 128, st->rtrig > 128);
+                const unsigned d = sh4der_split_step(&sstep, v.d, SH4DER_SPLIT_COLS, st->ltrig > 128, st->rtrig > 128);
 
                 if (d != v.d) { v.d = d; changed = 1; }
             }
@@ -682,7 +682,7 @@ int main(void) {
     pg_text(PG_X0, PG_Y0, PG_WHITE, "corr: building the corridor ...");
     corr_build(kinds);
     if (start()) {
-        if (!fault_on) { fault_on = 1; if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
+        if (!fault_on) { fault_on = 1; if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused"); }
         loop(1);
         stop("auto end");
     }
@@ -693,7 +693,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

@@ -872,7 +872,7 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
         default: return "?";
     }
 }
-/* A row's value as one whole number, for the fault catcher's breadcrumbs (psm_fault_menu): the field the row sets, the
+/* A row's value as one whole number, for the fault catcher's breadcrumbs (sh4der_fault_menu): the field the row sets, the
    fractional ones in thousandths (biases), hundredths (warp near) or minutes (time). */
 static inline int32_t psm_row_int(const psm_state_t *st, int row) {
     switch (row) {

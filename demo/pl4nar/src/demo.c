@@ -14,8 +14,9 @@
 #include "sh4der_pl4nar.h"
 #include "sh4der_spark.h"
 #include "sh4der_pool.h"
-#include "heat.h"                                 /* the heat shimmer over the road's far end (Senior: day, dry) */
-#include "../../psm/psm_split.h"                   /* the divider's tile columns and stepping */
+#include "heat_hex.h"                             /* the heat shimmer over the road's far end (Senior: day, dry): the layer
+                                                      (heat.h) and the hexagons (sh4der_hexheat.h, a band of the target) */
+#include "sh4der_split.h"                   /* the divider's tile columns and stepping */
 #ifdef PL4NAR_MAP
 #include "../../psm/psm_effects.h"                 /* the effect labels' text */
 #include "pl4nar_fx.h"
@@ -43,7 +44,7 @@
 #ifdef PL4NAR_HILLS
 /* The hills build: the mirror at the top left, the tiles' region (256 x 256) to its right; one target, a power of two
    each way: 512 x 256 for a mirror of 128 x 64 or 256 x 128 (256 KB), 1024 x 256 for 512 x 256 (512 KB). The pass's
-   tile cut keeps the top left (w + 256) x 256: 12 x 8 = 96 tiles at the default (tile_cut.h's most). */
+   tile cut keeps the top left (w + 256) x 256: 12 x 8 = 96 tiles at the default (sh4der_tilecut.h's most). */
 #define RT_TILES_W   256u
 #define RT_TILES_H   256u
 #define RT_W(w)      ((w) + RT_TILES_W <= 512u ? 512u : 1024u)
@@ -55,15 +56,26 @@
 #define BLOB_REACH     80.0f       /* the blob discs: within this of the car (as before), fading over the last 10 m */
 #else
 #define RT_W(w)      ((w) * 2u)    /* the target: the mirror on the left, the tiles on the right */
-#define RT_H(h)      (h)
+#define RT_H(h)      (s_hex ? hex_pow2((h) + SH4DER_HEXHEAT_BAND_H) : (h))   /* the hexagons: their band under both */
 #endif
 #if MAP_MAX_NV > MDL_MAX_NV
 #define SCRATCH_MAP_NV MAP_MAX_NV  /* the map's largest model is larger than the bake's */
 #endif
 #else
-#define RT_W(w)      (w)
-#define RT_H(h)      (h)
+#define RT_W(w)      (s_hex && (w) < SH4DER_HEXHEAT_BAND_W ? SH4DER_HEXHEAT_BAND_W : (w))   /* the hexagons: their band */
+#define RT_H(h)      (s_hex ? hex_pow2((h) + SH4DER_HEXHEAT_BAND_H) : (h))                   /* under the mirror */
 #endif
+/* The heat as hexagons (heat_hex.h, sh4der_hexheat.h) in place of the layer: s_hex makes room in the reflection
+   target for their band (the street, the map: under the mirror; the hills: the spare region under it at 256 x 128,
+   none at the other sizes). The wet build is at night: no hexagons. -DPL4NAR_HEAT_HEX starts with them. */
+#if defined(PL4NAR_HEAT_HEX) && !defined(PL4NAR_WET)
+static int s_hex = 1;
+#else
+static int s_hex;
+#endif
+static int s_hex_free;                             /* the hexagons drawn under a moving camera too (the still gate off) */
+static int s_hex_band;                             /* this frame's band is drawn (the hills' tile cut keeps its tiles) */
+static inline unsigned hex_pow2(unsigned n) { unsigned p = 8u; while (p < n) p <<= 1; return p; }
 
 /* ------------------------------------------------------------------------------------------------ world numbers */
 #define ROAD_HALF    8.0f          /* asphalt half width */
@@ -339,7 +351,7 @@ static float s_tile_fade[TILE_N];                  /* this frame's strength a sl
 static float s_slot_clock;                         /* the last frame's clock, for the grow-in */
 static unsigned s_tile_live;                       /* tiles with a car this frame */
 static unsigned s_tile_band;                       /* of them, cars in the fade band (TILE_FADE_NEAR .. _FAR) */
-static int   s_cut_on;                             /* the mirror pass through its own tiles (tile_cut.h): a stage */
+static int   s_cut_on;                             /* the mirror pass through its own tiles (sh4der_tilecut.h): a stage */
 static unsigned tile_slots(void) { return s_tiles_small ? 8u : 4u; }
 /* Slot k in target pixels: its top left and side. */
 static void tile_rect(unsigned k, float *x0, float *y0, float *T) {
@@ -356,8 +368,11 @@ static void tile_cut_size(unsigned *cw, unsigned *ch) {
     const unsigned tw = s_sizes[s_size][0], th = s_sizes[s_size][1];
     const unsigned u = s_tiles_small ? th / 2u : 0u, rw = s_tile_live ? (s_tiles_small ? 4u * u : RT_TILES_W) : 0u;
     const unsigned rh = s_tile_live ? (s_tiles_small ? 2u * u : RT_TILES_H) : 0u;
-    *cw = s_cut_on ? (tw + rw + 31u) / 32u : 0u;
-    *ch = s_cut_on ? ((th > rh ? th : rh) + 31u) / 32u : 0u;
+    const unsigned bh = s_hex_band ? th + SH4DER_HEXHEAT_BAND_H : 0u;   /* the hexagons' band under the mirror (hex_band_at) */
+    const unsigned w = tw + rw > SH4DER_HEXHEAT_BAND_W ? tw + rw : (s_hex_band ? SH4DER_HEXHEAT_BAND_W : tw + rw);
+    const unsigned h = th > rh ? th : rh;
+    *cw = s_cut_on ? (w + 31u) / 32u : 0u;
+    *ch = s_cut_on ? ((h > bh ? h : bh) + 31u) / 32u : 0u;
 }
 #endif
 #endif
@@ -383,9 +398,9 @@ static float    s_lap_t0, s_lap_last, s_lap_best;  /* the clock at the last cros
 
 /* The split: the reflection layer drawn inside the left half's user clip only, the right half the flat paint. */
 static int          s_split;
-static unsigned     s_div = SPLIT_COLS / 2u;
-static split_step_t s_split_step;
-void demo_auto_split(int on) { s_split = on; s_div = split_middle(SPLIT_COLS); }
+static unsigned     s_div = SH4DER_SPLIT_COLS / 2u;
+static sh4der_split_step_t s_split_step;
+void demo_auto_split(int on) { s_split = on; s_div = sh4der_split_middle(SH4DER_SPLIT_COLS); }
 static int          s_fx_hidden;                  /* the labels: B + START; off while the autorun measures */
 static int          s_hud_hidden;                 /* the whole HUD (B + Y): the picture alone; START shows it again */
 static unsigned     s_blob_n;                     /* blob discs drawn this frame (the labels) */
@@ -599,7 +614,7 @@ void demo_update(const demo_input_t *in, float dt) {
 #endif
     if (in->pressed & DEMO_BTN_AO) s_ao = !s_ao;
 #endif
-    s_div = split_step(&s_split_step, s_div, SPLIT_COLS, in->split_l, in->split_r);
+    s_div = sh4der_split_step(&s_split_step, s_div, SH4DER_SPLIT_COLS, in->split_l, in->split_r);
     if (in->pressed & DEMO_BTN_SIZE) {
         s_size = (s_size + 1u) % 3u;
         gfx_reflect_resize(RT_W(s_sizes[s_size][0]), RT_H(s_sizes[s_size][1]));
@@ -1442,10 +1457,15 @@ static void draw_player(void) {
             o->u = shz_fminf(smp.u, umax) * us * ((float)s_sizes[s_size][0] * shz_invf((float)RT_W(s_sizes[s_size][0])));
             o->v = shz_fminf(smp.v, 1.0f - shz_invf((float)s_sizes[s_size][1])) * ((float)s_sizes[s_size][1] * shz_invf((float)RT_H(s_sizes[s_size][1])));
 #else
-            o->u = shz_fminf(smp.u, umax) * us * 0.5f; o->v = smp.v;   /* the mirror is the target's left half */
+            o->u = shz_fminf(smp.u, umax) * us * 0.5f;           /* the mirror is the target's left half */
+            o->v = s_hex ? shz_fminf(smp.v, 1.0f - shz_invf((float)s_sizes[s_size][1])) * ((float)s_sizes[s_size][1] * shz_invf((float)RT_H(s_sizes[s_size][1]))) : smp.v;   /* the hexagons' band under it */
 #endif
 #else
             o->u = smp.u * us; o->v = smp.v;                  /* hand: one scale (1 on a KallistiOS with a sized target) */
+            if (s_hex) {                                      /* the hexagons' band: the mirror is the target's top left */
+                o->u *= (float)s_sizes[s_size][0] * shz_invf((float)RT_W(s_sizes[s_size][0]));
+                o->v = shz_fminf(smp.v, 1.0f - shz_invf((float)s_sizes[s_size][1])) * ((float)s_sizes[s_size][1] * shz_invf((float)RT_H(s_sizes[s_size][1])));
+            }
 #endif
             o->argb = sh4der_pl4nar_argb(&smp, mat);
 #ifdef PL4NAR_MAP
@@ -1469,8 +1489,8 @@ static void draw_player_reflection(void) {
     const mdl_t *m = &mdl_player_body;
     unsigned i, pass;
     if (s_split) {                                    /* the layer in the left half only; none when that half is hidden */
-        split_half_t l, r;
-        split_halves(s_div, SPLIT_COLS, SPLIT_ROWS, &l, &r);
+        sh4der_split_half_t l, r;
+        sh4der_split_halves(s_div, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &l, &r);
         if (l.hidden) return;
         {
             const unsigned t[4] = { l.tx0, l.ty0, l.tx1, l.ty1 };
@@ -2183,17 +2203,17 @@ static void overlay(const demo_stats_t *st) {
 #ifndef PL4NAR_MAP
     hud_map(530.0f, 20.0f, 88.0f, s_car.x * (1.0f / BLD_X), s_car.z * (1.0f / PERIOD), s_car.h);
 #endif
-    if (s_split && s_reflect && !split_at_end(s_div, SPLIT_COLS)) {   /* the divider, 2 px, and each half's name */
+    if (s_split && s_reflect && !sh4der_split_at_end(s_div, SH4DER_SPLIT_COLS)) {   /* the divider, 2 px, and each half's name */
         gfx_bind(GFX_MAT_HUD);
-        gfx_quad2d(split_x(s_div) - 1.0f, 0.0f, split_x(s_div) + 1.0f, GFX_SCREEN_H, 9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0xff101010u);
+        gfx_quad2d(sh4der_split_x(s_div) - 1.0f, 0.0f, sh4der_split_x(s_div) + 1.0f, GFX_SCREEN_H, 9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0xff101010u);
     }
     if (s_split && s_reflect) {
         static const char *const name[2] = { "REFLECTION ON", "REFLECTION OFF" };
-        split_half_t h[2];
+        sh4der_split_half_t h[2];
         unsigned k;
-        split_halves(s_div, SPLIT_COLS, SPLIT_ROWS, &h[0], &h[1]);
+        sh4der_split_halves(s_div, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &h[0], &h[1]);
         for (k = 0; k < 2u; k++) {
-            const int x = split_label_x(&h[k], (unsigned)strlen(name[k]) * 8u + 4u);
+            const int x = sh4der_split_label_x(&h[k], (unsigned)strlen(name[k]) * 8u + 4u);
             if (x >= 0) hud_text((float)x + 2.0f, 120.0f, 1.0f, k ? 0xffff9080u : 0xff80ff90u, name[k]);
         }
     }
@@ -2326,6 +2346,112 @@ float demo_host_lamp_err(void) {
 #endif
 #endif
 
+/* ---------------------------------------------------------------------------------------- the heat's hexagons */
+/* The band: the far end of the world as the SCREEN's camera sees it, drawn into a region of the reflection target in
+   the mirror's own pass (no pass of its own), a texel a screen pixel, cut to the region and to what lies beyond
+   HEXH_NEAR_BACK short of the anchor (gfx_window: the SH-4's cut, the band's triangles are in the opaque list, where
+   the user clip is not used). The hexagons then sample it on the screen (GFX_MAT_HEAT). */
+static hexh_t s_hx;
+static struct {
+    int on;                                        /* this frame's band is to be drawn */
+    int drawn;                                     /* and was: the hexagons may sample it */
+    float ox, oy;                                  /* the band's top left in the target */
+    float x0, y0, z, near_w;                       /* its top left on the screen; the anchor's depth key; the cut */
+    shz_vec4_t row[4];                             /* the screen's rows moved to the band */
+} s_hb;
+static unsigned s_tris_band;                       /* triangles sent a second time into the band, the last frame */
+static float hex_gate(void) { return s_hex_free ? heat_level() : heat_shown(); }
+/* The band's place in the target for this size; 0: none fits (the hills at 128 x 64 and 512 x 256). */
+static int hex_band_at(float *ox, float *oy) {
+    const unsigned th = s_sizes[s_size][1];
+    if (!s_hex) return 0;
+#ifdef PL4NAR_HILLS
+    if (s_sizes[s_size][0] != 256u) return 0;      /* under the mirror and left of the tiles: 256 x 128 free at this size alone */
+#endif
+    *ox = 0.0f; *oy = (float)th;
+    return 1;
+}
+void demo_auto_hex(int on, int gate_free) {
+#ifdef PL4NAR_WET
+    (void)on; (void)gate_free;                     /* the wet road is at night: no hexagons */
+#else
+    s_hex_free = gate_free;
+    if (!!on != s_hex) { s_hex = !!on; (void)gfx_reflect_resize(RT_W(s_sizes[s_size][0]), RT_H(s_sizes[s_size][1])); }
+    hexh_reset(&s_hx);
+#endif
+}
+unsigned demo_hex_band_tris(void) { return s_tris_band; }
+/* The frame's band, before the mirror's pass: the anchor on the screen, the band round it, the rows moved to it. */
+static void hex_prepare(const float eye3[3], const float at3[3], const float up3[3]) {
+    float hp[3], f[3], ox, oy, x0, y0;
+    shz_vec4_t r[4];
+    shz_vec4_t c;
+    s_hb.on = s_hb.drawn = s_hex_band = 0;
+    if (!(hex_gate() > 0.0f) || !s_reflect || !hex_band_at(&ox, &oy)) { hexh_reset(&s_hx); return; }
+    if (!heat_anchor(eye3, at3, CAR_Y, hp)) return;
+#ifdef PL4NAR_HILLS
+    if (!heat_anchor(eye3, at3, hills_h(hp[0], hp[2]), hp)) return;   /* the road's own height HEAT_DIST on */
+#endif
+    if (!sh4der_pl4nar_viewproj_rows(r, NULL, eye3, at3, up3, FOV_MAIN, GFX_NEAR, GFX_SCREEN_W, GFX_SCREEN_H)) return;
+    shz_xmtrx_load_rows_4x4(&r[0], &r[1], &r[2], &r[3]);
+    c = shz_xmtrx_transform_vec4(shz_vec4_init(hp[0], hp[1], hp[2], 1.0f));
+    if (!(c.w > HEXH_NEAR_BACK + GFX_NEAR)) return;
+    {
+        const float iw = shz_invf(c.w);
+        if (!sh4der_hexheat_band(c.x * iw, c.y * iw, &x0, &y0)) return;
+        s_hb.z = iw;
+    }
+    f[0] = at3[0] - eye3[0]; f[1] = at3[1] - eye3[1]; f[2] = at3[2] - eye3[2];
+    sh4der_norm3_(f);
+    hexh_view(&s_hx, f);
+    s_hb.row[0] = shz_vec4_sub(r[0], shz_vec4_scale(r[3], x0));   /* cx - x0 w: the band's own pixels */
+    s_hb.row[1] = shz_vec4_sub(r[1], shz_vec4_scale(r[3], y0));
+    s_hb.row[2] = r[2]; s_hb.row[3] = r[3];
+    s_hb.ox = ox; s_hb.oy = oy; s_hb.x0 = x0; s_hb.y0 = y0; s_hb.near_w = c.w - HEXH_NEAR_BACK;
+    s_hb.on = s_hex_band = 1;
+}
+/* Inside the mirror's pass, its opaque list: the far world a second time, through the band's window. */
+static void hex_band_pass(shz_vec3_t eye) {
+    shz_vec4_t keep[4];
+    const float kw = s_vw, kh = s_vh, kf = s_focal;
+    const unsigned khz = s_haze_max, n0 = gfx_tris_sent();
+    memcpy(keep, s_vp, sizeof keep);
+    memcpy(s_vp, s_hb.row, sizeof s_vp);
+    s_vw = (float)SH4DER_HEXHEAT_BAND_W; s_vh = (float)SH4DER_HEXHEAT_BAND_H;   /* sphere_seen: what misses the band is skipped */
+    s_focal = GFX_SCREEN_H * 0.5f * shz_divf(shz_cosf(FOV_MAIN * 0.5f), shz_sinf(FOV_MAIN * 0.5f));
+    s_haze_max = (unsigned)(HAZE_MAX * 256.0f);    /* the screen's haze: the band is the screen's picture */
+    gfx_window(s_hb.ox, s_hb.oy, (float)SH4DER_HEXHEAT_BAND_W, (float)SH4DER_HEXHEAT_BAND_H, s_hb.near_w);
+    draw_sky(eye);
+    gfx_cull(GFX_CULL_BACK);
+    draw_road();
+    draw_buildings(1);
+    draw_props(0);
+    gfx_window(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+    s_tris_band = gfx_tris_sent() - n0;
+    s_hb.drawn = 1;
+    memcpy(s_vp, keep, sizeof s_vp);
+    s_vw = kw; s_vh = kh; s_focal = kf; s_haze_max = khz;
+    VP_LOAD();
+}
+/* On the screen's translucent list, last of the world: the hexagons, each a strip of 6 from the band. */
+static void hex_draw(void) {
+    static sh4der_hexheat_vtx_t m[SH4DER_HEXHEAT_N * 6u];
+    const float us = gfx_reflect_u_scale(), iw = shz_invf((float)RT_W(s_sizes[s_size][0])), ih = shz_invf((float)RT_H(s_sizes[s_size][1]));
+    unsigned n, i, k;
+    if (!s_hb.drawn) return;
+    n = sh4der_hexheat_mesh(&s_hx.h, s_car.clock, hex_gate(), s_hb.x0, s_hb.y0, m);
+    gfx_bind(GFX_MAT_HEAT);
+    gfx_cull(GFX_CULL_NONE);
+    for (i = 0; i < n; i++) {
+        gfx_vert_t v[6];
+        for (k = 0; k < 6u; k++) {
+            const sh4der_hexheat_vtx_t *s = &m[i * 6u + k];
+            gfx_vert2d(&v[k], s->x, s->y, s_hb.z, (s_hb.ox + s->u) * iw * us, (s_hb.oy + s->v) * ih, 0xffffffffu);   /* hand: texel to 0 .. 1 */
+        }
+        for (k = 0; k < 4u; k++) gfx_tri(&v[k], &v[k + 1u], &v[k + 2u]);
+    }
+}
+
 void demo_draw(const demo_stats_t *st) {
     const shz_sincos_t hc = shz_sincosf(s_car.wh), cc = shz_sincosf(s_car.wcam + s_car.orbit);
     const shz_vec3_t eye_c = shz_vec3_init(s_car.wx - cc.sin * CAM_DIST, CAM_HEIGHT + CAR_Y, s_car.wz - cc.cos * CAM_DIST);
@@ -2347,7 +2473,8 @@ void demo_draw(const demo_stats_t *st) {
     const float eye3[3] = { eye.x, eye.y, eye.z }, at3[3] = { at.x, at.y, at.z }, up3[3] = { 0.0f, 1.0f, 0.0f };
     s_camz = eye.z; s_camx = eye.x;
     heat_still_step(eye, at);
-    s_tris_refl = 0u;
+    hex_prepare(eye3, at3, up3);
+    s_tris_refl = 0u; s_tris_band = 0u;
     tod_eval();
 #ifdef _arch_dreamcast
 #ifdef PL4NAR_HILLS
@@ -2358,7 +2485,7 @@ void demo_draw(const demo_stats_t *st) {
         if (cs.failed != failed_seen) { failed_seen = cs.failed; heat_reset(); }
     }
 #endif
-    heat_copy(heat_shown());                      /* no scene open yet: the store queue through pvr_txr_load */
+    heat_copy(s_hex ? 0.0f : heat_shown());       /* no scene open yet: the store queue through pvr_txr_load (the hexagons copy nothing) */
 #endif
     gfx_clear_colour(s_haze);
     s_pv_ok = 0;
@@ -2390,13 +2517,17 @@ void demo_draw(const demo_stats_t *st) {
             gfx_bind(GFX_MAT_FLAT);
             gfx_cull(GFX_CULL_NONE);
             gfx_quad2d(0.0f, 0.0f, tw, th, 0.00002f, 0.0f, 0.0f, 0.0f, 0.0f, gfx_mod(COL_GROUND_REFLECT, s_road_col));   /* behind everything: a ray into the road */
+            if (s_hb.on) gfx_window(0.0f, 0.0f, tw, th, GFX_NEAR);   /* the band is under the mirror: nothing of the mirror may spill into
+                                                                      it (after the quad: a window gives a 2D vertex the depth 1 / w = 1) */
             draw_sky(eye);
             gfx_cull(GFX_CULL_MIRROR);
             draw_buildings(0);
             draw_props(1);
+            gfx_window(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 #ifdef PL4NAR_MAP
             draw_tiles(tw, th);
 #endif
+            if (s_hb.on) hex_band_pass(eye);
             if (s_lamp > 0.02f) {                             /* the lamp heads, lit: what sweeps over the paint at night */
                 spark_view(eye, at);
                 gfx_list_translucent();
@@ -2455,10 +2586,11 @@ void demo_draw(const demo_stats_t *st) {
 #endif
             VP_LOAD();
             gfx_xform(&hv, shz_vec3_init(hp[0], hp[1], hp[2]));
-            if (hp[1] > -1e8f && !hv.clip) heat_draw(hv.x, hv.y, hv.z, heat_shown(), s_car.clock);
+            if (!s_hex && hp[1] > -1e8f && !hv.clip) heat_draw(hv.x, hv.y, hv.z, heat_shown(), s_car.clock);
         }
     }
 #endif
+    if (s_pv_ok) hex_draw();                          /* the hexagons: the band drawn this frame, in the mirror's pass */
     s_tris_main = gfx_tris_sent();
     if (!s_hud_hidden) overlay(st);
     gfx_frame_end();

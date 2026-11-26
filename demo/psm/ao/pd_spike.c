@@ -20,7 +20,7 @@
    is compared with the pattern as written, and the 05 copy with the same bytes read by the CPU through A5xxxxxx.
 
    Every wait is bounded (LIMIT_NS); nothing is drawn; only PVR-DMA's registers and video memory are written. The
-   fault catcher (../psm_fault.h) is in. Every number comes from the run that prints it.
+   fault catcher (include/sh4der_fault.h) is in. Every number comes from the run that prints it.
    The sequence is c4's test 7 and bench_h1's (pd_start), run on one console before; include/sh4der_pvrx.h holds the
    same sequence as a library call. Build: python demo/psm/ao/build.py --spike pd --tag <new tag>. */
 
@@ -28,8 +28,8 @@
 #include <stdarg.h>
 #include <sh4zam/shz_mem.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
@@ -49,11 +49,11 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "../psm_effects.h"
 #include "ao_fx.h"
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -253,7 +253,7 @@ int main(void) {
     vid_set_mode(DM_640x480, PM_RGB565);
     pg_init();
     perf_cntr_start(PRFC1, PMCR_ELAPSED_TIME_MODE, PMCR_COUNT_CPU_CYCLES);
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     run();
     step("pd pages   ");
     report();
@@ -263,7 +263,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

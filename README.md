@@ -39,10 +39,15 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | rise | Points of light that sit still, lift off one after another, drift up with a sway, shrink and cool, and come to rest as stars that twinkle. Nothing stored per light. | Candles becoming stars, lanterns released, fireflies leaving a bush, sparks that turn into a night sky. | RAM 84 B parameter block, 0 a light; VRAM 0 of its own; about 50 multiplies and one sine-cosine pair a light a frame; at most N quads on the translucent list, additive (counts, not measured) | `sh4der_rise.h` | header comment |
 | film | The wear of old film in a projector: a brightness that swings a few per cent (never a strobe: at most 8 % peak to peak and 3 hertz), thin scratches that come and go, dust specks, and a gate weave of a pixel. Nothing stored: every value is computed from the time and a seed. | Old newsreel, silent film, flashback, found footage; with the lens vignette and grain for the whole look. | RAM 92 B parameter block; VRAM 0 of its own; one multiply rectangle, up to 3 lines and 12 small squares a frame on the translucent list; two sines a frame (counts, not measured) | `sh4der_film.h` | header comment |
 | timebase | A video tape deck's line timing errors as a television shows them: for one field, how far each row of the picture sits sideways (the head switching step on the bottom rows, the drum's flutter, the top hook of a tape under the wrong tension, all seen through the set's horizontal lock loop). A port to C of the time-base model of NTSCRT by Finn McKenty (MIT; the notice is in the header). Draw the frame texture as bands with `sh4der_ca_channel_rows` and move each band by its row's shift. | A tape look for a cutscene, a security monitor, a flashback, a broken broadcast. | RAM 40 B parameter block and 4 B state; about 4.2 KB of stack during a call; VRAM 0; two sines a line and, with the line noise on, a logarithm and six hashes a line (counts, not measured) | `sh4der_timebase.h` | header comment |
+| hexheat | Heat haze as a few floating hexagons over a hot far view, each showing the picture behind it 1 to 5 pixels from where it belongs, rolled again ten times a second; they rise, lean, live about 1.7 s and wrap with a turn. The picture is this frame's: the client draws the far world a second time into a 256 x 128 band of a render target it already fills (no copy, no frame late). | A road's or a runway's far end by day, a desert horizon, the air over a far fire. | VRAM the band, 64 KB at 16 bit, in a target already allocated; RAM 4 B state; SH-4 48 slots hashed a frame and the far world sent again into the band; TA about 17 hexagons, 104 vertices a frame (counts, not measured) | `sh4der_hexheat.h` | header comment |
 | cloudvolume | A cloud deck you fly through: a software ray march through a cloud slab (cover map, tiling noise erosion, sun light with Beer and forward scatter) into a small 8-bit buffer that the PVR draws as one filtered quad over its own sky; real fly-through, so whiteout falls out of the march. Dreamcast demo with a sea under the clouds (three options) and on-screen controls. | A flight over and through cumulus, 1970s and 1980s cinema sky fly-through, any scene that needs a lit cloud layer. | RAM about 143 KB; VRAM 32 KB for the cloud texture at the default, 128 KB at the top resolution; one blended full-screen quad; CPU 14 to 22 ms a frame at the default (ESTIMATE, not measured on a console) | `sh4der_cloudvolume.h` | header comment, `demo/cloudvolume.c` |
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); 0.92 to 0.97 ms for the player car's 320 looked-up vertices on a console (street demo, one run, PVR-160); 0.43 ms for 1,623 vertices on an emulator, earlier version | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
+| ramp | A linear 0 .. 1 ramp between two distances, saturated at both ends: one call, or prepared once for a loop. A helper: it draws nothing. | Fading an effect by distance (a shadow, a fake anisotropic filter's range). | CPU only: one reciprocal, then a multiply a point; VRAM 0 | `sh4der_ramp.h` (header only) | [section](#the-ramp-helper) |
 | pool | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing (also a dark blob shadow). | Street lamp pools and headlight beams on ground polygons too big to light per vertex. | RAM 16 B a vertex (176 B for a 10 triangle disc); VRAM 0 | `sh4der_pool.h` (header only) | [section](#the-pool-effect-light-pools-on-a-plane) |
 | psm | Where the texels of a shadow map go: a uniform map for a directional light, and a perspective shadow map fitted in the camera's post-projective space so near ground gets more texels. | Sharper shadows near the camera for the same map size; a software renderer or a client with its own depth compare. | RAM 80 B a map description; VRAM 0 | `sh4der_psm.h` (header only) | [section](#the-psm-effect-perspective-shadow-maps) |
+| fault | A report on the screen for an exception, a hang, an assert or an exit: registers, the stack's calls, the last frame's breadcrumbs. | A test image that dies with nothing on screen. | RAM the breadcrumbs and about 3 KB; VRAM 0; CPU about 20 instructions a vblank (ESTIMATE) | `sh4der_fault.h` (the Dreamcast part under `_arch_dreamcast`) | [section](#the-fault-catcher) |
+| split | A screen cut in a left and a right half by a divider the triggers move, in 32-pixel tile columns: which user clip each half gets. | Side-by-side comparisons (one look per half). | Integer maths, no RAM to speak of; VRAM 0 | `sh4der_split.h` (header only) | [section](#the-split-screen-divider) |
+| tilecut | A render target pass through a tile table its own size: the screen's tile tables end after the target's tiles for one pass and are put back after it. | A small target (a shadow tile, a mirror, a cloud buffer) that the PVR would otherwise walk as a whole 640 x 480 screen. | RAM 14,400 B (two tables' copies, the struct); VRAM 0 (it rewrites KallistiOS's tables in place) | `sh4der_tilecut.h` (header only) | [section](#the-tilecut-pass-a-render-target-through-its-own-tiles) |
 | pvrx | A layer over KallistiOS's PVR driver: polled waits, a PVR-DMA download of video memory, TA error counts, the Holly revision and a user clip change. | When the PVR's waits, error counts, DMA or user clip are needed; not yet run on a console as this layer. | see AGENTS.md (v0.05) | `sh4der_pvrx.h` + `sh4der_pvrx.c` | see AGENTS.md Files |
 | shafts | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light. | Light shafts through a dark scene, the dark twin of the glow's god rays. | RAM 16 KB; VRAM 16 KB (128 x 64 RGB565) | `sh4der_shafts.h` + `sh4der_shafts.c` | [section](#the-shadow-shafts) |
 | spark | A fixed pool of 24 short-lived additive quads that face the camera, as billboards or streaks. | Muzzle flashes, tracers, impact sparks, lamp halos. | RAM 1,256 B pool; VRAM 3 KB atlas; 96 vertices a frame at most | `sh4der_spark.h` + `sh4der_spark.c` | [section](#the-spark-effect-pooled-additive-quads) |
@@ -115,8 +120,12 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | uvwarp | `sh4der_uvwarp.h` | A texture coordinate pushed per vertex by a small two-channel table (64 x 16 is 2 KB, from a source distortion map): weight x table(u + su t, v + sv t), bilinear, both axes wrapping, unsigned; a prepared form (`sh4der_uvwarp_prepare` once, `sh4der_uvwarp_offset_p` a vertex, or `sh4der_uvwarp_offset_pn` without the input gates for a loop that checked once) for a mesh loop. For what a material does per pixel and the PVR cannot (an arc, a banner, a water strip). | nothing (the mesh's own UV: a table and a weight a vertex) | v0.10 |
 | spark | `sh4der_spark.h` | A fixed pool of 24 short-lived additive quads that face the camera, in two shapes: a billboard (a muzzle flash, an impact flash) and a streak (a tracer whose tail retreats to its hit, a spark that flies and falls), with a least width in pixels, a fade along the length, a burst helper and a pool rule (sparks die first, a flash or tracer is never lost to one). Sizes, colours, lives and atlas cells are the caller's table | one atlas texture (64 x 64 VQ: 3 KB), additive ONE / ONE on the translucent list, depth test on, write off | v0.10 |
 | pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
+| ramp | `sh4der_ramp.h` | A linear 0 .. 1 ramp between two distances, saturated at both ends: one call, or a prepared ramp for a loop (one reciprocal, then a multiply a point). A helper: draws nothing | CPU only; no tuning macros | v0.10 |
 | pool | `sh4der_pool.h` | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing: a disc under a street lamp, a wedge ahead of a headlight, and the same disc, dark, as a blob shadow. For ground polygons too big to light per vertex | untextured vertex-alpha fans on the translucent list: additive for light, blended for shadow | v0.10 |
 | psm | `sh4der_psm.h` | A world-to-map matrix for a directional light, fitted to the receivers inside the view frustum: uniform (orthographic) or warped through the camera's post-projective space (one point L' for the parallel rays, either sign of w), with a virtual near plane for the warp, the depth key (distance along the light), a world-space bias, texel and pixel footprints for the A/B, the frustum corners and a slab clip. The map is the client's: a depth compare in software, a silhouette on the PVR (no depth compare there) | none; a map the client draws and reads | v0.10 |
+| fault | `sh4der_fault.h` | A report on the screen when the program raises an exception, hangs, asserts or exits: registers, the stack's calls, the frame's breadcrumbs. No console run has shown it catching a fault | Not drawn with the PVR (minifont over the frame buffer) | v0.10 |
+| split | `sh4der_split.h` | Divider of a left and a right half in 32-pixel tile columns, moved by held triggers; gives each half its clip rectangle (a hidden half has none). The middle position works on a console (PVR-144, PVR-161); a moving divider has not run | User clips, one per half | v0.20 |
+| tilecut | `sh4der_tilecut.h` | A render target pass through a tile table its own size: KallistiOS renders every target through the screen's 20 x 15 tile table, and this ends the table after the target's own tiles for one pass, then puts every word back. The PVR's time for a 20-tile target fell 3,312 -> 375 us (PVR-092), the frame 1,869 us in d1 (PVR-205) | KallistiOS's tile tables in video memory, rewritten between passes; no render may read them meanwhile | v0.50 |
 | pvrx | `sh4der_pvrx.h` | A layer over KallistiOS's PVR driver: polled render-done waits, a PVR-DMA download of video memory, counters for TA error events, the Holly revision read, a user clip change with its dummy polygon | nothing of its own (the driver's lists); the `.c` is Dreamcast only | v0.05 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
@@ -707,6 +716,10 @@ unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 | SH4DER_AO_SCR_FULL | 0.6 | Ratio (centre - above) / centre at full cavity |
 | SH4DER_AO_SCR_FLOOR | 4.0 | Luma (0..255) added to both before the ratio: black is no division by zero |
 
+### The ao bake (a host tool)
+
+`tools/ao_bake_core.h` is a build-time tool, not an effect: it bakes one ambient occlusion byte a vertex from a triangle list on the host (64 cosine rays, 2.5 m reach, the rules of `demo/psm/ao/tools/room_bake.c`). It fills points inside a closed solid from their neighbours and wraps a street that repeats every period. Plain C, libc only; nothing of it runs on the console, which keeps only the baked bytes. Client: `demo/pl4nar/tools/map_ao.c`. Test: `test/ao_bake_test.c`, run by `make test-demo` (it makes the room's data with `demo/psm/ao/build.py --room-only`). Its host time is not measured. See `wiki/effects/ao-bake.md`.
+
 ## The frame texture and chromatic aberration
 
 `sh4der_ca.h`, `src/sh4der_ca.c`. The PVR cannot read the frame it is drawing, but it can draw a frame into a texture and then draw that texture. The world goes into a render target; the screen is that texture as one quad, or three times over a small mesh, once per colour channel, each sampled at its own scale about the centre.
@@ -999,6 +1012,10 @@ Both return the vertices written, or 0 with nothing written for a bad count, len
 | --- | --- | --- |
 | SH4DER_POOL_MAX_N | 16 | Most triangles in one fan (the caller's array holds SH4DER_POOL_MAX_N + 2 vertices) |
 | SH4DER_POOL_TAU | 6.28318530718 | A whole turn, radians |
+## The ramp helper
+
+`include/sh4der_ramp.h`, header only; `test/ramp_test.c` tests it on the host. A linear 0 .. 1 ramp between two distances, saturated at both ends. `sh4der_ramp_in(from, len, d)` is one call (one FSRRA reciprocal through SH4ZAM); for a loop, `sh4der_ramp_make(&r, from, to)` once, then `sh4der_ramp_up` / `sh4der_ramp_down` a point (a multiply and a saturate). It has no tuning macros: the two distances are the caller's. Used by `demo/psm/fakeaf.h` and `demo/psm/psm_shtile.h` (which still includes it through the forward `demo/psm/psm_ramp.h`). No console run; costs not measured. Moved from `demo/psm/psm_ramp.h` on 2026-11-26; wiki/effects/ramp.md.
+
 ## The psm effect (perspective shadow maps)
 
 `sh4der_psm.h`, header only; `demo/psm` is the software demo. The placement of a shadow map for a directional light, in two forms through one interface: a uniform (orthographic) map fitted to the receivers, and a perspective shadow map, the same fit made in the camera's post-projective space. Idea from the GPU Gems chapter "Perspective Shadow Maps: Care and Feeding": near ground is large on screen and needs more texels than far ground. The equations were checked against the chapter's printed text (NVIDIA's PDF) and are written here in this library's own code and row form. Where it differs: the fit axis is the mean direction (the chapter uses the minimal cone), and the bias is in metres (the chapter's `Ltexel` is a squared length). They are pinned in `test/psm_test.c` against the numbers its prose gives.
@@ -1254,6 +1271,42 @@ Nothing of it is measured on a console: the costs are counts. `sh4der_timebase_f
 | SH4DER_TIMEBASE_SEED_HI | 0x00004e54 | And its high word |
 | SH4DER_TIMEBASE_TAU | 6.2831853 | 2 pi |
 
+## The hexheat effect (heat haze as hexagons)
+
+`include/sh4der_hexheat.h`, header only, maths alone; the effect table above says what it does. `test/hexheat_test.c` is its
+test: the lives, rise and lean against the reference numbers, the shift's range and median, and every drawn hexagon and its
+piece inside the band, the piece the hexagon moved by one whole-pixel shift.
+
+Order, a frame: in a render pass that already runs, draw the far world as this frame's camera sees it into a 256 x 128 region
+of the target, a texel a screen pixel, cut to that region and to a near distance (the street demo cuts on the SH-4 in its gfx
+layer, `gfx_window`). Then `sh4der_hexheat_slip(&h, slip_px)` with the far picture's sideways travel since the last frame,
+`sh4der_hexheat_band(ax, ay, &x0, &y0)` with the far view's point on the screen (the same place the band was drawn from),
+and `sh4der_hexheat_mesh(&h, seconds, gate, x0, y0, out)`. Draw each hexagon as a strip of its 6 vertices on the translucent
+list: no blend (one / zero), point sampled, the band's texel at (u, v) plus the band's place in the target, depth tested at
+the far view's depth and not written. Nothing of it is measured on a console: the costs are counts.
+
+### Hexheat tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_HEXHEAT_N | 48 | Hexagon slots; about 0.35 of them are alive at a time |
+| SH4DER_HEXHEAT_HEX_W | 14.0 | A hexagon's width, pixels (points left and right) |
+| SH4DER_HEXHEAT_HEX_H | 13.0 | Its height, pixels (flat top and bottom) |
+| SH4DER_HEXHEAT_BAND_W | 256 | The band's width, screen pixels = target texels |
+| SH4DER_HEXHEAT_BAND_H | 128 | Its height |
+| SH4DER_HEXHEAT_FOOT | 6.0 | Band rows under the anchor: room for the lowest hexagon's shift |
+| SH4DER_HEXHEAT_DENSE | 72.0 | Most hexagons start within this many pixels over the anchor |
+| SH4DER_HEXHEAT_TOP | 96.0 | And none higher than this |
+| SH4DER_HEXHEAT_SPARSE | 0.15 | The share that starts between DENSE and TOP |
+| SH4DER_HEXHEAT_RISE | 2.0 | Rise, pixels a second |
+| SH4DER_HEXHEAT_LEAN | 1.4 | Sideways drift, at most, pixels a second, each its own |
+| SH4DER_HEXHEAT_WOBBLE | 0.6 | Pixels about its line |
+| SH4DER_HEXHEAT_LIFE_MIN | 0.7 | Shortest life, seconds |
+| SH4DER_HEXHEAT_LIFE_SPAN | 4.0 | A life is LIFE_MIN + LIFE_SPAN x h^2 over a hash h (median about 1.7 s) |
+| SH4DER_HEXHEAT_GAP | 0.6 | Seconds a slot rests between two lives, at most |
+| SH4DER_HEXHEAT_SHIFT_MAX | 5 | A piece's shift, pixels a side (1 .. 5, median 2) |
+| SH4DER_HEXHEAT_STEP_HZ | 10.0 | Shift rolls a second |
+
 ## The cloudvolume effect (a cloud deck you fly through)
 
 `include/sh4der_cloudvolume.h`, header only, and `demo/cloudvolume.c`; the effect table above says what it does. `test/cloudvolume_test.c` is its test.
@@ -1292,6 +1345,65 @@ Nothing of it is measured on a console: the costs are counts. `sh4der_timebase_f
 | --- | --- | --- |
 | SH4DER_PVRX_WAIT_US | 100000 | Microseconds after which a polled wait gives up (the town's a3e-poll value) |
 | SH4DER_PVRX_DMA_US | 200000 | Microseconds after which a download gives up (the benches' limit; 512 KB takes about 14 ms) |
+
+## The tilecut pass (a render target through its own tiles)
+
+`include/sh4der_tilecut.h`, header only; `test/tilecut_test.c` tests the table logic on the host. KallistiOS renders a render target through the screen's whole tile table (20 x 15 tiles whatever the target's size), and the PVR visits every tile: about 3.2 ms a pass (PVR-004). `sh4der_tilecut_begin` makes each table end after the target's cw x ch tiles; `sh4der_tilecut_end` writes every changed word back. It keeps a RAM copy of each table from the moment it is found, so a cut only writes video memory: 126 us to begin and 130 us to end a pass at 10 x 8 tiles (PVR-205, MEASURED, one console). `sh4der_tilecut_begin_cols` is the cheapest form: whole columns, one word a table (5 us and 3 us, the same run).
+
+### Calls
+
+```c
+sh4der_tilecut_t cut;
+sh4der_tilecut_init(&cut, 20, 15);            /* the screen's tiles; cut.need = 2 tables */
+sh4der_tilecut_find(&cut);                    /* Dreamcast: after a scene's render, until cut.n == cut.need */
+if (sh4der_tilecut_begin(&cut, cw, ch)) {     /* 0: refused, nothing written, the pass runs uncut */
+    /* the target's scene, its render, the wait for render done */
+    if (sh4der_tilecut_end(&cut)) { /* words still wrong: shut the PVR down and pvr_init again */ }
+}
+```
+
+Rules: no render that reads the table may run while it is cut (wait for render done after every cut pass); cut only when every table is found (with one of two, the street demo lost 3.05 ms: PVR-200); the refusal that needs both tables has not run on a console.
+
+### Tilecut tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_TILECUT_TABLES | 2 | Tile tables KallistiOS keeps (one a TA buffer) |
+| SH4DER_TILECUT_MAX | 96 | The most tiles a cut keeps |
+| SH4DER_TILECUT_TILES | 300 | The most tiles of a table (20 x 15): the size of the RAM copy |
+| SH4DER_TILECUT_TRIES | 3 | Read-backs of a restore before `sh4der_tilecut_end` reports it bad |
+| SH4DER_TILECUT_VERIFY | 8 | Ends that read their restore back; after them the restore is written and trusted |
+
+## The fault catcher
+
+`include/sh4der_fault.h`, header only: the Dreamcast part is under `_arch_dreamcast`, and one file defines `SH4DER_FAULT_IMPL`. After `pvr_init` (and again after any later one), keep one `sh4der_fault_crumbs_t` and call `sh4der_fault_init(&crumbs)`; once a frame `sh4der_fault_beat`, then the setters for the stage and the counts. On an exception, an assert, an exit or `SH4DER_FAULT_HANG_VBLANKS` vblanks with no beat, it writes the registers, the return addresses found on the stack and the breadcrumbs over the frame buffer in minifont. A hang is caught only while interrupts run. Never build `SH4DER_FAULT_TEST` (its forced faults) into a program for players. `test/fault_test.c` tests the formatting on the host. PROTOTYPE: no console run has shown it catching a fault; PVR-183 and PVR-208 froze with no HANG screen (MEASURED, one run each, the cause OPEN). Moved from `demo/psm/psm_fault.h` on 2026-11-26; wiki/effects/fault.md and wiki/methods/fault-catcher.md.
+
+### Fault tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_FAULT_COLS | 64 | Characters a line |
+| SH4DER_FAULT_ROWS | 26 | Lines on the screen |
+| SH4DER_FAULT_HANG_VBLANKS | 120 | Vblanks with no heartbeat before HANG (2 s at 60 Hz) |
+| SH4DER_FAULT_TRACE_MAX | 12 | Return addresses kept from the stack |
+| SH4DER_FAULT_STAGE_LEN | 12 | Stage name length, 11 kept |
+
+`SH4DER_FAULT_VSYNC` is a register bit, on `tools/check_tuning.py`'s exempt list.
+
+## The split screen divider
+
+`include/sh4der_split.h`, header only, plain C; `test/split_test.c` tests it on the host. A frame: `sh4der_split_step` with the held triggers, `sh4der_split_halves` for the two halves, then for each half that is not hidden set its user clip and send its look; `sh4der_split_x` gives the line's pixel column and `sh4der_split_label_x` a place for each half's label. A hidden half is not sent at all (a clip rectangle cannot be empty). The middle position works on a console (PVR-144, PVR-161); a divider that moves has no console run (wiki/status/maturity.md "split divider": OPEN). Moved from `demo/psm/psm_split.h` on 2026-11-26; wiki/effects/split.md.
+
+### Split tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_SPLIT_TILE | 32 | Tile size in pixels (the PVR's user clip unit) |
+| SH4DER_SPLIT_COLS | 20 | Tile columns across the screen (640 / 32); the divider has COLS + 1 places |
+| SH4DER_SPLIT_ROWS | 15 | Tile rows down the screen (480 / 32) |
+| SH4DER_SPLIT_REPEAT | 6 | Frames between steps while a trigger is held (the whole way in 2 s) |
+| SH4DER_SPLIT_SAFE_X0 | 64 | Title-safe area, left side in pixels |
+| SH4DER_SPLIT_SAFE_X1 | 576 | Title-safe area, right side in pixels |
 
 ## The frame read
 

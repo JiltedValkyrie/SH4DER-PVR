@@ -12,7 +12,7 @@
 #include "assets.h"
 #include "sh4der_pl4nar.h"
 #include "sh4der_guard.h"
-#include "../../psm/ao/tile_cut.h"
+#include "sh4der_tilecut.h"
 
 _Static_assert(sizeof(pvr_vertex_t) == 32, "pvr_vertex_t is one 32-byte packet");
 _Static_assert(sizeof(pvr_poly_hdr_t) == 32, "pvr_poly_hdr_t is one 32-byte packet");
@@ -39,7 +39,7 @@ static uint32_t       s_timeouts;
    the mirror while the PVR draws the last screen), and the cut is undone after the target's render, before the screen
    scene is finished (its render reads the table; the TA, filling it, does not). The tables are taken after a render
    with no cut on. */
-static tile_cut_t     s_cut;
+static sh4der_tilecut_t     s_cut;
 static gfx_cut_stats_t s_cut_st;
 static int            s_cut_dead;          /* a table did not read back: the cut is off for the run */
 static int            s_screen_rendering;  /* a screen scene was finished and its render not waited for */
@@ -223,6 +223,7 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
         memset(&s_hdr[GFX_MAT_REFLECT_ADD], 0, sizeof s_hdr[0]);
         memset(&s_hdr[GFX_MAT_SHADOW], 0, sizeof s_hdr[0]);
         memset(&s_hdr[GFX_MAT_WET], 0, sizeof s_hdr[0]);
+        memset(&s_hdr[GFX_MAT_HEAT], 0, sizeof s_hdr[0]);
         return -1;
     }
     sh4der_pl4nar_layer_header(&s_rt, &s_hdr[GFX_MAT_REFLECT], 0u);
@@ -248,6 +249,16 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
         c.txr.env = PVR_TXRENV_MODULATE;
         c.txr.uv_clamp = PVR_UVCLAMP_UV;
         pvr_poly_compile(&s_hdr[GFX_MAT_WET], &c);
+        /* the heat's hexagons: the band's texel as it is (point sampled, no blend: one x zero), depth tested at the far
+           view's depth and not written, so what is nearer keeps them out */
+        pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)s_rt.pitch, (int)s_rt.h, (pvr_ptr_t)s_rt.tex, PVR_FILTER_NONE);
+        c.gen.culling = PVR_CULLING_NONE;
+        c.txr.alpha = PVR_TXRALPHA_DISABLE;
+        c.txr.env = PVR_TXRENV_REPLACE;
+        c.txr.uv_clamp = PVR_UVCLAMP_UV;
+        c.blend.src = PVR_BLEND_ONE; c.blend.dst = PVR_BLEND_ZERO;
+        c.depth.write = PVR_DEPTHWRITE_DISABLE;
+        pvr_poly_compile(&s_hdr[GFX_MAT_HEAT], &c);
     }
     return 0;
 }
@@ -274,9 +285,9 @@ static void cut_begin_(void) {
         if (!ok) { s_cut_st.refused++; return; }
         s_screen_rendering = 0;
     }
-    if (!s_cut.tw) tile_cut_init(&s_cut, 20u, 15u);
-    (void)tile_cut_find(&s_cut);
-    if (tile_cut_begin(&s_cut, s_cut_st.cw, s_cut_st.ch)) s_cut_st.passes++;
+    if (!s_cut.tw) sh4der_tilecut_init(&s_cut, 20u, 15u);
+    (void)sh4der_tilecut_find(&s_cut);
+    if (sh4der_tilecut_begin(&s_cut, s_cut_st.cw, s_cut_st.ch)) s_cut_st.passes++;
     else s_cut_st.refused++;
 }
 
@@ -291,14 +302,14 @@ static void cut_end_(void) {
         (void)wait_done_();
         s_wait_us += timer_us_gettime64() - t0;
     }
-    bad = tile_cut_end(&s_cut);
+    bad = sh4der_tilecut_end(&s_cut);
     if (!bad) return;
     s_cut_st.failed++; s_cut_st.bad_words += bad; s_cut_dead = 1;
     printf("gfx: TILE CUT FAILED (%u words): PVR restarted, cut off\n", bad);
     if (s_list >= 0) { pvr_list_finish(); s_list = -1; }
     gfx_be_shutdown();
     memset(&s_rt, 0, sizeof s_rt);
-    tile_cut_init(&s_cut, 20u, 15u);
+    sh4der_tilecut_init(&s_cut, 20u, 15u);
     gfx_be_init();
     (void)gfx_be_reflect_resize(s_rt_w, s_rt_h);
     s_screen_rendering = 0;
@@ -311,7 +322,7 @@ int gfx_be_reflect_begin(void) {
     if (!s_rt.tex) return -1;
     ready();
     cut_begin_();
-    if (!sh4der_pl4nar_target_begin(&s_rt)) { if (s_cut.on) (void)tile_cut_end(&s_cut); return -1; }
+    if (!sh4der_pl4nar_target_begin(&s_rt)) { if (s_cut.on) (void)sh4der_tilecut_end(&s_cut); return -1; }
     pvr_list_begin(PVR_LIST_OP_POLY);
     s_list = PVR_LIST_OP_POLY;
     return 0;

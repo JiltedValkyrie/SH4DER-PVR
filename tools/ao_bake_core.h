@@ -1,7 +1,21 @@
-/* SH4DER-PVR: baked ambient occlusion (method 1) over any triangle list, a host tool's core
+/* SH4DER-PVR: ao_bake_core.h, baked ambient occlusion over any triangle list (a host build tool's core)
 
-   demo/psm/tools/ao_bake_core.h
-   Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+   tools/ao_bake_core.h
+   Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
+
+   RECOMMENDED (a host build tool, not a console header; wiki/limits/header-recommended.md, wiki/effects/ao-bake.md)
+   Start with: AOB_RAYS 64 rays a point, AOB_R 2.5 m reach (the room and the street; the street's road bake uses
+               10 m at a scale of AOB_R / 10), AOB_PUSH 0.02 m, AOB_INSIDE 0.25
+   Cost:       host seconds: not measured for this core (no demo README or log states one). The console cost is the
+               baked bytes the program keeps (one byte a vertex, the client's); the load-time bake of demo/psm/ao
+               (ao4_rays, SH4-076: 254 ms and 393 ms on the console) is a different routine, not this one
+   Status:     ADVISED; to prove: the room's bytes against room_ao_v to 2 (test/ao_bake_test.c, the room data built
+               by demo/psm/ao/build.py --room-only)
+   Do:         bake at build time only, on the host, with the rays of one set (keep the room's and the street's
+               rules the same); fill an inside point from its neighbours
+   Do not:     ship it in a console build (libc, malloc, and the time it takes); change AOB_R without rebaking the
+               scene; treat a byte as physical light (it is a multiply on the ambient light)
+   Maturity:   ALPHA (host tool; the two clients build; no measured console result of its own)
 
    The rules of demo/psm/ao/tools/room_bake.c, for a mesh that is not the room: a point casts AOB_RAYS cosine-weighted
    rays over its hemisphere (u1 = (k + 0.5) / 64, u2 the base-2 radical inverse of k; local (r cos phi, sqrt(1 - u1),
@@ -17,7 +31,9 @@
    at +period and -period. Bake a vertex on the seam once and give both ends its byte.
 
    Plain C, no SH4ZAM: it runs on the host at build time, never on the console. Header only; test:
-   demo/psm/ao/test/ao_bake_core_test.c (against room_bake.c's bytes on the room). */
+   test/ao_bake_test.c (against room_bake.c's bytes on the room). Clients: demo/pl4nar/tools/map_ao.c and the psm
+   demo tools that bake a mesh (none yet). Its ray set is not the one in demo/psm/ao/ao4_scene.h (ao4_rays, the
+   console's): two copies of the same rule, to be merged later. */
 
 #ifndef AO_BAKE_CORE_H
 #define AO_BAKE_CORE_H

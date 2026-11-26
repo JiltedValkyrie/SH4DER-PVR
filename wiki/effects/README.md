@@ -45,8 +45,13 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [motes](motes.md) | Stateless drifting specks | v0.10 | no |
 | [pl4nar](pl4nar.md) | Planar reflection through a small render target | v0.10 | **yes**: the lookups, pl4m c5 (PVR-160), one console, one run, 2026-11-25; its PVR columns are ESTIMATE (PVR-162) |
 | [pool](pool.md) | Light pools and blob shadows as fading fans | v0.10 | no |
+| [ramp](ramp.md) | A linear 0..1 ramp between two distances (a helper) | v0.10 | no |
+| [fault](fault.md) | A report on the screen for an exception or a hang: registers, calls, breadcrumbs | PROTOTYPE v0.1 | no: no run has shown it catching a fault (PVR-183, PVR-208 froze with no HANG screen) |
+| [split](split.md) | A movable divider for a left and a right half (tile columns, held triggers) | ALPHA v0.2 | **yes**: the middle position (PVR-144, PVR-161), one console; moving it OPEN |
+| [tilecut](tilecut.md) | A render target pass through a tile table its own size | ALPHA v0.5 | **yes**: c4, ao4-h, d1-c, d1-d (PVR-092, PVR-156, PVR-192, PVR-205), one console |
 | [psm](psm.md) | Shadow map placement; the SH-4 and PVR map routes | v0.10 | **yes**: the town demo HUD, one console, 2026-11-25 |
 | [ao](ao.md) | Crease darkening (bake) and a screen cavity cue | v0.10 | no |
+| [ao-bake](ao-bake.md) | Host build tool: baked occlusion over any triangle list (not a console effect) | v0.1 | no |
 | [ca](ca.md) | The frame texture and chromatic aberration | v0.50 | no |
 | [shafts](shafts.md) | Dark shapes cast away from a light | v0.50 | no |
 | [sh4dow-dc](sh4dow-dc.md) | Soft character shadows by limb columns (separate library) | separate | no: its numbers are the original author's run (REPORTED) |
@@ -56,6 +61,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [rise](rise.md) | Lights that lift off, drift up and become stars | v0.10 | no |
 | [film](film.md) | Old projector wear: flicker, scratches, dust, gate weave | v0.1 | no |
 | [timebase](timebase.md) | A video tape's bent picture: one sideways shift a row, drawn as bands of the frame texture | v0.1 | no |
+| [hexheat](hexheat.md) | Heat haze as a few hexagons that show the far picture a few pixels off, from a band of a render target | v0.1 | no |
 | [cloudvolume](cloudvolume.md) | A ray-marched cloud deck you fly through | v0.50 | no |
 
 The last five are in `README.md`'s effect table and in `include/`, but not yet in `AGENTS.md`'s file list.

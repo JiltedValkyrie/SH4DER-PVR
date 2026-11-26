@@ -58,7 +58,7 @@
    tiles; this stage rewrites the two tile tables in video memory to end after the target's own tiles (20 for the
    map, 80 for the mask), renders, and puts every word back (read back and compared). Photograph the pages first.
 
-   Only PVR and system-bus DMA registers and video memory are written. The fault catcher (../psm_fault.h) is in;
+   Only PVR and system-bus DMA registers and video memory are written. The fault catcher (include/sh4der_fault.h) is in;
    every wait is bounded. Every number comes from the run that prints it; only a real console's run is evidence.
    c4c, after c4b's run (compare/NOTES.md "c4b: hardware result"):
      - test 8 has a third run, 8b: the render-done wait polled too. This program's handler sits in front of
@@ -77,8 +77,8 @@
 
 #include <sh4zam_dce/shz_dce_pvr.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "c4_model.h"
 
@@ -89,11 +89,11 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define PG_PREFIX "c4"
 #include "../psm_page.h"
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -297,7 +297,7 @@ static int wait_ready(void) {
         while (pvr_check_ready() < 0) if (ns() - t0 > LIMIT_NS) return 0;
         return 1;
     }
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);
     return t < 20u;
 }
 
@@ -332,7 +332,7 @@ static int scene_close(void) {
         while (!rd_seen) if (ns() - t0 > LIMIT_NS) return 0;
         t = 0;
     } else {
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     }
     w_done_ns = ns() - t0; w_done_vbl = vbl_count - v0;
     w_late_ns = rd_hooked && rd_seen ? ns() - rd_ns : 0u;
@@ -847,7 +847,7 @@ static void t_scene_at(float az, float el, unsigned w, unsigned gs, float b0, in
     step("4 mask");
     if (!mask_pass(bscr, nbv, st.thr)) { say("4 mask: NO RENDER END"); return; }
     for (y = 0; y < C4_MASK_H; y++) {      /* the model, on the console's own map */
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         for (x = 0; x < C4_MASK_W; x++) {
             c4_pixel_t px;
             const int m = c4_model_pixel(&L, &cam[0], map_px, &st, x, y, &px);
@@ -1064,7 +1064,7 @@ static int punch_pass(const pvr_poly_hdr_t *h, const pvr_vertex_t *v, unsigned n
     unsigned x, y;
     int drawn = 0;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     PVR_SET(PVR_PT_ALPHA_REF, ref);
     if (!scene_open(TO_SCREEN)) return -1;
     pvr_list_begin(PVR_LIST_PT_POLY);
@@ -1342,7 +1342,7 @@ static void run(void) {
     say("c4g. ns clock: reload step taken out. numbers below: measured by this run. GRAPH pages follow the text pages: shape only, the values are in the text");
     if (vblank_handler_add(vbl_tick, NULL) < 0) say("vblank counter: refused (test 8 counts 0)");
     if (!start()) return;
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     perf_cntr_start(PRFC1, PMCR_ELAPSED_TIME_MODE, PMCR_COUNT_CPU_CYCLES);
     say("PLACING bsrc %08x bscr %08x bref %08x; apart mod 16 KB: %u %u %u", (unsigned)(uintptr_t)bsrc, (unsigned)(uintptr_t)bscr, (unsigned)(uintptr_t)bref,
         (unsigned)(((uintptr_t)bscr - (uintptr_t)bsrc) % OC), (unsigned)(((uintptr_t)bref - (uintptr_t)bsrc) % OC), (unsigned)(((uintptr_t)bref - (uintptr_t)bscr) % OC));
@@ -1558,7 +1558,7 @@ int main(void) {
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
         int back = 0;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

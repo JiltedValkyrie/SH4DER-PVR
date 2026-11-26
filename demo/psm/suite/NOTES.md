@@ -60,7 +60,7 @@ A fault ends RUN ALL: the menu does not start the next test by itself after a fa
 - **Return.** A test reads `/cd/MENU.BIN` into its heap at its very start (`suite_init`), while everything is well. Going back needs no disc read. `MENU.BIN` is the same program as the boot file.
 - **No menu on the disc** (a test on a disc of its own): `suite_init` finds no file and every suite call does nothing. The same ELF works alone.
 - **State across a start.** The chain flag, the menu row and how the test ended are written into a marked 32-byte struct inside the other program's image before it is started. Nothing depends on RAM that survives a start. The build counts the mark in every binary: exactly one, or the binary is refused.
-- **The fault page's way out** is a hook added to `psm_fault.h` (`psm_fault_leave`). Not set, the fault page stays for ever, as before.
+- **The fault page's way out** is a hook added to `sh4der_fault.h` (`sh4der_fault_leave`). Not set, the fault page stays for ever, as before.
 - **The menu's disc read and the watchdog.** A read can block longer than the fault catcher's 2 s. A second thread gives the heartbeat during the read, for 30 s at most.
 
 ## Clean state: what a start through arch_exec does
@@ -120,11 +120,11 @@ From the KallistiOS source (`kernel/arch/dreamcast/kernel/exec.c`, `init.c`, `ha
 | `demo/psm/suite/build.py` | Checks the ELFs, writes the list, builds the menu and the image. Builds no test. |
 | `demo/psm/suite/suite_s1.json` | The table of s1: names, ELFs, order, the two lines of each test. |
 | `demo/psm/suite/test/suite_test.c` | Host test. |
-| `demo/psm/psm_fault.h` | Gained `psm_fault_leave` (optional; behaviour unchanged when not set). |
+| `include/sh4der_fault.h` | Gained `sh4der_fault_leave` (optional; behaviour unchanged when not set). |
 
 ## To add a test to a later disc (s2, never s1 again)
 
-1. In the test: `#include "psm_suite.h"` after `psm_fault.h`; `suite_init();` first in main; `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }` in the result-page loop.
+1. In the test: `#include "psm_suite.h"` after `sh4der_fault.h`; `suite_init();` first in main; `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }` in the result-page loop.
 2. Build its ELF with its own build.
 3. Add a row to a new table `suite_s2.json` and run `build.py --tag s2 --list ...`.
 

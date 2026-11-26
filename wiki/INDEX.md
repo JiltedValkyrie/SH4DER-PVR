@@ -22,6 +22,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 
 - [effects/README.md](effects/README.md) | Effects index | effect, index | 2026-11-25 | every effect in the library in one line, how far along it is, and whether any of its cost has been measured on a real console.
 - [effects/ao.md](effects/ao.md) | ao (small-scale occlusion) | effect, ao | 2026-11-25 | the two kinds of darkening the ao header gives, and when each is computed.
+- [effects/ao-bake.md](effects/ao-bake.md) | ao-bake (baked occlusion over any triangle list, host tool) | tool, ao, bake, host | 2026-11-26 | a host build tool that bakes one ambient occlusion byte a vertex from a triangle list: 64 rays, inside-solid fill, street wrap; the room's bytes match to 2.
 - [effects/blade.md](effects/blade.md) | blade | effect, blade | 2026-11-25 | what the blade effect draws, how to call it and what it costs.
 - [effects/bloom.md](effects/bloom.md) | bloom | effect, bloom | 2026-11-25 | how to get a soft glow round a blade or a lamp without reading the frame back, and what it costs.
 - [effects/bolt.md](effects/bolt.md) | bolt (branching strands) | effect, bolt, particles | 2026-11-25 | how the bolt draws lightning that changes a few times a second, and how much it sends to the PVR.
@@ -42,6 +43,10 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [effects/motes.md](effects/motes.md) | motes (drifting specks) | effect, motes, particles | 2026-11-25 | how the motes store nothing per speck, and how many they draw.
 - [effects/names.md](effects/names.md) | Names: what each module actually is | effects, names, index, migration | 2026-11-25 | the technique behind each module and demo name, the other names people search for, and the plain names proposed in place of the old ones, with how the old names keep working.
 - [effects/pl4nar.md](effects/pl4nar.md) | pl4nar (planar reflection) | effect, pl4nar, reflection | 2026-11-25 | how the world is mirrored into a small render target and looked up per vertex, what it costs in video memory, and which costs are still unmeasured.
+- [effects/fault.md](effects/fault.md) | fault (the fault catcher) | effect, debug, fault | 2026-11-26 | a report on the screen when a program faults or hangs: the registers, the stack's calls, the breadcrumbs, and what it cannot catch.
+- [effects/split.md](effects/split.md) | split (a movable divider for a left and a right half) | effect, split, clip, divider | 2026-11-26 | a screen cut in two halves by a divider the triggers move, in 32-pixel tile columns; each half's user clip; host tested, the moving divider not run on a console.
+- [effects/tilecut.md](effects/tilecut.md) | tilecut (a render target through its own tiles) | effect, tilecut, pvr, render-target | 2026-11-26 | why a small render target costs the PVR a whole screen under KallistiOS, how the cut ends the tile table after the target's own tiles, what that saved on a console, and the rules that keep it safe.
+- [effects/ramp.md](effects/ramp.md) | ramp (one linear 0..1 ramp between two distances) | effect, ramp | 2026-11-26 | a linear 0..1 ramp between two distances, one call or prepared for a loop; CPU only, no console run.
 - [effects/pool.md](effects/pool.md) | pool (light pools on a plane) | effect, pool | 2026-11-25 | how a lamp's pool of light or a blob shadow is drawn as a fading fan, and why fill is its cost.
 - [effects/psm.md](effects/psm.md) | psm (shadow map placement and the two map routes) | effect, psm, shadows | 2026-11-25 | what the three psm headers do, which route draws the map, and what the town demo measured on a console.
 - [effects/rise.md](effects/rise.md) | rise (lights that lift and become stars) | effect, rise | 2026-11-25 | what the rise effect draws and what it costs.
@@ -51,6 +56,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [effects/sss.md](effects/sss.md) | sss (back-lit transmission) | effect, sss | 2026-11-25 | what the sss call gives you, what it does not, and where its starting values come from.
 - [effects/taa.md](effects/taa.md) | taa (temporal AA maths) | effect, taa, post | 2026-11-25 | what the TAA header computes, where the history comes from, and how far to push its weight.
 - [effects/timebase.md](effects/timebase.md) | timebase (a video tape's bent picture) | effect, timebase, tape, frame-texture | 2026-11-26 | what the timebase effect works out, how the picture is bent with it, and what it costs.
+- [effects/hexheat.md](effects/hexheat.md) | hexheat (heat haze as hexagons) | effect, hexheat, heat-haze, render-target | 2026-11-26 | what the hexheat effect draws, where its picture comes from, and what it costs.
 - [effects/torch.md](effects/torch.md) | torch (flashlight) | effect, torch, post | 2026-11-25 | how the torch fakes a flashlight with no light source, and the trap with AA 2X.
 - [effects/trail.md](effects/trail.md) | trail | effect, trail, post | 2026-11-25 | how motion blur and the TAA blend draw the frame before over this one, and what that needs from the screen setup.
 - [effects/uvwarp.md](effects/uvwarp.md) | uvwarp (per-vertex texture offset) | effect, uvwarp | 2026-11-25 | how a small table pushes each vertex's texture coordinate, and how to keep it precise over time.

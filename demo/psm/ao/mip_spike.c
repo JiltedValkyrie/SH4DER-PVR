@@ -37,8 +37,8 @@
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "mip_model.h"
 
@@ -59,11 +59,11 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "../psm_page.h"
 
 #define say pg_say
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -225,7 +225,7 @@ static int scene_close(void) {
     if (rd_hooked) {
         while (!rd_seen) if (ns() - t0 > LIMIT_NS) { timeouts++; return 0; }
     } else {
-        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+        for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
         if (t == 20u) { timeouts++; return 0; }
     }
     if (pvr_get_stats(&st) < 0) return 0;
@@ -647,7 +647,7 @@ int main(void) {
     vid_set_mode(DM_640x480, PM_RGB565);
     pg_init();
     if (start()) {
-        if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+        if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
         run();
         stop("mip end");
     }
@@ -658,7 +658,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }

@@ -1,4 +1,4 @@
-/* Host test of demo/psm/psm_shtile.h and psm_ramp.h: the ramp, the town's layout, the take and give-back rule, the strip
+/* Host test of demo/psm/psm_shtile.h (its ramp checks use include/sh4der_ramp.h): the ramp, the town's layout, the take and give-back rule, the strip
    along the sun, the pass transform against the ground quad, the feather weight, the clip and the cut rectangle. */
 #include <math.h>
 #include <stdio.h>
@@ -22,14 +22,14 @@ int main(void) {
     sht_caster_t c[13];
     float sun[3], eye[3] = { 0.0f, 1.6f, 0.0f }, m[8];
     unsigned k, j, cw, ch, live;
-    psm_ramp_t r;
+    sh4der_ramp_t r;
 
     /* the ramp: both forms agree, the ends are exact */
-    psm_ramp_make(&r, SHT_FADE_START, SHT_FADE_END);
-    CHECK(psm_ramp_down(&r, 0.0f) == 1.0f && psm_ramp_down(&r, 40.0f) == 1.0f && psm_ramp_down(&r, 50.0f) == 0.0f && psm_ramp_down(&r, 80.0f) == 0.0f);
-    CHECK(fabsf(psm_ramp_down(&r, 45.0f) - 0.5f) < 1e-5f && fabsf(psm_ramp_down(&r, 42.5f) - 0.75f) < 1e-5f);
-    for (k = 0; k <= 60u; k++) CHECK(fabsf(psm_ramp_up(&r, (float)k) - psm_ramp_in(40.0f, 10.0f, (float)k)) < 1e-5f);
-    CHECK(psm_ramp_in(5.0f, 0.0f, 4.9f) == 0.0f && psm_ramp_in(5.0f, 0.0f, 5.0f) == 1.0f);
+    sh4der_ramp_make(&r, SHT_FADE_START, SHT_FADE_END);
+    CHECK(sh4der_ramp_down(&r, 0.0f) == 1.0f && sh4der_ramp_down(&r, 40.0f) == 1.0f && sh4der_ramp_down(&r, 50.0f) == 0.0f && sh4der_ramp_down(&r, 80.0f) == 0.0f);
+    CHECK(fabsf(sh4der_ramp_down(&r, 45.0f) - 0.5f) < 1e-5f && fabsf(sh4der_ramp_down(&r, 42.5f) - 0.75f) < 1e-5f);
+    for (k = 0; k <= 60u; k++) CHECK(fabsf(sh4der_ramp_up(&r, (float)k) - sh4der_ramp_in(40.0f, 10.0f, (float)k)) < 1e-5f);
+    CHECK(sh4der_ramp_in(5.0f, 0.0f, 4.9f) == 0.0f && sh4der_ramp_in(5.0f, 0.0f, 5.0f) == 1.0f);
 
     /* the town's layout: 8 strips of 128 x 32 and 4 squares of 32 in 256 x 256, no overlap, on 32s, 40 tiles to cut */
     CHECK(sht_layout(t, N_TILES, kind_of, sht_kinds_default, 256u, 256u));

@@ -15,15 +15,15 @@
    255): try another when a code does not read.
 
    The PVR is not started: everything is drawn by the SH-4 into the frame buffer. No wait in this file is longer than
-   the 20 ms between two reads of the pad. The fault catcher (../psm_fault.h) is in. Nothing is written but the frame
+   the 20 ms between two reads of the pad. The fault catcher (include/sh4der_fault.h) is in. Nothing is written but the frame
    buffer.
 */
 
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "../psm_suite.h"
 #include "qrcodegen.h"
 
@@ -41,7 +41,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "qr_page.h"
 #define say pg_say
 
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 static void text_pages(void) {
     char payload[QR_PAYLOAD_MAX + 1u];
@@ -59,7 +59,7 @@ static void text_pages(void) {
     say("The payloads as text (the fallback; a version 5 payload is two lines):");
     for (s = 0; s < QR_SETS; s++) {
         for (k = 0; k < qr_sets[s].count; k++) {
-            psm_fault_beat(&crumbs);
+            sh4der_fault_beat(&crumbs);
             qr_fill(&qr_sets[s], k, payload);
             bad += !qr_encode(&qr_sets[s], payload, code);
             say("%.42s", payload);
@@ -77,7 +77,7 @@ int main(void) {
     (void)pg_plot; (void)pg_series; (void)pg_point;        /* the page kit's graphs: not used here */
     suite_init();                          /* the suite disc: the menu's binary into RAM, before anything else */
     vid_set_mode(DM_640x480, PM_RGB565);
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     pg_init();
     text_pages();
     pg_extra_pages = QR_SETS;
@@ -87,7 +87,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         crumbs.frame++;
         held = now;
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
@@ -95,10 +95,10 @@ int main(void) {
         else if (hit & CONT_Y) { lv = (lv + 1u) % 3u; redraw = 1; }
         else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
         if (redraw) {
-            psm_fault_stage(&crumbs, "qr draw");
+            sh4der_fault_stage(&crumbs, "qr draw");
             if (page < pg_pages()) pg_draw(page, "QR q1", suite_keys_text("(then the codes)"));
             else if (!qr_draw(&qr_sets[page - pg_pages()], page, pages, level[lv])) pg_text(PG_X0, 480u - PG_Y0 - PG_CH, PG_WHITE, "ENCODER REFUSED A CODE");
-            psm_fault_stage(&crumbs, "qr idle");
+            sh4der_fault_stage(&crumbs, "qr idle");
             redraw = 0;
         }
         thd_sleep(20);

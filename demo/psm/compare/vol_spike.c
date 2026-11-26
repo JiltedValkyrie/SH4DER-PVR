@@ -34,15 +34,15 @@
    triangle.
 
    A volume with a vertex nearer than the near plane is not sent (counted as "skipped"): the cut is not in this spike.
-   The fault catcher (../psm_fault.h) is in. Every number comes from the run that prints it; only a real console's
+   The fault catcher (include/sh4der_fault.h) is in. Every number comes from the run that prints it; only a real console's
    run is evidence. Build: python demo/psm/compare/build.py --spike vol. Not run on a console when this was written.
 */
 
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "cmp_model.h"
 #include "vol_model.h"
 
@@ -55,7 +55,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define LINES_MAX 120u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 /* A line for the pages and the serial line. A line over the page's width goes on, indented, on the next. */
 static void say(const char *fmt, ...) {
@@ -90,8 +90,8 @@ static void page_draw(unsigned page, unsigned pages) {
 }
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -215,9 +215,9 @@ static int scene_close(void) {
     unsigned t;
 
     pvr_scene_finish();
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) return 0;
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) return 0;
     render_addr = PVR_GET(PVR_RENDER_ADDR);
     if (pvr_get_stats(&st) < 0) return 0;
@@ -518,7 +518,7 @@ static int town_frame(const town_t *t, const vol_cam_t *cam, pvr_ptr_t mem, unsi
     unsigned k;
 
     memset(r, 0, sizeof *r);
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     if (!scene_open(mem, w, h)) return 0;
     pvr_list_begin(PVR_LIST_OP_POLY);
     ground_draw(cam, t->flat);
@@ -779,7 +779,7 @@ static void run(void) {
     init.opb_overflow_count = 7;
     say("numbers below: measured by this run");
     if (pvr_init(&init) < 0) { say("pvr_init FAIL"); return; }
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     pvr_set_bg_color(0.5f, 0.7f, 1.0f);
     if (!load()) { say("video memory allocation FAIL"); pvr_shutdown(); return; }
     vid_set_dithering(false);
@@ -816,7 +816,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         pages = (nlines + ROWS - 1u) / ROWS;
         if (!pages) pages = 1u;
         if (held == ~0u) page_draw(page, pages);

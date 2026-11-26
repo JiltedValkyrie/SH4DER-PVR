@@ -1,7 +1,7 @@
 /* The new map's baked ambient occlusion, a host tool run at build time (never on the console).
  *   map_ao <out folder>     writes <out>/map_ao_gen.c and map_ao_gen.h
  * Built against the baked assets and the map (GEN: assets_gen.c, map_gen.c) and src/map.c, with the occlusion rules of
- * ../../psm/tools/ao_bake_core.h (64 cosine rays, a hit at t takes 1 - t / R of a ray).
+ * ../../../tools/ao_bake_core.h (64 cosine rays, a hit at t takes 1 - t / R of a ray).
  *   1. A byte a vertex of every map model: the model's own triangles and the ground under it (a 60 m square at y = 0),
  *      reach AOB_R (2.5 m). Instances share their model's bytes: the map's neighbours are not seen.
  *   2. The road: a 2 m grid across the loop's band (lat -12 .. 12 m, the sidewalks too) every 2 m along it, against every instance, reach
@@ -14,7 +14,7 @@
 #include "assets.h"
 #include "map.h"
 #include "map_gen.h"
-#include "../../psm/tools/ao_bake_core.h"
+#include "../../../tools/ao_bake_core.h"
 
 #define ROAD_R     10.0f                    /* the road's reach, m */
 #define ROAD_STEP  2.0f

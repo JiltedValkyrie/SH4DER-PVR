@@ -467,7 +467,7 @@ static inline void psm_bins_use(const psm_bins_t *b, psm_bin_use_t *u) {
 /* ---- the readout's line 11 ------------------------------------------------------------------------------------------ */
 
 /* The frame, the vertex buffer and SHED, so a photo of a stopped picture says how full the buffer was. The breadcrumbs of
-   what was being done are psm_fault.h's. */
+   what was being done are sh4der_fault.h's. */
 typedef struct psm_diag {
     unsigned frame;                       /* frames sent since boot */
     uint32_t est, used, used_max, vbuf;   /* bytes: this frame's estimate, KallistiOS's last and largest frame, the buffer */

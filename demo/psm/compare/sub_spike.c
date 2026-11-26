@@ -33,7 +33,7 @@
 
    (3, the two-digit compare, is a host model only: test/sub_model_test.c.)
 
-   Only PVR registers and video memory are written. The fault catcher (../psm_fault.h) is in; every wait is bounded.
+   Only PVR registers and video memory are written. The fault catcher (include/sh4der_fault.h) is in; every wait is bounded.
    Every number comes from the run that prints it; only a real console's run is evidence.
    Build: python demo/psm/compare/build.py --spike sub. Not run on a console when this file was written.
 */
@@ -41,8 +41,8 @@
 #include <kos.h>
 #include <stdarg.h>
 
-#define PSM_FAULT_IMPL
-#include "../psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #include "sub_model.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
@@ -54,7 +54,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define LINES_MAX 120u
 static char lines[LINES_MAX][COLS + 1u];
 static unsigned nlines;
-static psm_fault_crumbs_t crumbs;
+static sh4der_fault_crumbs_t crumbs;
 
 /* A line for the pages and the serial line. A line over the page's width goes on, indented, on the next. */
 static void say(const char *fmt, ...) {
@@ -89,8 +89,8 @@ static void page_draw(unsigned page, unsigned pages) {
 }
 
 static void step(const char *name) {
-    psm_fault_beat(&crumbs);
-    psm_fault_stage(&crumbs, name);
+    sh4der_fault_beat(&crumbs);
+    sh4der_fault_stage(&crumbs, name);
     crumbs.frame++;
 }
 
@@ -218,9 +218,9 @@ static int scene_close(void) {
     unsigned t;
 
     pvr_scene_finish();
-    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_ready() < 0; t++) sh4der_fault_beat(&crumbs);
     if (t == 20u) return 0;
-    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) psm_fault_beat(&crumbs);
+    for (t = 0; t < 20u && pvr_wait_render_done() < 0; t++) sh4der_fault_beat(&crumbs);
     render_addr = PVR_GET(PVR_RENDER_ADDR);
     return t < 20u;
 }
@@ -291,7 +291,7 @@ static int bump_pass(uint32_t fmt, pvr_ptr_t mem, unsigned strips, int out) {
     pvr_poly_hdr_t hb, hw, hadd, hinv, hdbl;
     unsigned i;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     mk(&hw, PVR_LIST_OP_POLY, TEX_NONE, 0u, PVR_BLEND_ONE, PVR_BLEND_ZERO, PVR_TXRENV_REPLACE);
     mk(&hadd, PVR_LIST_TR_POLY, TEX_NONE, 0u, PVR_BLEND_ONE, PVR_BLEND_ONE, PVR_TXRENV_REPLACE);
     mk(&hinv, PVR_LIST_TR_POLY, TEX_NONE, 0u, PVR_BLEND_INVDESTCOLOR, PVR_BLEND_ZERO, PVR_TXRENV_REPLACE);
@@ -386,7 +386,7 @@ static int write_pass(unsigned pack, unsigned thr, uint32_t *seen) {
     const uint32_t saved = PVR_GET(PVR_FB_CFG_2);
     int ok;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     mk(&h0, PVR_LIST_OP_POLY, TEX_NONE, 0u, PVR_BLEND_ONE, PVR_BLEND_ZERO, PVR_TXRENV_REPLACE);
     mk(&hz, PVR_LIST_TR_POLY, TEX_NONE, 0u, PVR_BLEND_ZERO, PVR_BLEND_DESTCOLOR, PVR_TXRENV_REPLACE);
     mk(&hadd, PVR_LIST_TR_POLY, TEX_PAL, BANK_ALPHA, PVR_BLEND_ONE, PVR_BLEND_ONE, PVR_TXRENV_REPLACE);
@@ -444,7 +444,7 @@ static unsigned drawn_px(void) {
 }
 
 static int punch_pass(const pvr_poly_hdr_t *h, unsigned ref, int kind) {
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     PVR_SET(PVR_PT_ALPHA_REF, ref);
     if (!scene_open(0)) return 0;
     pvr_list_begin(PVR_LIST_PT_POLY);
@@ -507,7 +507,7 @@ static int fog_pass(float zl, float zr) {
     pvr_poly_hdr_t h;
     pvr_poly_cxt_t c;
 
-    psm_fault_beat(&crumbs);
+    sh4der_fault_beat(&crumbs);
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.fog_type = PVR_FOG_TABLE;
@@ -590,7 +590,7 @@ static void stop(const char *stage) {
 static void run(void) {
     say("numbers below: measured by this run");
     if (!start()) return;
-    if (psm_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
+    if (sh4der_fault_init(&crumbs) < 0) say("fault catcher: a hook was refused");
     bump(0u, 2u);
     fb_write();
     punch();
@@ -619,7 +619,7 @@ int main(void) {
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
 
-        psm_fault_beat(&crumbs);
+        sh4der_fault_beat(&crumbs);
         pages = (nlines + ROWS - 1u) / ROWS;
         if (!pages) pages = 1u;
         if (held == ~0u) page_draw(page, pages);

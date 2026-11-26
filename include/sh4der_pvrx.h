@@ -297,8 +297,8 @@ int sh4der_pvrx_clip_set(const pvr_poly_hdr_t *dummy, unsigned tx0, unsigned ty0
         int sh4der_pvrx_rtt_begin(pvr_ptr_t target, unsigned w, unsigned h, unsigned pitch);   // cut list in
         int sh4der_pvrx_rtt_finish(void);                                                      // whole list back
       with the fallback pvr_scene_begin_rtt when the tables are not where the layer expects.
-      The spike: demo/psm/ao/tile_cut.h (tile_cut_find, tile_cut_begin, tile_cut_end; the
-      table logic host tested by demo/psm/ao/test/tile_cut_test.c), scope and risks in
+      The spike: include/sh4der_tilecut.h (sh4der_tilecut_find, sh4der_tilecut_begin, sh4der_tilecut_end; the
+      table logic host tested by test/tilecut_test.c), scope and risks in
       demo/psm/TILE_CUT_SCOPE.md. Its per-pass use is NOT console proven. It refuses a table
       that does not read as KallistiOS 568c3404 lays it out, and its end returns the words
       it could not put back (not 0: shut the PVR down and start it again).

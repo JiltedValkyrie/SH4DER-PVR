@@ -232,7 +232,7 @@ Built 2026-11-25 by Senior. **Not run on a console. No disc holds it: `suite/sui
 | Item | Value |
 |---|---|
 | ELF | `build/psm_ao/psm-ao4-e.elf`, sha256 1ad24f15830d666649b5713b1fc54c30ebc6a4783ffdbb9fc0a6471ae4e27924, no compiler warning |
-| New source | `ao/tile_cut.h` (the cut, standalone), `ao/test/tile_cut_test.c` |
+| New source | `ao/tile_cut.h` (the cut, standalone), `ao/test/tile_cut_test.c` (both moved to `include/sh4der_tilecut.h` on 2026-11-26 (`tile_cut_*` is now `sh4der_tilecut_*`, the test `test/tilecut_test.c`)) |
 | The run that counts | 19 stages, about 108 s: the 15 of ao4-d, then stages 16 and 17 (the clip guard, 3 s each), then 18 and 19 (the tile cut, 6 s each), LAST |
 
 **The clip guard (CORE 18).** `user_clip` sends a polygon with area, off the screen, before each change of user clip, because the change is said to take effect one polygon early. Until now nothing showed what happens without it.
@@ -317,7 +317,7 @@ Written 2026-11-25 by Senior. **Nothing here has run on a console.**
 - Each program names its own hide chord: ao4 and ao-lamp d-pad up + B, hens-eyes d-pad left + B, hero1 d-pad right, d1 d-pad up + Y.
 - A page with the labels takes one or two rows under the title: `PG_TOP` in `../psm_page.h` (0 by default, so older programs are unchanged).
 
-**The movable divider** (`../psm_split.h`, host test `../test/psm_split_test.c`). The line between the two halves moves by tile columns (32 pixels), 0 .. 20, with LT / RT (a press, then a step every 6 frames). A half the divider hides is not lit and not sent. The halves are user clip rectangles, as the fixed split's were.
+**The movable divider** (`include/sh4der_split.h`, host test `test/split_test.c`). The line between the two halves moves by tile columns (32 pixels), 0 .. 20, with LT / RT (a press, then a step every 6 frames). A half the divider hides is not lit and not sent. The halves are user clip rectangles, as the fixed split's were.
 
 **ao4-h** (`build/psm_ao/psm-ao4-h.elf`, sha256 a77eb2ede031e373b3b982eae0d3e88e5103a12cb641f7ae51109a86065758de): ao4-e2 with the labels and, in the live view only, the divider. Keys changed: LT / RT move the divider; BOTH triggers together are the next scene (was: either trigger). The measured stages keep the divider at the middle, tiles 0 .. 9 and 10 .. 19 as before. OPEN on a console: a user clip that moves between frames (the fixed one ran on s6b).
 

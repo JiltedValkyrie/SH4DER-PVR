@@ -48,7 +48,7 @@ From `third_party/sh4zam-dce/KERNEL_GUIDE.md`:93-107:
 - **The matrix load and the render target.** A console is the only test of these (`AGENTS.md`, pl4nar "Checks").
 - **Hardware faults** an emulator forgives: zero-area triangles, uncompiled headers, unaligned access. See [guard](../effects/guard.md).
 
-Files say "Not run on a console when this file was written" until a console has run them (psm_fault.h:62; bench_h1.c:21).
+Files say "Not run on a console when this file was written" until a console has run them (sh4der_fault.h:62; bench_h1.c:21).
 
 ## Related
 

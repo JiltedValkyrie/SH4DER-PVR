@@ -6,6 +6,9 @@
 static float    s_vw = GFX_SCREEN_W, s_vh = GFX_SCREEN_H;
 static float    s_cull;                    /* 0 none, else the sign of twice the screen area of a front face */
 static unsigned s_sent;
+#ifdef GFX_COUNT_XFORM
+unsigned gfx_xform_n;
+#endif
 
 void gfx_init(void) { gfx_be_init(); }
 void gfx_shutdown(void) { gfx_be_shutdown(); }
@@ -29,8 +32,66 @@ unsigned gfx_tris_sent(void) { return s_sent; }
  * (b - a) x (c - a) on screen. A mirrored world reverses it. */
 void gfx_cull(int mode) { s_cull = mode == GFX_CULL_BACK ? -1.0f : mode == GFX_CULL_MIRROR ? 1.0f : 0.0f; }
 
+/* ---- the window (gfx_window): a triangle cut to 0 .. w, 0 .. h and clip w >= near, then moved ---------------------- */
+static float s_wox, s_woy, s_ww, s_wh, s_wnear;    /* s_ww <= 0: no window */
+void gfx_window(float ox, float oy, float w, float h, float near_w) { s_wox = ox; s_woy = oy; s_ww = w; s_wh = h; s_wnear = near_w < GFX_NEAR ? GFX_NEAR : near_w; }
+
+/* A vertex's distance inside plane p (0 near, 1 left, 2 right, 3 top, 4 bottom), in clip space: >= 0 is inside. */
+static inline float win_d(const gfx_vert_t *v, unsigned p) {
+    return p == 0u ? v->w - s_wnear : p == 1u ? v->cx : p == 2u ? shz_fmaf(s_ww, v->w, -v->cx) : p == 3u ? v->cy : shz_fmaf(s_wh, v->w, -v->cy);
+}
+static void win_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
+    gfx_vert_t buf[2][8];
+    const gfx_vert_t *in = buf[0];
+    unsigned n = 3u, p, i, cur = 0u;
+    buf[0][0] = *a; buf[0][1] = *b; buf[0][2] = *c;
+    for (p = 0; p < 5u; p++) {
+        float d[8];
+        unsigned outside = 0u, m = 0u;
+        gfx_vert_t *out;
+        for (i = 0; i < n; i++) { d[i] = win_d(&in[i], p); outside += d[i] < 0.0f; }
+        if (outside == n) return;
+        if (!outside) continue;
+        out = buf[cur ^ 1u];
+        for (i = 0; i < n; i++) {
+            const unsigned j = (i + 1u) % n;
+            if (d[i] >= 0.0f) out[m++] = in[i];
+            if ((d[i] >= 0.0f) != (d[j] >= 0.0f)) {            /* the edge crosses the plane: the point on it */
+                const float t = shz_divf(d[i], d[i] - d[j]);
+                const unsigned ti = (unsigned)(t * 256.0f);
+                gfx_vert_t *o = &out[m++];
+                o->cx = shz_lerpf(in[i].cx, in[j].cx, t); o->cy = shz_lerpf(in[i].cy, in[j].cy, t); o->w = shz_lerpf(in[i].w, in[j].w, t);
+                o->u = shz_lerpf(in[i].u, in[j].u, t); o->v = shz_lerpf(in[i].v, in[j].v, t);
+                o->argb = gfx_mix(in[i].argb, in[j].argb, ti); o->oargb = gfx_mix(in[i].oargb, in[j].oargb, ti);
+                o->clip = 0u;
+            }
+        }
+        cur ^= 1u; in = buf[cur]; n = m;                       /* a triangle against five planes: 8 points at most */
+        if (n < 3u) return;
+    }
+    {
+        gfx_vert_t *v = buf[cur];
+        if (in != v) { v[0] = in[0]; v[1] = in[1]; v[2] = in[2]; }
+        for (i = 0; i < n; i++) {
+            const float iw = shz_invf(v[i].w);
+            v[i].x = shz_fmaf(v[i].cx, iw, s_wox); v[i].y = shz_fmaf(v[i].cy, iw, s_woy); v[i].z = iw;
+        }
+        for (i = 1; i + 1u < n; i++) {                          /* a fan; a piece with no area is not sent */
+            const float a2 = shz_vec2_cross(shz_vec2_init(v[i].x - v[0].x, v[i].y - v[0].y), shz_vec2_init(v[i + 1u].x - v[0].x, v[i + 1u].y - v[0].y));
+            if (!(shz_fabsf(a2) >= GFX_MIN_AREA2)) continue;
+            gfx_be_tri(&v[0], &v[i], &v[i + 1u]);
+            s_sent++;
+        }
+    }
+}
+
 static void out_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
     const float area2 = shz_vec2_cross(shz_vec2_init(b->x - a->x, b->y - a->y), shz_vec2_init(c->x - a->x, c->y - a->y));
+    if (s_ww > 0.0f) {                                         /* a window: the cull by the sign alone, then the cut */
+        if (s_cull != 0.0f ? !(area2 * s_cull >= GFX_MIN_AREA2) : !(shz_fabsf(area2) >= GFX_MIN_AREA2)) return;
+        win_tri(a, b, c);
+        return;
+    }
     if (s_cull != 0.0f) { if (!(area2 * s_cull >= GFX_MIN_AREA2)) return; }     /* written so that a NaN is dropped too */
     else {                                                     /* no area: the PVR would draw a line (the library's guard). cx, cy, w is
                                                                   (x w, y w, w), so the guard's x / z is the pixel. With a cull mode the

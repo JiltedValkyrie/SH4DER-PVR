@@ -36,7 +36,7 @@
      1. sht_assign(tiles, n, kinds, casters, nc, eye, sun, dt)
      2. the pass, into the target: a white quad over sht_cut's rectangle, then for each tile with strength > 0 its
         caster's triangles: sht_matrix once, then a vertex (X, Y) = m x (p, 1), weight sht_weight, a triangle through
-        sht_clip when tile.cut, colour sht_argb. Flat on one depth; the tile cut (tile_cut.h) round sht_cut's tiles.
+        sht_clip when tile.cut, colour sht_argb. Flat on one depth; the tile cut (sh4der_tilecut.h) round sht_cut's tiles.
      3. on the screen, in the translucent list after the ground: for each such tile the quad of sht_quad, texture the
         target, blend DESTCOLOR x ZERO, depth test on, depth write off.
    Once: sht_layout packs the entries.
@@ -63,7 +63,7 @@
 #define SHT_GROW_S      0.5f        /* seconds a newly given tile takes to full strength */
 #define SHT_FEATHER_PX  8.0f        /* pixels from a tile's edge over which a caster's weight falls to 0 */
 #define SHT_SUN_MIN     0.10f       /* the sun's y under which no tile is held (a shadow longer than 10 x the height) */
-#define SHT_CUT_MAX     96u         /* tiles of 32 the tile cut can take (tile_cut.h) */
+#define SHT_CUT_MAX     96u         /* tiles of 32 the tile cut can take (sh4der_tilecut.h) */
 
 /* a caster kind's tile: its pixels, the longest ground it may cover along the sun, the ground it covers across */
 typedef struct sht_kind {

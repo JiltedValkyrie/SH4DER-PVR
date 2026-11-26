@@ -56,8 +56,8 @@
 #include "psm_sky.h"
 #include "psm_ground.h"
 #include "psm_ao.h"
-#define PSM_FAULT_IMPL
-#include "psm_fault.h"
+#define SH4DER_FAULT_IMPL
+#include "sh4der_fault.h"
 #ifdef PSM_VIEWCOST                 /* the view cost test (psm_viewcost.h): a script for the pad and a timer between the frame's steps */
 #define PG_PREFIX "vc"
 #include "psm_page.h"
@@ -118,7 +118,7 @@ static int fog_atmos = -1;                /* the fog table's shape on the PVR: 0
 static psm_sky_out_t sky;                 /* this frame's sky band, cap and hills, in send order */
 
 static unsigned frame_no;                 /* frames sent since boot: the heartbeat */
-static psm_fault_crumbs_t fault_crumbs;   /* psm_fault.h: what the frame was doing, on the report if it faults or hangs */
+static sh4der_fault_crumbs_t fault_crumbs;   /* sh4der_fault.h: what the frame was doing, on the report if it faults or hangs */
 static uint32_t vbuf_used, vbuf_max;      /* KallistiOS's vertex buffer bytes: the last frame registered, the largest */
 static int look_pending;                  /* the fog colour or table changed: written once the PVR is idle (look_apply) */
 static unsigned shed_now;                 /* SHED this frame (psm_send_plan): 0 everything sent */
@@ -351,7 +351,7 @@ static void look_apply(void) {
 /* The baked occlusion (psm_ao.h): once a scene, at load, on the SH-4; timed for the AO row. The beat keeps the fault
    catcher's watchdog quiet over the seconds it takes. */
 static psm_ao_t ao;
-static void ao_tick(void) { psm_fault_beat(&fault_crumbs); }
+static void ao_tick(void) { sh4der_fault_beat(&fault_crumbs); }
 static void ao_bake(void) {
     const uint64_t t0 = timer_us_gettime64();
     const int ok = psm_ao_bake(&ao, &scene, ao_tick);
@@ -443,8 +443,8 @@ static int pad(float dt) {
         in.rt = (float)st->rtrig * (1.0f / 255.0f);
     }
     in.held = held;
-    psm_fault_frame(&fault_crumbs, frame_no, held, (unsigned)state.scene, (unsigned)state.route);
-    psm_fault_stage(&fault_crumbs, "input");
+    sh4der_fault_frame(&fault_crumbs, frame_no, held, (unsigned)state.scene, (unsigned)state.route);
+    sh4der_fault_stage(&fault_crumbs, "input");
     {
         const int route_before = state.route, grp_before = state.grp, row_before = state.row, menu_before = state.menu;
         const int32_t value_before = psm_row_int(&state, state.row);
@@ -454,8 +454,8 @@ static int pad(float dt) {
         moved = state.menu != menu_before || state.grp != grp_before || state.row != row_before
                       || psm_row_int(&state, state.row) != value_before;      /* a held repeat changes it with no new button */
     }
-    psm_fault_menu(&fault_crumbs, state.menu, (unsigned)state.row, psm_row_int(&state, state.row));
-    psm_fault_camera(&fault_crumbs, state.x, PSM_EYE_H, state.z, state.yaw * 57.29578f, -state.pitch * 57.29578f);
+    sh4der_fault_menu(&fault_crumbs, state.menu, (unsigned)state.row, psm_row_int(&state, state.row));
+    sh4der_fault_camera(&fault_crumbs, state.x, PSM_EYE_H, state.z, state.yaw * 57.29578f, -state.pitch * 57.29578f);
     return held != before || moved;
 }
 
@@ -640,7 +640,7 @@ static void vc_pages(void) {
         const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
         int redraw = 0;
 
-        psm_fault_beat(&fault_crumbs);
+        sh4der_fault_beat(&fault_crumbs);
         held = now;
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
@@ -673,7 +673,7 @@ int main(void) {
     init.opb_overflow_count = PSM_OPB_EXTRA;
     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
-    psm_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (psm_fault.h) */
+    sh4der_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (sh4der_fault.h) */
     vram0 = pvr_mem_available();
     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
 #ifdef PSM_VIEWCOST
@@ -704,7 +704,7 @@ int main(void) {
         previous = now;
         if (dt > 0.1f) dt = 0.1f;
         frame_no++;
-        psm_fault_beat(&fault_crumbs);
+        sh4der_fault_beat(&fault_crumbs);
 #ifdef PSM_VIEWCOST
         {                                    /* the script, not the pad: a button only ends the run */
             const int route_before = state.route;
@@ -721,7 +721,7 @@ int main(void) {
             dt = VC_DT;
             pad_edge = 0;
             (void)pad;
-            psm_fault_frame(&fault_crumbs, frame_no, 0u, (unsigned)state.scene, (unsigned)state.route);
+            sh4der_fault_frame(&fault_crumbs, frame_no, 0u, (unsigned)state.scene, (unsigned)state.route);
             memcpy(vc_w0, win_us, sizeof vc_w0);
             vc_f.rdy1_us = 0; vc_f.rtt_waited = 0;
         }
@@ -737,19 +737,19 @@ int main(void) {
         /* the SH-4's work, in the label's parts. B: build, clear, casters, receivers. A: build, clip (the map pass), uv.
            A wait for the PVR is the PVR's time: it is taken between two parts, in none of them. */
         t0 = timer_us_gettime64();
-        psm_fault_stage(&fault_crumbs, "setup");
+        sh4der_fault_stage(&fault_crumbs, "setup");
         psm_frame_setup(&frame, &scene, &state);
         psm_place_geo(&frame, &scene);       /* the screen placement first: route B compares only the model vertices it sends */
         if (state.atmos && sky_mem) psm_sky_build(&sky, &frame, &state);   /* the band, the cap, the hills and the fog colour */
         t1 = timer_us_gettime64();
         win_us[0] += t1 - t0;
-        psm_fault_stage(&fault_crumbs, "map");
+        sh4der_fault_stage(&fault_crumbs, "map");
         if (state.route == PSM_ROUTE_B) {
             b_ok = psm_frame_b_begin(&frame, &scene, psm_mapbuf_depth(&mapbuf, 0u, depth_map));
             t2 = timer_us_gettime64();
             if (b_ok) psm_frame_b_casters(&frame, &scene, state.movers_only);
             t3 = timer_us_gettime64();
-            psm_fault_stage(&fault_crumbs, "compare");
+            sh4der_fault_stage(&fault_crumbs, "compare");
             if (b_ok) psm_frame_b_receivers(&frame, &scene, &state);
             else psm_frame_unshadowed(&frame, &scene);
             win_us[1] += t2 - t1; win_us[2] += t3 - t2; win_us[3] += timer_us_gettime64() - t3;
@@ -762,7 +762,7 @@ int main(void) {
             map = psm_frame_ab_fill(&frame, &scene, &mapsrc);
             t3 = timer_us_gettime64();
             b_ok = map != NULL;
-            psm_fault_stage(&fault_crumbs, "compare");
+            sh4der_fault_stage(&fault_crumbs, "compare");
             if (b_ok) psm_frame_ab_compare(&frame, &scene, &state, map);
             else psm_frame_unshadowed(&frame, &scene);
             win_us[2] += t3 - t1; win_us[3] += timer_us_gettime64() - t3;
@@ -807,7 +807,7 @@ int main(void) {
         }
 
         VC_T(VC_M_PLAN);
-        psm_fault_stage(&fault_crumbs, "text");
+        sh4der_fault_stage(&fault_crumbs, "text");
         pvr_wait_ready();
         VC_T(VC_M_RDY);
         if (++hud_tick >= HUD_EVERY || pad_edge) {   /* the text, the inset and the fog registers: written when they changed, after the last render */
@@ -822,7 +822,7 @@ int main(void) {
             }
         }
         VC_T(VC_M_HUD);
-        psm_fault_stage(&fault_crumbs, "world");
+        sh4der_fault_stage(&fault_crumbs, "world");
         {
             const unsigned shed = shed_now;
             uint8_t ok[PSM_HK_N];
@@ -843,12 +843,12 @@ int main(void) {
         ta_flush();
         pvr_list_finish();
         VC_T(VC_M_TR);
-        psm_fault_stage(&fault_crumbs, "finish");
+        sh4der_fault_stage(&fault_crumbs, "finish");
         pvr_scene_finish();
         VC_T(VC_M_FIN);
         if (plan_lazy) { est_last = sink.bytes + PSM_TA_BKG; psm_send_plan_next(&lazy, sink.bytes, PSM_TA_VBUF); }
         ta_v += sink.verts;
-        psm_fault_counts(&fault_crumbs, sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG] + sink.kv[PSM_HK_LAYER],
+        sh4der_fault_counts(&fault_crumbs, sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG] + sink.kv[PSM_HK_LAYER],
                          sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG], sink.verts - sink.kv[PSM_HK_GROUND] - sink.kv[PSM_HK_GROUND_FOG]
                          - sink.kv[PSM_HK_LAYER] - sink.kv[PSM_HK_MODEL] - sink.kv[PSM_HK_MODEL_FOG], sink.verts - 2u * sink.strips);
         {

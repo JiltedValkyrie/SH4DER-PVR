@@ -144,7 +144,7 @@ The frame waits from c4 to c4g:
 | # | Question | Test | From |
 |---|---|---|---|
 | Q33 | Free video memory after `pvr_init` for this library's own demo disc (the town and field builds have it: VID-012, VID-013) | Print `pvr_mem_available()` in `demo/main.c` | VID-004 |
-| Q33b | The town crash while turning (TOWN-004) | Turn from that view with `psm_fault` and the vertex high-water mark on screen | `demo/psm/TOWN_NOTES.md` |
+| Q33b | The town crash while turning (TOWN-004) | Turn from that view with `sh4der_fault` and the vertex high-water mark on screen | `demo/psm/TOWN_NOTES.md` |
 | Q34 | The frame read's time on our console | Time `sh4der_frame` | VID-005 |
 
 ## 6. Everything
