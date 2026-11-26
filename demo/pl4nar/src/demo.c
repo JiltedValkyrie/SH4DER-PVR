@@ -238,11 +238,8 @@ static float s_aoy[MAP_AOG_ROWS][MAP_AOG_COLS];    /* the road's occlusion patch
 #define MODEL_Y 0.0f
 #define CAR_Y   0.0f
 #endif
-#ifdef PL4NAR_AUTORUN
-static unsigned s_heat_lvl = 0u;                   /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (X); off in the autorun, so its numbers compare */
-#else
-static unsigned s_heat_lvl = 1u;
-#endif
+static unsigned s_heat_lvl = 0u;                   /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (X); OFF at the start everywhere
+                                                      (the owner: it swims like a texture with no depth test) until it is clean */
 /* The heat's gate (heat.h: 0 in rain, gone by night 0.25) x the key's level. */
 static inline float heat_level(void) {
 #ifdef PL4NAR_WET
@@ -273,7 +270,9 @@ void demo_auto_sun(unsigned mode) { s_sun_mode = mode % 3u; s_sun_ph = 0.0f; }
 #endif
 #ifdef PL4NAR_HILLS
 static float s_lamp_s[MAP_LAMPS];                  /* each lamp head's s on the loop */
+#ifdef PL4NAR_BLOBS
 static float s_blob_s;                             /* blob(): the car's s on the loop */
+#endif
 static float s_tb_y, s_tb_p, s_tb_r;               /* tile_box(): the car's base height, pitch and roll */
 static float s_tile_s[TILE_N], s_tile_y[TILE_N];   /* each tile's car: s on the loop, its ground height */
 /* The tiles as a list of slots, each its own place and size in the tiles' region (32 px units from the region's top
@@ -543,7 +542,9 @@ void demo_update(const demo_input_t *in, float dt) {
     if (in->pressed & DEMO_BTN_HEAT) s_heat_lvl = (s_heat_lvl + 1u) % 3u;
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
+#ifdef PL4NAR_BLOBS
     if (in->pressed & DEMO_BTN_TILES) s_tiles = s_tiles == 1 ? 2 : s_tiles == 2 ? 0 : 1;   /* ON -> TYPICAL -> OFF */
+#endif
 #else
     if (in->pressed & DEMO_BTN_TILES) s_tiles = !s_tiles;
 #endif
@@ -599,7 +600,8 @@ void demo_update(const demo_input_t *in, float dt) {
     if (s_car.orbit > 3.14159f)  s_car.orbit -= 6.28318f;
     if (s_car.orbit < -3.14159f) s_car.orbit += 6.28318f;
     if (!s_auto && shz_fabsf(in->orbit) < 0.05f && shz_fabsf(s_car.v) > 4.0f)  /* driving: the camera eases back behind the car */
-        s_car.orbit -= s_car.orbit * shz_saturatef(1.2f * dt);
+        s_car.orbit -= shz_clampf(s_car.orbit * shz_saturatef(1.2f * dt), -0.9f * dt, 0.9f * dt);   /* at most 0.9 rad/s: no whip
+                                                                                                  round from half a turn */
     s_car.clock += dt;
     demo_place(dt);
 }
@@ -1726,7 +1728,8 @@ static void draw_car_lights(int halos) {
     }
 }
 
-/* Blob shadows: a dark ellipse under each car (GFX_MAT_HUD: vertex colour, blended). */
+#ifdef PL4NAR_BLOBS
+/* Blob shadows: a dark ellipse under each car (GFX_MAT_HUD: vertex colour, blended). Only with -DPL4NAR_BLOBS. */
 static void blob(float x, float z, float yaw, float alpha) {
     s_blob_n++;
     const shz_sincos_t hc = shz_sincosf(yaw);
@@ -1738,6 +1741,7 @@ static void blob(float x, float z, float yaw, float alpha) {
     fan(p, sh4der_pool_disc(c, u, v, 8u, 0x00000000u, alpha, p), 1);
 #endif
 }
+#endif
 
 #ifdef PL4NAR_MAP
 /* The convex hull of n (<= 16) points, counter-clockwise, into h; its count. Monotone chain. */
@@ -1965,11 +1969,13 @@ static void draw_tiles(float tw, float th) {
     gfx_viewport(tw, th);
 }
 
+#ifdef PL4NAR_BLOBS
 static int tiled(int car) {
     unsigned k;
     for (k = 0; k < s_tile_n; k++) if (s_tile_car[k] == car) return 1;
     return 0;
 }
+#endif
 
 /* The screen's side: a ground quad a tile, its texels multiplied into the frame (GFX_MAT_SHADOW). XMTRX = s_vp. */
 static void draw_tile_quads(void) {
@@ -1986,7 +1992,10 @@ static void draw_tile_quads(void) {
         if (s_tile_car[k] < -1) continue;             /* an empty slot */
         tile_rect(k, &x0, &y0, &T);
         hs = h - 0.5f * TILE_M * shz_invf(T);         /* half a texel in: the tile's own white border */
-        if (s_tiles == 1) {                           /* ON: the square laid on the ground's triangles, through the slid point */
+#ifdef PL4NAR_BLOBS
+        if (s_tiles == 1)
+#endif
+        {                                             /* ON: the square laid on the ground's triangles, through the slid point */
             const float r0[3][2] = { { cx - hs, cz - hs }, { cx + hs, cz - hs }, { cx + hs, cz + hs } };
             const float r1[3][2] = { { cx - hs, cz - hs }, { cx + hs, cz + hs }, { cx - hs, cz + hs } };
             const float gy = s_tile_y[k] * shz_invf(s_sun[1]);
@@ -1995,6 +2004,7 @@ static void draw_tile_quads(void) {
             drape(r1, NULL, 1, k, 0.02f);
             continue;
         }
+#ifdef PL4NAR_BLOBS
         {   /* TYPICAL: one flat quad at the car's ground height (what a flat-ground shadow does on a slope) */
             const float y = s_tile_y[k] + 0.02f, ty = y * shz_invf(s_sun[1]);
             for (c = 0; c < 4u; c++) {
@@ -2005,6 +2015,7 @@ static void draw_tile_quads(void) {
             }
             quad(q);
         }
+#endif
     }
     return;
 #endif
@@ -2022,6 +2033,14 @@ static void draw_tile_quads(void) {
 #endif
 
 static void draw_shadows(void) {
+#ifndef PL4NAR_BLOBS                                /* the mesh shadow alone (the owner's word): no blob disc, no flat quad;
+                                                       night and the street have no car shadow. -DPL4NAR_BLOBS keeps the discs */
+    s_blob_n = 0u;
+#ifdef PL4NAR_MAP
+    draw_tile_quads();
+    draw_road_ao();
+#endif
+#else
     const float alpha = shz_lerpf(0.50f, 0.25f, s_night);
     unsigned i;
     s_blob_n = 0u;
@@ -2061,6 +2080,7 @@ static void draw_shadows(void) {
         const float z = wrap_z(pr->z);
         if (pr->wheels && shz_fabsf(z - s_car.wz) < 80.0f) blob(pr->x, z, pr->yaw, alpha);
     }
+#endif
 }
 
 /* ------------------------------------------------------------------------------------------------ frame */
@@ -2209,6 +2229,7 @@ void demo_host_pose(float z, float x, float orbit, float tod, int reflect) {
 }
 void demo_host_cam(float ex, float ey, float ez, float ax, float ay, float az) { s_host_cam = 1; s_host_eye = shz_vec3_init(ex, ey, ez); s_host_at = shz_vec3_init(ax, ay, az); }
 void demo_host_car(float *x, float *z, float *yaw) { *x = s_car.wx; *z = s_car.wz; *yaw = s_car.wh; }
+float demo_host_orbit(void) { return s_car.orbit; }
 #ifdef PL4NAR_HILLS
 float demo_host_car_y(void) { return s_cy; }
 /* The lamps' check: car_point against the body's own matrix (draw_player's XMTRX chain), the largest gap in metres over

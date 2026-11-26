@@ -3,7 +3,7 @@
 A street, a coupe, a chase camera, a 45 second day. It shows three pieces of the library working together on a triangle budget a late 1990s console street could carry (the car is 280 triangles, a frame about 1,400 plus about 800 in the mirror pass):
 
 - **`sh4der_pl4nar`**: the street mirrored about the road into a 256 x 128 render target; the car's paint, glass and chrome look it up per vertex and blend it in by Fresnel. It is always on live; the autorun has the stages that turn it off, so the flat look and the reflective one can be compared.
-- **`sh4der_pool`**: at night each street lamp's pool of light on the road, the headlight beams, and a blob shadow under every car, as small fans of triangles.
+- **`sh4der_pool`**: at night each street lamp's pool of light on the road and the headlight beams, as small fans of triangles (the blob shadow under each car only with `-DPL4NAR_BLOBS`).
 - **`sh4der_spark_quad`**: the lamps' halos, and the same halos drawn into the mirror pass, so the lamps pass over the glass and the paint as the car drives under them.
 
 The hour costs no layer: its tint goes into the vertex colours the frame computes anyway.
@@ -88,7 +88,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **B + D-pad left** | baked occlusion on / off | map, hills | tech |
 | **B + START** | the effect labels shown / hidden | map, hills | tech |
 
-No key turns the reflection or the car's shadow off, and there is no split key: in DRIVE and the live view both are always on (the projected shadow; on the hills, laid on the ground mesh). The comparisons (reflection off, the split, blob discs, the flat quad) are stages of the autorun, set by it.
+No key turns the reflection or the car's shadow off, and there is no split key: in DRIVE and the live view both are always on (the projected shadow; on the hills, laid on the ground mesh). The autorun has no reflection-off, blob or flat-quad stage either (the owner's word): every stage is the reflection on with the mesh shadow, and the car drives on from stage to stage with no jump back to its start (`host/snap_test.c`). Night, the street and the wet road have no car shadow: the mesh shadow is by day on the map, and the blob discs only come back with `-DPL4NAR_BLOBS`. The heat starts OFF in every build until the owner has seen its rework.
 
 In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick changes no work and marks nothing). No key ends the autorun: it runs every stage, then shows its result pages, and a key pressed during a stage only marks it. The tile cut and the small tile set have no key: they are autorun stages only, and the cut is off by default. Its cost: the PVR side of a map pass fell 5.1 -> 1.4 ms but the SH-4 side rose 3.9 ms, measured in another program (d1-c, PVR-192, one console), not yet measured here; nothing more is built on it until the cause is found.
 
