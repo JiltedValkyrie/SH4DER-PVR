@@ -17,7 +17,7 @@ Status tags: **MEASURED** means a [ledger](../hardware/ledger-pvr.md) row backs 
 - Build the corner bake at load, never in a frame: a static sun bake of 152 ms does not fit (SH4-070, MEASURED).
 - The old town's whole-map route ran at 18 frames a second (MEASURED, one run, PVR-108), which misses 30 Hz.
 - Cut order: screen layers (3.1 ms of PVR each, MEASURED, PVR-002), then water, mist and motes; keep the baked corners.
-- Rising lights, mist and dented ground: Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). Uvwarp and focus are NOT RUN on a console, and the sources disagree on the look's version.
+- Rising lights, mist and dented ground: Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). Uvwarp and focus are NOT RUN on a console, and the sources disagree on the look's version.
 
 ## What this kind of game needs
 
@@ -36,14 +36,14 @@ The budget: 16.7 ms a frame at 60 Hz, 33.3 ms at 30 Hz. If the SH-4 (main proces
 | Sun shadow map [psm], route A | Sun shadow on the ground; the PVR draws casters | [header](../../include/sh4der_psm.h), [routes](../shadows/psm-routes.md) | ALPHA v0.5 |
 | Light pools [pool] | Lamp pools, blob shadows | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | ALPHA v0.2 |
 | Drifting specks [motes] | Pollen, dust, fireflies | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | PROTOTYPE |
-| Rising lights [rise] | Lanterns that settle as stars | [header](../../include/sh4der_rise.h) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
-| Mist bank [mist] | Fog over a pond, with a shape | [header](../../include/sh4der_mist.h), [page](../effects/mist.md) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Rising lights [rise] | Lanterns that settle as stars | [header](../../include/sh4der_rise.h) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
+| Mist bank [mist] | Fog over a pond, with a shape | [header](../../include/sh4der_mist.h), [page](../effects/mist.md) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Water waves [water] | A pond or lake | [header](../../include/sh4der_water.h), [page](../effects/water.md) | PROTOTYPE |
-| Dented ground [deform] | Snow keeps footprints; mud closes them | [header](../../include/sh4der_deform.h), [page](../effects/deform.md) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Dented ground [deform] | Snow keeps footprints; mud closes them | [header](../../include/sh4der_deform.h), [page](../effects/deform.md) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Texture ripple [uvwarp] | Banners, flags | [header](../../include/sh4der_uvwarp.h) | PROTOTYPE; NOT RUN |
 | Exposure and grade [look] | Eyes adapt indoors and out | [header](../../include/sh4der_look.h), [page](../effects/look.md) | PROTOTYPE |
 | Fake focus blur [focus] | A close-up keeps one part sharp | [header](../../include/sh4der_focus.h), [page](../effects/focus.md) | PROTOTYPE; NOT RUN |
-| Old film [film], tape wobble [timebase] | A flashback in worn film or tape | [film](../../include/sh4der_film.h), [timebase](../../include/sh4der_timebase.h) | PROTOTYPE; film run on a console by the owner in Match Light (her test; no measured numbers recorded yet); tape NOT RUN |
+| Old film [film], tape wobble [timebase] | A flashback in worn film or tape | [film](../../include/sh4der_film.h), [timebase](../../include/sh4der_timebase.h) | PROTOTYPE; film run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film); tape NOT RUN |
 | Screen warp [warp] | A spell's shockwave | [page](../effects/warp.md) | ALPHA v0.3 |
 | Tile-cut pass [tilecut] | Trims a small shadow target (route A) | [header](../../include/sh4der_tilecut.h), [page](../effects/tilecut.md) | ALPHA v0.5 |
 
@@ -79,12 +79,12 @@ Against 16.7 and 33.3 ms: the old town's route A had SH-4 at 13.6 ms and PVR at 
 | Shadow tiles, route A | 32 KB for a 128 × 128 tile (ESTIMATE: 2 bytes a pixel); the town's whole map was 128 KB (PVR-108) | the casters you draw | Uncut pass about 3.2 ms (PVR-004: 3,213 us at 320 × 240); PVR-156's 128 × 128 target: 3,256 us uncut, 344 us cut to 4 × 5 tiles | MEASURED, one console |
 | Route A, whole old-town map | 128 KB | 27,031 TA vertices (PVR-108) | SH-4 13.6 ms, PVR 15.9 ms; 18 fps, misses 30 Hz | MEASURED, old town, one run |
 | Light pools [pool] | none | 10 triangles, 11 vertices (exact, `sh4der_pool.h` lines 47 to 49) | Not measured; fill ESTIMATE from +3.1 ms per full-screen layer (PVR-002), by area | ALPHA v0.2 |
-| Drifting specks [motes] | 512 B mask (exact) | 96 sprites × 4 = 384 vertices (exact) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
-| Mist bank [mist] | 8 KB noise (yours) | 48 triangles at 12 sheets (exact) | Not measured; fill OPEN | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
-| Dented ground [deform] | none | 25,600 cells of RAM (exact, `sh4der_deform.h` lines 13 to 14) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Drifting specks [motes] | 512 B mask (exact) | 96 sprites × 4 = 384 vertices (exact) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
+| Mist bank [mist] | 8 KB noise (yours) | 48 triangles at 12 sheets (exact) | Not measured; fill OPEN | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
+| Dented ground [deform] | none | 25,600 cells of RAM (exact, `sh4der_deform.h` lines 13 to 14) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Water [water] | none | 2,016 to 23,040 triangles (exact, demo/OCEAN.md) | Not measured; demo ran (REPORTED) | PROTOTYPE |
 | Exposure and grade [look] | none | 0 to 6 full-screen layers (exact) | +3.1 ms each (PVR-002); six: ESTIMATE 18.7 ms (arithmetic); grid read OPEN | PROTOTYPE |
-| Film and tape [film], [timebase] | tape: 640 KB frame texture (ESTIMATE: 640 × 512 × 2 bytes) | film: one rectangle, 3 lines (exact) | Not measured | Film: run on a console by the owner in Match Light (her test; no measured numbers recorded yet). Tape: NOT RUN |
+| Film and tape [film], [timebase] | tape: 640 KB frame texture (ESTIMATE: 640 × 512 × 2 bytes) | film: one rectangle, 3 lines (exact) | Not measured | Film: run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). Tape: NOT RUN |
 | Fake focus blur [focus] | 16 KB (ESTIMATE: 128 × 64 × 2 bytes) | 408 vertices, 384 triangles (exact) | Not measured | NOT RUN |
 | Screen warp [warp] | 256 KB (ESTIMATE: 512 × 256 × 2 bytes) | mesh 2,460; pixel pass 1,200 (exact) | SH-4 mesh 2,250 us one at a time, 2,394 us in runs (BUS-004); PVR 6,466 us is in the warp page's bench table only | SH-4 MEASURED, one console (BUS-004); PVR REPORTED (warp page bench, no ledger row) |
 | Tile cut [tilecut] | none extra | the table | PVR 3,312 to 375 us on a 20-tile target (PVR-092); SH-4 begin 126 us, end 130 us (PVR-205) | MEASURED, one console |

@@ -51,7 +51,7 @@ Two fighters are two skinned bodies. One skinned hero of 1,465 vertices took 0.8
 | Motion blur [trail] | Speed in a replay | [header](../../include/sh4der_trail.h), [page](../effects/trail.md) | PROTOTYPE v0.1; our advice: too dear live (ESTIMATE, below) |
 | Smooth edges over time [taa] | Our advice: still replay shots, not a live fight | [header](../../include/sh4der_taa.h), [page](../effects/taa.md) | PROTOTYPE v0.1 |
 
-Left out for now: screen bloom [glow] (no measured cost), soft edges [softfade] (no console run), dust specks [motes] (run by the owner in Match Light, her test; no measured numbers recorded yet), and a sun shadow map (a stadium light is a lamp).
+Left out for now: screen bloom [glow] (no measured cost), soft edges [softfade] (no console run), dust specks [motes] (run by the owner in Match Light, her test; no measured numbers recorded yet; released in the public Match Light film), and a sun shadow map (a stadium light is a lamp).
 
 **Source conflicts.** blade.h:34 and bloom.h:31 say "Version: v1.00", and blade.md and bloom.md add "used in a released game"; maturity.md gives the blade PROTOTYPE v0.1 and the bloom rings ALPHA v0.3. The sources disagree; this page keeps the maturity labels. look.h:36 and taa.h:39 say "Version: v0.50", and look.md and taa.md say they run on the demo disc; maturity.md gives look and taa PROTOTYPE v0.1 with no ledger row. The sources disagree; this page keeps the maturity label.
 

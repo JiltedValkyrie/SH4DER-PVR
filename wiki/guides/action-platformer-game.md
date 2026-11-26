@@ -37,8 +37,8 @@ A frame has 16.7 ms at 60 Hz and 33.3 ms at 30 Hz ([frame budget](../limits/fram
 | Inner light [holo] | a breathing glow inside a crystal or spirit | [header](../../include/sh4der_holo.h), [page](../effects/holo.md) | NOT RUN |
 | Texture ripple [uvwarp] | a flag or force field on a strip | [header](../../include/sh4der_uvwarp.h), [page](../effects/uvwarp.md) | NOT RUN |
 | Light through thin parts [sss] | leaves and ears glow with the sun behind | [header](../../include/sh4der_sss.h), [page](../effects/sss.md) | Run on a console by the owner in Lamp with a lit shade; Sunset sea (her test; no measured numbers recorded yet) |
-| Drifting specks [motes] | pollen and dust near the hero | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
-| Rising lights [rise] | lanterns that lift off and settle as stars | [header](../../include/sh4der_rise.h), [page](../effects/rise.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Drifting specks [motes] | pollen and dust near the hero | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
+| Rising lights [rise] | lanterns that lift off and settle as stars | [header](../../include/sh4der_rise.h), [page](../effects/rise.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Dark shafts of light [shafts] | sun shapes through trees | [header](../../include/sh4der_shafts.h), [page](../effects/shafts.md) | PROTOTYPE; demo disc (REPORTED) |
 | Light pools [pool] | the hero's blob shadow; lamp light | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | disc ALPHA; fade PROTOTYPE |
 | Baked corner shading [aobake] | contact shadow in rooms, paid at load | [header](../../include/sh4der_aobake.h), [page](../effects/aobake.md) | load time MEASURED |

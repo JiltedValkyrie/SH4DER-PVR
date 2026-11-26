@@ -21,7 +21,7 @@ What it is for: lights that leave their source one at a time and settle as stars
 4. `SH4DER_RISE_TWINKLE_IN` = 1.0 s (include/sh4der_rise.h:69, ADVISED): how long the twinkle takes to fade in after a star arrives.
 5. Keep few lights in one screen tile, a 32 × 32 pixel block. 256 sorted translucent triangles in one tile measured 6,385 us, against 82 us spread over the screen (PVR-009, MEASURED; wiki/hardware/ledger-pvr.md:43). No recommended count per tile yet. The test: time the frame with the lights packed into one tile, then spread out.
 
-Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). The header says: 'counts, not times; nothing here is measured on a console' (include/sh4der_rise.h:13).
+Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). The header says: 'counts, not times; nothing here is measured on a console' (include/sh4der_rise.h:13).
 
 Header: [sh4der_rise.h](../../include/sh4der_rise.h).
 

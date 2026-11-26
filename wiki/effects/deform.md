@@ -20,7 +20,7 @@ What it is for: footprints and tracks that stay pressed into snow, mud or sand, 
 3. Rim: `SH4DER_DEFORM_RIM` = 0.25 of the dent's depth (include/sh4der_deform.h:86, ADVISED), reaching out `SH4DER_DEFORM_RIM_REACH` = 1.6 stamp radii (include/sh4der_deform.h:85, ADVISED). Set `SH4DER_DEFORM_RIM` to 0 for no rim.
 4. Prints: `SH4DER_DEFORM_PRINTS` = 32 (include/sh4der_deform.h:87, ADVISED). The decal list keeps the last 32 prints; use it on a coarse mesh for crisp footprints.
 
-Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). README 'The deform effect' says: 'Not measured: the cost on a console'; this page's Console time row says: 'not measured | OPEN'.
+Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). README 'The deform effect' says: 'Not measured: the cost on a console'; this page's Console time row says: 'not measured | OPEN'.
 
 Header: [sh4der_deform.h](../../include/sh4der_deform.h). Call order: [Call order](#call-order), below.
 

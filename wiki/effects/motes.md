@@ -21,7 +21,7 @@ What it is for: a steady field of tiny dots near a source, with no memory kept f
 4. `seed`: give each emitter its own, 1000 apart from the next (include/sh4der_motes.h:92, ADVISED).
 5. `lod_cut` = 3500.0 world units: an emitter further from the eye than this is not drawn (include/sh4der_motes.h:123, ADVISED).
 
-Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). This page says: 'There are no times.'
+Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). This page says: 'There are no times.'
 
 Header: [sh4der_motes.h](../../include/sh4der_motes.h). Call order: [Call order](#call-order), below.
 

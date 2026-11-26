@@ -21,7 +21,7 @@ Lay film wear over a finished picture: a slow flicker, scratches, dust and a sma
 4. Specks: `specks_min` = 6 to `specks_max` = 12 a tick, 75 % dark, never more than `SH4DER_FILM_SPECKS_MAX` = 12 (`include/sh4der_film.h:74`, `:165`, `:170-171`, ADVISED).
 5. Draw: the flicker's colour from `sh4der_film_exposure_argb` (`include/sh4der_film.h:251`); add the weave from `sh4der_film_weave` to the projection centre, not to captions (`include/sh4der_film.h:268`); call `sh4der_film_scratch` and `sh4der_film_specks` each frame (`:289`, `:329`, ADVISED).
 
-Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). The page: "Console time | not measured | OPEN". One full-screen translucent layer is MEASURED at about 3.1 ms at 640 x 480 ([PVR-002](../hardware/ledger-pvr.md)).
+Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). The page: "Console time | not measured | OPEN". One full-screen translucent layer is MEASURED at about 3.1 ms at 640 x 480 ([PVR-002](../hardware/ledger-pvr.md)).
 
 Header: [include/sh4der_film.h](../../include/sh4der_film.h).
 
