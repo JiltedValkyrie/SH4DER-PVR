@@ -2087,9 +2087,7 @@ Plain meanings of the terms the sections above use.
 
 SH4DER-PVR is by Jilted Valkyrie, 2026. GitHub: [JiltedValkyrie](https://github.com/JiltedValkyrie). The copyright line to show in a client's credits: `SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie`.
 
-History: many of the effects here were first written for Halo: Dreamcast Evolved, by the same author; the library's own text names no game.
-
-SH4DOW-DC, by the same author, is folded into this library. Origin: began as SH4DOW-DC, its own library. The licence is one, the terms of this file; the text SH4DOW-DC came with stays at [sh4dow-dc/LICENSE](sh4dow-dc/LICENSE), unchanged.
+SH4DOW-DC, by the same author, is folded into this library. Origin: began as SH4DOW-DC, its own library. The licence is one, the terms of this file; the text SH4DOW-DC came with stays at [sh4dow-dc/LICENSE](sh4dow-dc/LICENSE) (the line naming a game was removed on 2026-11-26).
 
 Dreamcast math: [SH4ZAM](https://github.com/gyrovorbis/sh4zam), Copyright (c) 2025, 2026 Falco Girgis, MIT. Keep that notice with the library.
 
@@ -2101,7 +2099,7 @@ Drawing: [KallistiOS](https://github.com/KallistiOS/KallistiOS), under its own l
 
 The effects' maths, the PVR paths and the tests were written with Cortana (Claude, an AI by Anthropic), the project's graphics engineer.
 
-The license is in [LICENSE](LICENSE). SH4DOW-DC is under the same terms, one licence now; [sh4dow-dc/LICENSE](sh4dow-dc/LICENSE) keeps its text as it was.
+The license is in [LICENSE](LICENSE). SH4DOW-DC is under the same terms, one licence now; [sh4dow-dc/LICENSE](sh4dow-dc/LICENSE) keeps the text SH4DOW-DC came with (the line naming a game was removed on 2026-11-26).
 
 ## Sunset ocean research demo
 

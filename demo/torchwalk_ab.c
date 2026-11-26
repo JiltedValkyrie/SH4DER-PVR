@@ -66,7 +66,7 @@ static const float AMBIENT[3] = { 0.15f, 0.18f, 0.26f };   /* the faint sky ligh
 static const float SKY_ZENITH[3] = { 0.015f, 0.025f, 0.060f };
 static const float SKY_HORIZON[3] = { 0.090f, 0.115f, 0.175f };
 #define TORCH_NEAR_GAIN 2.0f   /* the library's near add is gentle (0.425 at the eye); the demo takes it twice */
-#define TORCH_INNER_RATIO 0.64f     /* the torch's full-strength cone as a share of its edge angle (Halo SPOT C: 14 of 22 degrees) */
+#define TORCH_INNER_RATIO 0.64f     /* the torch's full-strength cone as a share of its edge angle (14 of 22 degrees) */
 #define BUMP_SKY_STRENGTH 0.20f     /* the bump with the torch off: the sky light from straight above */
 #define WU_M 3.0f                   /* metres in a world unit (the game's: 1 wu is about 3 m); a floor cell is CELL x WU_M = 1.5 m */
 #define BUMP_RANGE_FADE 0.75f       /* the bump starts to fade at this share of its range (12 m: from 9 m), to nothing at the range */
@@ -1675,7 +1675,7 @@ static const char *row_value(int row, char *buf, size_t cap) {
     case ROW_BUMP: return opt[ROW_BUMP] ? "on" : "off";
     case ROW_TORCH: return opt[ROW_TORCH] ? "on" : "off";
     case ROW_FLOOR: return opt[ROW_FLOOR] == 0 ? "baked diffuse (DCE today)" : opt[ROW_FLOOR] == 1 ? "clean + normal map" : "combined: baked + normal map";
-    case ROW_AZIMUTH: return opt[ROW_AZIMUTH] ? "y down" : "y up (pvrtex, Halo)";
+    case ROW_AZIMUTH: return opt[ROW_AZIMUTH] ? "y down" : "y up (pvrtex)";
     case ROW_GRAIN: return opt[ROW_GRAIN] ? "on" : "off";
     case ROW_VIGNETTE: return opt[ROW_VIGNETTE] ? "on" : "off";
     case ROW_EDGE: snprintf(buf, cap, "%d deg, disc %d px", (int)edge_deg[opt[ROW_EDGE]], (int)(FOCAL * sh4der_torch_tan_of_cos2(torch_cos2_outer) + 0.5f)); return buf;
