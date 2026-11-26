@@ -14,6 +14,8 @@
      VISOR   a sphere map on the visor, added (ONE x ONE), translucent list, depth equal
      SHADOW  the hero slid along the sun onto the ground, drawn into a 256 x 256 target first; the ground reads it
 
+   Three hens stand beside the road (HENS): each a flat blob under it, a fan in the translucent list, no target.
+
    A frame: where he is (strip_run), the clip (hero_pose), each bone's palette through his place, every vertex skinned
    (two matrices where a joint blends), the light, the set's objects in view through the camera (a triangle that
    crosses the near plane is cut there, not dropped), the sends. Every part is timed on the SH-4's clock; the PVR's
@@ -23,7 +25,7 @@
    of them), then pages and a graph. START on the pages: the live view.
 
      X  OPAQUE    D-pad left  DETAIL    B  VISOR    A  SHADOW    Y  he runs / he stands
-     D-pad up  the view from the other end of the street     L / R triggers  zoom out / in     stick  orbit (kept in the street)
+     D-pad up  the view from the other end of the street     D-pad down  HENS     L / R triggers  zoom out / in     stick  orbit (kept in the street)
      D-pad right  the effect labels (hidden / shown)     START  the pages
 
    The effect labels (../psm_effects.h, the table in hero_fx.h): two lines over the keys in the live view, OFF in the
@@ -43,6 +45,7 @@
 #include "hero_file.h"
 #include "hero_view.h"
 #include "hero_strip.h"
+#include "hero_hens.h"                    /* the hen: a build product (tools/hero_hens.py, from the town's mesh header) */
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -84,7 +87,7 @@ static unsigned us_of(uint64_t t) { return (unsigned)((t + 500u) / 1000u); }
 #define SHADOW_ARGB 0xff8c8c8cu
 
 static pvr_ptr_t map_mem, text_mem, tex_mem[HERO_TEXS];
-static pvr_poly_hdr_t h_flat, h_set, h_ground, h_base, h_detail, h_visor, h_text, h_dim;
+static pvr_poly_hdr_t h_flat, h_set, h_ground, h_base, h_detail, h_visor, h_text, h_dim, h_blob;
 static pvr_vertex_t vrun[RUN] __attribute__((aligned(32)));
 static unsigned run_n, sent;
 static uint16_t text_px[TEXT_W * TEXT_H] __attribute__((aligned(32)));
@@ -147,6 +150,10 @@ static void headers(void) {
     pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);
     c.gen.culling = PVR_CULLING_NONE; c.depth.comparison = PVR_DEPTHCMP_ALWAYS; c.depth.write = PVR_DEPTHWRITE_DISABLE;
     pvr_poly_compile(&h_dim, &c);
+    pvr_poly_cxt_col(&c, PVR_LIST_TR_POLY);                       /* a hen's blob: black by its vertex alpha, over the ground */
+    c.gen.culling = PVR_CULLING_NONE; c.gen.shading = PVR_SHADE_GOURAUD;
+    c.depth.comparison = PVR_DEPTHCMP_GEQUAL; c.depth.write = PVR_DEPTHWRITE_DISABLE;
+    pvr_poly_compile(&h_blob, &c);
 }
 
 /* ---- the text (ao4's: four lines of 64 characters in a texture) --------------------------------------------------- */
@@ -229,13 +236,13 @@ static int scene_close(void) {
 /* ---- the state ------------------------------------------------------------------------------------------------------ */
 
 typedef struct view {
-    int opq, det, vis, shd, run, flip, autocam;  /* run: he runs the street (0: he stands at its start); flip: the live view from the other end */
+    int opq, det, vis, shd, hens, run, flip, autocam;  /* run: he runs the street (0: he stands at its start); flip: the live view from the other end */
     float yaw, pitch, dist;
     float t, run_t;                              /* seconds: the stage's (or the live view's) own, and of running */
 } view_t;
 
 typedef struct cost {
-    uint64_t anim, pal, skin, light, op, det, vis, shd, env, pvr_map, pvr_scr, frame;   /* ns */
+    uint64_t anim, pal, skin, light, op, det, vis, shd, env, hens, pvr_map, pvr_scr, frame;   /* ns */
     unsigned v_scr, v_map, tri_hero, tri_env, tri_cut, obj_out;
     uint32_t ta_map, ta_scr;
 } cost_t;
@@ -246,6 +253,9 @@ static float hs[HERO_V_MAX][3], hsh[HERO_V_MAX][3], vuv[HERO_V_MAX][2];
 static uint8_t hl[HERO_V_MAX];
 static float sxw[STRIP_V][3], sscr[STRIP_V][3], suv[STRIP_V][2];   /* the set: X, Y, W; on screen; the ground's lookup */
 static uint8_t sok[STRIP_V], oseen[STRIP_OBJS];
+static float hen_scr[STRIP_HENS][PSM_TOWN_HEN_V][3], blob_scr[STRIP_HENS][STRIP_BLOB_N + 1u][3];
+static uint8_t hen_ok[STRIP_HENS][PSM_TOWN_HEN_V], hen_seen[STRIP_HENS], blob_ok[STRIP_HENS];
+static uint32_t hen_col[STRIP_HENS][PSM_TOWN_HEN_V];
 
 static uint32_t grey_(float k) { const unsigned g = (unsigned)(sh4der_sat_(k) * 255.0f); return 0xff000000u | (g << 16) | (g << 8) | g; }
 
@@ -400,6 +410,83 @@ static void set_send(int shd, cost_t *c) {
     }
 }
 
+/* The hens: each one's place at t, its vertices on screen with their light, its blob's points. */
+static void hen_place(const hero_cam_t *cam, float t) {
+    unsigned h, i;
+
+    for (h = 0; h < STRIP_HENS; h++) {
+        const float cs[3] = { strip_hen_home[h][0], STRIP_HEN_CY, strip_hen_home[h][1] };
+        float m[16] __attribute__((aligned(8))), vpm[16] __attribute__((aligned(8))), lr[3], bearing, tilt, b[STRIP_BLOB_N + 1u][3];
+
+        hen_seen[h] = (uint8_t)strip_seen(cam, cs, STRIP_HEN_R);
+        if (!hen_seen[h]) continue;
+        strip_hen_pose(h, t, &bearing, &tilt);
+        strip_hen_place(cs[0], cs[2], bearing, tilt, m);
+        lr[0] = sh4der_dot3_(strip_sun, &m[0]); lr[1] = sh4der_dot3_(strip_sun, &m[4]); lr[2] = sh4der_dot3_(strip_sun, &m[8]);   /* the sun in the hen's axes */
+        strip_mul(vpm, cam->vp, m);
+#ifndef SH4DER_CORE_NO_SH4ZAM
+        shz_xmtrx_load_4x4((const shz_mat4x4_t *)vpm);
+#endif
+        for (i = 0; i < PSM_TOWN_HEN_V; i++) {
+            const float d = ((float)psm_town_hen_n[i][0] * lr[0] + (float)psm_town_hen_n[i][1] * lr[1] + (float)psm_town_hen_n[i][2] * lr[2]) * (1.0f / 127.0f);
+            const float *col = hero_hen_pal[psm_town_hen_c[i] - HERO_HEN_PAL0], k = STRIP_AMB + STRIP_SUNK * (d > 0.0f ? d : 0.0f);
+#ifndef SH4DER_CORE_NO_SH4ZAM
+            const shz_vec4_t q = shz_xmtrx_transform_vec4(shz_vec4_init(psm_town_hen_v[i][0], psm_town_hen_v[i][1], psm_town_hen_v[i][2], 1.0f));
+            const float qx = q.x, qy = q.y, qw = q.w;
+#else
+            float q[4], qx, qy, qw;
+
+            hero_xf_(vpm, psm_town_hen_v[i], q); qx = q[0]; qy = q[1]; qw = q[3];
+#endif
+            hen_ok[h][i] = qw >= HERO_NEAR;
+            if (hen_ok[h][i]) { const float iw = sh4der_recip_pos_(qw); hen_scr[h][i][0] = qx * iw; hen_scr[h][i][1] = qy * iw; hen_scr[h][i][2] = iw; }
+            hen_col[h][i] = 0xff000000u | ((unsigned)(sh4der_sat_(col[0] * k) * 255.0f) << 16) | ((unsigned)(sh4der_sat_(col[1] * k) * 255.0f) << 8) | (unsigned)(sh4der_sat_(col[2] * k) * 255.0f);
+        }
+        strip_hen_blob(cs[0], cs[2], strip_sun, b);
+        blob_ok[h] = 1;
+        for (i = 0; i <= STRIP_BLOB_N; i++) if (!hero_view_pt(cam->vp, b[i], blob_scr[h][i])) blob_ok[h] = 0;
+    }
+}
+
+static unsigned hen_send(void) {                           /* opaque list, the set's header; the triangles sent */
+    unsigned h, s, i, k, n = 0;
+
+    for (h = 0; h < STRIP_HENS; h++) {
+        if (!hen_seen[h]) continue;
+        for (s = 0, k = 0; s < PSM_TOWN_HEN_S; k += psm_town_hen_sl[s], s++) {
+            int ok = 1;
+
+            for (i = 0; i < psm_town_hen_sl[s]; i++) if (!hen_ok[h][psm_town_hen_sv[k + i]]) ok = 0;
+            if (!ok) continue;
+            for (i = 0; i < psm_town_hen_sl[s]; i++) {
+                const unsigned q = psm_town_hen_sv[k + i];
+
+                put(i + 1u == psm_town_hen_sl[s], hen_scr[h][q][0], hen_scr[h][q][1], hen_scr[h][q][2], 0, 0, hen_col[h][q]);
+            }
+            n += psm_town_hen_sl[s] - 2u;
+        }
+    }
+    return n;
+}
+
+static void blob_send(void) {                              /* translucent list, first: under everything else in it */
+    unsigned h, k;
+    int any = 0;
+
+    for (h = 0; h < STRIP_HENS; h++) {
+        if (!hen_seen[h] || !blob_ok[h]) continue;
+        if (!any) { hdr(&h_blob); any = 1; }
+        for (k = 0; k < STRIP_BLOB_N; k++) {
+            const float *a = blob_scr[h][0], *b = blob_scr[h][k + 1u], *d = blob_scr[h][(k + 1u) % STRIP_BLOB_N + 1u];
+
+            if (sh4der_abs_(hero_area2(a, b, d)) < 0.02f) continue;   /* no screen area: the PVR would draw it as a line */
+            put(0, a[0], a[1], a[2], 0, 0, (uint32_t)STRIP_BLOB_A << 24);
+            put(0, b[0], b[1], b[2], 0, 0, 0x00000000u);
+            put(1, d[0], d[1], d[2], 0, 0, 0x00000000u);
+        }
+    }
+}
+
 static int frame(view_t *v, cost_t *c) {
     const uint64_t tf = ns();
     float place[16] __attribute__((aligned(8))), vph[16] __attribute__((aligned(8))), smc[16] __attribute__((aligned(8))), smh[16] __attribute__((aligned(8)));
@@ -431,6 +518,7 @@ static int frame(view_t *v, cost_t *c) {
     t0 = ns(); hero_light(&hero, (const float (*)[3])lb, STRIP_AMB, STRIP_SUNK, hl); c->light = ns() - t0;
     c->tri_hero = hero.tris;
     t0 = ns(); set_place(&cam, hz, v->shd, c); c->env = ns() - t0;
+    if (v->hens) { t0 = ns(); hen_place(&cam, v->t); c->hens = ns() - t0; }
 
     if (v->shd) {                                          /* SHADOW: the target first, its window round him */
         t0 = ns();
@@ -462,9 +550,11 @@ static int frame(view_t *v, cost_t *c) {
     sent = 0;
     pvr_list_begin(PVR_LIST_OP_POLY);
     t0 = ns(); set_send(v->shd, c); flush(); c->env += ns() - t0;
+    if (v->hens) { t0 = ns(); hdr(&h_set); c->tri_env += hen_send(); flush(); c->hens += ns() - t0; }
     if (v->opq) { t0 = ns(); hdr(&h_base); send_strips(0u, hero.strips, (const float (*)[3])hs, 0, 0u); flush(); c->op = ns() - t0; }
     pvr_list_finish();
     pvr_list_begin(PVR_LIST_TR_POLY);
+    if (v->hens) { t0 = ns(); blob_send(); flush(); c->hens += ns() - t0; }
     if (v->opq && v->det) { t0 = ns(); hdr(&h_detail); send_strips(0u, hero.visor_strip0, (const float (*)[3])hs, 1, 0xffffffffu); flush(); c->det = ns() - t0; }
     if (v->opq && v->vis) { t0 = ns(); hdr(&h_visor); send_strips(hero.visor_strip0, hero.strips, (const float (*)[3])hs, 2, 0xff909090u); flush(); c->vis = ns() - t0; }
     c->v_scr = sent;
@@ -478,20 +568,20 @@ static int frame(view_t *v, cost_t *c) {
     return 1;
 }
 
-static uint64_t sh4_of(const cost_t *c) { return c->anim + c->pal + c->skin + c->light + c->op + c->det + c->vis + c->shd + c->env; }
+static uint64_t sh4_of(const cost_t *c) { return c->anim + c->pal + c->skin + c->light + c->op + c->det + c->vis + c->shd + c->env + c->hens; }
 static const char *on_(int x) { return x ? "on" : "--"; }
 static int file_state;
 
 static void labels(const view_t *v, const cost_t *c) {
     const unsigned f = us_of(c->frame), s = us_of(sh4_of(c)), p = us_of(c->pvr_map + c->pvr_scr), a = us_of(c->anim + c->pal + c->skin + c->light);
 
-    text_set(0u, "%s %s OPQ %s DET %s VIS %s SHD %s STREET%s", file_state == 0 ? "FILE" : "BUILT-IN", v->run ? "RUN" : "STAND",
-             on_(v->opq), on_(v->det), on_(v->vis), on_(v->shd), v->flip ? " (other end)" : "");
+    text_set(0u, "%s %s OPQ %s DET %s VIS %s SHD %s HENS %s%s", file_state == 0 ? "FILE" : "BUILT-IN", v->run ? "RUN" : "STAND",
+             on_(v->opq), on_(v->det), on_(v->vis), on_(v->shd), on_(v->hens), v->flip ? " (far end)" : "");
     text_set(1u, "frame %u.%u SH4 %u.%u PVR %u.%u ms  anim+skin %u.%u ms", f / 1000u, f % 1000u / 100u, s / 1000u, s % 1000u / 100u,
              p / 1000u, p % 1000u / 100u, a / 1000u, a % 1000u / 100u);
     text_set(2u, "TA %u v %uK  hero %u tri  set %u tri %u cut  %u.%u m", c->v_scr + c->v_map, (unsigned)((c->ta_scr + c->ta_map + 512u) / 1024u),
              c->tri_hero, c->tri_env, c->tri_cut, (unsigned)v->dist, (unsigned)(v->dist * 10.0f) % 10u);
-    text_set(3u, "X opq <det B vis A shd Y run ^other end >fx LT/RT zoom ST pages");
+    text_set(3u, "X opq <det B vis A shd Y run ^far end vhens >fx LT/RT zoom ST pgs");
     {
         fx_entry_t e[HERO_FX_MAX];
         const unsigned n = hero_fx_live(v->opq, v->det, v->vis, v->shd, 0, e);
@@ -513,7 +603,7 @@ static unsigned auto_done;
 
 static void sums_add(sums_t *s, const cost_t *c) {
     s->c.anim += c->anim; s->c.pal += c->pal; s->c.skin += c->skin; s->c.light += c->light; s->c.op += c->op; s->c.det += c->det;
-    s->c.vis += c->vis; s->c.shd += c->shd; s->c.env += c->env; s->c.pvr_map += c->pvr_map; s->c.pvr_scr += c->pvr_scr;
+    s->c.vis += c->vis; s->c.shd += c->shd; s->c.env += c->env; s->c.hens += c->hens; s->c.pvr_map += c->pvr_map; s->c.pvr_scr += c->pvr_scr;
     s->c.frame += c->frame; s->c.v_scr += c->v_scr; s->c.v_map += c->v_map; s->c.ta_map += c->ta_map; s->c.ta_scr += c->ta_scr;
     s->c.tri_env += c->tri_env; s->c.tri_cut += c->tri_cut; s->c.obj_out += c->obj_out;
     s->c.tri_hero = c->tri_hero;
@@ -524,7 +614,7 @@ static void sums_mean(const sums_t *s, cost_t *m) {
     const unsigned n = s->n ? s->n : 1u;
 
     *m = s->c;
-    m->anim /= n; m->pal /= n; m->skin /= n; m->light /= n; m->op /= n; m->det /= n; m->vis /= n; m->shd /= n; m->env /= n;
+    m->anim /= n; m->pal /= n; m->skin /= n; m->light /= n; m->op /= n; m->det /= n; m->vis /= n; m->shd /= n; m->env /= n; m->hens /= n;
     m->pvr_map /= n; m->pvr_scr /= n; m->frame /= n; m->v_scr /= n; m->v_map /= n; m->ta_map /= n; m->ta_scr /= n;
     m->tri_env /= n; m->tri_cut /= n; m->obj_out /= n;
 }
@@ -537,7 +627,7 @@ static sums_t ref_sum;
 static void view_stage(view_t *v, unsigned k) {
     const strip_stage_t *s = &stages[k];
 
-    v->opq = 1; v->shd = 1; v->det = s->det; v->vis = s->vis; v->run = s->run; v->dist = s->dist; v->t = 0.0f; v->run_t = 0.0f;
+    v->opq = 1; v->shd = 1; v->hens = 1; v->det = s->det; v->vis = s->vis; v->run = s->run; v->dist = s->dist; v->t = 0.0f; v->run_t = 0.0f;
 }
 
 static void loop(int auto_run) {
@@ -582,6 +672,7 @@ static void loop(int auto_run) {
             if (hit & CONT_A) { v.shd = !v.shd; changed = 1; }
             if (hit & CONT_Y) { v.run = !v.run; changed = 1; }
             if (hit & CONT_DPAD_UP) { v.flip = !v.flip; changed = 1; }
+            if (hit & CONT_DPAD_DOWN) { v.hens = !v.hens; changed = 1; }
             if (fx_hide_chord(1, (hit & CONT_DPAD_RIGHT) != 0u, &fx_hidden)) changed = 1;   /* D-pad right alone: free here */
             if (st) {
                 if (st->joyx > 24 || st->joyx < -24) v.yaw += (float)st->joyx * (1.0f / 128.0f) * dt * 1.6f;
@@ -634,6 +725,7 @@ static void report(void) {
         hero.vn, hero.tris, hero.strips, hero.frames[0], hero.frames[1]);
     if (file_state < 0) say("HERO.BIN refused: %s; the built-in hero ran", hero_file_error(file_state));
     say("set: the space stretch, %u triangles in %u objects; hero and shadow ON in every stage", STRIP_T, STRIP_OBJS);
+    say("hens: %u beside the road in every stage, %u triangles each, a flat blob of %u under each", STRIP_HENS, PSM_TOWN_HEN_T, STRIP_BLOB_N);
     if (auto_done < STAGES) say("THE RUN DID NOT FINISH: the lines below are of what ran");
     for (k = 0; k < STAGES; k++) {
         sums_mean(&auto_sum[k], &m[k]);
@@ -648,7 +740,7 @@ static void report(void) {
     sh4[0] = ms_(m[1].anim + m[1].pal + m[1].skin + m[1].light + m[1].op); pvr[0] = 0.0f;
     sh4[1] = ms_(m[1].shd); pvr[1] = ms_(m[1].pvr_map);
     sh4[2] = ms_(m[1].env); pvr[2] = 0.0f;
-    say("by its own timer, stage 2: hero (anim .. opaque send) SH-4 %.2f; set SH-4 %.2f", sh4[0], sh4[2]);
+    say("by its own timer, stage 2: hero (anim .. opaque send) SH-4 %.2f; set SH-4 %.2f; hens SH-4 %.2f", sh4[0], sh4[2], ms_(m[1].hens));
     say("  shadow SH-4 %.2f, its target's PVR render %.2f (the ground's read of it: in the screen)", sh4[1], pvr[1]);
     sums_mean(&ref_sum, &r);
     say("DERIVED, stage 2's first %u s less the stage without the pass (the same run, the same view):", (unsigned)stages[2].secs);

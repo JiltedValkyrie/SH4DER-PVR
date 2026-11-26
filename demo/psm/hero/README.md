@@ -4,8 +4,10 @@
 
 - **The hero.** With no file, it is the original figure built in `hero_model.h`: a diver's suit, a round helmet with a slit visor, 33 bones, 1,465 vertices, 1,660 triangles, two clips of its own.
 - **The set.** The space stretch: a straight road between hangars, 2,671 triangles in 21 objects, vertex colours with the light baked. `tools/bake_strip.py` makes it from Space Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0. The kit is read from its zip as downloaded (sha256 checked); nothing of it is kept in this tree, and the header is a build product.
-- **The run.** He runs the road end to end and back and turns about at each end. The camera stays in the street and follows him. The shadow target's window is centred on him every frame.
-- **Nothing goes missing.** No stage turns the hero or his shadow off. A set triangle that crosses the near plane is cut there, not dropped. `test/hero_strip_test.c` replays the autorun on the host and fails if he or his shadow is ever hidden.
+- **The run.** He runs the road end to end and back at 5.2 m/s and turns about at each end. That speed is how fast the RUN clip's foot goes back while it is down (measured on the host from the clip), so the feet should not slide.
+- **The hens.** Three stand beside the road, look about and peck. Each has a flat blob under it: a fan of 8 triangles in the translucent list. They are not in the shadow target, so nothing pops in or out as he passes. The hen is the town's (`tools/hero_hens.py` copies it out of the town's mesh header; `hero_hens.h` is a build product).
+- **The camera and the shadow.** The camera stays in the street and follows him. The shadow target's window is centred on him every frame.
+- **Nothing goes missing.** No stage turns the hero or his shadow off. A set triangle that crosses the near plane is cut there, not dropped. `test/hero_strip_test.c` replays the autorun on the host and fails if he or his shadow is ever hidden, by the set or by a hen.
 
 ## Files
 
@@ -80,6 +82,7 @@ Little-endian. Every block is padded with zeros to a multiple of 4 bytes.
 | A | the shadow |
 | Y | he runs, or he stands at the street's start |
 | D-pad up | the view from the other end of the street |
+| D-pad down | the hens |
 | D-pad right | the effect labels, hidden or shown |
 | L trigger | zoom out |
 | R trigger | zoom in |
@@ -90,10 +93,10 @@ On the pages, START goes back to the live view. A+B+X+Y goes back to the suite m
 
 ## The autorun
 
-The program runs by itself first, then writes the result pages and a graph. The stages are the table in `hero_strip.h`. The opaque pass and the shadow are on in every one:
+The program runs by itself first, then writes the result pages and a graph. The stages are the table in `hero_strip.h`. The opaque pass, the shadow and the hens are on in every one:
 
 1. Everything on, he stands (4 s).
-2. Everything on, he runs a whole lap (26 s).
+2. Everything on, he runs a whole lap (16 s; a lap is 15.4 s).
 3. He runs, no detail (5 s).
 4. He runs, no visor (5 s).
 5. He runs, the camera farther off (5 s).

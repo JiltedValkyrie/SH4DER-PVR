@@ -1,7 +1,7 @@
 /* SH4DER-PVR: hero1's space stretch, host test: the autorun replayed; it fails if the hero or his shadow is ever hidden.
    Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
 
-   cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include -Idemo/psm/hero -I<dir of hero_strip_data.h> \
+   cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include -Idemo/psm/hero -I<dir of hero_strip_data.h> -I<dir of hero_hens.h> \
       demo/psm/hero/test/hero_strip_test.c -lm -o hero_strip_test && ./hero_strip_test
 
    Every stage of the autorun (hero_strip.h's table and camera), 30 frames a second. In every frame:
@@ -10,9 +10,12 @@
      - every vertex of the hero is in front of the camera by a metre or more, and nearly all of them are on the screen;
      - every vertex of his shadow is inside the shadow target, off its white border;
      - the shadow's spot is on the ground, on the screen, and its ground object is not left out by strip_seen;
-     - no object with a vertex on the screen is left out by strip_seen.
+     - no object with a vertex on the screen is left out by strip_seen;
+     - no hen is between the eye and the hero's head, chest or feet, or his shadow's spot, and a hen with a vertex on
+       the screen is not left out.
    And apart from the replay: the run is continuous and loops, the place matrix turns and moves as it says, the near
-   clip keeps the part in front, the live view's yaw limit keeps the eye in the street. */
+   clip keeps the part in front, the live view's yaw limit keeps the eye in the street, the hens stand clear of his run
+   and inside the street with every vertex in their sphere, and each blob lies on the ground under its hen. */
 
 #include <math.h>
 #include <stdio.h>
@@ -20,6 +23,7 @@
 #include "hero_model.h"
 #include "hero_view.h"
 #include "hero_strip.h"
+#include "hero_hens.h"
 
 static int fails;
 #define CHECK(c, ...) do { if (!(c)) { if (fails++ < 40) { printf("FAIL %s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } } while (0)
@@ -60,9 +64,25 @@ static int hidden_by(const float eye[3], const float p[3]) {
     return -1;
 }
 
+/* The hen whose sphere the way from the eye to p passes through, or -1. */
+static int hen_between(const float eye[3], const float p[3]) {
+    const float d[3] = { p[0] - eye[0], p[1] - eye[1], p[2] - eye[2] }, dd = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+    unsigned h;
+
+    for (h = 0; h < STRIP_HENS; h++) {
+        const float c[3] = { strip_hen_home[h][0] - eye[0], STRIP_HEN_CY - eye[1], strip_hen_home[h][1] - eye[2] };
+        float t = (c[0] * d[0] + c[1] * d[1] + c[2] * d[2]) / dd, q[3];
+
+        t = t < 0.0f ? 0.0f : t > 1.0f ? 1.0f : t;
+        q[0] = c[0] - d[0] * t; q[1] = c[1] - d[1] * t; q[2] = c[2] - d[2] * t;
+        if (q[0] * q[0] + q[1] * q[1] + q[2] * q[2] < STRIP_HEN_R * STRIP_HEN_R) return (int)h;
+    }
+    return -1;
+}
+
 static int on_screen(const float s[3]) { return s[0] >= 0.0f && s[0] <= 640.0f && s[1] >= 0.0f && s[1] <= 480.0f; }
 
-static unsigned frames, culled_sum, tri_sum, tri_max, clipped_max;
+static unsigned frames, culled_sum, tri_sum, tri_max, clipped_max, hens_seen;
 
 static void frame(const hero_cam_t *cam, float z, float heading, unsigned clip, float clip_t, const char *what, float t) {
     float place[16], vph[16], smat[16], smh[16], o[3];
@@ -77,6 +97,19 @@ static void frame(const hero_cam_t *cam, float z, float heading, unsigned clip, 
     for (i = 0; i < 3u; i++) {
         hb = hidden_by(cam->eye, pt[i]);
         CHECK(hb < 0, "%s t %.2f: the hero's %s is behind object %d", what, t, i == 0u ? "head" : i == 1u ? "chest" : "feet", hb);
+    }
+    for (i = 0; i < 3u; i++) CHECK(hen_between(cam->eye, pt[i]) < 0, "%s t %.2f: hen %d is in front of the hero", what, t, hen_between(cam->eye, pt[i]));
+    CHECK(hen_between(cam->eye, spot) < 0, "%s t %.2f: hen %d is in front of the shadow's spot", what, t, hen_between(cam->eye, spot));
+    for (i = 0; i < STRIP_HENS; i++) {
+        const float cs[3] = { strip_hen_home[i][0], STRIP_HEN_CY, strip_hen_home[i][1] };
+        float m[16], bearing, tilt, w[4], sc[3];
+        unsigned vis = 0;
+
+        strip_hen_pose(i, t, &bearing, &tilt);
+        strip_hen_place(cs[0], cs[2], bearing, tilt, m);
+        for (k = 0; k < PSM_TOWN_HEN_V; k++) { hero_xf_(m, psm_town_hen_v[k], w); if (hero_view_pt(cam->vp, w, sc) && on_screen(sc)) vis++; }
+        CHECK(strip_seen(cam, cs, STRIP_HEN_R) || !vis, "%s t %.2f: hen %u has %u vertices on the screen and is left out", what, t, i, vis);
+        hens_seen += vis != 0u;
     }
     hb = hidden_by(cam->eye, spot);
     CHECK(hb < 0, "%s t %.2f: the shadow's spot is behind object %d", what, t, hb);
@@ -225,6 +258,36 @@ int main(void) {
             }
     }
 
+    /* the hens: clear of his run, inside the street, on the ground, every vertex in the sphere whatever the pose; the blob */
+    for (i = 0; i < STRIP_HENS; i++) {
+        const float x = strip_hen_home[i][0], z = strip_hen_home[i][1];
+        float b[STRIP_BLOB_N + 1u][3], t;
+        unsigned k;
+
+        CHECK(fabsf(x) - STRIP_HEN_R > 1.2f, "hen %u stands in his way", i);
+        CHECK(fabsf(x) + STRIP_HEN_R < STRIP_CLEAR && fabsf(z) < STRIP_RUN, "hen %u is not in the street", i);
+        for (t = 0.0f; t < 40.0f; t += 0.05f) {
+            float m[16], bearing, tilt, w[4];
+
+            strip_hen_pose(i, t, &bearing, &tilt);
+            CHECK(tilt >= 0.0f && tilt <= 0.7001f, "hen %u tilt %.2f at t %.2f", i, tilt, t);
+            strip_hen_place(x, z, bearing, tilt, m);
+            for (k = 0; k < PSM_TOWN_HEN_V; k++) {
+                hero_xf_(m, psm_town_hen_v[k], w);
+                CHECK(w[1] > -0.02f, "hen %u vertex %u is under the ground at t %.2f (y %.3f)", i, k, t, w[1]);
+                CHECK((w[0] - x) * (w[0] - x) + (w[1] - STRIP_HEN_CY) * (w[1] - STRIP_HEN_CY) + (w[2] - z) * (w[2] - z) <= STRIP_HEN_R * STRIP_HEN_R,
+                      "hen %u vertex %u leaves its sphere at t %.2f", i, k, t);
+            }
+        }
+        strip_hen_blob(x, z, strip_sun, b);
+        for (k = 0; k <= STRIP_BLOB_N; k++) {
+            CHECK(b[k][1] == STRIP_BLOB_Y && fabsf(b[k][0]) < STRIP_GROUND_X && fabsf(b[k][2]) < STRIP_GROUND_Z, "hen %u blob point %u is off the ground", i, k);
+            CHECK(hypotf(b[k][0] - x, b[k][2] - z) < 0.6f, "hen %u blob point %u is not under it", i, k);
+            CHECK(fabsf(b[k][0]) > 1.0f, "hen %u's blob is in his way", i);
+        }
+        CHECK((b[0][0] - x) * strip_sun[0] <= 0.0f && (b[0][2] - z) * strip_sun[2] <= 0.0f, "hen %u's blob is slid toward the sun", i);
+    }
+
     /* the autorun, replayed */
     for (s = 0; s < STRIP_STAGES; s++) {
         const strip_stage_t *st = &strip_stage[s];
@@ -270,6 +333,8 @@ int main(void) {
     printf("space stretch: %u objects, %u vertices, %u triangles; a lap %.1f s, the autorun %.0f s, %u frames replayed\n", STRIP_OBJS, STRIP_V, STRIP_T, STRIP_LAP_S, secs, frames);
     printf("  set triangles sent a frame: mean %u, most %u (of %u); cut at the near plane, most in a frame: %u; objects left out a frame: mean %.1f of %u\n",
            tri_sum / (frames ? frames : 1u), tri_max, STRIP_T, clipped_max, (float)culled_sum / (float)(frames ? frames : 1u), STRIP_OBJS);
+    printf("  hens: %u beside the road, %u triangles each and a blob of %u; a hen on the screen in %u hen-frames of %u\n", STRIP_HENS, PSM_TOWN_HEN_T, STRIP_BLOB_N,
+           hens_seen, frames * STRIP_HENS);
     printf(fails ? "hero_strip_test: %d FAILED\n" : "hero_strip_test: ok\n", fails);
     return fails != 0;
 }

@@ -5,6 +5,19 @@
    Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
    The set's art (hero_strip_data.h, written by tools/bake_strip.py): Space Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0.
 
+   RECOMMENDED (no console run: nothing here is measured; wiki/limits/header-recommended.md)
+   Cost:       not measured. Counts (exact, the set as baked): 2,671 triangles, 3,543 vertices, 21 objects. A frame:
+               strip_run and strip_place (one sine and cosine each), a sphere test an object (strip_seen), one
+               matrix product each for the camera and the shadow, a cut only where a triangle crosses the near plane
+   Start with: the shadow window 2 x HERO_SPAN a side, centred on the hero every frame; STRIP_SPEED = 5.2f,
+               STRIP_TURN_S = 0.8f; the camera at 5.4 m, as the autorun's stages
+   Status:     ADVISED: host tested (test/hero_strip_test.c replays the autorun: hero and shadow never hidden)
+   Do:         keep the eye in the street (strip_eye_ok; strip_yaw_max for a live view); cut at the near plane (strip_clip)
+   Do not:     drop a set triangle that crosses the near plane; move the hero without moving the shadow's window
+   Maturity:   PROTOTYPE v0.1
+
+   Three hens stand beside the road, each over a flat blob of its own (strip_hen_*); they are not in the shadow target.
+
    The road runs along z; the hero runs it from z = STRIP_RUN to -STRIP_RUN and back at STRIP_SPEED, turning about at
    each end (strip_run: a pure function of the time, so a host test can replay a whole run). He is drawn through a
    place matrix (strip_place) multiplied into the camera's and the shadow's, so the clips stay as they are. The shadow
@@ -27,7 +40,8 @@ typedef struct strip_obj {
 
 #include "hero_strip_data.h"
 
-#define STRIP_SPEED   3.0f                       /* m/s: the RUN clip's two steps (about 2.4 m) in its 0.8 s */
+#define STRIP_SPEED   5.2f                       /* m/s: how fast the RUN clip's foot goes back while it is down (5.17 over its
+                                                    contact frames, measured on the host from the clip): the feet do not slide */
 #define STRIP_TURN_S  0.8f                       /* the turn about at an end, standing */
 #define STRIP_LEG_S   (2.0f * STRIP_RUN / STRIP_SPEED)
 #define STRIP_LAP_S   (2.0f * (STRIP_LEG_S + STRIP_TURN_S))
@@ -155,6 +169,57 @@ static inline unsigned strip_clip(const strip_cv_t in[3], float near, strip_cv_t
     return n;
 }
 
+/* ---- the hens: three beside the road, each with a flat blob under it (no shadow target: nothing to pop in or out) ---- */
+
+#define STRIP_HENS      3u
+#define STRIP_HEN_R     0.5f                     /* a sphere round a hen, about (x, STRIP_HEN_CY, z): what the cull and the test use */
+#define STRIP_HEN_CY    0.25f
+#define STRIP_BLOB_N    8u                       /* the blob: a fan of this many triangles, alpha STRIP_BLOB_A at its middle, 0 on its rim */
+#define STRIP_BLOB_R    0.26f
+#define STRIP_BLOB_Y    0.03f                    /* over the ground, so it is in front of it */
+#define STRIP_BLOB_A    0x70u
+static const float strip_hen_home[STRIP_HENS][3] = {   /* x, z, the way it faces: on the rock beside the road, clear of his run */
+    { 2.7f, 9.0f, 0.4f }, { -2.8f, -3.0f, 2.2f }, { 2.5f, -13.0f, 4.0f },
+};
+
+/* Hen i at t seconds: it stands where it is, looks about slowly and pecks now and then. A pure function of the time. */
+static inline void strip_hen_pose(unsigned i, float t, float *bearing, float *tilt) {
+    const float period = 2.2f + 0.5f * (float)i, u = sh4der_frac_(t * sh4der_div_(1.0f, period) + 0.37f * (float)i) * period;
+    float s, c;
+
+    sh4der_sincos_(6.2831853f * sh4der_frac_(t * 0.07f + 0.3f * (float)i), &s, &c);
+    *bearing = strip_hen_home[i][2] + 0.6f * s;
+    *tilt = 0.0f;
+    if (u < 0.4f) { sh4der_sincos_(STRIP_PI * u * 2.5f, &s, &c); *tilt = 0.7f * s; }
+}
+
+/* A hen's place: a turn about y, a tilt about its own side axis with its feet kept down, a move to (x, 0, z). 4 x 4
+   column-major (the town's psm_mover_rows, in this street's axes). */
+static inline void strip_hen_place(float x, float z, float bearing, float tilt, float m[16]) {
+    float sb, cb, st, ct;
+
+    sh4der_sincos_(bearing, &sb, &cb); sh4der_sincos_(tilt, &st, &ct);
+    m[0] = cb;       m[1] = 0.0f; m[2] = sb;        m[3] = 0.0f;
+    m[4] = sb * st;  m[5] = ct;   m[6] = -cb * st;  m[7] = 0.0f;
+    m[8] = -sb * ct; m[9] = st;   m[10] = cb * ct;  m[11] = 0.0f;
+    m[12] = x - 0.1f * st * sb; m[13] = 0.1f - 0.1f * ct; m[14] = z + 0.1f * st * cb; m[15] = 1.0f;
+}
+
+/* The blob under a hen at (x, z): its middle, then STRIP_BLOB_N rim points; slid a little along the sun as a shadow is.
+   Triangle k is 0, k + 1, (k + 1) % STRIP_BLOB_N + 1. */
+static inline void strip_hen_blob(float x, float z, const float sun[3], float out[STRIP_BLOB_N + 1u][3]) {
+    const float k = STRIP_HEN_CY * sh4der_recip_pos_(sun[1]), cx = x - sun[0] * k, cz = z - sun[2] * k;
+    unsigned i;
+
+    out[0][0] = cx; out[0][1] = STRIP_BLOB_Y; out[0][2] = cz;
+    for (i = 0; i < STRIP_BLOB_N; i++) {
+        float s, c;
+
+        sh4der_sincos_(6.2831853f * (float)i * (1.0f / (float)STRIP_BLOB_N), &s, &c);
+        out[i + 1u][0] = cx + STRIP_BLOB_R * c; out[i + 1u][1] = STRIP_BLOB_Y; out[i + 1u][2] = cz + STRIP_BLOB_R * s;
+    }
+}
+
 /* ---- the autorun's script: the stages and the camera, here so the host test replays what the program runs ----------- */
 
 /* A stage: which passes are on, whether he runs (0: he stands at the start), the camera's distance, its seconds. The
@@ -165,7 +230,7 @@ typedef struct strip_stage { uint8_t det, vis, run; float dist, secs; const char
 #define STRIP_AUTO_SWING 0.35f                   /* the camera swings this far either side of the street's line, radians */
 static const strip_stage_t strip_stage[STRIP_STAGES] = {
     { 1, 1, 0, 5.4f, 4.0f, "all, IDLE" },
-    { 1, 1, 1, 5.4f, 26.0f, "all, RUN a lap" },
+    { 1, 1, 1, 5.4f, 16.0f, "all, RUN a lap" },
     { 0, 1, 1, 5.4f, 5.0f, "run, no detail" },
     { 1, 0, 1, 5.4f, 5.0f, "run, no visor" },
     { 1, 1, 1, 8.0f, 5.0f, "run, far camera" },
