@@ -73,7 +73,7 @@ The block for `demo/psm/ao/tile_cut.h`:
 
 From section 6 of [frame budget](frame-budget.md); Cortana made the edits (comment only).
 
-- **`demo/pl4nar/src/heat.h`:** its block (from 4cb117d) now gives the PVR layer about 0.3 to 0.5 ms (8 % of the screen, scaled from full-screen translucent bilinear layers, PVR-006; ESTIMATE) and names the test: car-tech stage 11 (stage 1 with the heat on STRONG) against stage 1, and the page's "last copy" line. PROTOTYPE v0.1.
+- **`demo/pl4nar/src/heat.h`:** its block (from 4cb117d) now gives the PVR layer about 0.3 to 0.5 ms (8 % of the screen, scaled from full-screen translucent bilinear layers, PVR-006; ESTIMATE) and names the test: car-tech stage 11 (stage 1 with the heat on STRONG) against stage 1, and the page's "last copy" line. PROTOTYPE v0.1. **Replaced by version 2** (in the tree, not committed): the block now gives the PVR layer about 0.1 to 0.2 ms (256 × 32 px, under 3 % of the screen, the same scaling from PVR-006; ESTIMATE), TA 8.5 KB, the start values of the smooth wobble (0.7 px up and down, 70 m ahead), and Maturity "PROTOTYPE v0.2", a version the [maturity](../status/maturity.md) scale does not have (PROTOTYPE is v0.1). Its proof line still names car-tech stage 11, which no longer exists since 2a2b3e7; the fly-by stage (heat on, not committed) is the candidate.
 - **`include/sh4der_pl4nar.h`:** the Maturity line is now "ALPHA v0.5": the client rule is decided ([open questions](../open-questions.md) D2).
 
 ## Related

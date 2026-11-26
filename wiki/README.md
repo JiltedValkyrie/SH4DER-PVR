@@ -47,7 +47,7 @@ Limits are **PROVEN** (a MEASURED number backs them) or **ADVISED** (not yet). S
 - **status/**: [maturity](status/maturity.md)
 - **hardware/**: [the ledger](hardware/README.md): [PVR](hardware/ledger-pvr.md), [SH-4](hardware/ledger-sh4.md), [buses and DMA](hardware/ledger-bus-dma.md), [AICA](hardware/ledger-aica.md), [video](hardware/ledger-video.md)
 - **errata/**: [conflicts and corrections](errata/README.md)
-- **methods/**: [benchmarking](methods/benchmarking.md), [host test first](methods/host-test-first.md), [the SH4ZAM rule](methods/sh4zam-rule.md), [the fault catcher](methods/fault-catcher.md), [suite 12](methods/suite-12.md)
+- **methods/**: [benchmarking](methods/benchmarking.md), [host test first](methods/host-test-first.md), [the SH4ZAM rule](methods/sh4zam-rule.md), [the fault catcher](methods/fault-catcher.md), [suite 13](methods/suite-13.md) ([suite 12](methods/suite-12.md), superseded)
 - **shadows/**: [overview](shadows/README.md), [PSM routes](shadows/psm-routes.md), [bump compare chain](shadows/bump-compare-chain.md), [the thesis](shadows/thesis.md)
 - **research/**: [research notes](research/README.md), [outside sources](research/outside-sources.md)
 - [glossary](glossary.md), [open questions](open-questions.md), [INDEX](INDEX.md) (one line a page), [llms.txt](llms.txt) (for agents), [STRUCTURE](STRUCTURE.md) (how the wiki is built and kept)

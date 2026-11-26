@@ -1425,6 +1425,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 
 ```sh
 make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/pl4nar_test, test/pool_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, example/blade
+make test-demo                   # host: the demos' own tests alone (make test runs them too); a test whose fetched art is missing says NOT RUN
 make test-shz SH4ZAM=/path/to/sh4zam   # host, the SH4ZAM path on SH4ZAM's software back-end
 make dc SH4ZAM=/path/to/sh4zam   # Dreamcast: build/libsh4der_core.a (KallistiOS environment sourced)
 make test-dc SH4ZAM=/path/to/sh4zam  # Dreamcast: build/*_test.elf

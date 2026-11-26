@@ -4,6 +4,17 @@
    demo/psm/psm_ao.h
    Copyright (c) 2026 Jilted Valkyrie. See ../../LICENSE.
 
+   RECOMMENDED (no console run: nothing here is measured; wiki/limits/header-recommended.md)
+   Cost:       at load, once a scene. On the town's mesh, counted on the host (exact): 190,884 rays, 1,594,130
+               ray-triangle tests, 69 ms on a desktop; the SH-4's time is not measured (the AO row shows it). RAM: a
+               byte a model vertex (12 KB) and the ground's grid (70 x 103 bytes there). A frame: one more table
+               read and a saturating add a vertex: ESTIMATE
+   Start with: PSM_AO_RAYS = 12, PSM_AO_REACH = 1.6f, PSM_AO_GCELL = 0.5f; psm_ao_bake at load, psm_ao_frame a frame
+   Status:     ADVISED: host tested (test/psm_ao_test.c); the bake's time and the look on a console are OPEN
+   Do:         multiply the ambient light only; give psm_ao_bake a tick so a watchdog stays quiet over the bake
+   Do not:     bake in a frame; bake the movers (people and hens stay open, 255)
+   Maturity:   PROTOTYPE v0.1
+
    The method of ao/ao4_scene.h (ao4_bake) on a triangle mesh: from each static model vertex PSM_AO_RAYS cosine-weighted
    rays over its hemisphere, each against the scene's static triangles and the ground (y 0); a hit at t metres closes
    the ray by 1 - t / PSM_AO_REACH; the byte is 255 open .. 0 closed. The ground has no vertices of its own (its mesh

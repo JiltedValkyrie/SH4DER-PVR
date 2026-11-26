@@ -118,13 +118,15 @@ typedef struct stage { const char *name; int reflect; unsigned size, tod; int or
 #define XS_INFO  4u                                /* the overlay on */
 #define XS_STOP  8u                                /* the car stands: traffic crosses the tiles' fade band */
 #define XS_HEAT  16u                               /* (the map) the heat shimmer on STRONG; every other stage has it OFF */
+#define XS_CINE  32u                               /* the fly-by shot from the stage's start (demo_auto_cine: the heat on in it, 7 s) */
 #define AUTO_V(k) ((stages[k].xs & XS_STOP) ? 0.0f : AUTO_SPEED)   /* blobs: no shadow tiles (the hills: 2 the flat quad); noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default; sun: 1 the sweep (the hills) */
 #if defined(PL4NAR_HILLS)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night; blobs 0 mesh, 1 off, 2 flat quad */
-    /* 8 stages, 56 s: the sizes, the tile cut; the mesh shadow and the reflection on in every one (the owner's word:
+    /* 9 stages, 63 s: the sizes, the fly-by, the tile cut; the mesh shadow and the reflection on in every one (the owner's word:
        no flat, blob or reflection-off stage). Dropped for the 90 s limit: the two sun sweeps, no AO, the orbit, the overlay. */
     { "128x64 day mesh",  1, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "256x128 day mesh", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "512x256 day mesh", 1, 2, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
+    { "128x64 day flyby", 1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_CINE },
     { "128x64 night",     1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "t8 small uncut",   1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_SMALL }, { "t8 small cut", 1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_SMALL | XS_CUT },
     { "t4 128 cut",       1, 1, 1, 0, 0, 0, 0, 0.0f, 0, XS_CUT },
@@ -132,9 +134,10 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
 };
 #elif defined(PL4NAR_MAP)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    /* 7 stages, 49 s, the reflection on in every one (the owner's word: no blob or reflection-off stage). Dropped for the
+    /* 8 stages, 56 s, the reflection on in every one (the owner's word: no blob or reflection-off stage). Dropped for the
        90 s limit: the split, the night orbit. The heat stage waits for the owner's look at the new heat (heat OFF throughout). */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f, 0, 0 },
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day flyby", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_CINE },
+    { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f, 0, 0 },
     { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
@@ -151,11 +154,12 @@ static const stage_t stages[] = {                  /* the wet road: size 0 256x1
 };
 #else
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
+    { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day flyby", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_CINE },
+    { "on 128x64 day",    1, 1, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 day",   1, 2, 1, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
     { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f, 0, 0 }
-};                                                 /* 8 stages, 56 s, the reflection on in every one */
+};                                                 /* 9 stages, 63 s, the reflection on in every one */
 #endif
 _Static_assert(sizeof stages / sizeof stages[0] * (AUTO_SETTLE_S + AUTO_COUNT_S) <= 84u, "an autorun over 84 s of stages: the suite's limit is 90 s with the boot");
 #define STAGES (sizeof stages / sizeof stages[0])
@@ -192,6 +196,7 @@ static void report(void) {
     pg_say("pools dimmed by the rain: damp %u %%, wet %u %% (by eye); AO: the street has no baked AO (map only)", (unsigned)WET_POOL_DIM_DAMP, (unsigned)WET_POOL_DIM_WET);
 #else
     pg_say("pl4m %s: the street demo as it is, each stage's cost.", STR(PL4M_TAG));
+    pg_say("stage 2: the fly-by (a fixed camera at the kerb, heat on)");
 #endif
 #endif
     pg_say("%s. settle %u s, count %u s a stage, 1 frame in %u sampled", rev, AUTO_SETTLE_S, AUTO_COUNT_S, AUTO_SAMPLE);
@@ -240,11 +245,12 @@ static void report(void) {
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
     pg_say("effect labels OFF in every stage (fill); hills on, no split");
-    pg_say("shadow: mesh = laid on the ground's triangles, every stage (8, 56 s)");
+    pg_say("shadow: mesh = laid on the ground's triangles, every stage (9, 63 s)");
     pg_say("no shadow at night (the tiles are day only; no blobs)");
-    pg_say("5-8 tiles: t4 = 4 of 128 x 128 (1, the default), t8 = 8 small");
+    pg_say("4: the fly-by (a fixed camera at the kerb, heat on)");
+    pg_say("6-9 tiles: t4 = 4 of 128 x 128 (1, the default), t8 = 8 small");
     pg_say("cut: the mirror pass through its own tiles (t4 12 x 8, t8 8 x 2)");
-    pg_say("8: the car stands, traffic crosses the fade band:");
+    pg_say("9: the car stands, traffic crosses the fade band:");
     pg_say("whole to %u m, gone at %u m", 40u, 50u);
     pg_say("17 us a tile is one point (PVR-156), not a rule");
     pg_say("cut SH-4 cost: 3.9 ms in another program (d1-c, PVR-192),");
@@ -258,8 +264,9 @@ static void report(void) {
         for (k = 0; k < STAGES; k++) if (stages[k].xs) pg_say("%-2u %-16s %5u / %-5u   %u", k + 1u, stages[k].name, (unsigned)acc[k].cut_passes, (unsigned)acc[k].cut_refused, (unsigned)acc[k].band_frames);
     }
 #else
-    pg_say("effect labels OFF in every stage (fill); no split stage (7 stages, 49 s)");
-    pg_say("buildings boxed past %u m (traffic %u), stage 7 past 30 m", 50u, 40u);
+    pg_say("effect labels OFF in every stage (fill); no split stage (8 stages, 56 s)");
+    pg_say("buildings boxed past %u m (traffic %u), stage 8 past 30 m", 50u, 40u);
+    pg_say("stage 2: the fly-by (a fixed camera at the kerb, heat on)");
     {
         uint32_t heat_us, heat_n;
         demo_heat_copy(&heat_us, &heat_n);
@@ -317,6 +324,9 @@ int main(int argc, char **argv) {
 #endif
 #ifdef PL4NAR_WET
     demo_auto_rain(stages[0].sun & 3u, !(stages[0].sun & 4u), !(stages[0].sun & 8u));
+#endif
+#ifndef PL4NAR_WET
+    if (stages[0].xs & XS_CINE) demo_auto_cine();
 #endif
     psm_fault_stage(&crumbs, stages[0].name);
     t_stage = timer_us_gettime64();
@@ -422,6 +432,9 @@ int main(int argc, char **argv) {
             /* no demo_auto_place here: the car drives on from stage to stage (a jump back to the start made her sick) */
 #ifdef PL4NAR_WET
             demo_auto_rain(stages[stage].sun & 3u, !(stages[stage].sun & 4u), !(stages[stage].sun & 8u));
+#endif
+#ifndef PL4NAR_WET
+            if (stages[stage].xs & XS_CINE) demo_auto_cine();   /* the shot from where the car is: no jump */
 #endif
             psm_fault_stage(&crumbs, stages[stage].name);
             t_stage = t_prev = timer_us_gettime64();

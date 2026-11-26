@@ -57,6 +57,12 @@ Across the programs:
 8. **Move each program to one key table** (the `nav_keys` or `ctl_rows` pattern, with a host test each): ao4, lamp, hens, d1, hero1, corr, the town. This is the most work. Owners: Senior for the suite programs, Junior for the town.
 9. **Town: send the HUD first** (vc-b1 and vc-b2 test this), so a full vertex buffer cannot drop it (PVR-185). Owner: Junior.
 
+## Progress in the code (not yet run)
+
+- **Fix 5, plain names:** done for the suite menu. Every row has a plain title and a "shows" line (7d40338; s12 and s13). The programs' own screens keep their code names.
+- **Fix 7, one hide key:** not yet. The car demos hide the HUD on B + Y (3ec0988), the square on Y + A (b436756), hens on LEFT + B ([open questions](../open-questions.md) Q108).
+- **Fix 9, the town:** retired; the walled square replaces it.
+
 ## Status
 
 ADVISED. The scores are Scholar's reading of the code and videos, not a measurement. Recheck each program's row after its fix runs on a console.

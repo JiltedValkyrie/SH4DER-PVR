@@ -70,7 +70,8 @@ enum {
     DEMO_BTN_SUN     = 1u << 14,   /* the sun: FIXED -> SWEEP (azimuth, one diagonal to the other) -> HOLD (B + D-pad right) */
     DEMO_BTN_RAIN    = 1u << 15,   /* the wet road build: the rain DRY -> DAMP -> WET (Y there) */
     DEMO_BTN_HEAT    = 1u << 16,   /* the heat shimmer: OFF -> LIGHT -> STRONG (X; by day, dry: heat.h) */
-    DEMO_BTN_HIDE    = 1u << 17    /* the whole HUD hidden / shown (B + Y); START shows it again */
+    DEMO_BTN_HIDE    = 1u << 17,   /* the whole HUD hidden / shown (B + Y); START shows it again */
+    DEMO_BTN_CINE    = 1u << 18    /* the fly-by shot: a fixed camera low at the kerb ahead, the car sweeps past (B + X) */
 };
 
 typedef struct demo_input {
@@ -132,6 +133,8 @@ void  demo_auto_cut(int on);                       /* the mirror pass through it
 void  demo_auto_info(int on);                      /* the overlay (after demo_auto_set, which turns it off) */
 #endif
 void  demo_auto_heat(unsigned level);              /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (heat.h; by day, dry) */
+void  demo_auto_cine(void);                        /* the fly-by shot from here (CINE_TOTAL s, then the follow camera again) */
+int   demo_cine_on(void);                          /* the fly-by shot is running */
 void  demo_heat_copy(uint32_t *us, uint32_t *copies);   /* the heat's last copy time and copies made (0, 0 off the Dreamcast) */
 
 /* Platform: microseconds since start. */

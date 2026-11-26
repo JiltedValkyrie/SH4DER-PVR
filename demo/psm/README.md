@@ -61,6 +61,24 @@ KallistiOS's `timer_ns_gettime64` steps 2,502,400 ns ahead once every reload of 
 
 **The tile cut's tables** (`ao/tile_cut.h`). `tile_cut_t.need` is the number of tile tables a cut wants found before `tile_cut_begin` or `tile_cut_begin_cols` will write: `TILE_CUT_TABLES` (2) from `tile_cut_init`; a program that knows it has one table sets it to 1 after the init. A cut with one table of two cut cost the street demo 3.05 ms (PVR-200, MEASURED, one console). The refusal itself is host tested (`ao/test/tile_cut_test.c`) and has not run on a console.
 
+## Baked occlusion and the clean picture (`psm_dc.c`)
+
+**The AO row** (`psm_ao.h`, on by default). At load the SH-4 bakes ambient occlusion for the scene: a byte a static model vertex and a byte grid over the ground, from rays over each vertex's hemisphere against the static triangles and the ground. The byte multiplies the ambient light only: colour = albedo x (ambient x ao + sun x direct), in `psm_colour` (`psm_scene.h`). The movers (people, hens) stay open. The row turns it off and on and shows what the bake took at load; "not baked: all open" means there was no memory for it. Host test: `test/psm_ao_test.c` (the bake, the colours with and without `PSM_COLOUR_TABLE`, the row, the hide). On the town's mesh the host counts 190,884 rays and 1,594,130 ray-triangle tests (exact). The bake's time on a console is not measured.
+
+| Macro | Value | What it is |
+|---|---|---|
+| `PSM_AO_RAYS` | 12 | cosine-weighted rays a vertex |
+| `PSM_AO_REACH` | 1.6 m | how far a ray looks for an occluder; a hit at t metres closes the ray by 1 - t / reach |
+| `PSM_AO_PUSH` | 0.03 m | a ray starts this far off its surface |
+| `PSM_AO_CELL` | 2.0 m | the triangles' grid for the bake (not under the reach, so a ray touches 4 cells at most) |
+| `PSM_AO_GCELL` | 0.5 m | the ground's grid of bytes |
+| `PSM_AO_MARGIN` | 8.0 m | the ground's grid goes this far past the walk area |
+| `PSM_AO_GMAX` | 65,536 | the most cells of the ground's grid |
+
+**Y + A: the clean picture.** With the panel closed, Y and A pressed together hide everything the program draws over the picture (the readout, the panel, the inset, the heartbeat); the same keys, or START, bring it back (`psm_state_t.hide` in `psm_scene.h`, `psm_send_hud` in `psm_send.h`).
+
+Suite 13 (`suite/suite_13.json`) has the square with both, as `square` (`build/sq_senior/sh4der-square-a5.elf`); not run on a console when this was written.
+
 ## One disc for every test: the suite
 
 New test programs go on the suite disc, not on a disc each. A test takes three lines from `psm_suite.h` (after `psm_fault.h`): `suite_init();` first in main, and `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }` in the loop that shows its result pages. The same ELF still works on a disc of its own. `suite/NOTES.md` has the disc, what a start through the menu clears and does not clear, and how to add a test.

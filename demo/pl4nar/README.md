@@ -70,7 +70,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **stick or D-pad left / right** | steer | all | always |
 | **RT** | engine | all | always |
 | **LT** | brake, then reverse | all | always |
-| **X** | heat haze over the road's far end: OFF, LIGHT (the start), STRONG; by day and dry only | street, map, hills | always |
+| **X** | heat haze over the road's far end: OFF (the start), LIGHT, STRONG; by day and dry only | street, map, hills | always |
 | **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | street, map, hills | tech |
 | **Y** | the rain: DRY, DAMP, WET in turn (night always) | wet | tech |
 | **A** | textures: low (64 x 64, 16 colours, the start) or full | all | tech |
@@ -79,6 +79,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **D-pad down** | F0 down | all | tech |
 | **START** | the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills and in DRIVE | all | always |
 | **B + stick** | the camera round the car | all | always |
+| **B + X** | the fly-by: a fixed camera low at the kerb ahead, the car sweeps past through the heat (on in the shot), then the follow camera again | street, map, hills | always |
 | **B + Y** | the whole HUD hidden (the picture alone) / shown; START also shows it again | all | always |
 | **B + A** | the target's size: 128 x 64 (the start), 64 x 32, 256 x 128 in turn | wet | tech |
 | **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | street, map, hills | tech |
@@ -122,22 +123,52 @@ Its macros, in `src/demo.c`:
 
 ## The heat haze
 
-By day on a dry road (street, map, hills), the air low over the road's far end shimmers. A window of the frame before this one (448 x 96 pixels round a point of the road 30 m ahead) is read from the screen into a 128 x 64 texture and drawn back over the same place through a 24 x 4 cell mesh whose samples wander a pixel or two, at most 0.6 of the layer. **X** steps it: OFF, LIGHT (the start in DRIVE and the live view), STRONG; the autoruns run it OFF, and the map autorun's last stage is its first stage with the heat on STRONG, the pair that measures its cost. It is gone by night (from night level 0.25) and in rain. The overlay's label shows the last copy's time. The code is `src/heat.h`, host tested by `host/heat_test.c`; its open points (a near car's edge in the copy, the PVR's dither in it) are in that header.
+By day on a dry road (street, map, hills), the air over the road's far end shimmers. A window of the frame on screen (256 x 32 pixels round a point of the road 70 m ahead) is copied pixel for pixel into a 256 x 32 texture and drawn back over the same place through a 32 x 4 cell mesh. The samples drift by 0.7 of a pixel at most, in two slow waves that neighbours share, and the layer is at most half of the picture there. **X** steps it: OFF, LIGHT, STRONG; the autoruns run it OFF, so no stage measures its cost yet. It is gone by night (from night level 0.25) and in rain. The overlay's label shows the last copy's time. The code is `src/heat.h`, host tested by `host/heat_test.c`.
+
+This is version 2. Version 1 looked like swimming texels (seen as host pictures; no console run of the heat is in the ledger): its copy was 3.5 pixels to a texel, each mesh corner wobbled on its own by 2 pixels, and it sat 30 m ahead. What version 2 keeps to:
+
+- **Only the far end.** The layer has the depth of the road 70 m ahead. The car, the poles and the near buildings cover it and are not redrawn.
+- **It follows a turn.** The copy is one or two frames old. The layer samples it where the far picture was in that frame, worked out from the camera's two directions (`heat_slip`), and fades out while the far picture moves fast.
+- **No edge.** The sides fade over four cells, the top and bottom to nothing.
+
+**The hook, three calls** (in `demo.c`; the order matters):
+
+| Where | Call | What it is given |
+|---|---|---|
+| before any scene is open | `heat_copy(gate)` | the strength, 0 .. 1 (`heat_gate(night, rain)` times the level); it reads the screen and loads the texture |
+| in the screen's translucent list, after the world | `heat_view(eye3, at3)` | the camera of this frame: the same `float[3]` eye and target `heat_anchor` gets |
+| straight after it | `heat_draw(ax, ay, z, gate, seconds)` | the anchor on screen (the point `heat_anchor` gives, through the screen's matrix) and its 1 / w |
+
+Without `heat_view` nothing is drawn: the layer has no direction to follow. After every `pvr_init`, `heat_reset()`.
+
+**Where to use it, and where not.** The values in the table below are the ones this demo uses. They were judged on host pictures, not on a console: used in the demo, not proven.
+
+- **Use it for** a hot dry day: the far end of a long straight road, tarmac or a runway, a desert horizon, the air over an exhaust or a fire seen from far off (move the anchor there).
+- **Do not use it** at night or in rain (the gate gives 0 there, and then it costs nothing), on or in front of near things, or in a window smaller than 256 x 32 pixels.
+- **STRONG and LIGHT** are the same layer at a share of 0.5 and 0.25. The read of the screen costs the same in both.
+- **Watch for** three things on a console:
+  - *Turns.* If the layer trails the picture in a turn, `HEAT_LAG` is wrong: try 1.
+  - *Copy lag.* The picture in the layer is one or two frames old, so a fast thing crossing the far end leaves a faint double.
+  - *Near edges.* A far pixel right beside a near thing's edge can take up to 0.7 of a pixel of its colour.
 
 Its macros, in `src/heat.h`:
 
 | Macro | Value | What it is |
 |---|---|---|
-| `HEAT_TW`, `HEAT_TH` | 128 x 64 texels | the texture (RGB565, not twiddled: 16 KB of video memory) |
-| `HEAT_WIN_W`, `HEAT_WIN_H` | 448 x 96 px | the screen window the texture holds: the band and a margin (3.5 px a texel across) |
-| `HEAT_BAND_W` | 384 px | the band drawn, across |
-| `HEAT_BAND_UP`, `HEAT_BAND_DOWN` | 52 px, 12 px | the band over and under its anchor (to the horizon and a little above it) |
-| `HEAT_NX`, `HEAT_NY` | 24 x 4 cells | the mesh (16 x 16 px a cell: 125 vertices, `HEAT_VERTS`) |
-| `HEAT_DIST` | 30 m | the anchor: the road this far ahead of the eye |
-| `HEAT_AMP_X`, `HEAT_AMP_Y` | 2 px, 1 px | how far a sample wanders on screen |
-| `HEAT_HZ_X`, `HEAT_HZ_Y` | 2.3, 1.7 | its turns a second |
-| `HEAT_CLIMB` | 0.21 | phase a mesh row: the waves climb |
-| `HEAT_ALPHA` | 0.6 | the layer's share at its middle (STRONG; LIGHT is half) |
+| `HEAT_TW`, `HEAT_TH` | 256 x 32 texels | the texture and the screen window, a texel a pixel (RGB565, not twiddled: 16 KB of video memory) |
+| `HEAT_BAND_UP` | 22 px | the window's top over its anchor (to the horizon and a little above it) |
+| `HEAT_NX`, `HEAT_NY` | 32 x 4 cells | the mesh (8 x 8 px a cell: 165 vertices, `HEAT_VERTS`) |
+| `HEAT_DIST` | 70 m | the anchor: the road this far ahead of the eye, its far end |
+| `HEAT_AMP_X`, `HEAT_AMP_Y` | 0.35 px, 0.7 px | how far a sample drifts on screen |
+| `HEAT_WAVE_1`, `HEAT_WAVE_2` | 96 px, 64 px | the two waves' lengths across the band (12 and 8 cells) |
+| `HEAT_HZ_1`, `HEAT_HZ_2` | 0.55, 0.85 | their turns a second |
+| `HEAT_CLIMB` | 0.11 | phase a mesh row: the waves lean as they climb |
+| `HEAT_ALPHA` | 0.5 | the layer's share at its middle (STRONG; LIGHT is half) |
+| `HEAT_EDGE` | 4 cells | each side fades in over this many |
+| `HEAT_LAG` | 2 frames | how old the picture is that the copy reads (1 or 2: an ESTIMATE until a console shows it) |
+| `HEAT_SLIP_MAX` | 24 px | the layer is gone when the far picture moved this far since the copied frame |
+| `HEAT_FOCAL` | 461 px | this demo's screen: pixels at 45 degrees off its middle (55 degrees high, 480 lines) |
+| `HEAT_SLIP_SIGN_X` | -1 | this demo's screen x against (up x forward), checked against its own projection on the host |
 | `HEAT_NIGHT_MAX` | 0.25 | the night level (0 day, 1 night) at which the haze is gone |
 
 Its cost is in the Cost table below.
@@ -169,12 +200,21 @@ The map and hills autoruns keep the old high camera so their stage numbers compa
 | World textures, low look | 5 x 64 x 64 at 4 bits a texel: 10 KB, and 80 palette entries (exact) |
 | World textures, full look | 4 facades 128 x 128 and the road 256 x 256, RGB565 with mipmaps: 381 KB (exact); both sets stay loaded for the switch |
 | Resident in video memory, all at once | full textures 381 KB + low textures 10 KB + glow 2 KB + font 32 KB = 425 KB, plus the target. Street build at 256 x 128: 489 KB. Map build: 457 KB at 128 x 64 (the hills build's default), 553 KB at 256 x 128 (c7, c8; not 489 KB as this table said before), 937 KB at 512 x 256 (exact, with `--rtt`). Add the heat haze's 16 KB in the street, map and hills builds once its texture is made (the first frame it is on). Wet build at 128 x 64: 425 + 16 + 42.7 (the road layer) = 483.7 KB (exact) |
-| Heat haze | video memory 16 KB (128 x 64 RGB565, exact), RAM 16 KB (the copy's rows) and under 1 KB of state; 125 vertices, 200 sent, one header (6.4 KB of TA data). SH-4: 8,192 reads of video memory a frame, 0.4 to 0.8 ms, and about 0.1 ms through the store queue (ESTIMATE); the label and the map autorun's last stage read the copy on a console. Off: 0 |
+| Heat haze | video memory 16 KB (256 x 32 RGB565, exact), RAM 16 KB (the copy's rows) and under 1 KB of state; 165 vertices, 264 sent, 8.5 KB of TA (exact); the SH-4's 8,192 uncached reads and the store-queue load about 0.5 to 0.9 ms a frame, the PVR's 256 x 32 px translucent layer about 0.1 to 0.2 ms (both ESTIMATE, not measured); 0 when it is off, at night or in rain |
 | Wet road, the pool | 35 rows x 13 columns = 455 vertices, each looked up once (455 lookups); 34 x 12 x 2 = 816 triangles a layer, 1,632 for the reflection and the road layer together (exact). Lookup time not measured on a console (the wet result page reads it). Dry: the road layer alone, no lookup |
 | Wet road, the road layer | 128 x 128 ARGB4444 with mipmaps: 43,696 B of video memory (exact), the wet build only |
 | Lookup | 320 looked-up vertices (364 in the body, the player car only): the page's column read 0.92 to 0.97 ms on a console, one run (PVR-160), about 2.9 to 3.0 us a vertex (DERIVED). (Earlier: 0.43 ms for 1,623 vertices on an emulator, an older, heavier car.) |
 | Mirror pass, PVR | not measured (see the library README: a timer round the pass reads the PVR's queue) |
 | Pools, halos, shadows | about 100 triangles on the translucent list at night: fill not measured |
+
+## Host tests
+
+From the library's root, `make test` runs these through its `test-demo` target (plain C; nothing here is a console result):
+
+- `host/heat_test.c`: the heat haze's window, copy, slip and mesh.
+- `host/controls_test.c`: `src/controls.h` against the pad read it replaced, every pad state, in each of the seven builds (street, map, hills, wet; the first three also as DRIVE); the keys added since (X heat, B + X fly-by, B + Y hide) each on their own.
+- `host/snap_test.c`: the autorun never snaps the car or the camera: 1,890 frames through the kinds of stage change, each step within the car's speed. It is the demo itself on the host, so it needs the baked assets (`build/gen/assets_gen.c`) and SH4ZAM's software matrix file; `make test` runs the street layout when both are there and says NOT RUN when not.
+- `python tools/grit_gen.py --self-test`, `python tools/check_coupe.py --self-test`: the two build tools that need no Pillow.
 
 ## Host preview
 

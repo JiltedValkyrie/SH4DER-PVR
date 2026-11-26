@@ -11,7 +11,7 @@ sources: [include/, src/, test/, README.md "Effects", AGENTS.md "Files"]
 
 Many module names come from the first use the module had: "blade", "holo", "visor", "torch". These names say nothing about the technique. This page gives the technique first; the use comes after, as an example only.
 
-**Status: ADOPTED for the menu titles** (lead, for the owner, 2026-11-25): the suite menu's titles take the plain names, from s12 (not built yet). The code is not renamed: the compatibility aliases (the migration lines below) are deferred, so the old names stay the only names in the code until they land.
+**Status: ADOPTED for the menu titles** (lead, for the owner, 2026-11-25): the suite menu's titles take the plain names, from s12 (built, superseded before a run) and in s13. The code is not renamed: the compatibility aliases (the migration lines below) are deferred, so the old names stay the only names in the code until they land.
 
 ## 1. What each module is
 

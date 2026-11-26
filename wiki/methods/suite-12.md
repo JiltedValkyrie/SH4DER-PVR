@@ -9,7 +9,9 @@ sources: [demo/psm/suite/suite_12.json, demo/pl4nar/src/main.c, demo/psm/hero/he
 **What you will learn:** what each program on the suite 12 disc shows, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to.
 **For:** the owner, running the disc; and Scholar, filing the run.
 
-The disc is `sh4der-pvr-suite12` (staging 7d40338). **Nothing on it has run on a console yet.** The titles below are the menu's own (`demo/psm/suite/suite_12.json`).
+> **Superseded by [suite 13](suite-13.md) before it ran.** Kept for the record; read suite 13 instead.
+
+The disc is `sh4der-pvr-suite12` (staging 7d40338). **Nothing on it has run on a console.** The titles below are the menu's own (`demo/psm/suite/suite_12.json`).
 
 ## Before you start
 
@@ -57,6 +59,6 @@ Each row is filed only from the video and the pages, with the video time (mm:ss.
 ## Related
 
 - [Frame budget, section 6](../limits/frame-budget.md#6-the-car-demo-practices-so-far): the car practices these runs would prove
-- [Maturity: not run yet](../status/maturity.md#not-run-yet-s11-and-s12)
+- [Maturity: not run yet](../status/maturity.md#not-run-yet-s11-s12-and-s13)
 - [Open questions](../open-questions.md): Q103 to Q106
 - [Benchmarking](benchmarking.md)

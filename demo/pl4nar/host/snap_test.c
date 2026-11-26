@@ -2,7 +2,9 @@
  * after the first), run frame by frame at 30 Hz through a day / night / size / orbit / lod sequence. Each frame the car's
  * world step must be at most its speed x dt (+ 5 cm), its heading step under 0.05 rad, and the camera orbit's step under
  * 0.05 rad (its eased return, never a jump). Built with DEMO_HOST, any of the four builds (street, -DPL4NAR_MAP,
- * -DPL4NAR_MAP -DPL4NAR_HILLS, -DPL4NAR_WET). The street's wrap by its period is not a jump (the same picture). */
+ * -DPL4NAR_MAP -DPL4NAR_HILLS, -DPL4NAR_WET). The street's wrap by its period is not a jump (the same picture).
+ * Not the wet build: a fly-by stage (demo_auto_cine) too. Its first frame is a cut to the kerb camera on purpose; from
+ * then on the drawn eye must move under 2 m a frame (60 m/s), through the hold and the ease back to the follow camera. */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,18 +17,19 @@
 uint64_t plat_us(void) { return (uint64_t)clock() * 1000000ull / CLOCKS_PER_SEC; }
 void  demo_host_car(float *x, float *z, float *yaw);
 float demo_host_orbit(void);
+void  demo_host_eye(float *x, float *z);
 
 static float wrap_pi(float a) { while (a > 3.14159265f) a -= 6.2831853f; while (a < -3.14159265f) a += 6.2831853f; return a; }
 
 int main(int argc, char **argv) {
-    static const struct { unsigned size, tod; int orbit; float lod; } seq[] = {   /* main.c's kinds of change, 7 s each */
-        { 1, 1, 0, 0.0f }, { 0, 1, 0, 0.0f }, { 2, 1, 0, 0.0f }, { 0, 2, 0, 0.0f }, { 1, 2, 0, 0.0f },
+    static const struct { unsigned size, tod; int orbit; float lod; } seq[] = {   /* main.c's kinds of change, 7 s each; the second: the fly-by */
+        { 1, 1, 0, 0.0f }, { 0, 1, 0, 0.0f }, { 0, 1, 0, 0.0f }, { 2, 1, 0, 0.0f }, { 0, 2, 0, 0.0f }, { 1, 2, 0, 0.0f },
         { 0, 1, 1, 0.0f }, { 0, 1, 0, 30.0f }, { 0, 2, 1, 0.0f }, { 1, 1, 0, 0.0f }
     };
     const float dt = 1.0f / 30.0f;
     demo_stats_t st = { 2100u, 5200u, 900u, 600u, 11800u, 4200u };
     demo_input_t in;
-    float px, pz, ph, po, worst = 0.0f;
+    float px, pz, ph, po, ex = 0.0f, ez = 0.0f, worst = 0.0f, eye_worst = 0.0f;
     unsigned k, f, bad = 0u, frames = 0u;
     gfx_init(); demo_init();
     memset(&in, 0, sizeof in);
@@ -39,13 +42,24 @@ int main(int argc, char **argv) {
 #ifdef PL4NAR_MAP
             demo_auto_lod(seq[k].lod);
 #endif
+#ifndef PL4NAR_WET
+            if (k == 1u) demo_auto_cine();
+#endif
         }
         for (f = 0; f < 7u * 30u; f++, frames++) {
             float x, z, h, o, d, lim;
             const float v = demo_speed();
             in.gas = v < 14.0f ? 1.0f : 0.0f;
             demo_update(&in, dt);
-            if ((f & 15u) == 0u) demo_draw(&st);
+            if ((f & 15u) == 0u || k == 1u) demo_draw(&st);   /* the fly-by stage: every frame, its eye is checked */
+            if (k == 1u) {
+                float nx, nz, de;
+                demo_host_eye(&nx, &nz);
+                de = sqrtf((nx - ex) * (nx - ex) + (nz - ez) * (nz - ez));
+                if (f > 0u && de > eye_worst) eye_worst = de;
+                if (f > 0u && de > 2.0f) { if (bad++ < 8u) printf("fly-by frame %u: the eye jumped %.2f m\n", f, (double)de); }
+                ex = nx; ez = nz;
+            }
             demo_host_car(&x, &z, &h); o = demo_host_orbit();
 #ifndef PL4NAR_MAP                                  /* the street repeats every PERIOD (draw back + forward): its wrap
                                                       is the same picture, drawn round the car, not a jump */
@@ -67,6 +81,7 @@ int main(int argc, char **argv) {
             px = x; pz = z; ph = h; po = o;
         }
     }
+    printf("fly-by: the eye's largest step %.2f m a frame\n", (double)eye_worst);
     printf(bad ? "SNAP_TEST FAIL (%u)\n" : "SNAP_TEST_OK %u frames, %u stages, no jump\n", bad ? bad : frames, (unsigned)(sizeof seq / sizeof seq[0]));
     return bad != 0u;
 }

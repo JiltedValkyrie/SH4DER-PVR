@@ -181,13 +181,28 @@ $(BUILD)/psm_town_test: test/psm_town_test.c $(PSM_TOWN_DEPS) $(SRC) $(HDR)
 # Plain C, and python's standard library only (no Pillow, no Blender, no KallistiOS). The two town tests use the town's
 # mesh and sky as psm_town_test does (stand-ins when nothing was fetched). The hero street's replay needs its set, baked
 # from the Space Kit zip (CC0, a download by hand, sha256 checked by demo/psm/hero/tools/bake_strip.py): with no zip at
-# HERO_STRIP_ZIP it is not run and the last line says so. Not wired, it needs Pillow: demo/psm/tools/suite_skin.py.
+# HERO_STRIP_ZIP it is not run and a line says so. Not wired, it needs Pillow: demo/psm/tools/suite_skin.py.
+# The street demo's controls table is checked in each of its seven builds. Its snap test (the autorun never snaps the
+# car) is the demo itself on the host: it needs the baked assets (demo/pl4nar/build/gen/assets_gen.c, from build.py or
+# tools/bake.py: fetched art, Pillow, Blender) and SH4ZAM's software matrix file; without either it is not run and a
+# line says so. The street layout only. psm_place_cmp draws 432 pictures: about 20 s.
 DEMO_T          = $(BUILD)/demo_test
 DEMO_CC         = $(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -Iinclude -I$(SH4DOW)/include
-DEMO_TESTS      = heat_test psm_ground_test suite_ui_test tile_cut_test psm_colour_test psm_plan_test
+DEMO_TESTS      = heat_test psm_ground_test suite_ui_test tile_cut_test psm_viewcost_test psm_colour_test psm_plan_test psm_ao_test psm_place_cmp
+CONTROLS_TESTS  = controls_street controls_map controls_hills controls_wet controls_street_drive controls_map_drive controls_hills_drive
+controls_street_F       =
+controls_map_F          = -DPL4NAR_MAP
+controls_hills_F        = -DPL4NAR_MAP -DPL4NAR_HILLS
+controls_wet_F          = -DPL4NAR_WET
+controls_street_drive_F = -DPL4NAR_DRIVE
+controls_map_drive_F    = -DPL4NAR_MAP -DPL4NAR_DRIVE
+controls_hills_drive_F  = -DPL4NAR_MAP -DPL4NAR_HILLS -DPL4NAR_DRIVE
+SNAP_GEN        = demo/pl4nar/build/gen
+SNAP_SW         = $(SH4ZAM)/source/sw/shz_xmtrx_sw.c
+SNAP_TEST       = $(if $(wildcard $(SNAP_GEN)/assets_gen.c),$(if $(wildcard $(SNAP_SW)),$(DEMO_T)/snap_test))
 HERO_STRIP_ZIP ?= demo/pl4nar/assets/_dl/spacekit_2.0.zip
 HERO_STRIP_TEST = $(if $(wildcard $(HERO_STRIP_ZIP)),$(DEMO_T)/hero_strip_test)
-test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS)) $(HERO_STRIP_TEST)
+test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS) $(CONTROLS_TESTS)) $(HERO_STRIP_TEST) $(SNAP_TEST)
 	$(PYTHON) demo/pl4nar/tools/grit_gen.py --self-test
 	$(PYTHON) demo/pl4nar/tools/check_coupe.py --self-test
 	$(PYTHON) demo/psm/hero/tools/bake_strip.py --self-test
@@ -197,7 +212,12 @@ test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS)) $(HERO_STRIP_TEST)
 	$(DEMO_T)/tile_cut_test
 	$(DEMO_T)/psm_colour_test
 	$(DEMO_T)/psm_plan_test
+	$(DEMO_T)/psm_viewcost_test
+	$(DEMO_T)/psm_ao_test
+	$(DEMO_T)/psm_place_cmp
+	$(foreach c,$(CONTROLS_TESTS),$(DEMO_T)/$(c) &&) true
 	$(if $(HERO_STRIP_TEST),$(HERO_STRIP_TEST),@echo "hero_strip_test: NOT RUN, no $(HERO_STRIP_ZIP)")
+	$(if $(SNAP_TEST),$(SNAP_TEST),@echo "snap_test: NOT RUN, no $(SNAP_GEN)/assets_gen.c or no $(SNAP_SW)")
 
 $(DEMO_T)/heat_test: demo/pl4nar/host/heat_test.c demo/pl4nar/src/heat.h include/sh4der_core.h
 $(DEMO_T)/psm_ground_test: demo/psm/test/psm_ground_test.c demo/psm/psm_ground.h
@@ -206,9 +226,20 @@ $(DEMO_T)/tile_cut_test: demo/psm/ao/test/tile_cut_test.c demo/psm/ao/tile_cut.h
 $(DEMO_T)/heat_test $(DEMO_T)/psm_ground_test $(DEMO_T)/suite_ui_test $(DEMO_T)/tile_cut_test:
 	@mkdir -p $(DEMO_T)
 	$(DEMO_CC) $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/psm_viewcost_test: demo/psm/test/psm_viewcost_test.c demo/psm/psm_viewcost.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) -Idemo/psm $(filter %.c,$^) -lm -o $@
+$(addprefix $(DEMO_T)/,$(CONTROLS_TESTS)): demo/pl4nar/host/controls_test.c demo/pl4nar/src/controls.h demo/pl4nar/src/demo.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) $($(notdir $@)_F) -Idemo/pl4nar/src $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/snap_test: demo/pl4nar/host/snap_test.c demo/pl4nar/src/demo.c demo/pl4nar/src/gfx.c demo/pl4nar/src/hud.c demo/pl4nar/host/gfx_host.c $(SNAP_GEN)/assets_gen.c $(SNAP_SW) demo/pl4nar/src/demo.h demo/pl4nar/src/heat.h demo/pl4nar/src/controls.h
+	@mkdir -p $(DEMO_T)
+	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DDEMO_HOST -Idemo/pl4nar/src -I$(SNAP_GEN) -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include $(filter %.c,$^) -lm -o $@
 $(DEMO_T)/psm_colour_test: demo/psm/test/psm_colour_test.c
 $(DEMO_T)/psm_plan_test: demo/psm/test/psm_plan_test.c
-$(DEMO_T)/psm_colour_test $(DEMO_T)/psm_plan_test: src/sh4der_core.c $(PSM_TOWN_DEPS) include/sh4der_core.h
+$(DEMO_T)/psm_ao_test: demo/psm/test/psm_ao_test.c demo/psm/psm_ao.h
+$(DEMO_T)/psm_place_cmp: demo/psm/test/psm_place_cmp.c
+$(DEMO_T)/psm_colour_test $(DEMO_T)/psm_plan_test $(DEMO_T)/psm_ao_test $(DEMO_T)/psm_place_cmp: src/sh4der_core.c $(PSM_TOWN_DEPS) include/sh4der_core.h
 	@mkdir -p $(DEMO_T)
 	$(DEMO_CC) $(PSM_TOWN_INC) $(filter %.c,$^) -lm -o $@
 $(DEMO_T)/hero/hero_strip_data.h: demo/psm/hero/tools/bake_strip.py $(wildcard $(HERO_STRIP_ZIP))

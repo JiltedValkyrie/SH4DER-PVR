@@ -42,11 +42,13 @@
 - [Host test first](methods/host-test-first.md): make test, make test-shz, make dc
 - [The SH4ZAM rule](methods/sh4zam-rule.md): all maths through SH4ZAM; hooks in sh4zam-dce
 - [Fault catcher](methods/fault-catcher.md): reading a crash or hang screen on a console
-- [Suite 12](methods/suite-12.md): what each program on the suite 12 disc tests, what to read on its pages, the rows they go to
+- [Suite 13](methods/suite-13.md): what each program on the suite 13 disc tests, what to read on its pages, the rows they go to
+- [Suite 12](methods/suite-12.md): superseded by suite 13 before it ran
 
 ## Shadows and research
 
 - [Shadows](shadows/README.md), [PSM routes](shadows/psm-routes.md), [bump compare chain](shadows/bump-compare-chain.md), [thesis](shadows/thesis.md)
+- [Heat haze reference](research/heat-haze-reference.md): the owner's reference heat haze, measured from a video
 - [Research notes](research/README.md), [outside sources](research/outside-sources.md): cite only, never copy
 
 ## Open questions

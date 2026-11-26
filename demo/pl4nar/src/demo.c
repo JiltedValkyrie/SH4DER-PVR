@@ -197,6 +197,23 @@ static unsigned   s_refused;                      /* models refused for size: lo
 /* x, z, h: the car in the street's frame (z along it, x across, h from its direction). On the new map z is s along
    the loop and x the offset across it. wx, wz, wh: the car in the world; wcam: the camera's yaw before the orbit. */
 static struct { float x, z, h, v, cam_h, orbit, clock, wx, wz, wh, wcam; } s_car;
+
+/* The fly-by shot (B + X, an autorun stage): the camera fixed low at the kerb CINE_LEAD s of driving ahead of the car,
+   looking down the road at its far end, where the heat sits; the car sweeps past close and drives away into the
+   shimmer. No follow: the camera holds till CINE_HOLD s, then eases into the follow camera over CINE_BLEND s
+   (smoothstep on both points; both look forward, so it is a dolly, no turn, no snap). The heat is on (CINE_HEAT)
+   through it, by day and dry (the gate still holds). A look back at the car was tried on the host: the car left the
+   frame at 3.6 s and the way back to the follow camera was a half turn. */
+#define CINE_LEAD   1.0f                          /* s: the car reaches the camera */
+#define CINE_HOLD   4.5f                          /* s: the camera starts after it (the car about 50 m on, in the heat) */
+#define CINE_BLEND  2.5f                          /* a dolly forward, at most about 1.6 m a frame (snap_test) */
+#define CINE_TOTAL  (CINE_HOLD + CINE_BLEND)
+#define CINE_LAT    7.0f                          /* m from the centre line: past the lanes (5.2), inside the kerb (8) */
+#define CINE_EYE_Y  0.7f                          /* m over the road: low */
+#define CINE_LOOK   60.0f                         /* m on down the road: where the camera looks */
+#define CINE_AT_LAT 0.35f                         /* x the car's lane: the slight angle toward it */
+#define CINE_HEAT   2u                            /* STRONG */
+static struct { int on; float t; shz_vec3_t eye, at; } s_cine;
 #if defined(PL4NAR_HILLS) || defined(PL4NAR_DRIVE)
 static int      s_reflect = 1, s_info = 0, s_auto;  /* the overlay off at boot: its text costs (START shows it) */
 #else
@@ -247,7 +264,7 @@ static inline float heat_level(void) {
 #else
     const unsigned rain = 0u;                     /* no rain in this build */
 #endif
-    return heat_gate(s_night, rain) * (float)s_heat_lvl * 0.5f;
+    return heat_gate(s_night, rain) * (float)(s_cine.on && s_heat_lvl < CINE_HEAT ? CINE_HEAT : s_heat_lvl) * 0.5f;   /* the fly-by: on */
 }
 static unsigned s_haze_max = (unsigned)(HAZE_MAX * 256.0f);   /* this pass: the reflection pass keeps more contrast (less haze) */
 static sh4der_pl4nar_view_t s_pv;
@@ -318,6 +335,9 @@ static void tile_cut_size(unsigned *cw, unsigned *ch) {
 #endif
 #endif
 void demo_auto_heat(unsigned level) { s_heat_lvl = level % 3u; }
+static void cine_start(void);
+void demo_auto_cine(void) { cine_start(); }
+int demo_cine_on(void) { return s_cine.on; }
 void demo_heat_copy(uint32_t *us, uint32_t *copies) {
 #ifdef _arch_dreamcast
     *us = s_heat.copy_us; *copies = s_heat.copies;
@@ -540,6 +560,8 @@ void demo_update(const demo_input_t *in, float dt) {
 #endif
     if (in->pressed & DEMO_BTN_FX) s_fx_hidden = !s_fx_hidden;
     if (in->pressed & DEMO_BTN_HEAT) s_heat_lvl = (s_heat_lvl + 1u) % 3u;
+    if (in->pressed & DEMO_BTN_CINE) cine_start();
+    if (s_cine.on) { s_cine.t += dt; if (s_cine.t >= CINE_TOTAL) s_cine.on = 0; }
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
 #ifdef PL4NAR_BLOBS
@@ -592,6 +614,7 @@ void demo_update(const demo_input_t *in, float dt) {
     if (in->pressed & DEMO_BTN_RESTART) {          /* the car as demo_init puts it; the hour, the keys' settings and the traffic stay */
         s_car.x = -2.0f; s_car.z = 8.0f; s_car.h = 0.0f; s_car.v = 0.0f; s_car.cam_h = 0.0f; s_car.orbit = 0.0f; s_car.clock = 0.0f;
         s_laps = 0u; s_lap_t0 = s_lap_last = s_lap_best = 0.0f;
+        s_cine.on = 0;
         HILLS_SNAP();
     }
 #endif
@@ -604,6 +627,26 @@ void demo_update(const demo_input_t *in, float dt) {
                                                                                                   round from half a turn */
     s_car.clock += dt;
     demo_place(dt);
+}
+
+/* A road point: s along the street or the loop, lat across (the car's x), up over the ground there. */
+static shz_vec3_t cine_pt(float s, float lat, float up) {
+#ifdef PL4NAR_MAP
+    const map_pose_t p = map_at(map_wrap(s), lat);
+#ifdef PL4NAR_HILLS
+    return shz_vec3_init(p.x, hills_y_xz(p.x, p.z) + up, p.z);
+#else
+    return shz_vec3_init(p.x, up, p.z);
+#endif
+#else
+    return shz_vec3_init(lat, up, s);
+#endif
+}
+static void cine_start(void) {
+    const float s = s_car.z + shz_fmaxf(s_car.v, 8.0f) * CINE_LEAD, side = s_car.x < 0.0f ? -1.0f : 1.0f;
+    s_cine.eye = cine_pt(s, side * CINE_LAT, CINE_EYE_Y);
+    s_cine.at = cine_pt(s + CINE_LOOK, s_car.x * CINE_AT_LAT, 1.0f);
+    s_cine.t = 0.0f; s_cine.on = 1;
 }
 
 /* ------------------------------------------------------------------------------------------------ helpers */
@@ -2230,6 +2273,7 @@ void demo_host_pose(float z, float x, float orbit, float tod, int reflect) {
 void demo_host_cam(float ex, float ey, float ez, float ax, float ay, float az) { s_host_cam = 1; s_host_eye = shz_vec3_init(ex, ey, ez); s_host_at = shz_vec3_init(ax, ay, az); }
 void demo_host_car(float *x, float *z, float *yaw) { *x = s_car.wx; *z = s_car.wz; *yaw = s_car.wh; }
 float demo_host_orbit(void) { return s_car.orbit; }
+void demo_host_eye(float *x, float *z) { *x = s_camx; *z = s_camz; }   /* the last drawn frame's eye */
 #ifdef PL4NAR_HILLS
 float demo_host_car_y(void) { return s_cy; }
 /* The lamps' check: car_point against the body's own matrix (draw_player's XMTRX chain), the largest gap in metres over
@@ -2263,10 +2307,12 @@ void demo_draw(const demo_stats_t *st) {
 #else
     const shz_vec3_t at_c = shz_vec3_init(s_car.wx + hc.sin * 1.2f, 1.0f + CAR_Y, s_car.wz + hc.cos * 1.2f);
 #endif
+    const float ck = s_cine.on ? shz_saturatef((s_cine.t - CINE_HOLD) * (1.0f / CINE_BLEND)) : 1.0f, cs = ck * ck * (3.0f - 2.0f * ck);
+    const shz_vec3_t eye_f = s_cine.on ? shz_vec3_lerp(s_cine.eye, eye_c, cs) : eye_c, at_f = s_cine.on ? shz_vec3_lerp(s_cine.at, at_c, cs) : at_c;
 #ifdef DEMO_HOST
-    const shz_vec3_t eye = s_host_cam ? s_host_eye : eye_c, at = s_host_cam ? s_host_at : at_c;
+    const shz_vec3_t eye = s_host_cam ? s_host_eye : eye_f, at = s_host_cam ? s_host_at : at_f;
 #else
-    const shz_vec3_t eye = eye_c, at = at_c;
+    const shz_vec3_t eye = eye_f, at = at_f;
 #endif
     const float eye3[3] = { eye.x, eye.y, eye.z }, at3[3] = { at.x, at.y, at.z }, up3[3] = { 0.0f, 1.0f, 0.0f };
     s_camz = eye.z; s_camx = eye.x;
@@ -2371,9 +2417,10 @@ void demo_draw(const demo_stats_t *st) {
     {   /* the heat shimmer, the last world thing; its own header and strips (not counted in s_tris_main) */
         float hp[3];
         gfx_vert_t hv;
+        heat_view(eye3, at3);                     /* this frame's camera: the layer follows a turn (heat v2) */
         if (heat_anchor(eye3, at3, CAR_Y, hp)) {
 #ifdef PL4NAR_HILLS
-            if (!heat_anchor(eye3, at3, hills_h(hp[0], hp[2]), hp)) hp[1] = -1e9f;   /* the road's own height 30 m on */
+            if (!heat_anchor(eye3, at3, hills_h(hp[0], hp[2]), hp)) hp[1] = -1e9f;   /* the road's own height 70 m on (HEAT_DIST) */
 #endif
             VP_LOAD();
             gfx_xform(&hv, shz_vec3_init(hp[0], hp[1], hp[2]));
