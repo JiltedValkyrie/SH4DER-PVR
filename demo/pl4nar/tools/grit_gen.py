@@ -6,6 +6,11 @@ arithmetic, nothing fetched, no picture read).
   python tools/grit_gen.py --preview <folder>
 
   asphalt_grit(n=128, seed=GRIT_SEED) -> bytes, n * n grey values, row by row (0 black, 255 white)
+  asphalt_grit_holes(n=128, seed=GRIT_SEED) -> bytes, n * n: the hole field. A texel is covered where its value >= a
+                                         threshold and a hole (clear) below it
+  hole_threshold(field, cover=0.10)   -> the threshold that leaves that share of the map covered
+  grit_cover_alpha(field, cover=0.10, lo=64) -> bytes, n * n alpha: 0 in the holes, lo .. 255 by the field's value in
+                                         the covered texels
   grit_rgba(grey, tint, lo, hi)       -> bytes, RGBA: the tint with the grey as alpha (a straight ramp lo .. hi; the
                                          caller's own curve replaces it)
 
@@ -18,6 +23,11 @@ What it draws, dark to bright:
   the speckles    a soft glow 0.8 to 4.4 texels in radius at 128 with one to eight bright dots in it; they gather
                   where a slow noise is high
   the patches     a few large pale areas with a ragged edge, 9 to 19 texels in radius at 128
+The hole field is apart from the grey: scattered islands of cover, 1 to 3.8 texels in radius at 128, gathered by a
+slow noise of their own, each with its own peak over a low mottled floor; everything under the threshold is hole. A
+high threshold leaves the cores of the strongest islands (nearly all hole: wet); a lower one widens them, brings up the
+weaker ones and joins neighbours (more cover: dry). The cover at one threshold is all inside the cover at any lower
+one. The default is a tenth covered; inside the cover the opacity follows the field, so it differs texel to texel.
 Every feature is placed in units of the map's side and every distance wraps, so the map has no seam and a 64 x 64 map
 is the same layout at half the detail. No exp, sin or sqrt: the bytes are the same on every machine.
 Standard library only. Host tool: nothing here runs on the Dreamcast.
@@ -46,6 +56,15 @@ PATCH_GRID = 3                   # patches: one at most a cell of this grid
 PATCH_ODDS = 0.45
 PATCH_R_LO, PATCH_R_HI = 0.07, 0.15
 PATCH_A_LO, PATCH_A_HI = 0.10, 0.20
+
+HOLE_CRC = {128: 0x2A8CDFE5, 64: 0xD5A48EED}       # zlib.crc32 of asphalt_grit_holes(n)
+HOLE_COVER = {0.03: (159, 2.98), 0.05: (135, 4.94), 0.10: (96, 9.83), 0.25: (74, 24.87), 0.50: (57, 49.38)}                  # cover asked for: (threshold, per cent covered) of the 128 map (the self-test checks them)
+HOLE_GRID = 24                   # islands: one at most a cell of this grid
+HOLE_ODDS_LO, HOLE_ODDS_HI = 0.15, 0.95        # a cell's odds, by the slow noise
+HOLE_R_LO, HOLE_R_HI = 0.008, 0.030            # radius, in map sides
+HOLE_A_LO, HOLE_A_HI = 0.45, 1.00              # an island's peak
+HOLE_FLOOR = ((16, 0.30), (64, 0.14))          # the floor between islands: value noise cells, depth
+HOLE_GRAIN = 0.06
 
 
 def _h(x, y, k):
@@ -144,6 +163,66 @@ def asphalt_grit(n=128, seed=GRIT_SEED):
     return bytes(max(0, min(255, int(c * 255.0 + 0.5))) for c in _field(n, seed))
 
 
+def _holes(n, seed, fine=True):
+    """The hole field as floats, row by row. fine = 0 leaves the grain out."""
+    gaps = []
+    for j in range(HOLE_GRID):
+        for i in range(HOLE_GRID):
+            slow = _vnoise((i + 0.5) / HOLE_GRID, (j + 0.5) / HOLE_GRID, 4, seed + 40)
+            if _h(i, j, seed + 41) >= HOLE_ODDS_LO + (HOLE_ODDS_HI - HOLE_ODDS_LO) * slow * slow:
+                continue
+            s = _h(i, j, seed + 44)
+            gaps.append(((i + _h(i, j, seed + 42)) / HOLE_GRID, (j + _h(i, j, seed + 43)) / HOLE_GRID,
+                         HOLE_R_LO + (HOLE_R_HI - HOLE_R_LO) * s * s,
+                         HOLE_A_LO + (HOLE_A_HI - HOLE_A_LO) * _h(i, j, seed + 45)))
+    out = []
+    for y in range(n):
+        v = (y + 0.5) / n
+        near = [g for g in gaps if abs(_wrap(v - g[1])) < g[2] * 1.3]
+        for x in range(n):
+            u = (x + 0.5) / n
+            m64 = _vnoise(u, v, 64, seed + 46)
+            c = HOLE_FLOOR[0][1] * _vnoise(u, v, 16, seed + 47) + HOLE_FLOOR[1][1] * m64
+            for gu, gv, r, a in near:                   # the strongest island here; the noise makes its edge ragged
+                du, dv = _wrap(u - gu), _wrap(v - gv)
+                rr = r * (0.7 + 0.6 * m64)
+                t = a * (1.0 - (du * du + dv * dv) / (rr * rr))
+                if t > c:
+                    c = t
+            if fine:
+                c += HOLE_GRAIN * (_h(x, y, seed + 48 + n) - 0.5)
+            out.append(c)
+    return out
+
+
+def asphalt_grit_holes(n=128, seed=GRIT_SEED):
+    """The hole field: n * n bytes, row by row, tiles on both axes. A texel is covered where its value >= a threshold
+    and a hole below it: a high threshold for nearly all hole (wet), a lower one for more cover (dry). hole_threshold
+    gives the threshold for a share of cover, grit_cover_alpha the alpha. n a power of two, 64 or more."""
+    assert n >= 64 and n & (n - 1) == 0
+    return bytes(max(0, min(255, int(c * 255.0 + 0.5))) for c in _holes(n, seed))
+
+
+def hole_threshold(field, cover=0.10):
+    """The lowest threshold (1 .. 256) at which no more than `cover` (0 .. 1) of the field is covered."""
+    hist = [0] * 256
+    for v in field:
+        hist[v] += 1
+    most, above, th = int(cover * len(field)), 0, 256
+    while th > 1 and above + hist[th - 1] <= most:
+        th -= 1
+        above += hist[th]
+    return th
+
+
+def grit_cover_alpha(field, cover=0.10, lo=64):
+    """Alpha bytes from the hole field: 0 in the holes; in the covered share lo at the threshold up to 255 at the
+    field's top, so the opacity differs texel to texel. A share of cover is a share of texels, whatever the map size."""
+    th = hole_threshold(field, cover)
+    span = max(1, max(field) - th)
+    return bytes(0 if v < th else lo + (255 - lo) * (v - th) // span for v in field)
+
+
 def grit_rgba(grey, tint=(0, 0, 0), lo=0, hi=255):
     """RGBA bytes: the tint with the grey as alpha, a straight ramp from lo (clear) to hi (opaque)."""
     out = bytearray()
@@ -177,8 +256,15 @@ def preview(folder):
     os.makedirs(folder, exist_ok=True)
     g128, g64 = asphalt_grit(128), asphalt_grit(64)
     a4 = bytes((g >> 4) * 17 for g in g128)             # the 16 levels ARGB4444's alpha keeps
+    h128 = asphalt_grit_holes(128)
     for name, grey, n, k, tiles in (("grit_128_x4.png", g128, 128, 4, 1), ("grit_128_tiled_2x2_x2.png", g128, 128, 2, 2),
-                                    ("grit_128_alpha4_x4.png", a4, 128, 4, 1), ("grit_64_x8.png", g64, 64, 8, 1)):
+                                    ("grit_128_alpha4_x4.png", a4, 128, 4, 1), ("grit_64_x8.png", g64, 64, 8, 1),
+                                    ("holes_128_x4.png", h128, 128, 4, 1), ("holes_128_tiled_2x2_x2.png", h128, 128, 2, 2),
+                                    ("cover_03_alpha_x4.png", grit_cover_alpha(h128, 0.03), 128, 4, 1),
+                                    ("cover_10_alpha_x4.png", grit_cover_alpha(h128, 0.10), 128, 4, 1),
+                                    ("cover_10_alpha_tiled_2x2_x2.png", grit_cover_alpha(h128, 0.10), 128, 2, 2),
+                                    ("cover_25_alpha_x4.png", grit_cover_alpha(h128, 0.25), 128, 4, 1),
+                                    ("cover_50_alpha_x4.png", grit_cover_alpha(h128, 0.50), 128, 4, 1)):
         px, side = scaled(grey, n, k, tiles)
         path = os.path.join(folder, name)
         if os.path.exists(path):                        # never write over a picture
@@ -225,6 +311,35 @@ def self_test():
         assert min(g) >= 0 and max(g) >= 180, (n, min(g), max(g))
         print("grit %3d: crc 0x%08X, mean %.1f, deviation %.1f, bright (>= 110) %.2f %%, 4-bit levels %d, edge step %.2f"
               " (inside %.2f)" % (n, crc, mean, dev, bright, levels, em * 255.0, im * 255.0))
+    for n in (128, 64):
+        g = asphalt_grit_holes(n)
+        assert len(g) == n * n and g == asphalt_grit_holes(n), "holes not deterministic"
+        assert g != asphalt_grit_holes(n, GRIT_SEED + 1) and g != asphalt_grit(n)
+        crc = zlib.crc32(g) & 0xFFFFFFFF
+        assert crc == HOLE_CRC[n], "asphalt_grit_holes(%d) changed: crc 0x%08X, HOLE_CRC has 0x%08X" % (n, crc, HOLE_CRC[n])
+        im, ix, em, ex = _steps([float(v) for v in g], n)
+        assert em <= im * 1.15 and ex <= ix, ("hole seam", n, im, ix, em, ex)
+        im, ix, em, ex = _steps(_holes(n, GRIT_SEED, fine=False), n)
+        assert em <= im * 1.15 and ex <= ix, ("hole seam in the smooth part", n, im, ix, em, ex)
+        got, last = [], None
+        for want in sorted(HOLE_COVER):                 # the cover asked for is the cover given, a little under at most
+            th = hole_threshold(g, want)
+            a = grit_cover_alpha(g, want)
+            share = sum(1 for v in a if v) * 100.0 / len(a)
+            assert share == sum(1 for v in g if v >= th) * 100.0 / len(g) and want * 100.0 - 1.5 <= share <= want * 100.0
+            assert all((v == 0) == (f < th) for v, f in zip(a, g)) and min(v for v in a if v) >= 64 and max(a) == 255
+            assert len(set(a)) >= 12, "no variance in the cover"
+            assert last is None or all(p == 0 or q for p, q in zip(last, a)), "cover not nested"
+            if n == 128:
+                assert (th, round(share, 2)) == HOLE_COVER[want], (want, th, share)
+            got.append("%g: %d, %.2f %%" % (want, th, share))
+            last = a
+        assert grit_cover_alpha(g) == grit_cover_alpha(g, 0.10)
+        im, ix, em, ex = _steps([float(v) for v in grit_cover_alpha(g)], n)
+        assert em <= im * 1.15 and ex <= ix, ("cover seam", n, im, ix, em, ex)
+        print("holes %3d: crc 0x%08X, cover asked: threshold, covered: %s" % (n, crc, "; ".join(got)))
+    assert hole_threshold(bytes((0, 0, 0, 255))) == 256 and hole_threshold(bytes((0, 0, 0, 255)), 0.25) == 1
+    assert grit_cover_alpha(bytes((0, 10, 200, 250)), 0.5, 100) == bytes((0, 0, 222, 255))
     rgba = grit_rgba(bytes((0, 64, 128, 255)), (200, 190, 180), 64, 192)
     assert rgba[3::4] == bytes((0, 0, 127, 255)) and rgba[:3] == bytes((200, 190, 180))
     print("grit_gen self-test ok")
