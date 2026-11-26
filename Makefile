@@ -143,17 +143,30 @@ $(BUILD)/psm_fault_test: test/psm_fault_test.c demo/psm/psm_fault.h
 # The town (demo/psm/psm_town.h) needs its mesh: demo/psm/tools/bake_town.py writes it into the build folder, from the
 # Modular Village zip (CC0, demo/psm/fetch_table.json) when demo/psm/tools/fetch.py has fetched it, from stand-in boxes when
 # not. The kit's props are cut by third_party/dc-forerunner/tools/lod/qem_decimate.py, imported from there.
+# SQUARE=square: the walled square in its place (demo/psm/tools/bake_square.py, the same header; its pieces from the
+# Fantasy Town Kit, CC0, fetch_table.json; stand-ins when the zip is missing), into $(BUILD)/psm_square. The default is
+# the town. PSM_SQUARE_ZIP= points at a copy elsewhere.
+SQUARE       ?= town
+PSM_SQUARE_ZIP ?= demo/psm/assets/_dl/kenney_fantasy-town-kit_2.0.zip
+ifeq ($(SQUARE),square)
+PSM_TOWN_ZIP  = $(PSM_SQUARE_ZIP)
+PSM_TOWN_DIR  = $(BUILD)/psm_square
+PSM_TOWN_BAKE = demo/psm/tools/bake_square.py
+else
 PSM_TOWN_ZIP  = demo/psm/assets/_dl/modular_village_collection.zip
-PSM_TOWN_H    = $(BUILD)/psm_town/psm_town_mesh.h
+PSM_TOWN_DIR  = $(BUILD)/psm_town
+PSM_TOWN_BAKE = demo/psm/tools/bake_town.py
+endif
+PSM_TOWN_H    = $(PSM_TOWN_DIR)/psm_town_mesh.h
 # Its air (demo/psm/psm_sky.h): the sky band's texture, baked by demo/psm/tools/bake_sky.py from the Poly Haven sky (CC0,
 # fetch_table.json) when it has been fetched, a gradient stand-in when not.
 PSM_SKY_HDR   = demo/psm/assets/_dl/kloofendal_48d_partly_cloudy_puresky_2k.hdr
 PSM_SKY_H     = $(BUILD)/psm_sky/psm_sky_tex.h
 PSM_TOWN_DEPS = demo/psm/psm_scene.h demo/psm/psm_town.h demo/psm/psm_sky.h demo/psm/psm_send.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h $(PSM_TOWN_H) $(PSM_SKY_H)
-PSM_TOWN_INC  = -DPSM_HAVE_TOWN -I$(BUILD)/psm_town -I$(BUILD)/psm_sky
-$(PSM_TOWN_H): demo/psm/tools/bake_town.py $(wildcard $(PSM_TOWN_ZIP))
-	@mkdir -p $(BUILD)/psm_town
-	$(PYTHON) -I demo/psm/tools/bake_town.py $(if $(wildcard $(PSM_TOWN_ZIP)),$(PSM_TOWN_ZIP),-) $@ --json $(BUILD)/psm_town/psm_town_mesh.json
+PSM_TOWN_INC  = -DPSM_HAVE_TOWN -I$(PSM_TOWN_DIR) -I$(BUILD)/psm_sky
+$(PSM_TOWN_H): $(PSM_TOWN_BAKE) demo/psm/tools/bake_town.py $(wildcard $(PSM_TOWN_ZIP))
+	@mkdir -p $(PSM_TOWN_DIR)
+	$(PYTHON) -I $(PSM_TOWN_BAKE) $(if $(wildcard $(PSM_TOWN_ZIP)),$(PSM_TOWN_ZIP),-) $@ --json $(PSM_TOWN_DIR)/psm_town_mesh.json
 $(PSM_SKY_H): demo/psm/tools/bake_sky.py $(wildcard $(PSM_SKY_HDR))
 	@mkdir -p $(BUILD)/psm_sky
 	$(PYTHON) -I demo/psm/tools/bake_sky.py $(if $(wildcard $(PSM_SKY_HDR)),$(PSM_SKY_HDR),-) $@ --json $(BUILD)/psm_sky/psm_sky_tex.json

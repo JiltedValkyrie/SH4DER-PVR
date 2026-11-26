@@ -51,6 +51,11 @@
 #ifdef PSM_HAVE_TOWN
 #include "psm_town_mesh.h"
 #endif
+#ifdef PSM_TOWN_NAME
+#define PSM_TOWN_NAME_ PSM_TOWN_NAME            /* the square's own name (bake_dungeon.py writes one) */
+#else
+#define PSM_TOWN_NAME_ "town (the market square)"
+#endif
 
 /* ---- tuning ---------------------------------------------------------------- */
 #define PSM_EYE_H        1.7f
@@ -840,7 +845,7 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
         case PSM_ROW_READOUT: return st->readout == 0 ? "off" : st->readout == 1 ? "on" : "on + SH-4 split";
         case PSM_ROW_PRESET: return st->scene ? psm_town_preset[st->tpreset % PSM_TOWN_PRESETS].name : psm_preset_name[st->preset % 3u];
         case PSM_ROW_INVY: return st->invert_y ? "on: stick up looks down" : "off: stick up looks up";
-        case PSM_ROW_SCENE: return st->scene ? "town (the market square)" : "field (poles, cows)";
+        case PSM_ROW_SCENE: return st->scene ? PSM_TOWN_NAME_ : "field (poles, cows)";
         case PSM_ROW_TIME:
             t = (unsigned)(st->clock * 60.0f + 0.5f);
             snprintf(buf, cap, "%02u:%02u%s", t / 60u, t % 60u, st->sun_free ? " (sun free: az/el set)" : st->scene ? " (the sun on it)" : " (town only)");

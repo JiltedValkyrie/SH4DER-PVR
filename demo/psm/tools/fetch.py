@@ -38,6 +38,10 @@ def main(argv):
             bad += 1
             continue
         if not (os.path.exists(path) and (want is None or sha256(path) == want)):
+            if item["url"] is None:                      # a download by hand: the page, then assets/_dl
+                print("%s: missing; download it by hand from %s into %s" % (item["file"], item["page"], DEST))
+                bad += 1
+                continue
             with urllib.request.urlopen(item["url"], timeout=60) as r, open(path, "wb") as out:
                 out.write(r.read())
         got = sha256(path)

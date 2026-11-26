@@ -598,7 +598,20 @@ static void sweep(void) {
 #define SWIM_PX 120u
 #define SWIM_PZ 120u
 static uint8_t swim_prev[SWIM_PX * SWIM_PZ];
+static uint8_t swim_in[2][SWIM_PX * SWIM_PZ], swim_sh[2][SWIM_PX * SWIM_PZ];   /* frame 0, HOLD off / on: inside the map, shadowed */
 static unsigned swim_fr[120];
+
+/* a probe falls inside the map (either route: the raster's own matrix) */
+static int swim_inside_(const psm_frame_t *f, const float p[3]) {
+    float h[4];
+    int tx, ty;
+
+    sh4der_psm_xform(f->raster.m, p, 1.0f, h);
+    if (!(h[3] > SH4DER_PSM_TRI_EPS)) return 0;
+    tx = (int)floorf((h[0] / h[3] + 1.0f) * 0.5f * (float)f->raster.size);
+    ty = (int)floorf((h[1] / h[3] + 1.0f) * 0.5f * (float)f->raster.size);
+    return tx >= 0 && ty >= 0 && tx < (int)f->raster.size && ty < (int)f->raster.size;
+}
 
 static int swim_shadowed_(const psm_frame_t *f, const float p[3], int route) {
     if (route == PSM_ROUTE_B) return sh4der_psm_raster_lit(&f->raster, p, 0.02f, 0) < 0.5f;
@@ -643,7 +656,11 @@ static float swim_run_(int route, int warp, unsigned size_i, int hold, unsigned 
                 const uint8_t s = (uint8_t)swim_shadowed_(&frame, p, route);
 
                 if (fr) { flips += s != swim_prev[j * SWIM_PX + i]; swim_fr[fr] += s != swim_prev[j * SWIM_PX + i]; }
-                else shade += s;
+                else {
+                    shade += s;
+                    swim_in[hold != 0][j * SWIM_PX + i] = (uint8_t)swim_inside_(&frame, p);
+                    swim_sh[hold != 0][j * SWIM_PX + i] = s;
+                }
                 swim_prev[j * SWIM_PX + i] = s;
             }
     }
@@ -667,7 +684,15 @@ static void swim(void) {
                        " start %u / %u\n", route ? 'B' : 'A', warp ? "PSM" : "uniform", psm_map_sizes[si], off, on, st1, sh0, sh1);
                 worst_hold_ratio_bad += warp ? !(on <= off * 0.6f) : !(on <= off * 0.05f + 2.0f);   /* PSM: pops at its steps remain */
                 if (getenv("SWIM_DUMP") && warp) { unsigned f_; printf("     on:"); for (f_ = 1; f_ < 120u; f_++) if (swim_fr[f_]) printf(" %u:%u", f_, swim_fr[f_]); printf("\n"); }
-                CHECK(sh1 * 10u >= sh0 * 9u && sh1 * 9u <= sh0 * 10u);            /* the same shadows, within a tenth */
+                {   /* the same shadows, within a tenth, on the probes inside the map in both runs (a probe off the map reads
+                       lit, and the held fit is larger: comparing all probes compares two different sets) */
+                    unsigned k, b0 = 0u, b1 = 0u;
+
+                    for (k = 0; k < SWIM_PX * SWIM_PZ; k++)
+                        if (swim_in[0][k] && swim_in[1][k]) { b0 += swim_sh[0][k]; b1 += swim_sh[1][k]; }
+                    printf("      on the probes inside the map in both runs: %u / %u in shadow\n", b0, b1);
+                    CHECK(b1 * 10u >= b0 * 9u && b1 * 9u <= b0 * 10u);
+                }
             }
     CHECK(worst_hold_ratio_bad == 0u);
 }

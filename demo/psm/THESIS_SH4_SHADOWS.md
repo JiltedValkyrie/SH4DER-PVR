@@ -72,7 +72,7 @@ The reference frame is the town's "a3" view. The figures come from the owner's p
 | PVR time a frame | 16.0 ms | MEASURED (HUD reading). It is `pvr_get_stats`' `rnd_last_time` of one sampled frame a second (`psm_dc.c`, `render_wait` and `cost.pvr_ms`). |
 | Frames a second | 25 | MEASURED (HUD reading) |
 | Vertex buffer used | 74 % at the a3 view, 77 % worst walk (783–792 KB of 1 MiB) | **ESTIMATE**, Junior's byte model, unmeasured. The TA does not store a flat 32 B a vertex, so vertex count x 32 B is the wrong scale. |
-| TA vertex buffer | 1 MiB (`PSM_TA_VBUF`, `demo/psm/psm_send.h`) | repo constant |
+| TA vertex buffer | 1,536 KB (`PSM_TA_VBUF`, `demo/psm/psm_send.h`) | repo constant |
 | Frame period at 30 fps | 33.3 ms (the a3 view runs at 25, 40 ms) | arithmetic |
 
 So: the vertex count is measured; the buffer percentage is an estimate. The first measured percentage will be the HUD's `vtx_buffer_used_max` line in a later build. No photo of it exists yet.

@@ -41,7 +41,7 @@ static const uint8_t psm_hk_words[PSM_HK_N] = { 7, 4, 6, 6, 6, 4, 4, 4, 6, 4, 6,
 static const uint8_t psm_hk_tr[PSM_HK_N] = { 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1 };   /* 1: the translucent list */
 static const char *const psm_hk_name[PSM_HK_N] = { "sky", "skycol", "ground", "ground_fog", "layer", "model", "model_fog", "flat", "text", "dim", "inset_a", "inset_b" };
 
-#define PSM_TA_VBUF      (1024u * 1024u)  /* psm_dc.c's vertex buffer, bytes a frame (pvr_init_params_t.vertex_buf_size) */
+#define PSM_TA_VBUF      (1536u * 1024u)  /* psm_dc.c's vertex buffer, bytes a frame (pvr_init_params_t.vertex_buf_size); KallistiOS keeps two. 1,024 KB froze on a turn on route A (vc-a, vc-d1024); 1,536 KB ran the same stage */
 #define PSM_TA_SHARE     0.90f            /* SHED starts when the frame's estimate passes this share of it */
 #define PSM_TA_BKG       64u              /* KallistiOS's background polygon after the last vertex, rounded up */
 #define PSM_SHED_MAX     4u
@@ -471,12 +471,13 @@ typedef struct psm_diag {
     unsigned frame;                       /* frames sent since boot */
     uint32_t est, used, used_max, vbuf;   /* bytes: this frame's estimate, KallistiOS's last and largest frame, the buffer */
     unsigned shed;
+    unsigned lazy;                        /* 1: est is the frame before's own send (psm_send_plan_next), read "TA last" */
 } psm_diag_t;
 
 static inline unsigned psm_pct_(uint32_t a, uint32_t b) { return b ? (unsigned)(((uint64_t)a * 100u + b / 2u) / b) : 0u; }
 
 static inline void psm_diag_line(const psm_diag_t *d, char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u]) {
-    snprintf(ln[11], PSM_HUD_COLS + 1u, "F%06u TA est %4uK used %4uK max %4uK %3u%% of %uK SHED%u", d->frame % 1000000u,
+    snprintf(ln[11], PSM_HUD_COLS + 1u, "F%06u TA %s %4uK used %4uK max %4uK %3u%% of %uK SHED%u", d->frame % 1000000u, d->lazy ? "last" : "est ",
              (unsigned)(d->est / 1024u), (unsigned)(d->used / 1024u), (unsigned)(d->used_max / 1024u), psm_pct_(d->used_max, d->vbuf),
              (unsigned)(d->vbuf / 1024u), d->shed);
 }

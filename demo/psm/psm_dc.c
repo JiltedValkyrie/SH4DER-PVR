@@ -54,6 +54,7 @@
 #include "psm_scene.h"
 #include "psm_mapsrc.h"
 #include "psm_sky.h"
+#include "psm_ground.h"
 #define PSM_FAULT_IMPL
 #include "psm_fault.h"
 #ifdef PSM_VIEWCOST                 /* the view cost test (psm_viewcost.h): a script for the pad and a timer between the frame's steps */
@@ -72,6 +73,8 @@ static asic_evt_handler_entry_t vc_evt_prev[VC_EVT_N];
 #else
 #define VC_T(k) ((void)0)
 #define VC_RDY1(us) ((void)0)
+#include "psm_suite.h"              /* on the suite disc: back to the menu with A + B + X + Y held */
+static inline void suite_pages_unused_(void) { (void)suite_tick; }   /* the live build has no result pages */
 #endif
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
@@ -92,7 +95,7 @@ static psm_walk_limits_t walk_lim;
 static uint16_t depth_map[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));    /* route B's map: 128 KB of RAM at 256 */
 static uint16_t text_px[TEXT_W * TEXT_H] __attribute__((aligned(32)));
 static uint16_t inset_px[INSET * INSET] __attribute__((aligned(32)));
-static uint16_t checker_px[16 * 16] __attribute__((aligned(32)));
+static uint16_t checker_px[PSM_GROUND_N * PSM_GROUND_N] __attribute__((aligned(32)));   /* the ground: 8 KB */
 static uint16_t depth_map2[MAP_MAX * MAP_MAX] __attribute__((aligned(32)));   /* route AB's second slot: the same again (32 KB at 128, 128 KB at 256) */
 static psm_mapsrc_t mapsrc;               /* route AB (stub): the map source hook, the SH-4's raster standing in for the PVR, one frame late */
 static psm_ab_stub_t ab_stub;
@@ -119,7 +122,13 @@ static uint32_t vbuf_used, vbuf_max;      /* KallistiOS's vertex buffer bytes: t
 static int look_pending;                  /* the fog colour or table changed: written once the PVR is idle (look_apply) */
 static unsigned shed_now;                 /* SHED this frame (psm_send_plan): 0 everything sent */
 static uint32_t est_now;                  /* this frame's parameter bytes, estimated (psm_send.h) */
-static int plan_lazy;                     /* 1: no dry count: SHED from the frame before's own send (psm_send_plan_next). 0, the default: psm_send_plan */
+#ifndef PSM_PLAN_LAZY
+#define PSM_PLAN_LAZY 0                   /* the walled square's build: 1 */
+#endif
+#ifndef PSM_PLACE_DEFAULT
+#define PSM_PLACE_DEFAULT 0u              /* the walled square's build: 7, all three (f7: -3.6 ms still, -11.8 ms turning, vc-c2) */
+#endif
+static int plan_lazy = PSM_PLAN_LAZY;     /* 1: no dry count: SHED from the frame before's own send (psm_send_plan_next). 0, the default: psm_send_plan */
 static uint32_t est_last;                 /* plan_lazy: the last frame's own bytes */
 
 /* ---- what is sent (psm_send.h walks it; the host test walks the same) ------- */
@@ -192,7 +201,7 @@ static void hdr_ok_fill(uint8_t ok[PSM_HK_N]) {
 static void make_headers(void) {
     pvr_poly_cxt_t c;
 
-    pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, 16, 16, checker_mem, PVR_FILTER_NEAREST);
+    pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, PSM_GROUND_N, PSM_GROUND_N, checker_mem, PVR_FILTER_NEAREST);
     c.gen.culling = PVR_CULLING_NONE;
     c.gen.shading = PVR_SHADE_GOURAUD;
     c.txr.env = PVR_TXRENV_MODULATE;
@@ -284,17 +293,13 @@ static void target_fit(unsigned size) {
     make_target_headers();
 }
 
-static uint16_t rgb565(float r, float g, float b) {
-    return (uint16_t)(((unsigned)(r * 31.0f + 0.5f) << 11) | ((unsigned)(g * 63.0f + 0.5f) << 5) | (unsigned)(b * 31.0f + 0.5f));
-}
-
-/* The ground's 16 x 16 texture, squares of 8 texels: the field's checker (1 m squares, u and v are metres / 2), or the town's
-   cobble (two near stones, TOWN_MOCKUP.md; 1.5 m squares at a third of a repeat a metre). Call when the PVR is not reading it. */
+/* The ground's 64 x 64 texture: the field's checker (squares of 32 texels, 1 m squares, u and v are metres / 2), or the
+   square's paving slabs (psm_ground.h; a repeat 3 m, a third of a repeat a metre). Call when the PVR is not reading it. */
 static void ground_texture(void) {
-    const uint16_t c1 = scene.ground_tex ? rgb565(0.75f, 0.665f, 0.54f) : 0xffffu, c2 = scene.ground_tex ? rgb565(0.725f, 0.64f, 0.52f) : 0xc618u;
     unsigned i;
 
-    for (i = 0; i < 256u; i++) checker_px[i] = (((i >> 3) ^ (i >> 7)) & 1u) ? c1 : c2;
+    if (scene.ground_tex) psm_ground_slabs(checker_px, 158, 152, 142, 1u);
+    else for (i = 0; i < PSM_GROUND_N * PSM_GROUND_N; i++) checker_px[i] = (((i >> 5) ^ (i >> 11)) & 1u) ? 0xffffu : 0xc618u;
     pvr_txr_load(checker_px, checker_mem, sizeof checker_px);
 }
 
@@ -371,6 +376,7 @@ static int load(void) {
     psm_scene_init_town(&scene);                            /* the image boots into the town, 14:00, the first view */
     psm_scene_limits(&scene, &walk_lim);
     psm_state_town(&state);
+    frame.place_opt = PSM_PLACE_DEFAULT;                    /* the placement's options (psm_scene.h, PSM_PLACE_*): the square's build 7 */
     ground_texture();
     ab_stub.f = &frame; ab_stub.s = &scene;
     psm_mapsrc_init(&mapsrc, psm_ab_stub_fill, &ab_stub, 1u, depth_map, depth_map2);
@@ -403,6 +409,7 @@ static int pad(float dt) {
     if (st) {
         const uint32_t b = st->buttons;
 
+        if (suite_present() && (b & SUITE_KEYS_ALL) == SUITE_KEYS_ALL) suite_exit(SUITE_KEYS);   /* the suite disc: back to the menu */
         if (b & CONT_A) held |= PSM_BTN_A;
         if (b & CONT_X) held |= PSM_BTN_X;
         if (b & CONT_Y) held |= PSM_BTN_Y;
@@ -478,7 +485,7 @@ static int text_pending(void) {
         psm_panel_lines(&state, &p, ln_now);
     }
     {
-        const psm_diag_t d = { frame_no, est_now, vbuf_used, vbuf_max, PSM_TA_VBUF, shed_now };
+        const psm_diag_t d = { frame_no, est_now, vbuf_used, vbuf_max, PSM_TA_VBUF, shed_now, (unsigned)plan_lazy };
 
         psm_diag_line(&d, ln_now);
     }
@@ -643,8 +650,8 @@ int main(void) {
        (one a frame, pvr_buffers.c) and puts the background polygon after the last vertex. The tile bins: KallistiOS's
        default 16-word blocks for the two lists, PSM_OPB_EXTRA times that again as the overflow pool */
     init.vertex_buf_size = PSM_TA_VBUF;
-#ifdef PSM_VIEWCOST
     suite_init();                            /* the suite disc: the menu's binary into RAM, before anything else */
+#ifdef PSM_VIEWCOST
     init.vertex_buf_size = VC_VBUF;          /* this test only: room for route A's boot view, so no frame is measured short of its last vertices */
 #endif
     init.opb_overflow_count = PSM_OPB_EXTRA;
