@@ -61,6 +61,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [fakeaf](fakeaf.md) | Fake anisotropic filtering: a mip bias a polygon by slope, and distance ranges with stretched copies | ALPHA v0.4 | **yes**: the bias's cost (PVR-180, PVR-207, one console); the level it picks not read back |
 | [ground](ground.md) | A paving slab texture made at load from a seed (64 x 64 RGB565, tiles both ways) | PROTOTYPE v0.1 | no: host tested; its load time NOT MEASURED |
 | [aomesh](aomesh.md) | Baked ambient occlusion over a triangle mesh, at load (the bake for Walled town square [square]) | PROTOTYPE v0.1 | no: the bake's time and look are NOT MEASURED on a console |
+| [Test disc menu [suite]](suite.md) | A menu and many test programs on one disc, with a way back after each | ALPHA v0.4 | **yes**: a menu start repeated a test's results (PVR-116, one console); the return and the chain are not measured |
 | [Sky shading [aosky]](aosky.md) | Occlusion of the sky drawn into the sun's shadow target (AO method 2) | PROTOTYPE v0.1 | no: the start settings ran in Room shading, four ways (PVR-140, one console); this library copy has not |
 | [Bake tool [ao-bake]](ao-bake.md) | Host build tool: baked occlusion over any triangle list (not a console effect) | v0.1 | no |
 | [Colour fringe [ca]](ca.md) | The frame texture and chromatic aberration | v0.50 | no |

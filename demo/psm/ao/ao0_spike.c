@@ -35,7 +35,7 @@
 
 #define SH4DER_FAULT_IMPL
 #include "sh4der_fault.h"
-#include "../psm_suite.h"
+#include "../../../include/sh4der_suite.h"
 #include "sh4der_core.h"
 #include "ao0_model.h"
 

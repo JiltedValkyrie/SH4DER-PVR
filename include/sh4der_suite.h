@@ -1,14 +1,35 @@
 /* SH4DER-PVR: the test suite disc: a test's way back to the menu, and the menu's way into a test
 
-   demo/psm/psm_suite.h
-   Copyright (c) 2026 Jilted Valkyrie. See ../../LICENSE.
+   include/sh4der_suite.h
+   Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-   One disc holds a menu (suite/suite_menu.c) and every test program as a file. The menu loads a test's binary and
-   starts it in its own place (KallistiOS's arch_exec); the test, when it is done, loads the menu's binary and starts
-   that the same way. So the console is never switched off between tests.
+   One disc holds a menu program and every test program as a file (the menu's source is demo/psm/suite/suite_menu.c
+   in this repository, and it stays a demo). The menu loads a test's binary and starts it in its own place
+   (KallistiOS's arch_exec); the test, when it is done, loads the menu's binary and starts that the same way. So the
+   console is never switched off between tests.
 
    A program built with this file is still a whole program: on a disc of its own there is no menu file, suite_init()
-   finds none, and every call here does nothing.
+   finds none, and every call here does nothing. The plain part (suite_mail_find, the mark, suite_keys_text,
+   suite_rev_text, suite_present = 0 and suite_chained = 0 on a host build) compiles and runs on the host; the
+   start, the return and the page timer are Dreamcast only.
+
+   RECOMMENDED (no console run of this file's own start, return or chain: nothing here is measured by that; the arch_exec
+   facts below are read from KallistiOS's source, NOT MEASURED. The console facts are the suite NOTES and the ledger rows
+   named in wiki/effects/suite.md)
+   Cost:       at suite_init, one read of the menu's binary into RAM, kept until the program leaves (its size is the
+               menu's file size: NOT MEASURED here); a chained page turn is one timer read. VRAM 0. No frame cost.
+   Start with: suite_init() first in main, after <kos.h> (and after sh4der_fault.h when the test has it); suite_tick in
+               the result-page loop; one suite list for the disc (demo/psm/suite/build.py --list)
+   Status:     ALPHA v0.4 (wiki/status/maturity.md, "suite menu"). A start from the menu repeated Shadow chain with
+               measured edges (PVR-116, one test, not the same binary as its own disc). Every started test's result pages
+               carry "ABXY menu" (MEASURED, demo/psm/suite/NOTES.md, the first run of s1). OPEN: the four-button return,
+               the 5 s countdown, a chained test going back by itself, and the fault page's return (no photo; NOTES)
+   Do:         keep one suite_mail_t in the program (the mark is 16 bytes, the words 16 more); call suite_tick once per
+               pass of the result-page loop
+   Do not:     expect RAM outside the new program's image and .bss to be what the last program left (the heap holds what
+               was there); change the mark text (the menu and every test match on it); leave SH4DER_FAULT_TEST in a build
+               for players (its fault page can return to the menu and may hang)
+   Maturity:   ALPHA v0.4
 
    WHAT A START THROUGH arch_exec IS (KallistiOS source, kernel/arch/dreamcast/kernel/exec.c and init.c; read, not
    measured). The leaving program runs KallistiOS's whole shutdown (sound, maple, CD, G2 DMA, video, the vertical blank
@@ -40,13 +61,20 @@
    switched off as before.
 */
 
-#ifndef PSM_SUITE_H
-#define PSM_SUITE_H
+#ifndef SH4DER_SUITE_H
+#define SH4DER_SUITE_H
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef CONT_A  /* KallistiOS's controller masks (kernel/arch/dreamcast/include/dc/maple/controller.h). A host build has none. */
+#define CONT_A 0x0004
+#define CONT_B 0x0002
+#define CONT_X 0x0400
+#define CONT_Y 0x0200
+#endif
 
 #define SUITE_MENU_FILE "/cd/MENU.BIN"
 #define SUITE_PAGE_MS 20000u                /* a chained run: this long a result page */
@@ -164,18 +192,28 @@ static int suite_tick(unsigned buttons, unsigned page, unsigned pages) {
     return 1;
 }
 
+#else
+
+static inline int suite_present(void) { return 0; }   /* a host build: no menu, no disc */
+static inline int suite_chained(void) { return 0; }   /* a chained run needs a menu: 1 only with one */
+
+#endif /* _arch_dreamcast */
+
 /* What a result page's header says about the way out, for pg_draw's keys. */
 static inline const char *suite_keys_text(const char *alone) { return suite_present() ? (suite_chained() ? "ABXY menu (auto)" : "ABXY menu") : alone; }
 
 /* The console's chip revisions as text, "HOLLY REV xxxx SB xx": the PVR core's REVISION register (0x005F8004) and the
    system bus's SB_SBREV (0x005F689C), read through the uncached mirror. Two reads, nothing written; the PVR need not
-   be started. For the menu's foot and a test's first line, so a photo says which console it was. */
+   be started. For the menu's foot and a test's first line, so a photo says which console it was. A host build has no
+   registers: it writes "HOLLY REV ---- SB --". */
 static inline void suite_rev_text(char *out, size_t size) {
+#ifdef _arch_dreamcast
     const uint32_t holly = *(volatile uint32_t *)0xa05f8004u, sb = *(volatile uint32_t *)0xa05f689cu;
 
     snprintf(out, size, "HOLLY REV %04X SB %02X", (unsigned)(holly & 0xffffu), (unsigned)(sb & 0xffu));
+#else
+    snprintf(out, size, "HOLLY REV ---- SB --");
+#endif
 }
 
-#endif /* _arch_dreamcast */
-
-#endif /* PSM_SUITE_H */
+#endif /* SH4DER_SUITE_H */

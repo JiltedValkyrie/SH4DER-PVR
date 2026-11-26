@@ -62,7 +62,7 @@
 #define PG_PREFIX "vc"
 #include "../../include/sh4der_page.h"
 #include "psm_viewcost.h"
-#include "psm_suite.h"              /* on the suite disc: back to the menu from the pages (A + B + X + Y), or after them in a chained run */
+#include "../../include/sh4der_suite.h"              /* on the suite disc: back to the menu from the pages (A + B + X + Y), or after them in a chained run */
 static vc_run_t vc_run;
 static vc_frame_t vc_f;
 static uint64_t vc_w0[4];
@@ -74,7 +74,7 @@ static asic_evt_handler_entry_t vc_evt_prev[VC_EVT_N];
 #else
 #define VC_T(k) ((void)0)
 #define VC_RDY1(us) ((void)0)
-#include "psm_suite.h"              /* on the suite disc: back to the menu with A + B + X + Y held */
+#include "../../include/sh4der_suite.h"              /* on the suite disc: back to the menu with A + B + X + Y held */
 static inline void suite_pages_unused_(void) { (void)suite_tick; }   /* the live build has no result pages */
 #endif
 

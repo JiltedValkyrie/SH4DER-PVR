@@ -67,6 +67,7 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | tilecut | Tile-cut pass | A render pass through a tile table its own size, so small targets cost less | Tools and safety |
 | pvrx | PVR extras | Extra calls over the PVR driver: waits, VRAM copy by DMA, error counters, clip | Tools and safety |
 | page | Result page | Text with a checksum line, or a graph (lines, bars), for a console test's numbers | Tools and safety |
+| suite | Test disc menu | A menu program and every test on one disc: a test starts the menu again, the menu starts the next test; a 32-byte mail passes the words between them | Tools and safety |
 | fxlabel | Effect label line | Each effect by its name, who does the work and when, in small text on a result or live page | Tools and safety |
 | qrpage | QR test set | 16 codes of known payloads, drawn on a result page, to test a photograph reader | Tools and safety |
 | ramp | Distance ramp | A 0 to 1 fade between two distances | Tools and safety |

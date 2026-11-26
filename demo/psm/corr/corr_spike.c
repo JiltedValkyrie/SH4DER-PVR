@@ -38,7 +38,7 @@
 
 #define SH4DER_FAULT_IMPL
 #include "sh4der_fault.h"
-#include "../psm_suite.h"
+#include "../../../include/sh4der_suite.h"
 #include "corr_scene.h"
 #include "corr_tex_data.h"                   /* generated: tools/corr_bake.py */
 

@@ -22,6 +22,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | ao | Darkens creases from the angle between faces (at bake time) and adds a screen cavity cue from a small map. | Baked crevice shading for a model, or a cheap cavity cue on a finished frame. | see section | `sh4der_ao.h` (header only) | [section](#the-ao-effect) |
 | aobake | Baked ambient occlusion against exact shapes: one byte a vertex from cosine rays cast at spheres, boxes and a ground plane, paid once at load. | Contact shadows baked into static geometry: room corners, the ground under props. | RAM one byte a vertex plus 768 B for 64 rays; VRAM 0; nothing a frame | `sh4der_aobake.h` (header only) | [section](#the-aobake-effect-baked-occlusion-against-exact-shapes) |
 | aomesh | Baked ambient occlusion over a triangle mesh: one byte a vertex from 12 rays through a cell grid of the mesh, and a byte grid over the ground, paid once at load. | Contact shadows on static scenery built as a triangle mesh (a walled street), and the ground's bytes under a ground that moves with the camera. | RAM one byte a vertex and a byte a ground cell, plus the bake's scratch; VRAM 0; nothing a frame | `sh4der_aomesh.h` (header only) | [section](#the-aomesh-effect-baked-occlusion-over-a-triangle-mesh) |
+| suite | The disc's way between programs: a menu starts a test and the test goes back to it, through KallistiOS's `arch_exec`, with a 32-byte mail written into the other program's image; the four buttons go back to the menu. | A disc of several test programs that must not be switched off between tests. | RAM the menu's binary (read at start, kept while the program runs); VRAM 0; no frame cost | `sh4der_suite.h` (header only) | [section](#the-suite-chaining-programs-on-one-disc) |
 | aosky | Occlusion of the sky drawn into the sun's shadow target: K slid shadows as a faint black, one side, plain blending. | Contact darkening on flat ground under props, with no bake. | VRAM 0 more (the sun's target); RAM the caller's scratch, 9 B a caster vertex | `sh4der_aosky.h` (header only) | [section](#the-aosky-effect-occlusion-of-the-sky-drawn-into-a-shadow-target) |
 | blade | Light tubes orbit an axis, a soft blocker runs through them and a pulse breathes over both, all written into vertex colours. | Energy blades, glowing rods, anything that is a bright tube. | RAM 156 B a frame + 160 B params; VRAM 0; CPU two 2D tests and one 3D test a vertex | `sh4der_blade.h` + `sh4der_blade.c` | [section](#the-blade-effect) |
 | bloom | A feathered glow ribbon and tip disc round a blade (24 triangles), plus `sh4der_bloom_rings` for a round glow with its own level per ring. | A soft halo round a blade, a sun disc, a lamp or a lens-flare ghost. | RAM the caller's vertices; VRAM 0; 24 triangles a blade | `sh4der_bloom.h` + `sh4der_bloom.c` | [section](#the-bloom-effect) |
@@ -117,6 +118,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | v0.10 |
 | aobake | `sh4der_aobake.h` | Baked ambient occlusion against exact shapes (spheres, boxes, a ground plane): one byte a vertex from cosine rays, at load. The ao4 scenes' bake, 252 to 254 ms for scene A's 2,142 vertices and 391 to 393 ms for scene B's 2,544 on a console (SH4-076, SH4-082) | One byte a vertex, multiplied into the ambient light | v0.50 |
 | aomesh | `sh4der_aomesh.h` | Baked ambient occlusion over a triangle mesh (a cell grid, 12 golden-ratio rays, a reach of 1.6 m, a byte grid over the ground), at load. The walled square's bake (`demo/psm/psm_ao.h` is an adapter over it). Not run on a console: the bake's time is NOT MEASURED | One byte a vertex and a ground grid, multiplied into the ambient light | v0.10 |
+| suite | `sh4der_suite.h` | The disc's start and return between programs (`arch_exec`, a 32-byte mail, the four buttons). Nothing drawn; the menu program is a demo (`demo/psm/suite`). | Nothing | ALPHA v0.4 |
 | aosky | `sh4der_aosky.h` | Occlusion of the sky drawn into the sun's shadow target: K directions slid onto the ground as a faint black, one side, plain blending (AO method 2). The ao4 scenes ran it (PVR-138 to PVR-186); about 451 us of PVR a direction for scene A (DERIVED from PVR-140); the depth union failed on the PVR (PVR-127) | The sun's shadow target and its ground layer; no new target | v0.10 |
 | sh4dow | `sh4dow_dc.h` | Soft self-shadow for skinned characters, per vertex on the CPU: a limb casts a soft column that darkens what lies in it; foot cones under each foot; a heightfield sun (experimental) | a multiply in place on the vertex colour; a quad per foot cone | - |
 | ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | v0.50 |
@@ -1674,6 +1676,34 @@ Rules: no render that reads the table may run while it is cut (wait for render d
 | SH4DER_TILECUT_TILES | 300 | The most tiles of a table (20 x 15): the size of the RAM copy |
 | SH4DER_TILECUT_TRIES | 3 | Read-backs of a restore before `sh4der_tilecut_end` reports it bad |
 | SH4DER_TILECUT_VERIFY | 8 | Ends that read their restore back; after them the restore is written and trusted |
+
+## The suite (chaining programs on one disc)
+
+`include/sh4der_suite.h`, header only; `test/suite_test.c` tests the plain part on the host. One disc holds a menu program and every test program as a file. The menu loads a test's binary and starts it in its own place (KallistiOS's `arch_exec`); a test that is done loads the menu's binary and starts that the same way, so the console is never switched off between tests. The two programs pass a 32-byte mail by writing it into the other's image before the start: a 16-byte mark (`PSM-SUITE-MAIL-1`, the text the menu and every test match on byte for byte), then `chain`, `index` and `status`. Nothing else is kept, so nothing depends on RAM that the start leaves alone.
+
+RECOMMENDED (no console run of this file's own start, return or chain; the `arch_exec` facts are read from KallistiOS's source, NOT MEASURED; the console facts are the suite's notes and the ledger rows named below). Maturity: ALPHA v0.4 ("suite menu" in `wiki/status/maturity.md`).
+
+Call order:
+
+1. Once, early in the test's `main`, after `<kos.h>` (and after `sh4der_fault.h` when the test has it): `suite_init();`. It reads the menu's binary (`/cd/MENU.BIN`) into RAM while all is well. On a disc of the test's own it returns 0 and nothing else happens.
+2. In the loop that shows the result pages, on every pass: `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }`. It goes back to the menu when A + B + X + Y are held together, and in a chained run after `SUITE_PAGE_MS` (20 s) on the last page.
+3. `suite_chained()` is 1 in a chained run: skip what waits for a button. `suite_keys_text(alone)` gives a result page's "ABXY menu" line, or `alone` when there is no menu.
+4. `suite_rev_text(buf, size)` writes "HOLLY REV xxxx SB xx" (two register reads, nothing written) for the first line of a test, so a photo says which console it was. A host build writes "HOLLY REV ---- SB --".
+5. A new test takes those three lines and goes in a suite list (`demo/psm/suite/build.py --list`). The menu itself is `demo/psm/suite/suite_menu.c`, a demo.
+
+Tuning: none. The header has no `SH4DER_*` macro. Its constants belong to the disc and are set in the header: `SUITE_PAGE_MS` (20000 ms a chained page), `SUITE_FAULT_SHOWS` (120 redraws, 60 s, before the fault page leaves), `SUITE_IMAGE_MAX` (12 MB; a larger binary is not read).
+
+Cost: RAM is the menu's binary, read whole at `suite_init` and kept until the program leaves (its size is not measured here). VRAM 0. Frame cost none. The start itself (KallistiOS's shutdown and boot of the new program) is NOT MEASURED here.
+
+What the suite runs showed (one console; ledger and notes):
+
+- A start from the menu repeated Shadow chain with measured edges' results (PVR-116, `wiki/hardware/ledger-pvr.md`): one test, not the same binary as its own disc. Whether a menu start can change a result is OPEN.
+- Every started test's result pages carry "ABXY menu" (MEASURED, `demo/psm/suite/NOTES.md`, "First run of s1"). c4g was started by RUN ALL and its header says "(auto)" (the same table).
+- The owner's s7 video shows every started entry going back to the menu (`demo/psm/suite/NOTES.md`, "s7 ran"; no ledger row states it).
+- OPEN: the four-button return in a photo, the 5 s countdown, a chained test going back by itself, and the fault page's return (no photo; `demo/psm/suite/NOTES.md`). The fault page's return runs KallistiOS's shutdown from inside a fault and may hang.
+
+Not for: a program that needs its RAM kept across a start (the heap holds what was there), or a mark that is edited (the menu and every test match on it).
+
 
 ## The fault catcher
 

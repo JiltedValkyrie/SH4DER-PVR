@@ -166,7 +166,7 @@ def main():
 
     exe = ".exe" if os.name == "nt" else ""
     test = os.path.join(out, "suite_test" + exe)
-    run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", os.path.join(HERE, "test", "suite_test.c"), "-o", test])
+    run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", os.path.join(ROOT, "test", "suite_test.c"), "-o", test])
     run("1 host test (run)", [test])
     test = os.path.join(out, "suite_nav_test" + exe)
     run("1 host test suite_nav_test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", os.path.join(HERE, "test", "suite_nav_test.c"), "-o", test])

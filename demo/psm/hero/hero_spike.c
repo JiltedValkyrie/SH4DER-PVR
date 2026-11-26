@@ -40,7 +40,7 @@
 
 #define SH4DER_FAULT_IMPL
 #include "sh4der_fault.h"
-#include "../psm_suite.h"
+#include "../../../include/sh4der_suite.h"
 #include "hero_model.h"
 #include "hero_file.h"
 #include "hero_view.h"

@@ -60,7 +60,7 @@
 
 #define SH4DER_FAULT_IMPL
 #include "sh4der_fault.h"
-#include "../psm_suite.h"
+#include "../../../include/sh4der_suite.h"
 #include "ao4_scene.h"
 #include "ao4_draw.h"
 #include "ao4_room.h"

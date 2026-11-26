@@ -41,7 +41,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "suite_nav.h"                      /* suite_entry_t, the screens */
 #include "suite_skin.h"                     /* ui_skin, and suite_ui.h: the panels */
 #include "suite_list.h"                     /* SUITE_TAG, SUITE_TITLE, suite_list[], SUITE_N: written by build.py */
-#include "../psm_suite.h"
+#include "../../../include/sh4der_suite.h"
 #ifndef PSM_CREDITS_UI
 #define PSM_CREDITS_UI                      /* the menu is drawn with the UI Pack's panels: their credit page is always in */
 #endif

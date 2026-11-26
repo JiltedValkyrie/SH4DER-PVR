@@ -24,7 +24,7 @@
 
 #define SH4DER_FAULT_IMPL
 #include "sh4der_fault.h"
-#include "../psm_suite.h"
+#include "../../../include/sh4der_suite.h"
 #include "qrcodegen.h"
 
 KOS_INIT_FLAGS(INIT_DEFAULT);

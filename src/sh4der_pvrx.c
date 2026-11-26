@@ -215,7 +215,7 @@ void sh4der_pvrx_ta_errors(sh4der_pvrx_ta_t *out) {
 }
 
 /* ---- 4. the revision -------------------------------------------------------------------------------------------------
-   Source: demo/psm/psm_suite.h suite_rev_text.
+   Source: include/sh4der_suite.h suite_rev_text (moved from demo/psm/psm_suite.h).
    Ledger: PVR-123 (suite s3, two programs: REVISION 0x0011, SB_REVISION 0x0B on our console: Holly 2.42 by Sega's table).
    Replaces: nothing; KallistiOS has no call. Through the uncached mirror, nothing written. */
 

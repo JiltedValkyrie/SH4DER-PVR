@@ -28,7 +28,7 @@ SH4ZAM_DCE ?= third_party/sh4zam-dce
 DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC is in this repository (src/sh4dow_dc.c, src/sh4dow_foot.c; the column feather every effect here uses is include/sh4dow_dc.h)
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test softfade_test ramp_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test aobake_test aomesh_test aosky_test fakeaf_test ground_test shade_test foot_test
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test softfade_test ramp_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test aobake_test aomesh_test aosky_test fakeaf_test ground_test shade_test foot_test suite_test
 # SH4DOW-DC examples (make test builds and runs them; defined before the test: rule reads it)
 EXAMPLES_SH4DOW = $(BUILD)/example $(BUILD)/quickstart $(BUILD)/feet
 
@@ -94,6 +94,7 @@ test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade $(BU
 	$(BUILD)/split_test
 	$(BUILD)/aobake_test
 	$(BUILD)/aomesh_test
+	$(BUILD)/suite_test
 	$(BUILD)/aosky_test
 	$(BUILD)/fakeaf_test
 	$(BUILD)/ground_test
@@ -157,6 +158,7 @@ $(BUILD)/tilecut_test: test/tilecut_test.c
 $(BUILD)/split_test: test/split_test.c
 $(BUILD)/aobake_test: test/aobake_test.c include/sh4der_aobake.h tools/ao_bake_core.h
 $(BUILD)/aomesh_test: test/aomesh_test.c include/sh4der_aomesh.h
+$(BUILD)/suite_test: test/suite_test.c include/sh4der_suite.h
 $(BUILD)/page_test: test/page_test.c include/sh4der_page.h
 $(BUILD)/fxlabel_test: test/fxlabel_test.c include/sh4der_fxlabel.h
 $(BUILD)/aosky_test: test/aosky_test.c include/sh4der_aosky.h
@@ -350,6 +352,7 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS)) $(BUILD)/shz/page_test $(BUILD)/sh
 	$(BUILD)/shz/split_test
 	$(BUILD)/shz/aobake_test
 	$(BUILD)/shz/aomesh_test
+	$(BUILD)/shz/suite_test
 	$(BUILD)/shz/aosky_test
 	$(BUILD)/shz/fakeaf_test
 	$(BUILD)/shz/ground_test

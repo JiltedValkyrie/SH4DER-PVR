@@ -447,7 +447,7 @@ static void sh4der_fault_vblanks_(unsigned n) {
     }
 }
 
-/* A way out of the report, for a program that has somewhere to go (the suite disc's menu, psm_suite.h): `fn` is called
+/* A way out of the report, for a program that has somewhere to go (the suite disc's menu, sh4der_suite.h): `fn` is called
    once the report has been drawn `shows` times (one each half second), with interrupts off, from the fault's own
    context. It is a try: the program is broken, and fn may not get anywhere. Not set: the report stays for ever. */
 static void (*sh4der_fault_leave_fn_)(void);
