@@ -11,6 +11,16 @@
    "read": "L/R scene, X split, Y swap, A x2, B look; START the pages",
    "credits": "demo/psm/ao/CREDITS.md",
    "note": "The AO split demo, permanent. Its --demo build (the hardware tests' stages left out) is made after suite s7 is cut; until then this ELF does not exist."
+  },
+  {
+   "name": "heat haze",
+   "file": "HEAT.BIN",
+   "elf": "demo/pl4nar/build/pl4m_heat-standalone-25/sh4der-pl4m-heat-standalone-25.elf",
+   "order": 2,
+   "what": "Heat haze hexagons over a hill street, by day",
+   "read": "X heat off/light/strong, A restart, B+X fly-by, START tech",
+   "credits": "demo/pl4nar/CREDITS.md",
+   "note": "The heat haze street demo, passed by the owner as FINAL (2026-11-26). Do not press A+B+X+Y in it. No build command: the ELF is the one the owner passed, kept as built (an ignored build folder; never rebuild over it). It was made by make -C demo/pl4nar MAP=1 RTT=1 GEN=build/gen_map_c7 BUILD=build/pl4m_heat-standalone-25 EXTRA=\"-DPL4NAR_HILLS -DPL4NAR_HEAT_HEX -DPL4NAR_HEAT_HEX_FREE -DPL4NAR_DRIVE\" with SH4ZAM= the KallistiOS one and LIB= an export of commit 82cdf91 (its elf.log). One suite mail mark in the ELF."
   }
  ]
 }
