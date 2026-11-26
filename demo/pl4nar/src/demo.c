@@ -341,6 +341,7 @@ static unsigned     s_div = SPLIT_COLS / 2u;
 static split_step_t s_split_step;
 void demo_auto_split(int on) { s_split = on; s_div = split_middle(SPLIT_COLS); }
 static int          s_fx_hidden;                  /* the labels: B + START; off while the autorun measures */
+static int          s_hud_hidden;                 /* the whole HUD (B + Y): the picture alone; START shows it again */
 static unsigned     s_blob_n;                     /* blob discs drawn this frame (the labels) */
 
 static void demo_place(float dt);
@@ -356,6 +357,7 @@ int demo_auto_set(int reflect, unsigned size, unsigned tod_mode, int orbit) {
     s_auto = orbit;
     s_info = 0;                                    /* the overlay's text is not part of what is measured */
     s_fx_hidden = 1;                               /* nor the labels (psm_effects.h: OFF in measured stages) */
+    s_hud_hidden = 0;                              /* each stage starts with the HUD the autorun shows */
     if (size % 3u != s_size) { s_size = size % 3u; r = gfx_reflect_resize(RT_W(s_sizes[s_size][0]), RT_H(s_sizes[s_size][1])); }
     return r;
 }
@@ -508,7 +510,9 @@ void demo_init(void) {
 void demo_update(const demo_input_t *in, float dt) {
     float rate;
     if (in->pressed & DEMO_BTN_REFLECT) s_reflect = !s_reflect;
-    if (in->pressed & DEMO_BTN_INFO) s_info = !s_info;
+    if (in->pressed & DEMO_BTN_HIDE) s_hud_hidden = !s_hud_hidden;
+    else if ((in->pressed & DEMO_BTN_INFO) && s_hud_hidden) s_hud_hidden = 0;   /* START brings the HUD back as it was */
+    else if (in->pressed & DEMO_BTN_INFO) s_info = !s_info;
     if (in->pressed & DEMO_BTN_MORE) s_f0 = shz_fminf(s_f0 + 0.02f, 0.60f);
     if (in->pressed & DEMO_BTN_LESS) s_f0 = shz_fmaxf(s_f0 - 0.02f, 0.02f);
     if (in->pressed & DEMO_BTN_LAMP_UP) s_lamp_gain = shz_fminf(s_lamp_gain + 0.25f, 4.0f);
@@ -2357,6 +2361,6 @@ void demo_draw(const demo_stats_t *st) {
     }
 #endif
     s_tris_main = gfx_tris_sent();
-    overlay(st);
+    if (!s_hud_hidden) overlay(st);
     gfx_frame_end();
 }

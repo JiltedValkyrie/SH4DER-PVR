@@ -79,6 +79,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **D-pad down** | F0 down | all | tech |
 | **START** | the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills and in DRIVE | all | always |
 | **B + stick** | the camera round the car | all | always |
+| **B + Y** | the whole HUD hidden (the picture alone) / shown; START also shows it again | all | always |
 | **B + A** | the target's size: 128 x 64 (the start), 64 x 32, 256 x 128 in turn | wet | tech |
 | **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | street, map, hills | tech |
 | **B + D-pad up** | the reflection's night gain up | all | tech |

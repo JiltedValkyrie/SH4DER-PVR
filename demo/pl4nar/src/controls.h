@@ -45,18 +45,19 @@ typedef struct ctl_row { uint32_t pad, btn, builds, when; const char *keys, *act
 #define CTL_ROW(pad, btn, builds, when, keys, action, hud) { pad, btn, builds, when, keys, action, hud },
 #define CTL_AXIS 0u
 static const ctl_row_t ctl_rows[] = {
-CTL_ROW(CTL_STICK | CTL_LEFT | CTL_RIGHT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "stick or D-pad left / right", "steer", "stick steer")
+CTL_ROW(CTL_STICK | CTL_LEFT | CTL_RIGHT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "stick or D-pad left / right", "steer", "steer")
 CTL_ROW(CTL_RT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "RT", "engine", "RT gas")
 CTL_ROW(CTL_LT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "LT", "brake, then reverse", "LT brake")
 CTL_ROW(CTL_X, DEMO_BTN_HEAT, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_ALL, "X", "heat haze over the road's far end: OFF, LIGHT (the start), STRONG; by day and dry only", "X heat")
 CTL_ROW(CTL_Y, DEMO_BTN_TOD, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "Y", "time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE", "Y time")
 CTL_ROW(CTL_Y, DEMO_BTN_RAIN, CTL_B_WET, CTL_W_TECH, "Y", "the rain: DRY, DAMP, WET in turn (night always)", "Y rain")
 CTL_ROW(CTL_A, DEMO_BTN_LOOK, CTL_B_ALL, CTL_W_TECH, "A", "textures: low (64 x 64, 16 colours, the start) or full", "A look")
-CTL_ROW(CTL_A, DEMO_BTN_RESTART, CTL_B_ALL, CTL_W_DRIVE, "A", "restart: the car at the start, stopped; the clock and the laps from 0", "A restart")
+CTL_ROW(CTL_A, DEMO_BTN_RESTART, CTL_B_ALL, CTL_W_DRIVE, "A", "restart: the car at the start, stopped; the clock and the laps from 0", "A reset")
 CTL_ROW(CTL_UP, DEMO_BTN_MORE, CTL_B_ALL, CTL_W_TECH, "D-pad up", "F0 (the reflection's strength) up", "UP/DOWN F0")
 CTL_ROW(CTL_DOWN, DEMO_BTN_LESS, CTL_B_ALL, CTL_W_TECH, "D-pad down", "F0 down", NULL)
 CTL_ROW(CTL_START, DEMO_BTN_INFO, CTL_B_ALL, CTL_W_ALL, "START", "the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills and in DRIVE", "START info")
 CTL_ROW(CTL_B | CTL_STICK, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "B + stick", "the camera round the car", "B+stick cam")
+CTL_ROW(CTL_B | CTL_Y, DEMO_BTN_HIDE, CTL_B_ALL, CTL_W_ALL, "B + Y", "the whole HUD hidden (the picture alone) / shown; START also shows it again", "B+Y hide")
 CTL_ROW(CTL_B | CTL_A, DEMO_BTN_SIZE, CTL_B_WET, CTL_W_TECH, "B + A", "the target's size: 128 x 64 (the start), 64 x 32, 256 x 128 in turn", "B+A size")
 CTL_ROW(CTL_B | CTL_A, DEMO_BTN_SIZE, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "B + A", "the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64)", "B+A size")
 CTL_ROW(CTL_B | CTL_UP, DEMO_BTN_LAMP_UP, CTL_B_ALL, CTL_W_TECH, "B + D-pad up", "the reflection's night gain up", "B+UP/DOWN night gain")

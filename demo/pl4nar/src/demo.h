@@ -69,7 +69,8 @@ enum {
     DEMO_BTN_AO      = 1u << 13,   /* the new map: baked occlusion on / off (B + D-pad left) */
     DEMO_BTN_SUN     = 1u << 14,   /* the sun: FIXED -> SWEEP (azimuth, one diagonal to the other) -> HOLD (B + D-pad right) */
     DEMO_BTN_RAIN    = 1u << 15,   /* the wet road build: the rain DRY -> DAMP -> WET (Y there) */
-    DEMO_BTN_HEAT    = 1u << 16    /* the heat shimmer: OFF -> LIGHT -> STRONG (X; by day, dry: heat.h) */
+    DEMO_BTN_HEAT    = 1u << 16,   /* the heat shimmer: OFF -> LIGHT -> STRONG (X; by day, dry: heat.h) */
+    DEMO_BTN_HIDE    = 1u << 17    /* the whole HUD hidden / shown (B + Y); START shows it again */
 };
 
 typedef struct demo_input {
