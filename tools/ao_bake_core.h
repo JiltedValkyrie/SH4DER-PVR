@@ -8,7 +8,8 @@
                10 m at a scale of AOB_R / 10), AOB_PUSH 0.02 m, AOB_INSIDE 0.25
    Cost:       host seconds: not measured for this core (no demo README or log states one). The console cost is the
                baked bytes the program keeps (one byte a vertex, the client's); the load-time bake of demo/psm/ao
-               (ao4_rays, SH4-076: 254 ms and 393 ms on the console) is a different routine, not this one
+               (sh4der_aobake_bytes, include/sh4der_aobake.h, SH4-076: 254 ms and 393 ms on the console) is a
+               different routine, not this one
    Status:     ADVISED; to prove: the room's bytes against room_ao_v to 2 (test/ao_bake_test.c, the room data built
                by demo/psm/ao/build.py --room-only)
    Do:         bake at build time only, on the host, with the rays of one set (keep the room's and the street's
@@ -32,8 +33,9 @@
 
    Plain C, no SH4ZAM: it runs on the host at build time, never on the console. Header only; test:
    test/ao_bake_test.c (against room_bake.c's bytes on the room). Clients: demo/pl4nar/tools/map_ao.c and the psm
-   demo tools that bake a mesh (none yet). Its ray set is not the one in demo/psm/ao/ao4_scene.h (ao4_rays, the
-   console's): two copies of the same rule, to be merged later. */
+   demo tools that bake a mesh (none yet). Its ray set is the one of include/sh4der_aobake.h (sh4der_aobake_rays,
+   the console's) to 1e-6: test/aobake_test.c checks it. The two bakes stay separate (a host tool with libc; this
+   core does not include the library). */
 
 #ifndef AO_BAKE_CORE_H
 #define AO_BAKE_CORE_H

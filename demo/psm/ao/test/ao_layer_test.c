@@ -9,7 +9,7 @@
      3 that a ground point is under a slid triangle exactly when a ray from it toward the sky direction hits the
        triangle (Moeller-Trumbore, written here): the slide is the occlusion test it stands for;
      4 a software model of the target (depth "greater" with write, drawn in order): with the union a texel holds
-       ao_level(k, n) for the n directions blocked at it, k + 1 levels at most; without it never lighter, somewhere
+       sh4der_aosky_level(k, n) for the n directions blocked at it, k + 1 levels at most; without it never lighter, somewhere
        darker.
    With -DAO_TEST_TOWN (and the town's include paths) it also runs psm_ao2_send over a small scene through a counting
    sink.
@@ -73,38 +73,38 @@ static void t_tables(void) {
     static const unsigned ks[] = { 0, 1, 2, 3, 4, 5, 7, 8, 9, 100 }, want[] = { 0, 1, 2, 2, 4, 4, 4, 8, 8, 8 };
     unsigned i, k, j;
 
-    for (i = 0; i < sizeof ks / sizeof ks[0]; i++) CHECK(ao_count(ks[i]) == want[i], "ao_count(%u) = %u", ks[i], ao_count(ks[i]));
+    for (i = 0; i < sizeof ks / sizeof ks[0]; i++) CHECK(sh4der_aosky_count(ks[i]) == want[i], "sh4der_aosky_count(%u) = %u", ks[i], sh4der_aosky_count(ks[i]));
     for (k = 1; k <= 8u; k++) {
-        CHECK(fabs(pow(1.0 - ao_alpha(k), (double)k) - AO_FLOOR) < 1e-6, "alpha(%u): all blocked leaves %f", k, pow(1.0 - ao_alpha(k), (double)k));
-        CHECK(fabsf(ao_level(k, k) - AO_FLOOR) < 1e-5f && ao_level(k, 0) == 1.0f, "ao_level(%u)", k);
+        CHECK(fabs(pow(1.0 - sh4der_aosky_alpha(k), (double)k) - SH4DER_AOSKY_FLOOR) < 1e-6, "alpha(%u): all blocked leaves %f", k, pow(1.0 - sh4der_aosky_alpha(k), (double)k));
+        CHECK(fabsf(sh4der_aosky_level(k, k) - SH4DER_AOSKY_FLOOR) < 1e-5f && sh4der_aosky_level(k, 0) == 1.0f, "sh4der_aosky_level(%u)", k);
     }
-    CHECK(ao_alpha(0) == 0.0f && ao_argb(0, 1.0f) == 0u, "k 0 draws nothing");
-    CHECK(ao_argb(1, 1.0f) == 0x80000000u, "argb(1) %08x", (unsigned)ao_argb(1, 1.0f));
-    CHECK(ao_argb(8, 1.0f) == (21u << 24) && ao_argb(8, 2.0f) == (21u << 24) && ao_argb(8, -1.0f) == 0u, "argb(8) %08x", (unsigned)ao_argb(8, 1.0f));
-    CHECK((ao_argb(4, 0.5f) & 0x00ffffffu) == 0u, "the colour is black");
+    CHECK(sh4der_aosky_alpha(0) == 0.0f && sh4der_aosky_argb(0, 1.0f) == 0u, "k 0 draws nothing");
+    CHECK(sh4der_aosky_argb(1, 1.0f) == 0x80000000u, "argb(1) %08x", (unsigned)sh4der_aosky_argb(1, 1.0f));
+    CHECK(sh4der_aosky_argb(8, 1.0f) == (21u << 24) && sh4der_aosky_argb(8, 2.0f) == (21u << 24) && sh4der_aosky_argb(8, -1.0f) == 0u, "argb(8) %08x", (unsigned)sh4der_aosky_argb(8, 1.0f));
+    CHECK((sh4der_aosky_argb(4, 0.5f) & 0x00ffffffu) == 0u, "the colour is black");
     for (k = 1; k <= 8u; k *= 2u) {
         float sum[2] = { 0.0f, 0.0f };
 
         for (i = 0; i < k; i++) {
             float s[2], t[2];
 
-            ao_slope(k, i, s);
-            CHECK(fabsf(sqrtf(s[0] * s[0] + s[1] * s[1]) - AO_COT_EL) < 1e-6f, "slope length k %u i %u", k, i);
+            sh4der_aosky_slope(k, i, s);
+            CHECK(fabsf(sqrtf(s[0] * s[0] + s[1] * s[1]) - SH4DER_AOSKY_COT_EL) < 1e-6f, "slope length k %u i %u", k, i);
             CHECK(fabsf(s[0]) > 0.2f && fabsf(s[1]) > 0.2f, "no direction along an axis");
             sum[0] += s[0]; sum[1] += s[1];
             for (j = 0; j < i; j++) {                           /* evenly round the sky: the angle between two is a multiple of 360 / k */
                 double ang;
 
-                ao_slope(k, j, t);
-                ang = acos((s[0] * t[0] + s[1] * t[1]) / (AO_COT_EL * AO_COT_EL)) * (180.0 / 3.14159265358979) / (360.0 / k);
+                sh4der_aosky_slope(k, j, t);
+                ang = acos((s[0] * t[0] + s[1] * t[1]) / (SH4DER_AOSKY_COT_EL * SH4DER_AOSKY_COT_EL)) * (180.0 / 3.14159265358979) / (360.0 / k);
                 CHECK(fabs(ang - floor(ang + 0.5)) < 1e-3 && ang > 0.5, "spacing k %u: %u and %u", k, i, j);
             }
         }
         if (k > 1u) CHECK(fabsf(sum[0]) < 1e-5f && fabsf(sum[1]) < 1e-5f, "k %u directions balance", k);
     }
-    for (i = 0; i < AO_DIRS_MAX; i++) {
-        CHECK(ao_depth(i) > 1.0f && ao_depth(i) < 2.0f, "depth %u between the casters and the border", i);
-        if (i) CHECK(ao_depth(i) > ao_depth(i - 1u), "depth %u nearer than the one before", i);
+    for (i = 0; i < SH4DER_AOSKY_DIRS_MAX; i++) {
+        CHECK(sh4der_aosky_depth(i) > 1.0f && sh4der_aosky_depth(i) < 2.0f, "depth %u between the casters and the border", i);
+        if (i) CHECK(sh4der_aosky_depth(i) > sh4der_aosky_depth(i - 1u), "depth %u nearer than the one before", i);
     }
 }
 
@@ -116,14 +116,14 @@ static void t_slide(void) {
         const float y0 = rnd_in(-2.0f, 2.0f);
         float s[2], S[16], M[16], A[16], p[3], h[4], g[3], hm[4], ha[4];
 
-        ao_slope(8u, n & 7u, s);
+        sh4der_aosky_slope(8u, n & 7u, s);
         p[0] = rnd_in(-40.0f, 40.0f); p[1] = y0 + rnd_in(0.0f, 12.0f); p[2] = rnd_in(-40.0f, 40.0f);
-        ao_slide(s, y0, S);
+        sh4der_aosky_slide(s, y0, S);
         xform(S, p, h);
         g[0] = p[0] - s[0] * (p[1] - y0); g[1] = y0; g[2] = p[2] - s[1] * (p[1] - y0);     /* the ray to the plane */
         CHECK(fabsf(h[0] - g[0]) < 1e-4f && fabsf(h[1] - g[1]) < 1e-4f && fabsf(h[2] - g[2]) < 1e-4f && h[3] == 1.0f, "slide %u", n);
         for (c = 0; c < 16u; c++) M[c] = rnd_in(-1.0f, 1.0f);
-        ao_slide_map(M, s, y0, A);
+        sh4der_aosky_slide_map(M, s, y0, A);
         xform(M, g, hm);
         xform(A, p, ha);
         for (c = 0; c < 4u; c++) CHECK(fabsf(hm[c] - ha[c]) < 2e-3f, "slide then map %u column %u: %f %f", n, c, hm[c], ha[c]);
@@ -131,8 +131,8 @@ static void t_slide(void) {
     {   /* a point on the ground stays where it is */
         float s[2], S[16], p[3] = { 3.0f, 0.5f, -7.0f }, h[4];
 
-        ao_slope(4u, 1u, s);
-        ao_slide(s, 0.5f, S);
+        sh4der_aosky_slope(4u, 1u, s);
+        sh4der_aosky_slide(s, 0.5f, S);
         xform(S, p, h);
         CHECK(fabsf(h[0] - 3.0f) < 1e-6f && fabsf(h[1] - 0.5f) < 1e-6f && fabsf(h[2] + 7.0f) < 1e-6f, "the ground does not move");
     }
@@ -148,8 +148,8 @@ static void t_occlusion(void) {
         unsigned i;
         int ray, flat;
 
-        ao_slope(8u, n & 7u, s);
-        ao_slide(s, 0.0f, S);
+        sh4der_aosky_slope(8u, n & 7u, s);
+        sh4der_aosky_slide(s, 0.0f, S);
         for (i = 0; i < 3u; i++) {
             tri[i][0] = rnd_in(-3.0f, 3.0f); tri[i][1] = rnd_in(0.2f, 5.0f); tri[i][2] = rnd_in(-3.0f, 3.0f);
             xform(S, tri[i], h);
@@ -219,24 +219,24 @@ static void t_target(void) {
 
     boxes_make();
     for (k = 1; k <= 8u; k *= 2u) {
-        const float alpha = ao_alpha(k);
-        unsigned levels[AO_DIRS_MAX + 1u], bad = 0, darker = 0, lighter = 0, pass;
+        const float alpha = sh4der_aosky_alpha(k);
+        unsigned levels[SH4DER_AOSKY_DIRS_MAX + 1u], bad = 0, darker = 0, lighter = 0, pass;
 
         for (pass = 0; pass < 2u; pass++) {                        /* 0: the union; 1: plain blending */
             target_clear();
             for (d = 0; d < k; d++) {
                 float s[2], A[16];
 
-                ao_slope(k, d, s);
-                ao_slide_map(map, s, 0.0f, A);
+                sh4der_aosky_slope(k, d, s);
+                sh4der_aosky_slide_map(map, s, 0.0f, A);
                 for (b = 0; b < BOXES; b++)
                     for (t = 0; t < 12u; t++) {
                         float xy[3][2], h[4];
                         int ok = 1;
 
-                        for (i = 0; i < 3u; i++) { xform(A, box_v[b][box_t[t][i]], h); ok &= ao_px(h, 1.0f, 0.5f * (float)TS, xy[i]); }
+                        for (i = 0; i < 3u; i++) { xform(A, box_v[b][box_t[t][i]], h); ok &= sh4der_aosky_px(h, 1.0f, 0.5f * (float)TS, xy[i]); }
                         CHECK(ok, "a box corner has no place in the target");
-                        if (ok && ao_tri_ok(xy[0], xy[1], xy[2], (float)TS, 0)) target_tri(xy[0], xy[1], xy[2], ao_depth(d), alpha, !pass);
+                        if (ok && sh4der_aosky_tri_ok(xy[0], xy[1], xy[2], (float)TS, 0)) target_tri(xy[0], xy[1], xy[2], sh4der_aosky_depth(d), alpha, !pass);
                     }
             }
             if (!pass) memcpy(un, t_col, sizeof un);
@@ -253,7 +253,7 @@ static void t_target(void) {
                     float s[2], dir[3];
                     int hit = 0;
 
-                    ao_slope(k, d, s);
+                    sh4der_aosky_slope(k, d, s);
                     dir[0] = s[0]; dir[1] = 1.0f; dir[2] = s[1];
                     for (b = 0; b < BOXES; b++)
                         for (t = 0; t < 12u; t++) {
@@ -270,9 +270,9 @@ static void t_target(void) {
                 if (t_col[i] > un[i] + 1e-6f) lighter++;
                 if (near_edge) continue;
                 levels[blocked]++;
-                if (fabsf(un[i] - ao_level(k, blocked)) > 1e-5f) bad++;
+                if (fabsf(un[i] - sh4der_aosky_level(k, blocked)) > 1e-5f) bad++;
             }
-        CHECK(bad == 0, "k %u: %u texels of the union are not ao_level(k, directions blocked)", k, bad);
+        CHECK(bad == 0, "k %u: %u texels of the union are not sh4der_aosky_level(k, directions blocked)", k, bad);
         CHECK(lighter == 0, "k %u: plain blending is lighter than the union at %u texels", k, lighter);
         CHECK(darker > 0, "k %u: plain blending is nowhere darker: the boxes do not overlap themselves?", k);
         CHECK(levels[0] > 0 && levels[1] > 0, "k %u: the scene has lit and blocked texels", k);

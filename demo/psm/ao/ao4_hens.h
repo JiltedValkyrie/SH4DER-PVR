@@ -214,7 +214,7 @@ static inline unsigned ao4_hens_tiles(const ao4_scene_t *s, const ao4_hens_t *h,
         for (d = 0; d < k; d++) {
             float slope[2], xy[PSM_TOWN_HEN_CV][2];
 
-            ao_slope(k, d, slope);
+            sh4der_aosky_slope(k, d, slope);
             slope[0] *= reach * scale; slope[1] *= reach * scale;
             for (i = 0; i < PSM_TOWN_HEN_CV; i++) {      /* where the point's shadow lands on the floor, in the tile */
                 xy[i][0] = tx + cv[i][0] * scale - cv[i][1] * slope[0];
@@ -223,8 +223,8 @@ static inline unsigned ao4_hens_tiles(const ao4_scene_t *s, const ao4_hens_t *h,
             for (i = 0; i < PSM_TOWN_HEN_CT; i++) {
                 const unsigned short *t = psm_town_hen_ct[i];
 
-                if (!ao_tri_ok(xy[t[0]], xy[t[1]], xy[t[2]], (float)AO4_HEN_ATLAS, AO4_CULL)) continue;
-                emit(user, xy[t[0]], xy[t[1]], xy[t[2]], ao_depth(d), argb, 1);
+                if (!sh4der_aosky_tri_ok(xy[t[0]], xy[t[1]], xy[t[2]], (float)AO4_HEN_ATLAS, AO4_CULL)) continue;
+                emit(user, xy[t[0]], xy[t[1]], xy[t[2]], sh4der_aosky_depth(d), argb, 1);
                 n++;
             }
         }

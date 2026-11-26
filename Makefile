@@ -13,7 +13,7 @@ CFLAGS  ?= -O3
 WARN     = -std=c99 -Wall -Wextra
 BUILD    = build
 SRC      = src/sh4der_core.c src/sh4der_blade.c src/sh4der_holo.c src/sh4der_bloom.c src/sh4der_glow.c src/sh4der_frame.c src/sh4der_warp.c src/sh4der_trail.c src/sh4der_lens.c src/sh4der_focus.c src/sh4der_visor.c src/sh4der_torch.c src/sh4der_ca.c src/sh4der_shafts.c src/sh4der_spark.c src/sh4der_pl4nar.c src/sh4der_bolt.c src/sh4der_motes.c src/sh4der_pvrx.c
-HDR      = include/sh4der_core.h include/sh4der_hexheat.h include/sh4der_pvrx.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_tilecut.h include/sh4der_split.h include/sh4der_fault.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_pl4nar.h include/sh4der_pool.h include/sh4der_ramp.h include/sh4der_psm.h include/sh4der_psm_raster.h include/sh4der_psm_pvr.h include/sh4der_bolt.h include/sh4der_motes.h include/sh4der_deform.h include/sh4der_mist.h include/sh4der_rise.h include/sh4der_film.h include/sh4der_timebase.h include/sh4der_cloudvolume.h demo/matchlight/matchlight_scene.h
+HDR      = include/sh4der_core.h include/sh4der_hexheat.h include/sh4der_pvrx.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_tilecut.h include/sh4der_split.h include/sh4der_fault.h include/sh4der_aobake.h include/sh4der_aosky.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_pl4nar.h include/sh4der_pool.h include/sh4der_ramp.h include/sh4der_psm.h include/sh4der_psm_raster.h include/sh4der_psm_pvr.h include/sh4der_bolt.h include/sh4der_motes.h include/sh4der_deform.h include/sh4der_mist.h include/sh4der_rise.h include/sh4der_film.h include/sh4der_timebase.h include/sh4der_cloudvolume.h demo/matchlight/matchlight_scene.h
 
 # kos-cc and kos-ar are the KallistiOS wrappers: they add its flags, its include paths and, when linking, its libraries.
 # Not named KOS_CC / KOS_AR: the KallistiOS environment already sets those to the bare compiler and archiver.
@@ -28,7 +28,7 @@ DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC ships in this repository: the soft shadows, and the column feather every effect here uses
 SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test ramp_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test ramp_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test aobake_test aosky_test
 
 .PHONY: test test-shz dc test-dc demo clean pl4nar-demo psm-demo check-sh4zam check-tuning test-demo
 
@@ -82,6 +82,8 @@ test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/guard_test
 	$(BUILD)/tilecut_test
 	$(BUILD)/split_test
+	$(BUILD)/aobake_test
+	$(BUILD)/aosky_test
 	$(BUILD)/pvrx_test
 	$(BUILD)/water_test
 	$(BUILD)/ocean_scene_test
@@ -134,6 +136,8 @@ $(BUILD)/shafts_test: test/shafts_test.c
 $(BUILD)/guard_test: test/guard_test.c
 $(BUILD)/tilecut_test: test/tilecut_test.c
 $(BUILD)/split_test: test/split_test.c
+$(BUILD)/aobake_test: test/aobake_test.c include/sh4der_aobake.h tools/ao_bake_core.h
+$(BUILD)/aosky_test: test/aosky_test.c include/sh4der_aosky.h
 $(BUILD)/pvrx_test: test/pvrx_test.c include/sh4der_pvrx.h
 $(BUILD)/water_test: test/water_test.c include/sh4der_water.h include/sh4der_sss.h $(SH4DOW)/include/sh4dow_heightfield.h
 $(BUILD)/sss_test: test/sss_test.c include/sh4der_sss.h
@@ -297,6 +301,8 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/guard_test
 	$(BUILD)/shz/tilecut_test
 	$(BUILD)/shz/split_test
+	$(BUILD)/shz/aobake_test
+	$(BUILD)/shz/aosky_test
 	$(BUILD)/shz/pvrx_test
 	$(BUILD)/shz/water_test
 	$(BUILD)/shz/ocean_scene_test

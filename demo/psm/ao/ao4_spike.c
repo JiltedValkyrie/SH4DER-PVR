@@ -170,7 +170,7 @@ static void headers(void) {
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);                      /* the map pass: the clear, the sun's casters, the border */
     c.gen.culling = PVR_CULLING_NONE;
     pvr_poly_compile(&h_flat, &c);
-    ao_layer_header(&h_ao, 0);                                   /* the sky directions: plain blending (one side is the caller's) */
+    sh4der_aosky_header(&h_ao, 0);                                   /* the sky directions: plain blending (one side is the caller's) */
     for (i = 0; i < 2u; i++) {                                   /* the ground: its colour x a target, inside the user clip */
         pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)AO4_SIZE, (int)AO4_SIZE, map_mem[i], PVR_FILTER_BILINEAR);
         c.gen.culling = PVR_CULLING_NONE; c.gen.clip_mode = PVR_USERCLIP_INSIDE;

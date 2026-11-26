@@ -22,6 +22,8 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 
 - [effects/README.md](effects/README.md) | Effects index | effect, index | 2026-11-25 | every effect in the library in one line, how far along it is, and whether any of its cost has been measured on a real console.
 - [effects/ao.md](effects/ao.md) | ao (small-scale occlusion) | effect, ao | 2026-11-25 | the two kinds of darkening the ao header gives, and when each is computed.
+- [effects/aobake.md](effects/aobake.md) | aobake (baked occlusion against exact shapes) | effect, ao, bake, load | 2026-11-26 | one ambient occlusion byte a vertex, baked at load by rays against spheres, boxes and a plane; 252 to 254 ms for scene A on a console.
+- [effects/aosky.md](effects/aosky.md) | aosky (occlusion of the sky drawn into a shadow target) | effect, ao, psm, pvr, shadow | 2026-11-26 | the sky's occlusion drawn as K slid shadows into the sun's target; the depth union failed on the console; plain blending, one side, ran in ao4.
 - [effects/ao-bake.md](effects/ao-bake.md) | ao-bake (baked occlusion over any triangle list, host tool) | tool, ao, bake, host | 2026-11-26 | a host build tool that bakes one ambient occlusion byte a vertex from a triangle list: 64 rays, inside-solid fill, street wrap; the room's bytes match to 2.
 - [effects/blade.md](effects/blade.md) | blade | effect, blade | 2026-11-25 | what the blade effect draws, how to call it and what it costs.
 - [effects/bloom.md](effects/bloom.md) | bloom | effect, bloom | 2026-11-25 | how to get a soft glow round a blade or a lamp without reading the frame back, and what it costs.

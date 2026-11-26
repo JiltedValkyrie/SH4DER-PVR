@@ -51,6 +51,8 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [tilecut](tilecut.md) | A render target pass through a tile table its own size | ALPHA v0.5 | **yes**: c4, ao4-h, d1-c, d1-d (PVR-092, PVR-156, PVR-192, PVR-205), one console |
 | [psm](psm.md) | Shadow map placement; the SH-4 and PVR map routes | v0.10 | **yes**: the town demo HUD, one console, 2026-11-25 |
 | [ao](ao.md) | Crease darkening (bake) and a screen cavity cue | v0.10 | no |
+| [aobake](aobake.md) | Baked ambient occlusion against exact shapes, at load (the console bake) | ALPHA v0.5 | **yes**: the ao4 scenes' bake (SH4-076, SH4-082), one console |
+| [aosky](aosky.md) | Occlusion of the sky drawn into the sun's shadow target (AO method 2) | PROTOTYPE v0.1 | no: the start settings ran in ao4 (PVR-140, one console); this library copy has not |
 | [ao-bake](ao-bake.md) | Host build tool: baked occlusion over any triangle list (not a console effect) | v0.1 | no |
 | [ca](ca.md) | The frame texture and chromatic aberration | v0.50 | no |
 | [shafts](shafts.md) | Dark shapes cast away from a light | v0.50 | no |

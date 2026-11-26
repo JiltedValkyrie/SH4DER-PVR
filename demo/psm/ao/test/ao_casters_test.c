@@ -10,7 +10,7 @@
      the mesh    its vertices welded by position; an edge of a closed, one-way-wound surface is used exactly twice, once
                  in each direction. open: edges used once. odd: edges used more than twice. flipped: edges used twice
                  in the same direction. vol: the signed volume (its sign says which way the object is wound).
-     the shadow  the object's shadow from each of 8 sky directions (ao_slope) rastered into 256 x 256 texels three
+     the shadow  the object's shadow from each of 8 sky directions (sh4der_aosky_slope) rastered into 256 x 256 texels three
                  times: both sides, side 1, side -1. d1 and d-1 are the texels (edge texels left out) where a side's
                  shadow is not the shadow of both sides. This is the test that matters: an object can fail the mesh
                  test and still cast the same shadow from these directions (a box with no floor, standing on the
@@ -45,7 +45,7 @@ static void raster(const psm_cobj_t *o, int cull, unsigned which, unsigned d) {
         float x0 = a[0], x1 = a[0], y0 = a[1], y1 = a[1];
         int ix0, ix1, iy0, iy1, x, y;
 
-        if (!ao_tri_ok(a, b, c, (float)G, cull)) continue;
+        if (!sh4der_aosky_tri_ok(a, b, c, (float)G, cull)) continue;
         if (b[0] < x0) x0 = b[0];
         if (c[0] < x0) x0 = c[0];
         if (b[0] > x1) x1 = b[0];
@@ -122,7 +122,7 @@ int main(void) {
 
         /* ---- the shadow: the object and its reach in the 256 grid ---- */
         {
-            const float reach = hmax * AO_COT_EL + 0.5f, cx = 0.5f * (lo[0] + hi[0]), cz = 0.5f * (lo[1] + hi[1]);
+            const float reach = hmax * SH4DER_AOSKY_COT_EL + 0.5f, cx = 0.5f * (lo[0] + hi[0]), cz = 0.5f * (lo[1] + hi[1]);
             const float half = 0.5f * ((hi[0] - lo[0]) > (hi[1] - lo[1]) ? (hi[0] - lo[0]) : (hi[1] - lo[1])) + reach;
 
             s = 1.0f / half;
@@ -133,13 +133,13 @@ int main(void) {
         for (d = 0; d < 8u; d++) {
             float slope[2], m[16];
 
-            ao_slope(8u, d, slope);
-            ao_slide_map(map, slope, 0.0f, m);
+            sh4der_aosky_slope(8u, d, slope);
+            sh4der_aosky_slide_map(map, slope, 0.0f, m);
             for (i = o->v0; i < o->v0 + o->vn; i++) {
                 float h[4];
 
                 sh4der_psm_xform(m, scene.cv[i], 1.0f, h);
-                if (!ao_px(h, 1.0f, 0.5f * (float)G, xy[i])) { printf("FAIL: object %u vertex %u has no place in the grid\n", j, i); return 1; }
+                if (!sh4der_aosky_px(h, 1.0f, 0.5f * (float)G, xy[i])) { printf("FAIL: object %u vertex %u has no place in the grid\n", j, i); return 1; }
             }
             raster(o, 0, 0u, d); raster(o, 1, 1u, d); raster(o, -1, 2u, d);
         }

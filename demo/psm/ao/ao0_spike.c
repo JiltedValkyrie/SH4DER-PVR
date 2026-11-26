@@ -113,8 +113,8 @@ static void headers(void) {
     pvr_poly_cxt_col(&c, PVR_LIST_OP_POLY);
     c.gen.culling = PVR_CULLING_NONE;
     pvr_poly_compile(&h_flat, &c);
-    ao_layer_header(&h_ao[0], 0);
-    ao_layer_header(&h_ao[1], 1);
+    sh4der_aosky_header(&h_ao[0], 0);
+    sh4der_aosky_header(&h_ao[1], 1);
     pvr_poly_cxt_txr(&c, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)AO0_SIZE, (int)AO0_SIZE, map_mem, PVR_FILTER_BILINEAR);
     c.gen.culling = PVR_CULLING_NONE; c.txr.env = PVR_TXRENV_MODULATE;
     pvr_poly_compile(&h_ground, &c);
@@ -197,19 +197,19 @@ static unsigned send_dir(const float slope[2], float z, uint32_t argb, int cull)
     float m[16];
     unsigned i, n = 0;
 
-    ao_slide_map(ao0_map, slope, 0.0f, m);
+    sh4der_aosky_slide_map(ao0_map, slope, 0.0f, m);
     xf_load(m);
     for (i = 0; i < scene.vn; i++) {
         const shz_vec4_t v = shz_xmtrx_transform_vec4(shz_vec4_init(scene.v[i][0], scene.v[i][1], scene.v[i][2], 1.0f));
         const float h[4] = { v.x, v.y, v.z, v.w };
 
-        sok[i] = (uint8_t)ao_px(h, 1.0f, half, sxy[i]);       /* a uniform map: w is 1 */
+        sok[i] = (uint8_t)sh4der_aosky_px(h, 1.0f, half, sxy[i]);       /* a uniform map: w is 1 */
     }
     for (i = 0; i < scene.tn; i++) {
         const unsigned a = scene.t[i][0], b = scene.t[i][1], c = scene.t[i][2];
 
         if (!(sok[a] & sok[b] & sok[c])) continue;
-        if (!ao_tri_ok(sxy[a], sxy[b], sxy[c], (float)AO0_SIZE, cull)) continue;
+        if (!sh4der_aosky_tri_ok(sxy[a], sxy[b], sxy[c], (float)AO0_SIZE, cull)) continue;
         put(0, sxy[a][0], sxy[a][1], z, 0.0f, 0.0f, argb);
         put(0, sxy[b][0], sxy[b][1], z, 0.0f, 0.0f, argb);
         put(1, sxy[c][0], sxy[c][1], z, 0.0f, 0.0f, argb);
@@ -248,7 +248,7 @@ static int map_pass(unsigned k, unsigned way, int sun) {
     flush();
     pvr_list_finish();
     if (k) {
-        const uint32_t argb = ao_argb(k, 1.0f);
+        const uint32_t argb = sh4der_aosky_argb(k, 1.0f);
 
         pvr_list_begin(PVR_LIST_TR_POLY);
         t0 = ns();
@@ -256,8 +256,8 @@ static int map_pass(unsigned k, unsigned way, int sun) {
         for (d = 0; d < k; d++) {
             float slope[2];
 
-            ao_slope(k, d, slope);
-            ao_v += send_dir(slope, ao_depth(d), argb, cull);
+            sh4der_aosky_slope(k, d, slope);
+            ao_v += send_dir(slope, sh4der_aosky_depth(d), argb, cull);
         }
         ao_ns = ns() - t0;
         pvr_list_finish();

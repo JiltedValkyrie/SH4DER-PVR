@@ -14,9 +14,10 @@
    occluders (spheres, boxes, the ground) for the bake.
 
    METHOD 1, BAKED (ao4_bake). A byte a vertex, 255 open .. 0 closed: AO4_RAYS cosine-weighted rays over the vertex's
-   hemisphere (a fixed Hammersley set; the rays and the weight 1 - t / reach of ../tools/ao_bake.c), each against the
-   exact occluders. A start inside an occluder (the ground right under a sphere) is closed. It multiplies the ambient
-   light only. Run once at load; nothing a frame but one multiply a vertex.
+   hemisphere (a fixed Hammersley set; the same set as tools/ao_bake_core.h; the weight 1 - t / reach), each against the
+   exact occluders (the bake itself is include/sh4der_aobake.h; this file keeps the scenes and the values it is given).
+   A start inside an occluder (the ground right under a sphere) is closed. It multiplies the ambient light only.
+   Run once at load; nothing a frame but one multiply a vertex.
 
    METHOD 2, THE PVR MAP. ../ao_layer.h: the casters drawn into the sun's shadow target from k sky directions, plain
    blending, one side. The ground only. This file has the software model of that target for the host preview.
@@ -34,6 +35,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "sh4der_core.h"
+#include "sh4der_aobake.h"
 #include "../ao_layer.h"
 
 #define AO4_SPAN      6.0f                  /* the ground: x, z in -AO4_SPAN .. AO4_SPAN */
@@ -54,8 +56,8 @@ enum { AO4_OFF = 0, AO4_BAKED = 1, AO4_MAP = 2, AO4_LMAP = 3, AO4_LMAP_M = 4 }; 
                                                                                         surface; LMAP_M: that and a tile a mover (ao4_hens.h) */
 enum { AO4_CLAY = 0, AO4_COLOUR = 1, AO4_AO_ONLY = 2, AO4_LOOKS = 3 };
 
-typedef struct ao4_sph { float c[3], r; } ao4_sph_t;
-typedef struct ao4_box { float lo[3], hi[3]; } ao4_box_t;
+typedef sh4der_aobake_sph_t ao4_sph_t;   /* the library's occluder shapes (sh4der_aobake.h): the same layout */
+typedef sh4der_aobake_box_t ao4_box_t;
 
 typedef struct ao4_scene {
     float p[AO4_V_MAX][3], n[AO4_V_MAX][3];
@@ -249,97 +251,26 @@ static inline void ao4_build(ao4_scene_t *s, unsigned which) {
 
 /* ---- method 1: the bake -------------------------------------------------------------------------------------------- */
 
-/* The nearest occluder along the ray o + t d (d unit), or AO4_REACH. 0 when o is inside one. */
-static inline float ao4_ray(const ao4_scene_t *s, const float o[3], const float d[3]) {
-    float best = AO4_REACH;
-    unsigned i, k;
+/* The exact occluders of scene s for the library's bake: the ground at y 0, then the scene's spheres and boxes. */
+static inline sh4der_aobake_occl_t ao4_occl(const ao4_scene_t *s) {
+    sh4der_aobake_occl_t o;
 
-    if (d[1] < -1.0e-4f && o[1] > 0.0f) {                    /* the ground */
-        const float t = sh4der_div_(-o[1], d[1]);
-
-        if (t < best) best = t;
-    }
-    for (i = 0; i < s->nsph; i++) {
-        const float oc[3] = { o[0] - s->sph[i].c[0], o[1] - s->sph[i].c[1], o[2] - s->sph[i].c[2] };
-        const float b = sh4der_dot3_(oc, d), cc = sh4der_dot3_(oc, oc) - s->sph[i].r * s->sph[i].r;
-        float disc, t;
-
-        if (cc < 0.0f) return 0.0f;
-        if (b >= 0.0f) continue;
-        disc = b * b - cc;
-        if (disc <= 0.0f) continue;
-        t = -b - sh4der_sqrt_(disc);
-        if (t >= 0.0f && t < best) best = t;
-    }
-    for (i = 0; i < s->nbox; i++) {
-        const ao4_box_t *bx = &s->box[i];
-        float t0 = 0.0f, t1 = best;
-        int inside = 1, miss = 0;
-
-        for (k = 0; k < 3u; k++) {
-            if (!(o[k] > bx->lo[k] + 1.0e-3f && o[k] < bx->hi[k] - 1.0e-3f)) inside = 0;   /* on a face is outside */
-            if (d[k] > 1.0e-6f || d[k] < -1.0e-6f) {
-                const float inv = sh4der_div_(1.0f, d[k]);
-                float a = (bx->lo[k] - o[k]) * inv, b = (bx->hi[k] - o[k]) * inv;
-
-                if (a > b) { const float sw = a; a = b; b = sw; }
-                if (a > t0) t0 = a;
-                if (b < t1) t1 = b;
-            } else if (o[k] < bx->lo[k] || o[k] > bx->hi[k]) miss = 1;
-        }
-        if (inside) return 0.0f;
-        if (!miss && t0 + 1.0e-4f < t1 && t0 < best) best = t0;   /* a ray that only touches a face does not hit */
-    }
-    return best;
+    o.sph = s->sph; o.nsph = s->nsph;
+    o.box = s->box; o.nbox = s->nbox;
+    o.ground = 1; o.ground_y = 0.0f;
+    return o;
 }
 
-/* The fixed ray set over the hemisphere of +y: cosine-weighted, Hammersley (the set of ../tools/ao_bake.c). */
-static inline void ao4_rays(float dirs[AO4_RAYS][3]) {
-    unsigned k;
-
-    for (k = 0; k < AO4_RAYS; k++) {
-        const float u1 = ((float)k + 0.5f) * (1.0f / (float)AO4_RAYS);
-        float u2 = 0.0f, f = 0.5f, sn, cs, rr;
-        unsigned b = k;
-
-        while (b) { if (b & 1u) u2 += f; f *= 0.5f; b >>= 1; }   /* the base-2 radical inverse */
-        rr = sh4der_sqrt_(u1);
-        sh4der_sincos_(6.2831853f * u2, &sn, &cs);
-        dirs[k][0] = rr * cs; dirs[k][1] = sh4der_sqrt_(1.0f - u1); dirs[k][2] = rr * sn;
-    }
-}
-
-/* The open share at a point with unit normal n: 1 open .. 0 closed. */
-static inline float ao4_at(const ao4_scene_t *s, const float p[3], const float n[3], const float dirs[AO4_RAYS][3]) {
-    const float ax[3] = { n[1] > 0.9f || n[1] < -0.9f ? 1.0f : 0.0f, n[1] > 0.9f || n[1] < -0.9f ? 0.0f : 1.0f, 0.0f };
-    const float o[3] = { p[0] + n[0] * AO4_PUSH, p[1] + n[1] * AO4_PUSH, p[2] + n[2] * AO4_PUSH };
-    float t[3], b[3], occl = 0.0f;
-    unsigned k;
-
-    sh4der_cross_(n, ax, t);
-    sh4der_norm3_(t);
-    sh4der_cross_(n, t, b);
-    for (k = 0; k < AO4_RAYS; k++) {
-        const float d[3] = { t[0] * dirs[k][0] + n[0] * dirs[k][1] + b[0] * dirs[k][2],
-                             t[1] * dirs[k][0] + n[1] * dirs[k][1] + b[1] * dirs[k][2],
-                             t[2] * dirs[k][0] + n[2] * dirs[k][1] + b[2] * dirs[k][2] };
-        const float hit = ao4_ray(s, o, d);
-
-        if (hit < AO4_REACH) occl += 1.0f - hit * (1.0f / AO4_REACH);
-    }
-    return 1.0f - occl * (1.0f / (float)AO4_RAYS);
-}
+/* The fixed ray set over the hemisphere of +y (AO4_RAYS rays): the library's set (tools/ao_bake_core.h's, to 1e-6). */
+static inline void ao4_rays(float dirs[AO4_RAYS][3]) { sh4der_aobake_rays(dirs, AO4_RAYS); }
 
 /* Every vertex's AO byte. `tick` (may be NULL) is called every 64 vertices: a heartbeat for the fault catcher. */
 static inline void ao4_bake(ao4_scene_t *s, void (*tick)(void)) {
+    const sh4der_aobake_occl_t o = ao4_occl(s);
     float dirs[AO4_RAYS][3];
-    unsigned i;
 
-    ao4_rays(dirs);
-    for (i = 0; i < s->vn; i++) {
-        s->ao[i] = (uint8_t)(sh4der_sat_(ao4_at(s, s->p[i], s->n[i], dirs)) * 255.0f + 0.5f);
-        if (tick && (i & 63u) == 0u) tick();
-    }
+    sh4der_aobake_rays(dirs, AO4_RAYS);
+    sh4der_aobake_bytes(&o, s->p, s->n, s->vn, dirs, AO4_RAYS, AO4_REACH, AO4_PUSH, s->ao, tick);
 }
 
 /* ---- the light ----------------------------------------------------------------------------------------------------- */
@@ -356,12 +287,8 @@ static inline float ao4_shadow_share(const ao4_scene_t *s, unsigned look) {
     return sh4der_div_(ao4_amb[look], ao4_amb[look] + ao4_sunc[look] * s->sun[1]);
 }
 
-/* The occlusion byte as the light uses it: 0 .. 1, doubled under EXAGGERATE. */
-static inline float ao4_open(unsigned ao, int exaggerate) {
-    const float a = (float)ao * (1.0f / 255.0f);
-
-    return exaggerate ? sh4der_sat_(2.0f * a - 1.0f) : a;
-}
+/* The occlusion byte as the light uses it: 0 .. 1, doubled under EXAGGERATE (the library's sh4der_aobake_open). */
+static inline float ao4_open(unsigned ao, int exaggerate) { return sh4der_aobake_open(ao, exaggerate); }
 
 /* Every vertex's colour for one side of the screen. method: AO4_OFF, AO4_BAKED (the AO byte on the ambient), AO4_MAP
    (as OFF: the target carries it, on the ground), AO4_LMAP (as BAKED: the flat surfaces are drawn from their lightmaps
@@ -385,7 +312,7 @@ static inline void ao4_light(const ao4_scene_t *s, unsigned method, unsigned loo
 
 /* Method 2's alpha for k directions: ao_layer.h's, doubled (not over 1) under EXAGGERATE. */
 static inline uint32_t ao4_map_argb(unsigned k, int exaggerate) {
-    float a = ao_alpha(k) * (exaggerate ? 2.0f : 1.0f);
+    float a = sh4der_aosky_alpha(k) * (exaggerate ? 2.0f : 1.0f);
 
     if (a > 1.0f) a = 1.0f;
     return (uint32_t)(a * 255.0f + 0.5f) << 24;

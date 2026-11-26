@@ -20,6 +20,8 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | Name | What it does | When to use it | Cost (RAM / VRAM / CPU) | Files | Section |
 | --- | --- | --- | --- | --- | --- |
 | ao | Darkens creases from the angle between faces (at bake time) and adds a screen cavity cue from a small map. | Baked crevice shading for a model, or a cheap cavity cue on a finished frame. | see section | `sh4der_ao.h` (header only) | [section](#the-ao-effect) |
+| aobake | Baked ambient occlusion against exact shapes: one byte a vertex from cosine rays cast at spheres, boxes and a ground plane, paid once at load. | Contact shadows baked into static geometry: room corners, the ground under props. | RAM one byte a vertex plus 768 B for 64 rays; VRAM 0; nothing a frame | `sh4der_aobake.h` (header only) | [section](#the-aobake-effect-baked-occlusion-against-exact-shapes) |
+| aosky | Occlusion of the sky drawn into the sun's shadow target: K slid shadows as a faint black, one side, plain blending. | Contact darkening on flat ground under props, with no bake. | VRAM 0 more (the sun's target); RAM the caller's scratch, 9 B a caster vertex | `sh4der_aosky.h` (header only) | [section](#the-aosky-effect-occlusion-of-the-sky-drawn-into-a-shadow-target) |
 | blade | Light tubes orbit an axis, a soft blocker runs through them and a pulse breathes over both, all written into vertex colours. | Energy blades, glowing rods, anything that is a bright tube. | RAM 156 B a frame + 160 B params; VRAM 0; CPU two 2D tests and one 3D test a vertex | `sh4der_blade.h` + `sh4der_blade.c` | [section](#the-blade-effect) |
 | bloom | A feathered glow ribbon and tip disc round a blade (24 triangles), plus `sh4der_bloom_rings` for a round glow with its own level per ring. | A soft halo round a blade, a sun disc, a lamp or a lens-flare ghost. | RAM the caller's vertices; VRAM 0; 24 triangles a blade | `sh4der_bloom.h` + `sh4der_bloom.c` | [section](#the-bloom-effect) |
 | bolt | Thin jagged branching strands that are re-rolled a few times a second while their first half stays put. | Lightning, electric arcs, spark gaps, cracks of light. | RAM about 3.3 KB state; VRAM 0; 240 vertices a frame (default look) | `sh4der_bolt.h` + `sh4der_bolt.c` | [section](#the-bolt-effect-branching-strands-that-re-roll) |
@@ -111,6 +113,8 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | visor | `sh4der_visor.h` | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out | the look effect's layers, small tiles | v0.10 |
 | torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table | v0.50 |
 | ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | v0.10 |
+| aobake | `sh4der_aobake.h` | Baked ambient occlusion against exact shapes (spheres, boxes, a ground plane): one byte a vertex from cosine rays, at load. The ao4 scenes' bake, 252 to 254 ms for scene A's 2,142 vertices and 391 to 393 ms for scene B's 2,544 on a console (SH4-076, SH4-082) | One byte a vertex, multiplied into the ambient light | v0.50 |
+| aosky | `sh4der_aosky.h` | Occlusion of the sky drawn into the sun's shadow target: K directions slid onto the ground as a faint black, one side, plain blending (AO method 2). The ao4 scenes ran it (PVR-138 to PVR-186); about 451 us of PVR a direction for scene A (DERIVED from PVR-140); the depth union failed on the PVR (PVR-127) | The sun's shadow target and its ground layer; no new target | v0.10 |
 | ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | v0.50 |
 | shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | v0.50 |
 | water | `sh4der_water.h` | Directional waves, filtered ripple normals, Fresnel; crest transmission through sss; sunset client uses SH4DOW heightfield sun visibility | textured mesh + offset RGB; optional framebuffer bloom | v0.50 |
@@ -715,6 +719,35 @@ unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 | SH4DER_AO_SCR_ENGAGE | 0.2 | Brighter-than-above ratio below which nothing is darkened (the luma noise floor) |
 | SH4DER_AO_SCR_FULL | 0.6 | Ratio (centre - above) / centre at full cavity |
 | SH4DER_AO_SCR_FLOOR | 4.0 | Luma (0..255) added to both before the ratio: black is no division by zero |
+
+### The aobake effect (baked occlusion against exact shapes)
+
+`include/sh4der_aobake.h`, header only; `test/aobake_test.c` tests it on the host. One byte a vertex, 255 open .. 0 closed, from cosine-weighted rays over the vertex's hemisphere against exact occluders the caller owns (spheres, boxes, a ground plane); a start inside an occluder is closed. Paid once at load (`sh4der_aobake_bytes`, with a tick every 64 vertices for a watchdog); a frame costs one multiply a vertex on the ambient light. The ao4 scenes bake through it: scene A 252 to 254 ms, scene B 391 to 393 ms (SH4-076, SH4-082, MEASURED, one console). Its rays are the same set as `tools/ao_bake_core.h`'s (checked by the test). It differs from `sh4der_ao.h` (crease and screen cavity), from the host tool below (a triangle list, an inside fill) and from `demo/psm/psm_ao.h` (a triangle mesh, 12 rays; to move as `sh4der_aomesh.h`). Wiki: effects/aobake.md.
+
+#### Aobake tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_AOBAKE_RAYS | 64 | Rays a vertex (a start value: each call takes its own count) |
+| SH4DER_AOBAKE_REACH | 3.0 | Metres a ray looks for an occluder (a start value) |
+| SH4DER_AOBAKE_PUSH | 0.02 | Metres a ray starts off its surface (a start value) |
+
+### The aosky effect (occlusion of the sky drawn into a shadow target)
+
+`include/sh4der_aosky.h`, header only; `test/aosky_test.c` tests it on the host. The casters are drawn into the sun's shadow target K more times, each slid onto the ground along one sky direction (60 degrees up, K azimuths) as a faint black, so the ground layer that carries the sun's shadow carries the occlusion too: no new target, no new layer. `sh4der_aosky_dir` sends one direction through the caller's casters, map and scratch (it leaves its matrix in XMTRX on the Dreamcast); a uniform map only. Draw one side of closed casters with plain blending: the depth union (one shadow a direction) failed on the PVR (PVR-127). The ao4 scenes ran it (PVR-138 to PVR-186, one console). Moved from `demo/psm/ao_layer.h` and `demo/psm/ao/ao4_draw.h` on 2026-11-26; the town's sender `psm_ao2_send` stays in `ao_layer.h`. Wiki: effects/aosky.md.
+
+#### Aosky tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_AOSKY_DIRS_MAX | 8 | Most sky directions a call takes (a ring of eight; `sh4der_aosky_count` rounds k to 0, 1, 2, 4 or 8) |
+| SH4DER_AOSKY_FLOOR | 0.5 | What is left of the ground's light with every direction blocked |
+| SH4DER_AOSKY_Z0 | 1.25 | Direction 0's depth in the map pass (the sun's casters 1.0, the border 2.0) |
+| SH4DER_AOSKY_ZSTEP | 0.0625 | A direction's step nearer |
+| SH4DER_AOSKY_XY_LIMIT | 2048 | A triangle with a corner farther than this from the target is left out |
+| SH4DER_AOSKY_AREA_MIN | 1.0e-3 | Target pixels squared: a smaller triangle is not sent |
+
+`SH4DER_AOSKY_COT_EL` (cot 60 degrees) is a constant, on `tools/check_tuning.py`'s exempt list.
 
 ### The ao bake (a host tool)
 
