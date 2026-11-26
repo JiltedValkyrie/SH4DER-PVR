@@ -1,10 +1,10 @@
 ---
-title: hexheat (heat haze as hexagons)
+title: "Heat haze hexagons [hexheat]: a few floating hexagons that show the picture behind them"
 tags: [effect, hexheat, heat-haze, render-target]
 updated: 2026-11-26
 sources: [include/sh4der_hexheat.h, test/hexheat_test.c, README.md effect table, demo/pl4nar/src/heat_hex.h, demo/pl4nar/src/demo.c]
 ---
-# hexheat: heat haze as hexagons
+# Heat haze hexagons [hexheat]: a few floating hexagons that show the picture behind them
 
 **What you will learn:** what the hexheat effect draws, where its picture comes from, and what it costs.
 **For:** a programmer who wants a heat haze over a hot far view on the PVR, with no copy of the screen.
@@ -60,5 +60,5 @@ The band's triangles roughly double what the reflection pass sends. Nothing of t
 ## Related
 
 - [Heat haze reference](../research/heat-haze-reference.md): the measured look the numbers come from
-- [pl4nar](pl4nar.md): the reflection pass whose target holds the band
+- [Planar reflection](pl4nar.md): the reflection pass whose target holds the band
 - [Budgets](../limits/budgets.md)

@@ -63,17 +63,17 @@ KallistiOS's `timer_ns_gettime64` steps 2,502,400 ns ahead once every reload of 
 
 ## Baked occlusion and the clean picture (`psm_dc.c`)
 
-**The AO row** (`psm_ao.h`, on by default). At load the SH-4 bakes ambient occlusion for the scene: a byte a static model vertex and a byte grid over the ground, from rays over each vertex's hemisphere against the static triangles and the ground. The byte multiplies the ambient light only: colour = albedo x (ambient x ao + sun x direct), in `psm_colour` (`psm_scene.h`). The movers (people, hens) stay open. The row turns it off and on and shows what the bake took at load; "not baked: all open" means there was no memory for it. Host test: `test/psm_ao_test.c` (the bake, the colours with and without `PSM_COLOUR_TABLE`, the row, the hide). On the town's mesh the host counts 190,884 rays and 1,594,130 ray-triangle tests (exact). The bake's time on a console is not measured.
+**The AO row** (`psm_ao.h`, an adapter over `include/sh4der_aomesh.h`, on by default). At load the SH-4 bakes ambient occlusion for the scene: a byte a static model vertex and a byte grid over the ground, from rays over each vertex's hemisphere against the static triangles and the ground. The byte multiplies the ambient light only: colour = albedo x (ambient x ao + sun x direct), in `psm_colour` (`psm_scene.h`). The movers (people, hens) stay open. The row turns it off and on and shows what the bake took at load; "not baked: all open" means there was no memory for it. Host test: `test/psm_ao_test.c` (the bake, the colours with and without `PSM_COLOUR_TABLE`, the row, the hide). On the town's mesh the host counts 190,884 rays and 1,594,130 ray-triangle tests (exact). The bake's time on a console is not measured.
 
 | Macro | Value | What it is |
 |---|---|---|
-| `PSM_AO_RAYS` | 12 | cosine-weighted rays a vertex |
-| `PSM_AO_REACH` | 1.6 m | how far a ray looks for an occluder; a hit at t metres closes the ray by 1 - t / reach |
-| `PSM_AO_PUSH` | 0.03 m | a ray starts this far off its surface |
-| `PSM_AO_CELL` | 2.0 m | the triangles' grid for the bake (not under the reach, so a ray touches 4 cells at most) |
-| `PSM_AO_GCELL` | 0.5 m | the ground's grid of bytes |
-| `PSM_AO_MARGIN` | 8.0 m | the ground's grid goes this far past the walk area |
-| `PSM_AO_GMAX` | 65,536 | the most cells of the ground's grid |
+| `SH4DER_AOMESH_RAYS` | 12 | golden-ratio rays a vertex, cosine weighted |
+| `SH4DER_AOMESH_REACH` | 1.6 m | how far a ray looks for an occluder; a hit at t metres closes the ray by 1 - t / reach |
+| `SH4DER_AOMESH_PUSH` | 0.03 m | a ray starts this far off its surface |
+| `SH4DER_AOMESH_CELL` | 2.0 m | the triangles' grid for the bake (not under the reach, so a ray touches 4 cells at most) |
+| `SH4DER_AOMESH_GCELL` | 0.5 m | the ground's grid of bytes |
+| `SH4DER_AOMESH_MARGIN` | 8.0 m | the ground's grid goes this far past the walk area |
+| `SH4DER_AOMESH_GMAX` | 65,536 | the most cells of the ground's grid |
 
 **Y + A: the clean picture.** With the panel closed, Y and A pressed together hide everything the program draws over the picture (the readout, the panel, the inset, the heartbeat); the same keys, or START, bring it back (`psm_state_t.hide` in `psm_scene.h`, `psm_send_hud` in `psm_send.h`).
 

@@ -1,10 +1,10 @@
 ---
-title: look
+title: Exposure and grade [look]
 tags: [effect, look, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_look.h, README.md "The look effect", README.md "Recommended settings", AGENTS.md "Call order: look"]
 ---
-# look
+# Exposure and grade [look]
 
 **What you will learn:** how the look effect adapts exposure, grades the picture and adds fog glare, and what each part costs.
 **For:** a programmer who wants auto exposure and a colour grade over the whole screen.
@@ -17,7 +17,7 @@ Maths only, in a header (README:386-394; look.h:8-60):
 - a **grade**, a straight line per colour channel, turned into at most 6 full-screen layers;
 - **fog glare**, which bends a copy of the client's fog colour and table.
 
-The client reads the pixels, draws the quads and loads the fog. The read uses [frame](frame.md).
+The client reads the pixels, draws the quads and loads the fog. The read uses [Frame read](frame.md).
 
 Version: v0.50, runs on screen on the demo disc (look.h:36).
 
@@ -57,7 +57,7 @@ See `README.md` "Look tuning" (README:412-429) and "Recommended settings" (READM
 
 - The log and exp are short series on both paths. SH4ZAM's fast forms read log(1) as 0.040 and exp(-0.012) as 0.963, which gives a grey cast and a drift (README:394).
 - Hold the eye while a flashlight is lit (look.h:45-58).
-- Hand the step a read with the gain taken off, or the eye chases itself (look.h:45-58). [frame](frame.md) takes it off.
+- Hand the step a read with the gain taken off, or the eye chases itself (look.h:45-58). [Frame read](frame.md) takes it off.
 - Draw the layers under the HUD, depth always, no depth write (README:410).
 
 ## Open
@@ -66,5 +66,5 @@ See `README.md` "Look tuning" (README:412-429) and "Recommended settings" (READM
 
 ## Related
 
-- [frame](frame.md), [glow](glow.md), [torch](torch.md), [visor](visor.md)
+- [Frame read](frame.md), [Screen bloom](glow.md), [Screen spotlight](torch.md), [Screen filters](visor.md)
 - [Bus and DMA ledger](../hardware/ledger-bus-dma.md)

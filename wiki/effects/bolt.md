@@ -1,10 +1,10 @@
 ---
-title: bolt (branching strands)
+title: Lightning [bolt] (branching strands)
 tags: [effect, bolt, particles]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_bolt.h, src/sh4der_bolt.c, README.md "The bolt effect"]
 ---
-# bolt: branching strands that re-roll
+# Lightning [bolt]: branching strands that re-roll
 
 **What you will learn:** how the bolt draws lightning that changes a few times a second, and how much it sends to the PVR.
 **For:** a programmer adding lightning, an electric arc or a spark gap.
@@ -19,7 +19,7 @@ Version: v0.10, passes its maths tests (bolt.h:38).
 
 ## Call order
 
-See README:1020-1044. `AGENTS.md` has no section of its own. It uses the [spark](spark.md) view and screen records (README:835).
+See README:1020-1044. `AGENTS.md` has no section of its own. It uses the [Sparks and tracers](spark.md) view and screen records (README:835).
 
 ## Cost
 
@@ -54,4 +54,4 @@ There is no README table. The `SH4DER_BOLT_*` macros are at bolt.h:58-81.
 
 ## Related
 
-- [spark](spark.md), [guard](guard.md)
+- [Sparks and tracers](spark.md), [Send checks](guard.md)

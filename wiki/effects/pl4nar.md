@@ -1,10 +1,10 @@
 ---
-title: pl4nar (planar reflection)
+title: "Planar reflection [pl4nar]: the world mirrored in a floor, car paint or a wet road"
 tags: [effect, pl4nar, reflection]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_pl4nar.h, src/sh4der_pl4nar.c, README.md "The pl4nar effect", AGENTS.md "Call order: pl4nar", demo/pl4nar/AGENT_WORKFLOW.md]
 ---
-# pl4nar: real-time planar reflection
+# Planar reflection [pl4nar]: real-time, through a small render target
 
 **What you will learn:** how the world is mirrored into a small render target and looked up per vertex, what it costs in video memory, and which costs are still unmeasured.
 **For:** a programmer adding reflections to car paint, glass, chrome, a wet road, water or a polished floor.
@@ -35,7 +35,7 @@ Video memory is exact arithmetic: the target's pitch × height × 2 B (README:86
 
 RAM: view 104 B (112 aligned), material 24 B, header 32 B. Code: 692 B with `HAVE_RTT`, 720 B without (SH-4, -O3, measured as a size).
 
-Times (README:869-873). **Measured on a console so far: the street demo's lookups and targets only** (pl4m c5, suite s7, one console, one run):
+Times (README:869-873). **Measured on a console so far: the street demo's lookups and targets only** (Street car demo [pl4m], build c5, suite 7 [s7], one console, one run):
 
 | Item | What is known | Status |
 |---|---|---|
@@ -78,5 +78,5 @@ From README:860-864 and `AGENTS.md`:
 
 ## Related
 
-- [pool](pool.md), [spark](spark.md) (halos in the mirror pass), [guard](guard.md)
+- [Light pools](pool.md), [Sparks and tracers](spark.md) (halos in the mirror pass), [Send checks](guard.md)
 - [Video ledger](../hardware/ledger-video.md), [budgets](../limits/budgets.md)

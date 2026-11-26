@@ -1,10 +1,10 @@
 ---
-title: cloudvolume (a cloud deck you fly through)
+title: Cloud deck [cloudvolume] (a cloud slab you fly through)
 tags: [effect, cloudvolume]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_cloudvolume.h, README.md effect table, demo/cloudvolume.c, test/cloudvolume_test.c]
 ---
-# cloudvolume: a cloud deck you fly through
+# Cloud deck [cloudvolume]: a cloud slab you fly through
 
 **What you will learn:** how the SH-4 ray-marches a cloud layer into a small buffer that the PVR draws over the sky, and what that is estimated to cost.
 **For:** a programmer making a flight over and through cumulus.
@@ -47,4 +47,4 @@ At 14-22 ms (ESTIMATE), the march alone takes half or more of a 30 fps frame. Tr
 ## Related
 
 - [Budgets](../limits/budgets.md)
-- [glow](glow.md)
+- [Screen bloom](glow.md)

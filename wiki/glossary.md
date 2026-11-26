@@ -1,7 +1,7 @@
 ---
 title: Glossary
 tags: [glossary]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [demo/psm/PVR_FEATURES.md, demo/psm/POLLY2_NOTES.md, AGENTS.md]
 ---
 # Glossary
@@ -48,7 +48,7 @@ Short definitions in our own words. Where a term has a ledger entry, the [hardwa
 
 Where the offset colour, the bump unit and the punch-through test sit in a pixel's path, with one pass filled in field by field:
 
-![A PVR pass recipe: the order a pixel goes through (depth, texel or bump level, combine, offset colour, clamp, fog, blend, write-out; the punch-through test in its own list) and a card with every field of one pass, filled in for the c4 mask pass's bump draw, each entry with its status (FACT from Sega's manual or our code, MEASURED from our console).](images/pvr-pass-recipe.svg)
+![A PVR pass recipe: the order a pixel goes through (depth, texel or bump level, combine, offset colour, clamp, fog, blend, write-out; the punch-through test in its own list) and a card with every field of one pass, filled in for the Full compare chain [c4] mask pass's bump draw, each entry with its status (FACT from Sega's manual or our code, MEASURED from our console).](images/pvr-pass-recipe.svg)
 
 The bump unit used as a comparator in an object's own texture space:
 

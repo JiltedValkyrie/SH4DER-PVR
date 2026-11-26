@@ -1,10 +1,10 @@
 ---
-title: ao (small-scale occlusion)
+title: Corner darkening [ao] (small-scale occlusion)
 tags: [effect, ao]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_ao.h, README.md "The ao effect"]
 ---
-# ao: small-scale occlusion
+# Corner darkening [ao]: small-scale occlusion
 
 **What you will learn:** the two kinds of darkening the ao header gives, and when each is computed.
 **For:** a programmer who wants crevice shading baked into a model, or a cheap cavity cue on a finished frame.
@@ -29,11 +29,11 @@ As-stated. There are no numbers.
 | Item | Cost |
 |---|---|
 | Crease bake | nothing at run time (a baked vertex colour) |
-| Screen cue | "no runtime cost" in the header's summary line; it reuses the [frame](frame.md) read |
+| Screen cue | "no runtime cost" in the header's summary line; it reuses the [Frame read [frame]](frame.md) read |
 
 ## Recommended limits
 
-- The grid is 80 × 60 by default, to match the [look](look.md) read.
+- The grid is 80 × 60 by default, to match the [Exposure and grade](look.md) read.
 
 ## Tuning
 
@@ -46,4 +46,4 @@ See `README.md` "Ao tuning" (README:693-704).
 
 ## Related
 
-- [frame](frame.md), [look](look.md), [sss](sss.md)
+- [Frame read](frame.md), [Exposure and grade](look.md), [Light through thin parts](sss.md)

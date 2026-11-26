@@ -13,6 +13,62 @@ Many module names come from the first use the module had: "blade", "holo", "viso
 
 **Status: ADOPTED for the menu titles** (lead, for the owner, 2026-11-25): the suite menu's titles take the plain names, from s12 (built, superseded before a run) and in s13. The code is not renamed: the compatibility aliases (the migration lines below) are deferred, so the old names stay the only names in the code until they land.
 
+## 0. Reader names used on the wiki pages
+
+**Status: ADOPTED for wiki pages** (2026-11-26, the wiki's plain-names pass). Every wiki page calls an effect by its reader name first and puts the module name in brackets once, for example "Glowing tubes [blade]". The code keeps its names, and the file and macro renames in section 2 stay PROPOSED. Genre guides group the effects as shown below.
+
+Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water and weather](../start-here/genre-water-and-weather.md), [shadows](../start-here/genre-shadows.md), [surfaces and materials](../start-here/genre-surfaces-and-materials.md), [camera and screen](../start-here/genre-camera-and-screen.md), [tools and safety](../start-here/genre-tools-and-safety.md). Each effect sits in one genre.
+
+| Module | Reader name | In plain words | Genre |
+|---|---|---|---|
+| blade | Glowing tubes | Soft light tubes that orbit, masked by a sliding ball; for a glowing blade or a power cable | Light and glow |
+| bloom | Mesh bloom | Glow made of flat feathered shapes round a point or along a line | Light and glow |
+| glow | Screen bloom | Glow and light rays from the bright parts of the picture | Light and glow |
+| torch | Screen spotlight | A flashlight circle cut into the picture: dark outside, bright core | Light and glow |
+| pool | Light pools | Fading round or wedge-shaped light on the ground: lamp pools, headlight beams, blob shadows | Light and glow |
+| shafts | Dark shafts of light | Dark shapes cast as rays away from a light, read from the picture | Light and glow |
+| softfade | Soft edges for light | A glow, a pool or a beam that fades out at a wall or a floor, not on a hard line | Light and glow |
+| spark | Sparks and tracers | A pool of short bright sprites: sparks, flashes, streaks | Light and glow |
+| bolt | Lightning | Branching strands that re-draw a few times a second | Light and glow |
+| water | Water waves | A sea surface from waves: shape, reflection, sun glints | Water and weather |
+| mist | Mist bank | Stacked see-through sheets that make a fog bank with a shape | Water and weather |
+| motes | Drifting specks | Dust, embers and pollen floating; nothing stored per speck | Water and weather |
+| rise | Rising lights | Lanterns that lift off, drift up and settle as stars | Water and weather |
+| cloudvolume | Cloud deck | A cloud slab you fly through, drawn from a small buffer | Water and weather |
+| deform | Dented ground | Snow or mud keeps footprints and tracks | Water and weather |
+| psm | Sun shadow map | Shadow map fitting for a sun or a lamp: uniform or perspective (PSM) | Shadows |
+| psm_raster | Shadow map on the SH-4 | The shadow map drawn into RAM by the main CPU and compared per vertex | Shadows |
+| psm_pvr | Shadow map drawn by the PVR | The shadow map drawn by the graphics chip from the casters' shapes | Shadows |
+| ao | Corner darkening | Darkens creases and corners: for a bake, and a cue from the picture (ambient occlusion) | Shadows |
+| aobake | Baked corner shading | Corner shading baked into vertex colour at load, against exact shapes | Shadows |
+| aosky | Sky shading | Darkens flat ground under props, drawn into the sun's shadow target | Shadows |
+| sh4dow-dc | Soft character shadows | Soft shadows on characters from limb columns (a separate library) | Shadows |
+| bump | Normal map | Lit surface bumps with no bump unit: blend passes | Surfaces and materials |
+| pl4nar | Planar reflection | Mirror reflection of the world in a floor, car paint or a wet road | Surfaces and materials |
+| uvwarp | Texture ripple | Moves texture coordinates per vertex from a small scrolling table | Surfaces and materials |
+| sss | Light through thin parts | Glow where light passes through thin skin, leaves, wax or water (translucency) | Surfaces and materials |
+| holo | Inner light | A soft light inside a translucent body that follows its breathing | Surfaces and materials |
+| look | Exposure and grade | Brightness that adapts to the scene, plus a colour grade | Camera and screen |
+| taa | Smooth edges over time | Blends frames over time to soften jagged edges (TAA) | Camera and screen |
+| trail | Motion blur | Blends the last frame over this one: streaks behind moving things | Camera and screen |
+| lens | Screen overlays | Vignette (dark corners), film grain, hit wedges, a flash | Camera and screen |
+| warp | Screen warp | Bends the whole picture: shockwave, heat haze, wobble, blur, mosaic | Camera and screen |
+| hexheat | Heat haze hexagons | Heat haze as small hexagons that show the far picture a few pixels off | Camera and screen |
+| ca | Colour fringe | Chromatic aberration: coloured edges through a render of the frame | Camera and screen |
+| film | Old film wear | Flicker, scratches, dust and gate weave of old film | Camera and screen |
+| timebase | Tape wobble | A video tape's timing wobble: each row shifted sideways | Camera and screen |
+| visor | Screen filters | Night, amber and thermal looks from number tables | Camera and screen |
+| focus | Fake focus blur | Blurs most of the picture and keeps one band or disc sharp; reads no depth | Camera and screen |
+| guard | Send checks | Drops empty triangles and polygon headers that were never built | Tools and safety |
+| fault | Crash and hang screen | A report on screen when a program crashes, hangs or stops | Tools and safety |
+| tilecut | Tile-cut pass | A render pass through a tile table its own size, so small targets cost less | Tools and safety |
+| pvrx | PVR extras | Extra calls over the PVR driver: waits, VRAM copy by DMA, error counters, clip | Tools and safety |
+| ramp | Distance ramp | A 0 to 1 fade between two distances | Tools and safety |
+| split | Split screen | A divider that cuts the screen into two halves | Tools and safety |
+| frame | Frame read | Reads the picture on screen back so other effects can use it | Tools and safety |
+| core | Shared parts | The feather, tube shape, breath tracker and glint that the others share | Tools and safety |
+| ao-bake | Bake tool | A host tool that bakes corner shading into a triangle list at build time; not a console effect | Tools and safety |
+
 ## 1. What each module is
 
 The "What it actually is" column is also the proposed text for a "What it is" column in README's effect table (section 5).
@@ -53,12 +109,14 @@ The "What it actually is" column is also the proposed text for a "What it is" co
 | split | A screen cut in a left and a right half by a divider the triggers move, in 32-pixel tile columns, each half its own user clip | split screen, A/B wipe, comparison slider | a look on one half and not the other | `sh4der_split.h`; `test/split_test.c` |
 | tilecut | A render target pass through a tile table its own size: the screen's tile tables end after the target's tiles for one pass, then every word is put back | tile list trim, region array cut, partial tile render | a mirror, a shadow tile, a small depth or glow target | `sh4der_tilecut.h`; `test/tilecut_test.c` |
 | ramp | A linear 0..1 ramp between two distances: one call, or prepared for a loop | distance fade, range weight, falloff | a shadow's fade by camera distance, a fake AF range weight | `sh4der_ramp.h`; `test/ramp_test.c` |
+| softfade | A per-vertex fade of a light near planes and rectangles the caller names: a near test, a fit for a quad, a smooth step a vertex | soft halo, soft light edge, wall fade (no depth is read: not the camera depth fade) | a lamp's halo in a corner, a headlight beam at a barrier | `sh4der_softfade.h`; `test/softfade_test.c` |
 | pool | Fading fan decals on a plane: a disc or a wedge of triangles whose vertex alpha fades to nothing | light pool, fake light, blob shadow, projected decal | a street lamp's pool, a headlight beam, a car's shadow | `sh4der_pool.h`; `test/pool_test.c` |
 | psm | Shadow map fitting for a directional light: a uniform map and a perspective shadow map, one world-to-map matrix, the depth key, the bias | shadow map, PSM, perspective shadow map, light space fit | any sun shadow | `sh4der_psm.h`; `test/psm_test.c` |
 | psm_raster | A shadow map rendered on the SH-4 into RAM: caster triangles as 16-bit depth, a compare a receiver vertex | software shadow map, CPU shadow map, depth compare | a shadow at vertex detail with self-shadowing | `sh4der_psm_raster.h`; `test/psm_raster_test.c` |
 | psm_pvr | A shadow map drawn by the PVR: the SH-4 clips the casters for a render target and gives the ground its lookup coordinates; no depth compare | PVR shadow map, silhouette map, projected shadow texture | ground shadows from casters, no self-shadowing | `sh4der_psm_pvr.h`; `test/psm_pvr_test.c` |
 | ao | Small-scale occlusion: crease darkening from the angle between faces, for a bake, and a screen cavity cue from a small map | ambient occlusion, AO, cavity, crease shading | corners, folds, contact darkening | `sh4der_ao.h`; `test/ao_test.c` |
 | aobake | A baked AO byte a vertex, cast against exact spheres, boxes and a plane, at load | baked ambient occlusion, contact shadow bake, AO bake | static scenery's vertex colour | `sh4der_aobake.h`; `test/aobake_test.c` |
+| aomesh | A baked AO byte a vertex, cast against a triangle mesh through a cell grid (12 rays), with a byte grid over the ground, at load | baked occlusion over a mesh, mesh AO bake, ground AO grid | static scenery built from triangles, a walled street | `sh4der_aomesh.h`; `test/aomesh_test.c` |
 | aosky | The sky's occlusion drawn as K slid shadows into the sun's shadow target | sky occlusion, sky AO, shadow-target AO | flat ground under props | `sh4der_aosky.h`; `test/aosky_test.c` |
 | ao-bake | Baked ambient occlusion over any triangle list, on the host at build time: one byte a vertex from 64 cosine rays | baked AO, occlusion bake, lightmap bake | a room's and a road's vertex bytes | `tools/ao_bake_core.h`; `test/ao_bake_test.c` |
 | ca | The frame texture (the world drawn into a render target, then put on screen) and chromatic aberration through it | chromatic aberration, colour fringe, RGB split, render to texture | a lens edge, a hit, a glitch | `sh4der_ca.h`, `src/sh4der_ca.c`; `test/ca_test.c` |
@@ -189,6 +247,7 @@ The proposed first sentence of each header's top comment, technique first, use a
 - hexheat: Heat haze as a few hexagons that show the far picture a few pixels off.
 - cloudvolume: Volumetric clouds by a CPU ray march into a small buffer drawn as one quad.
 - pl4nar: Planar reflection through a small render target, looked up per vertex.
+- softfade: A per-vertex fade of a light near the planes and walls the caller names (for example a halo that dies softly at a wall).
 - pool: Fading fan decals on a plane: a disc or a wedge (for example a lamp's pool or a blob shadow).
 - psm: Shadow map fitting for a directional light: uniform or perspective (PSM).
 - psm_raster: A shadow map rendered on the SH-4 into RAM, compared per vertex.

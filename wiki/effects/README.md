@@ -15,6 +15,8 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 - **v0.50**: runs on screen on the demo disc.
 - **v0.10**: passes its maths tests.
 
+**Start with a goal.** [What do you want to make?](../start-here/what-do-you-want.md) groups these effects into six genres, each with starting settings: [light and glow](../start-here/genre-light-and-glow.md), [water and weather](../start-here/genre-water-and-weather.md), [shadows](../start-here/genre-shadows.md), [surfaces and materials](../start-here/genre-surfaces-and-materials.md), [camera and screen](../start-here/genre-camera-and-screen.md), [tools and safety](../start-here/genre-tools-and-safety.md).
+
 **Names.** Many names here come from a first use, not the technique. [Names](names.md) gives what each module actually is, the other names people search for, and the plain names proposed for the owner.
 
 "Console-measured cost" means one of our own console runs timed the effect itself. A size worked out from the code does not count, and nor does an emulator figure.
@@ -45,6 +47,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [motes](motes.md) | Stateless drifting specks | v0.10 | no |
 | [pl4nar](pl4nar.md) | Planar reflection through a small render target | v0.10 | **yes**: the lookups, pl4m c5 (PVR-160), one console, one run, 2026-11-25; its PVR columns are ESTIMATE (PVR-162) |
 | [pool](pool.md) | Light pools and blob shadows as fading fans | v0.10 | no |
+| [softfade](softfade.md) | Soft edges for light: a glow, a pool or a beam fades at a wall the SH-4 knows | v0.10 | no |
 | [ramp](ramp.md) | A linear 0..1 ramp between two distances (a helper) | v0.10 | no |
 | [fault](fault.md) | A report on the screen for an exception or a hang: registers, calls, breadcrumbs | PROTOTYPE v0.1 | no: no run has shown it catching a fault (PVR-183, PVR-208 froze with no HANG screen) |
 | [split](split.md) | A movable divider for a left and a right half (tile columns, held triggers) | ALPHA v0.2 | **yes**: the middle position (PVR-144, PVR-161), one console; moving it OPEN |
@@ -52,12 +55,12 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [psm](psm.md) | Shadow map placement; the SH-4 and PVR map routes | v0.10 | **yes**: the town demo HUD, one console, 2026-11-25 |
 | [ao](ao.md) | Crease darkening (bake) and a screen cavity cue | v0.10 | no |
 | [aobake](aobake.md) | Baked ambient occlusion against exact shapes, at load (the console bake) | ALPHA v0.5 | **yes**: the ao4 scenes' bake (SH4-076, SH4-082), one console |
+| [aomesh](aomesh.md) | Baked ambient occlusion over a triangle mesh, at load (the walled square's bake) | PROTOTYPE v0.1 | no: the bake's time and look are NOT MEASURED on a console |
 | [aosky](aosky.md) | Occlusion of the sky drawn into the sun's shadow target (AO method 2) | PROTOTYPE v0.1 | no: the start settings ran in ao4 (PVR-140, one console); this library copy has not |
 | [ao-bake](ao-bake.md) | Host build tool: baked occlusion over any triangle list (not a console effect) | v0.1 | no |
 | [ca](ca.md) | The frame texture and chromatic aberration | v0.50 | no |
 | [shafts](shafts.md) | Dark shapes cast away from a light | v0.50 | no |
 | [sh4dow-dc](sh4dow-dc.md) | Soft character shadows by limb columns (separate library) | separate | no: its numbers are the original author's run (REPORTED) |
-
 | [deform](deform.md) | Ground that keeps a dent: footprints and tracks, plus decal prints | v0.10 | no |
 | [mist](mist.md) | A fog bank with a shape, as upright translucent sheets | v0.10 | no |
 | [rise](rise.md) | Lights that lift off, drift up and become stars | v0.10 | no |
@@ -65,8 +68,6 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [timebase](timebase.md) | A video tape's bent picture: one sideways shift a row, drawn as bands of the frame texture | v0.1 | no |
 | [hexheat](hexheat.md) | Heat haze as a few hexagons that show the far picture a few pixels off, from a band of a render target | v0.1 | no |
 | [cloudvolume](cloudvolume.md) | A ray-marched cloud deck you fly through | v0.50 | no |
-
-The last five are in `README.md`'s effect table and in `include/`, but not yet in `AGENTS.md`'s file list.
 
 ## Related
 

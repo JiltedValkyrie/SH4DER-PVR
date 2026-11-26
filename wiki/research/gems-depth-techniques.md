@@ -1,7 +1,7 @@
 ---
 title: GPU Gems depth techniques on the PVR
 tags: [research, pvr, depth, gpu-gems]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [demo/psm/GPU_GEMS_NOTES.md, GPU Gems 1-3 (NVIDIA online editions), wiki/hardware/ledger-pvr.md, wiki/research/post-pvr-tricks.md]
 ---
 # GPU Gems depth techniques on the PVR
@@ -106,7 +106,7 @@ None of the water chapters reads scene depth: no depth foam, no depth absorption
 |---|---|---|---|---|---|
 | Gems 1 ch. 28, "Graphics Pipeline Performance" (Cebenoyan) | Depth pre-pass, front-to-back order | **Not needed:** the PVR removes hidden pixels per tile (PVR-005). The advice that does carry over: the vertex send (BUS-001 against BUS-003) and texture format (PVR-006) | — | — | FACT (PVR-005) for the hidden-surface part |
 | Gems 3 ch. 27, "Motion Blur as a Post-Processing Effect" (Rosado) | Depth, inverse matrices, a velocity per pixel | Object-level blur by earlier copies at falling alpha; full-frame blur through the front-buffer copy (`sh4der_trail.h`) | Trail's two copies about 19 ms PVR (Q40, ESTIMATE) | Blur length against the chapter's velocity form | ESTIMATE |
-| Gems 2 ch. 42, "Conservative Rasterization" (Hasselgren, Akenine-Möller, Ohlsson) | Triangles grown by half a pixel so every touched pixel is covered | **Already used:** c4 grows its map faces 0.75 texel so no map pixel holds the far scene at an edge (rim 0, PVR-099); band cutters must also avoid slivers (PVR-082) | — | `test/c4_model_test.c` already counts rim | MEASURED (rim 0) |
+| Gems 2 ch. 42, "Conservative Rasterization" (Hasselgren, Akenine-Möller, Ohlsson) | Triangles grown by half a pixel so every touched pixel is covered | **Already used:** Full compare chain [c4] grows its map faces 0.75 texel so no map pixel holds the far scene at an edge (rim 0, PVR-099); band cutters must also avoid slivers (PVR-082) | — | `test/c4_model_test.c` already counts rim | MEASURED (rim 0) |
 
 ### Subsurface and translucency
 
@@ -122,7 +122,7 @@ None of the water chapters reads scene depth: no depth foam, no depth absorption
 | Gems 1 ch. 41, "Real-Time Stereograms" (Policarpo) | The depth buffer copied each frame; strips shifted by depth | **Crazy:** a low-resolution camera depth code (route AB: PVR-drawn, PVR-DMA at 36-38 MB/s, BUS-051) read on the SH-4, a random-dot strip pattern built per row. A 160 × 120 16-bit map is 38 KB, about 1 ms of PVR-DMA (arithmetic) | ESTIMATE |
 | Gems 2 ch. 38, global illumination by rasterization (Hachisuka) | Depth peeling along many directions | Offline only: a host bake into vertex colours | ESTIMATE |
 | Gems 2 ch. 39, progressive refinement radiosity (Coombe, Harris) | Item buffers, form factors | Offline only: a host bake | ESTIMATE |
-| Gems 3 ch. 34, signed distance fields by scan conversion (Erleben, Dohlmann) | The depth test as a "keep the smallest" selector | The same trick is what c4's map pass does: the PVR's depth test keeps the nearest code per pixel (PVR-095). Any per-pixel minimum or maximum of a value written as depth can use it | MEASURED (c4 map) |
+| Gems 3 ch. 34, signed distance fields by scan conversion (Erleben, Dohlmann) | The depth test as a "keep the smallest" selector | The same trick is what Full compare chain's map pass does: the PVR's depth test keeps the nearest code per pixel (PVR-095). Any per-pixel minimum or maximum of a value written as depth can use it | MEASURED (Full compare chain map) |
 | Gems 1 ch. 21, "Real-Time Glow" (James, O'Rorke) | A glow mask, a reduced target, a separable blur, an add; a fixed-function path with weights in vertex colour | The fixed-function path is `sh4der_glow.h`'s family | in the library |
 
 Two read chapters use no depth and add nothing here: Gems 1 ch. 35, baking detail from a dense model onto a light one (an offline bake), and Gems 2 ch. 41, deferred filtering of volume data.
@@ -134,7 +134,7 @@ Two read chapters use no depth and add nothing here: Gems 1 ch. 35, baking detai
 | J1 | **Thickness from route B's RAM shadow map** for transmission: per vertex, no bake, moving light | Gems 1 ch. 16; Gems 3 ch. 14 | ESTIMATE |
 | J2 | **Particles into a small target** to cut their fill about 4 times, once the target floor is cut by a tile list | Gems 3 ch. 23 | ESTIMATE |
 | J3 | **Refraction from the frame texture** with per-vertex offsets and a destination-alpha mask | Gems 2 ch. 19 | ESTIMATE |
-| J4 | **The depth test as a per-pixel min / max selector** for any value written as depth | Gems 3 ch. 34; c4's map | MEASURED as used in c4; other uses ESTIMATE |
+| J4 | **The depth test as a per-pixel min / max selector** for any value written as depth | Gems 3 ch. 34; Full compare chain's map | MEASURED as used in Full compare chain; other uses ESTIMATE |
 | J5 | **Caustics per floor vertex** | Gems 1 ch. 2 | ESTIMATE |
 | J6 | **A stereogram from a read-back camera depth code** | Gems 1 ch. 41 | ESTIMATE; crazy |
 

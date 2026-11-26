@@ -1,8 +1,8 @@
 ---
 title: SH4DER-PVR wiki
 tags: [start]
-updated: 2026-11-25
-sources: [README.md, AGENTS.md, wiki/STRUCTURE.md]
+updated: 2026-11-26
+sources: [README.md, AGENTS.md, wiki/STRUCTURE.md, wiki/start-here/what-do-you-want.md]
 ---
 # SH4DER-PVR wiki
 
@@ -15,6 +15,8 @@ The library's own `README.md` and `AGENTS.md` stay the reference for calls and t
 
 ## Where to start
 
+- **Want to make something you can see?** [What do you want to make?](start-here/what-do-you-want.md): pick the picture you have in mind, and land on the right effect and its genre guide.
+- **Making a racing game?** [Racing game recipe](guides/racing-game.md): the car, its shadow, its reflection and its lights, in order, with what each costs and what to cut first.
 - **New here?** [What it is](start-here/what-it-is.md), then [Setup](start-here/setup.md).
 - **Adding an effect to a game?** [Call orders](start-here/call-orders.md), the [effect pages](effects/README.md), and [Recommended limits](limits/recommended-limits.md).
 - **Need a hardware number?** The [hardware ledger](hardware/README.md).
@@ -41,7 +43,7 @@ Limits are **PROVEN** (a MEASURED number backs them) or **ADVISED** (not yet). S
 
 ## The tree
 
-- **start-here/**: [what it is](start-here/what-it-is.md), [setup](start-here/setup.md), [call orders](start-here/call-orders.md), [licence and credit](start-here/license-and-credit.md)
+- **start-here/**: [what do you want to make?](start-here/what-do-you-want.md), [what it is](start-here/what-it-is.md), [setup](start-here/setup.md), [call orders](start-here/call-orders.md), [licence and credit](start-here/license-and-credit.md), [demo guide](start-here/demo-guide.md), and the six genre guides: [light and glow](start-here/genre-light-and-glow.md), [water and weather](start-here/genre-water-and-weather.md), [shadows](start-here/genre-shadows.md), [surfaces and materials](start-here/genre-surfaces-and-materials.md), [camera and screen](start-here/genre-camera-and-screen.md), [tools and safety](start-here/genre-tools-and-safety.md)
 - **effects/**: [one page for each of the 34 effects](effects/README.md)
 - **limits/**: [budgets](limits/budgets.md), [recommended limits](limits/recommended-limits.md), [scenes](limits/scenes.md)
 - **status/**: [maturity](status/maturity.md)

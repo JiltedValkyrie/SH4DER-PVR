@@ -206,6 +206,20 @@ The heat can be drawn as a few floating hexagons in place of the layer: the libr
 
 The result page gives, for that stage, the frames with a band and the most triangles sent into it in a frame. The macros of the hexagons themselves are in the library README's "Hexheat tuning".
 
+## The headlight beam (`PL4NAR_HEAD_BEAM`)
+
+The headlights can fade with distance from the camera, so a far car's light does not pop out at the end of the reach. With the beam on, the long wedge becomes `sh4der_pool_beam` from the library (`include/sh4der_pool.h`), cut into `SH4DER_POOL_BEAM_ROWS` (3) arcs along its length, and each vertex fades by its own distance from the eye. The spill wedge fades by the car's distance from the eye, and past the reach the car's light is not drawn at all. The reach is the lamps' own: `LAMP_NEAR` (60 m) and `LAMP_FADE_W` (10 m). The follow camera is always near the car, so nothing changes there. The fade shows only where the camera is far from the car, in the fly-by. With the beam off (the default), the two wedges draw exactly what they did before.
+
+In the hills build the road drape (`fan_drape`) takes only a fan, so both wedges stay wedges and fade by the car's distance alone. There is no fade along the beam there yet.
+
+| What | Where | Value |
+|---|---|---|
+| `PL4NAR_HEAD_BEAM` | build flag (`EXTRA=-DPL4NAR_HEAD_BEAM`) | starts with the beam on |
+| `demo_auto_beam(on)` | `src/demo.h` | the switch: 0 the two wedges, 1 the beam. No autorun stage yet |
+| `LAMP_NEAR`, `LAMP_FADE_W` | `src/demo.c` | 60 m, 10 m: the reach and the fade over its last part |
+
+Host count (the street build, `snap_test`'s night fly-by twice, 210 frames each): beam off 251,468 triangles, on 252,022, about 2.6 more a frame. A beam is 10 vertices and 10 triangles a headlight, against the wedge's 4 and 2. The map and hills builds are not counted. NOT RUN on a console.
+
 ## Camera and thumbnail
 
 The values are macros in `src/demo.h` (each can be set with `-D` through `EXTRA=`).

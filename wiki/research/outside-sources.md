@@ -1,7 +1,7 @@
 ---
 title: Outside sources (skmp's repositories)
 tags: [research, license, pvr]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [third_party/skmp, demo/psm/POLLY2_NOTES.md]
 ---
 # Outside sources: skmp's repositories
@@ -41,4 +41,4 @@ The ledger entries that rest on them say so: [PVR ledger](../hardware/ledger-pvr
 
 ## What we gave them, or could
 
-Their docs list render to texture in 1555 and 4444 as untested (`dreamcast-tests/TODO.md:93`). Our c3b run has console data for it (see the [PVR ledger](../hardware/ledger-pvr.md)).
+Their docs list render to texture in 1555 and 4444 as untested (`dreamcast-tests/TODO.md:93`). Our Bump unit as a subtract [c3b] run has console data for it (see the [PVR ledger](../hardware/ledger-pvr.md)).

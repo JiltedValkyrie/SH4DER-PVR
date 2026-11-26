@@ -1,10 +1,10 @@
 ---
-title: water
+title: Water waves [water]
 tags: [effect, water]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_water.h, README.md "The water effect", demo/OCEAN.md]
 ---
-# water
+# Water waves [water]
 
 **What you will learn:** what the water header computes per vertex, and where its numbers come from.
 **For:** a programmer drawing a sea or lake surface as a vertex mesh.
@@ -17,7 +17,7 @@ Header only, all inline, all per vertex (README:1148-1156; water.h:8-16):
 - filtered ripple normals;
 - Fresnel (Schlick, F0 0.0204);
 - a reflected direction;
-- crest transmission through [sss](sss.md), with `sh4der_water_crest_sss`.
+- crest transmission through [Light through thin parts](sss.md), with `sh4der_water_crest_sss`.
 
 Version: v0.50, runs on screen on the demo disc (README:119).
 
@@ -61,6 +61,6 @@ The ocean demo's own budget, from `demo/OCEAN.md`:
 
 ## Related
 
-- [sss](sss.md)
-- [pl4nar](pl4nar.md), for reflections
+- [Light through thin parts](sss.md)
+- [Planar reflection](pl4nar.md), for reflections
 - [Budgets](../limits/budgets.md)

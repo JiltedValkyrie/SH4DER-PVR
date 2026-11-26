@@ -1,10 +1,10 @@
 ---
-title: mist (a bank of slices)
+title: Mist bank [mist] (a bank of slices)
 tags: [effect, mist]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_mist.h, README.md "The mist effect (a bank of slices)", test/mist_test.c]
 ---
-# mist: a fog bank with a shape
+# Mist bank [mist]: a fog bank with a shape
 
 **What you will learn:** how a fog bank that things walk into is drawn as upright translucent sheets, and why fill is its whole cost.
 **For:** a programmer adding ground fog in a street, mist on water, steam or low cloud.

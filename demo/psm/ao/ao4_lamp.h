@@ -29,7 +29,9 @@
 
    Cost, MEASURED in suite s7 (one console, one run, 2026-11-25; ledger SH4-083): the shade 187 us for its 65 vertices
    (a normalise for the view, one for the light, sh4der_sss_rgb: three exp), the halo 205 us for its 129 (the planes'
-   dots). Sent: 96 + 240 triangles (PVR-157). */
+   dots). Sent: 96 + 240 triangles (PVR-157). That halo number is the fade as it was then, written out here; since
+   2026-11-26 the halo's fade is sh4der_softfade.h's (one reciprocal a halo, not one a vertex): the same levels on the
+   host (ao4_lamp_test), NOT RUN on a console, so its time is not known. */
 
 #ifndef AO4_LAMP_H
 #define AO4_LAMP_H
@@ -40,6 +42,7 @@
 #include "sh4der_core.h"
 #include "sh4der_sss.h"
 #include "sh4der_bloom.h"
+#include "sh4der_softfade.h"
 
 #define AO4_LAMP_SEG 12u
 #define AO4_LAMP_BANDS 4u
@@ -202,7 +205,9 @@ static inline void ao4_lamp_shade(const ao4_lamp_t *l, const float eye[3], float
 
 static inline float ao4_lamp_smooth_(float x) { x = sh4der_sat_(x); return x * x * (3.0f - 2.0f * x); }
 
-/* How much of the halo a point keeps: 0 on or behind a plane, 1 from halo_fade metres in front of every plane. */
+/* How much of the halo a point keeps: 0 on or behind a plane, 1 from halo_fade metres in front of every plane.
+   The form the halo used until 2026-11-26 (a reciprocal a call); ao4_lamp_halo now goes through the library's
+   sh4der_softfade_levels (the reciprocal once a halo), and the host test holds the two within a level of 255. */
 static inline float ao4_lamp_fade(const ao4_lamp_t *l, const float p[3], const ao4_lamp_plane_t *planes, unsigned np) {
     const float inv = sh4der_recip_pos_(l->halo_fade);
     float f = 1.0f;
@@ -216,13 +221,16 @@ static inline float ao4_lamp_fade(const ao4_lamp_t *l, const float p[3], const a
     return f;
 }
 
-/* The halo: AO4_LAMP_HALO_V vertices facing the eye and their additive colours; np = 0 for no fade. The triangles
+/* The halo: AO4_LAMP_HALO_V vertices facing the eye and their additive colours; np = 0 for no fade (the fade is
+   sh4der_softfade.h's: the planes turned into its form once a call, SH4DER_SOFTFADE_MAX at a time). The triangles
    are sh4der_bloom_rings_tris(AO4_LAMP_HALO_RINGS, AO4_LAMP_HALO_SEG, ..), AO4_LAMP_HALO_T of them. */
 static inline void ao4_lamp_halo(const ao4_lamp_t *l, const float eye[3], float toward, const ao4_lamp_plane_t *planes, unsigned np,
                                  float xyz[AO4_LAMP_HALO_V][3], uint32_t argb[AO4_LAMP_HALO_V]) {
     float radius[AO4_LAMP_HALO_RINGS], level[AO4_LAMP_HALO_RINGS], lv[AO4_LAMP_HALO_V];
     float centre[3] = { l->bulb[0], l->bulb[1], l->bulb[2] }, dir[3] = { eye[0] - l->bulb[0], eye[1] - l->bulb[1], eye[2] - l->bulb[2] };
-    unsigned j, k, c;
+    sh4der_softfade_plane_t sp[SH4DER_SOFTFADE_MAX];
+    sh4der_softfade_t sf;
+    unsigned j, k, c, done;
 
     sh4der_norm3_(dir);
     for (c = 0; c < 3u; c++) centre[c] += dir[c] * toward;
@@ -233,8 +241,14 @@ static inline void ao4_lamp_halo(const ao4_lamp_t *l, const float eye[3], float 
         level[j] = l->halo_peak * (1.0f - t) * (1.0f - t);     /* the outer ring is 0 */
     }
     sh4der_bloom_rings(xyz, lv, centre, eye, l->halo_peak, radius, level, AO4_LAMP_HALO_RINGS, AO4_LAMP_HALO_SEG);
+    sh4der_softfade_make(&sf, l->halo_fade);
+    for (done = 0; done < np; done += c) {              /* the planes' keeps multiply, so a batch at a time is the same */
+        c = np - done < SH4DER_SOFTFADE_MAX ? np - done : SH4DER_SOFTFADE_MAX;
+        for (j = 0; j < c; j++) sh4der_softfade_plane(&sp[j], planes[done + j].o, planes[done + j].n);
+        sh4der_softfade_levels(&sf, sp, c, NULL, 0u, &xyz[0][0], 3u, lv, AO4_LAMP_HALO_V);
+    }
     for (k = 0; k < AO4_LAMP_HALO_V; k++) {
-        const float f = lv[k] * (np ? ao4_lamp_fade(l, xyz[k], planes, np) : 1.0f);
+        const float f = lv[k];
         const float rgb[3] = { l->warm[0] * f, l->warm[1] * f, l->warm[2] * f };
 
         argb[k] = ao4_lamp_pack_(rgb);

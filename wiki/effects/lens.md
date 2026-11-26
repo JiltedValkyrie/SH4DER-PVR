@@ -1,10 +1,10 @@
 ---
-title: lens
+title: Screen overlays [lens]
 tags: [effect, lens, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_lens.h, src/sh4der_lens.c, README.md "The lens effect"]
 ---
-# lens
+# Screen overlays [lens]
 
 **What you will learn:** what the lens overlays are, and the one piece of video memory they use.
 **For:** a programmer adding a vignette, film grain, hit-direction wedges or a full-screen flash.
@@ -52,5 +52,5 @@ See `README.md` "Lens tuning" (README:533-572).
 
 ## Related
 
-- [visor](visor.md), [focus](focus.md)
+- [Screen filters](visor.md), [Fake focus blur](focus.md)
 - [Video ledger](../hardware/ledger-video.md)

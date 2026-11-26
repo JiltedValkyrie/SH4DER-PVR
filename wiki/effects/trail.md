@@ -1,13 +1,13 @@
 ---
-title: trail
+title: Motion blur [trail]
 tags: [effect, trail, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_trail.h, src/sh4der_trail.c, README.md "The trail effect"]
 ---
-# trail
+# Motion blur [trail]
 
 **What you will learn:** how motion blur and the TAA blend draw the frame before over this one, and what that needs from the screen setup.
-**For:** a programmer adding motion blur, or the history layers for [taa](taa.md).
+**For:** a programmer adding motion blur, or the history layers for [Smooth edges over time](taa.md).
 
 ## What it does
 
@@ -31,7 +31,7 @@ As-stated. None of it is measured on a console.
 | History | 0 VRAM (it is the front buffer) | trail.h:~12-15 |
 | Layers per frame | keep (1), mask (1), and two per copy; each is a full-screen translucent quad | trail.h:~26-28 |
 
-Each full-screen translucent layer costs the PVR about 3.1 ms at 640 × 480 (MEASURED, one console, 2026-11-25, h1 and c1; see the [PVR ledger](../hardware/ledger-pvr.md)). So two copies come to six layers, about 19 ms of PVR time (ESTIMATE from that rate).
+Each full-screen translucent layer costs the PVR about 3.1 ms at 640 × 480 (MEASURED, one console, 2026-11-25, h1 and Compare by blending [c1]; see the [PVR ledger](../hardware/ledger-pvr.md)). So two copies come to six layers, about 19 ms of PVR time (ESTIMATE from that rate).
 
 ## Recommended limits
 
@@ -46,7 +46,7 @@ See `README.md` "Trail tuning" (README:516-527).
 
 ## Pitfalls
 
-- The stride register is shared with the render to texture of [ca](ca.md). Never run both at once (trail.h:~25).
+- The stride register is shared with the render to texture of [Colour fringe](ca.md). Never run both at once (trail.h:~25).
 - Without the two passes and the mask, or with the wrong offset sign, every edge gets comb-like fringes (trail.c:~136-137).
 - The setup turns dithering off.
 
@@ -57,5 +57,5 @@ See `README.md` "Trail tuning" (README:516-527).
 
 ## Related
 
-- [taa](taa.md), [ca](ca.md)
+- [Smooth edges over time](taa.md), [Colour fringe](ca.md)
 - [PVR ledger](../hardware/ledger-pvr.md), [Video ledger](../hardware/ledger-video.md)

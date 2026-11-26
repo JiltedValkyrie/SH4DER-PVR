@@ -174,6 +174,24 @@ static void t_halo(void) {
     }
     printf("  halo: %u vertices; with the fade %u go dark (behind a wall), %u keep their level\n", (unsigned)AO4_LAMP_HALO_V, cut, kept);
     CHECK(cut > 0u && kept > 0u, "the lamp is 0.75 m from two walls and its halo 0.95 m: the fade must cut some of it and leave some");
+    {   /* the library's fade (sh4der_softfade.h) against the form the halo had before it: plain x ao4_lamp_fade, a channel */
+        unsigned worst = 0, differ = 0, ch;
+
+        for (k = 0; k < AO4_LAMP_HALO_V; k++) {
+            const float keep = ao4_lamp_fade(&lamp, xyz[k], planes, ROOM_SURFS);
+
+            for (ch = 0; ch < 24u; ch += 8u) {
+                const float want = (float)((plain[k] >> ch) & 255u) * keep, got = (float)((faded[k] >> ch) & 255u);
+                const unsigned e = (unsigned)(fabsf(got - want) + 0.5f);
+
+                if (e > worst) worst = e;
+                differ += fabsf(got - want) > 0.75f;
+            }
+        }
+        printf("  halo: the library's fade against the old form: largest difference %u of 255 (the old level rounded twice), %u of %u channels over 0.75\n",
+               worst, differ, 3u * (unsigned)AO4_LAMP_HALO_V);
+        CHECK(worst <= 1u, "the library's fade is more than a level from the old form (%u)", worst);
+    }
     /* the fade itself */
     p[0] = -3.0f; p[1] = 1.0f; p[2] = 0.0f;
     CHECK(ao4_lamp_fade(&lamp, p, planes, ROOM_SURFS) == 0.0f, "on a wall the fade is 0");

@@ -28,7 +28,7 @@ DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC ships in this repository: the soft shadows, and the column feather every effect here uses
 SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test ramp_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test aobake_test aosky_test
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test softfade_test ramp_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test aobake_test aomesh_test aosky_test
 
 .PHONY: test test-shz dc test-dc demo clean pl4nar-demo psm-demo check-sh4zam check-tuning test-demo
 
@@ -83,6 +83,7 @@ test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/tilecut_test
 	$(BUILD)/split_test
 	$(BUILD)/aobake_test
+	$(BUILD)/aomesh_test
 	$(BUILD)/aosky_test
 	$(BUILD)/pvrx_test
 	$(BUILD)/water_test
@@ -92,6 +93,7 @@ test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/spark_test
 	$(BUILD)/pl4nar_test
 	$(BUILD)/pool_test
+	$(BUILD)/softfade_test
 	$(BUILD)/ramp_test
 	$(BUILD)/psm_test
 	$(BUILD)/psm_raster_test
@@ -137,6 +139,7 @@ $(BUILD)/guard_test: test/guard_test.c
 $(BUILD)/tilecut_test: test/tilecut_test.c
 $(BUILD)/split_test: test/split_test.c
 $(BUILD)/aobake_test: test/aobake_test.c include/sh4der_aobake.h tools/ao_bake_core.h
+$(BUILD)/aomesh_test: test/aomesh_test.c include/sh4der_aomesh.h
 $(BUILD)/aosky_test: test/aosky_test.c include/sh4der_aosky.h
 $(BUILD)/pvrx_test: test/pvrx_test.c include/sh4der_pvrx.h
 $(BUILD)/water_test: test/water_test.c include/sh4der_water.h include/sh4der_sss.h $(SH4DOW)/include/sh4dow_heightfield.h
@@ -144,7 +147,8 @@ $(BUILD)/sss_test: test/sss_test.c include/sh4der_sss.h
 $(BUILD)/uvwarp_test: test/uvwarp_test.c
 $(BUILD)/spark_test: test/spark_test.c
 $(BUILD)/pl4nar_test: test/pl4nar_test.c include/sh4der_water.h include/sh4der_sss.h
-$(BUILD)/pool_test: test/pool_test.c
+$(BUILD)/pool_test: test/pool_test.c include/sh4der_pool.h include/sh4der_ramp.h
+$(BUILD)/softfade_test: test/softfade_test.c include/sh4der_softfade.h include/sh4der_pool.h include/sh4der_ramp.h
 $(BUILD)/ramp_test: test/ramp_test.c include/sh4der_ramp.h
 $(BUILD)/psm_test: test/psm_test.c
 $(BUILD)/psm_raster_test: test/psm_raster_test.c include/sh4der_psm_raster.h
@@ -250,7 +254,7 @@ $(DEMO_T)/snap_test: demo/pl4nar/host/snap_test.c demo/pl4nar/src/demo.c demo/pl
 	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DDEMO_HOST -Idemo/pl4nar/src -I$(SNAP_GEN) -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include $(filter %.c,$^) -lm -o $@
 $(DEMO_T)/psm_colour_test: demo/psm/test/psm_colour_test.c
 $(DEMO_T)/psm_plan_test: demo/psm/test/psm_plan_test.c
-$(DEMO_T)/psm_ao_test: demo/psm/test/psm_ao_test.c demo/psm/psm_ao.h
+$(DEMO_T)/psm_ao_test: demo/psm/test/psm_ao_test.c demo/psm/psm_ao.h include/sh4der_aomesh.h
 $(DEMO_T)/psm_place_cmp: demo/psm/test/psm_place_cmp.c
 $(DEMO_T)/psm_colour_test $(DEMO_T)/psm_plan_test $(DEMO_T)/psm_ao_test $(DEMO_T)/psm_place_cmp: src/sh4der_core.c $(PSM_TOWN_DEPS) include/sh4der_core.h
 	@mkdir -p $(DEMO_T)
@@ -302,6 +306,7 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/tilecut_test
 	$(BUILD)/shz/split_test
 	$(BUILD)/shz/aobake_test
+	$(BUILD)/shz/aomesh_test
 	$(BUILD)/shz/aosky_test
 	$(BUILD)/shz/pvrx_test
 	$(BUILD)/shz/water_test
@@ -311,6 +316,7 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
 	$(BUILD)/shz/spark_test
 	$(BUILD)/shz/pl4nar_test
 	$(BUILD)/shz/pool_test
+	$(BUILD)/shz/softfade_test
 	$(BUILD)/shz/ramp_test
 	$(BUILD)/shz/psm_test
 	$(BUILD)/shz/psm_raster_test

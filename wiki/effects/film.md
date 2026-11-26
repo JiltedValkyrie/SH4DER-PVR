@@ -1,10 +1,10 @@
 ---
-title: film (old projector wear)
+title: Old film wear [film] (old projector wear)
 tags: [effect, film]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_film.h, README.md effect table, test/film_test.c]
 ---
-# film: the wear of old film
+# Old film wear [film]: flicker, scratches, dust and gate weave
 
 **What you will learn:** what the film effect draws and what it costs.
 **For:** a programmer making an old newsreel, a flashback or a found-footage look.
@@ -18,7 +18,7 @@ It draws the wear of old film in a projector (README effect table):
 - dust specks;
 - a gate weave of one pixel.
 
-Nothing is stored: every value comes from the time and a seed. Pair it with [lens](lens.md)'s vignette and grain for the whole look.
+Nothing is stored: every value comes from the time and a seed. Pair it with [Screen overlays](lens.md)'s vignette and grain for the whole look.
 
 Header only. The header's version line reads "v0.1" (`include/sh4der_film.h:49`).
 
@@ -40,5 +40,5 @@ The brightness limits (8 % and 3 Hz) are there to keep it from strobing. Keep th
 
 ## Related
 
-- [lens](lens.md)
+- [Screen overlays](lens.md)
 - [Budgets](../limits/budgets.md)

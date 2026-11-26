@@ -1,10 +1,10 @@
 ---
-title: "tilecut (a render target through its own tiles)"
+title: "Tile-cut pass [tilecut]: a render target through its own tiles"
 tags: [effect, tilecut, pvr, render-target]
 updated: 2026-11-26
 sources: [include/sh4der_tilecut.h, test/tilecut_test.c, README.md "The tilecut pass", AGENTS.md Files, wiki/hardware/ledger-pvr.md]
 ---
-# tilecut: a render target through its own tiles
+# Tile-cut pass [tilecut]: a render target through its own tiles
 
 **What you will learn:** why a small render target costs the PVR as much as a whole screen under KallistiOS, how the cut ends the tile table after the target's own tiles for one pass, what that saved on a console, and the rules that keep it safe.
 **For:** a programmer with a render target pass (a shadow tile, a mirror, a small map) that is smaller than the screen.
@@ -28,12 +28,12 @@ Version: ALPHA v0.5 ([maturity](../status/maturity.md)).
 
 | Item | Cost | Status |
 |---|---|---|
-| PVR, a 20-tile target | 3,312 -> 375 us (c4, PVR-092) | MEASURED, one console |
-| PVR, ao4-h's target M | 3,256 -> 344 us (PVR-156) | MEASURED, one console |
-| PVR, d1's map, 10 x 8 tiles | 5,075 -> 1,425 us (PVR-205) | MEASURED, one console |
+| PVR, a 20-tile target | 3,312 -> 375 us (Full compare chain [c4], PVR-092) | MEASURED, one console |
+| PVR, Room shading, four ways [ao4], build h's target M | 3,256 -> 344 us (PVR-156) | MEASURED, one console |
+| PVR, Glow that meets a wall [d1]'s map, 10 x 8 tiles | 5,075 -> 1,425 us (PVR-205) | MEASURED, one console |
 | SH-4 a pass, this form | begin 126 us, end 130 us (PVR-205) | MEASURED, one console |
-| SH-4 a pass, columns form | begin 5 us, end 3 us; d1's map 5,075 -> 2,756 us (PVR-205) | MEASURED, one console |
-| The frame, d1 | 1,869 us shorter, back to 60 Hz (PVR-205) | MEASURED, one run |
+| SH-4 a pass, columns form | begin 5 us, end 3 us; Wall glow's map 5,075 -> 2,756 us (PVR-205) | MEASURED, one console |
+| The frame, Glow that meets a wall | 1,869 us shorter, back to 60 Hz (PVR-205) | MEASURED, one run |
 | The first form (both tables read every cut) | begin 3,930 us, more than the PVR time it saved (PVR-192) | MEASURED; that form is gone |
 | RAM | 14,400 B in the struct (two tables' copies) | FACT (the header's arrays) |
 | VRAM | 0 (KallistiOS's tables rewritten in place) | FACT |
@@ -63,7 +63,7 @@ See `README.md` "Tilecut tuning": `SH4DER_TILECUT_TABLES`, `_MAX`, `_TILES`, `_T
 ## Related
 
 - pvrx (`include/sh4der_pvrx.h`, no page yet): the other layer over KallistiOS's PVR driver
-- [pl4nar](pl4nar.md), [psm](psm.md): render target passes it can cut
+- [Planar reflection](pl4nar.md), [Sun shadow map](psm.md): render target passes it can cut
 - [Frame budget](../limits/frame-budget.md)
 - [Header RECOMMENDED block](../limits/header-recommended.md)
 - [Ledger: PVR](../hardware/ledger-pvr.md): PVR-092, PVR-156, PVR-192, PVR-200, PVR-205

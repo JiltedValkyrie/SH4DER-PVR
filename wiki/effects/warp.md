@@ -1,10 +1,10 @@
 ---
-title: warp
+title: Screen warp [warp]
 tags: [effect, warp, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_warp.h, src/sh4der_warp.c, README.md "The warp effect", demo/psm/bench/NOTES.md "Hardware result h2"]
 ---
-# warp
+# Screen warp [warp]
 
 **What you will learn:** how the warp bends the frame through a mesh, and what it measured on a console.
 **For:** a programmer adding shockwaves, heat haze, underwater wobble or speed blur.
@@ -80,6 +80,6 @@ See `README.md` "Warp tuning" (README:484-510).
 
 ## Related
 
-- [ca](ca.md) (the frame texture)
+- [Colour fringe](ca.md) (the frame texture)
 - [PVR ledger](../hardware/ledger-pvr.md), [SH-4 ledger](../hardware/ledger-sh4.md)
 - [Benchmarking](../methods/benchmarking.md)

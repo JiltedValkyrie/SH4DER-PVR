@@ -1,7 +1,7 @@
 ---
 title: The hardware ledger
 tags: [hardware, ledger]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [AGENTS.md "Wiki and the hardware ledger", wiki/STRUCTURE.md]
 ---
 # The hardware ledger
@@ -41,7 +41,7 @@ Three rules matter most:
 
 ## How much we have
 
-Everything MEASURED so far is **one console, one run**. No number has a spread yet. The runs are h1 and h2 (chip benches), c1 and c3b (compare spikes), s2 and s3 (route AB spikes) and the town demo's HUD photos, all on 2026-11-24 or 2026-11-25. A second console and a second run are open for every row.
+Everything MEASURED so far is **one console, one run**. No number has a spread yet. The runs are h1 and h2 (chip benches), Compare by blending [c1] and Bump unit as a subtract [c3b] (compare spikes), s2 and s3 (route AB spikes) and the town demo's HUD photos, all on 2026-11-24 or 2026-11-25. A second console and a second run are open for every row.
 
 ## Adding a row after a console run
 

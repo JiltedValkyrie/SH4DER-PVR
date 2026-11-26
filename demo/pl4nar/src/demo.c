@@ -1663,6 +1663,10 @@ static void draw_lamps(int what) {
     sh4der_pool_vtx_t p[SH4DER_POOL_MAX_N + 2];
     unsigned i;
     if (s_lamp <= 0.02f) return;
+#ifdef PL4NAR_HILLS
+    sh4der_pool_reach_t reach;                    /* the fade over the last LAMP_FADE_W of the range (sh4der_pool.h) */
+    sh4der_pool_reach_make(&reach, range, LAMP_FADE_W);
+#endif
 #ifdef PL4NAR_MAP
     /* the lamp heads, then the lit strips under the structures (a cooler white, a smaller pool: there are many) */
     for (i = 0; i < MAP_LAMPS + MAP_STRIPS; i++) {
@@ -1678,7 +1682,7 @@ static void draw_lamps(int what) {
         const float dx = x - s_car.wx, dz = z - s_car.wz;
         if (dx * dx + dz * dz > range * range) continue;                     /* hand: scalar products */
 #ifdef PL4NAR_HILLS
-        const float lk = s_lamp * shz_saturatef((range - shz_sqrtf(dx * dx + dz * dz)) * (1.0f / LAMP_FADE_W));   /* no pop at the reach */
+        const float lk = s_lamp * sh4der_pool_reach_fade(&reach, shz_sqrtf(dx * dx + dz * dz));   /* no pop at the reach */
 #else
         const float lk = s_lamp;
 #endif
@@ -1787,13 +1791,52 @@ static float thumb(float w, float h, float y, float u1, float v1, float u0, cons
     return h + THUMB_GAP;
 }
 
+/* The headlights' fade by distance (sh4der_pool.h): 0 the two wedges as they always were; 1 the long wedge is a beam
+   with arcs along it, each vertex faded by its own distance from the eye, and the spill wedge is scaled by the car's
+   distance (the reach is the lamps': LAMP_NEAR, LAMP_FADE_W). Under the follow camera the car is near and nothing
+   changes; it shows where the camera is far from the car (the fly-by). The hills build keeps the long wedge (its
+   drape takes a fan) and scales it by the car's distance as the spill. -DPL4NAR_HEAD_BEAM starts with it on. */
+#ifndef LAMP_FADE_W
+#define LAMP_FADE_W 10.0f          /* the hills build's own value (above); the other builds had no lamp fade until this */
+#endif
+#ifdef PL4NAR_HEAD_BEAM
+static int s_beam = 1;
+#else
+static int s_beam = 0;
+#endif
+void demo_auto_beam(int on) { s_beam = on != 0; }
+
+#ifndef PL4NAR_HILLS
+/* A sh4der_pool_beam through the pass's matrix: its triangles from sh4der_pool_beam_tris. */
+static void beam(const sh4der_pool_vtx_t *p, unsigned nv, unsigned n, unsigned rows) {
+    static gfx_vert_t v[SH4DER_POOL_BEAM_VTX_MAX];
+    static uint16_t idx[3 * (SH4DER_POOL_MAX_N + 2 * SH4DER_POOL_MAX_N * (SH4DER_POOL_BEAM_ROWS_MAX - 1))];
+    unsigned i, nt;
+    if (!nv || nv != 1u + rows * (n + 1u) || nv > SH4DER_POOL_BEAM_VTX_MAX) return;   /* 0 = refused, or past the reach */
+    nt = sh4der_pool_beam_tris(n, rows, idx);
+    for (i = 0; i < nv; i++) {
+        gfx_xform(&v[i], shz_vec3_init(p[i].x, p[i].y, p[i].z));
+        v[i].argb = p[i].argb; v[i].oargb = 0u; v[i].u = v[i].v = 0.0f;
+    }
+    for (i = 0; i < nt; i++) gfx_tri(&v[idx[3u * i]], &v[idx[3u * i + 1u]], &v[idx[3u * i + 2u]]);
+}
+#endif
+
 /* The car's own lights: two wedges on the road ahead (GFX_MAT_ADD), then four halos (GFX_MAT_GLOW). */
 static void draw_car_lights(int halos) {
     const shz_sincos_t hc = shz_sincosf(s_car.wh);
     const float fw[3] = { hc.sin, 0.0f, hc.cos }, rt[3] = { hc.cos, 0.0f, -hc.sin };
-    sh4der_pool_vtx_t p[SH4DER_POOL_MAX_N + 2];
+    sh4der_pool_vtx_t p[SH4DER_POOL_BEAM_VTX_MAX];
+    sh4der_pool_reach_t reach;
+    float far_k = 1.0f;                            /* the car's lights by its distance from the eye: 1 with the beam off */
     int s;
     if (s_lamp <= 0.02f) return;
+    if (s_beam && !halos) {
+        const float ex = s_car.wx - s_sv.eye[0], ey = CAR_Y - s_sv.eye[1], ez = s_car.wz - s_sv.eye[2];
+        sh4der_pool_reach_make(&reach, LAMP_NEAR, LAMP_FADE_W);
+        far_k = sh4der_pool_reach_fade2(&reach, ex * ex + ey * ey + ez * ez);      /* hand: scalar products */
+        if (far_k <= 0.0f) return;
+    }
     for (s = -1; s <= 1; s += 2) {
         const float side = 0.62f * (float)s;
         if (!halos) {
@@ -1802,12 +1845,13 @@ static void draw_car_lights(int halos) {
 #ifdef PL4NAR_HILLS
             {   /* on the road's triangles ahead (a beam 30 m long would leave a plane on the first crest) */
                 const float mx = shz_fmaf(fw[0], 17.0f, s_car.wx), mz = shz_fmaf(fw[2], 17.0f, s_car.wz), ms = s_car.z + 17.0f;
-                fan_drape(p, sh4der_pool_wedge(a, fw, rt, 30.0f, 0.11f, 2u, COL_HEAD, 0.45f * s_lamp, p), 0, ms, mx, mz, 17.0f, 0.035f);
-                fan_drape(p, sh4der_pool_wedge(a, fw, rt, 20.0f, 0.30f, 4u, COL_HEAD, 0.22f * s_lamp, p), 0, ms, mx, mz, 17.0f, 0.035f);
+                fan_drape(p, sh4der_pool_wedge(a, fw, rt, 30.0f, 0.11f, 2u, COL_HEAD, 0.45f * s_lamp * far_k, p), 0, ms, mx, mz, 17.0f, 0.035f);
+                fan_drape(p, sh4der_pool_wedge(a, fw, rt, 20.0f, 0.30f, 4u, COL_HEAD, 0.22f * s_lamp * far_k, p), 0, ms, mx, mz, 17.0f, 0.035f);
             }
 #else
-            fan(p, sh4der_pool_wedge(a, fw, rt, 30.0f, 0.11f, 2u, COL_HEAD, 0.45f * s_lamp * pool_dim(), p), 0);      /* the beam */
-            fan(p, sh4der_pool_wedge(a, fw, rt, 20.0f, 0.30f, 4u, COL_HEAD, 0.22f * s_lamp * pool_dim(), p), 0);      /* its spill: a soft edge */
+            if (s_beam) beam(p, sh4der_pool_beam(a, fw, rt, 30.0f, 0.11f, 2u, SH4DER_POOL_BEAM_ROWS, COL_HEAD, 0.45f * s_lamp * pool_dim(), &reach, s_sv.eye, p), 2u, SH4DER_POOL_BEAM_ROWS);
+            else fan(p, sh4der_pool_wedge(a, fw, rt, 30.0f, 0.11f, 2u, COL_HEAD, 0.45f * s_lamp * pool_dim(), p), 0);  /* the beam */
+            fan(p, sh4der_pool_wedge(a, fw, rt, 20.0f, 0.30f, 4u, COL_HEAD, 0.22f * s_lamp * pool_dim() * far_k, p), 0);   /* its spill: a soft edge */
 #endif
         } else {                                   /* on the body: its height, pitch and roll (the bug was a flat frame at y 0.60) */
             float h[3], t[3];

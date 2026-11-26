@@ -1,7 +1,7 @@
 ---
 title: Research notes
 tags: [research]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [demo/psm/*.md]
 ---
 # Research notes
@@ -14,12 +14,12 @@ The notes stay where they are; this page indexes them. Measured numbers from the
 | Note | Date | What it settled |
 |---|---|---|
 | `demo/psm/bench/NOTES.md` | 2026-11-25 | Chip benches h1 and h2: cache, transforms, copies, TA send, uploads, PVR fill, DMA, G2. h2 corrects h1's buffer placing. |
-| `demo/psm/compare/NOTES.md` | 2026-11-25 | Spikes c1, c3b, c4 and c4b on a console: the c4 design, its two runs (live view and tile stage; all six result pages) and what the console said against the model; c4b's measured window edges, placing fix, frame waits and punch-through mask route (`:413-463`). |
-| `demo/psm/bench/RAY1_RESULTS_cortana.md`, `RAY1_RESULTS_junior.md` | 2026-11-25 | The ray bench ray1 read from its photos: the thesis's P1 overturned, P2 mixed, P9 stands; the transform with 1/w; OC-RAM; the clock lines flagged. Ledger rows SH4-051 to SH4-055. |
-| `demo/psm/bench/RAY2_RESULTS_cortana.md`, `RAY2_RESULTS_junior.md` | 2026-11-25 | The ray bench ray2 read from its photos: ray1 repeated (P1 line stands, P2 cold start 47 us again, P9 137.80, h3, OC-RAM verdict), the KOS ns clock's 2.5 ms reload step confirmed, the ray-triangle test (33.16 prepared, 62.49 any direction). Ledger rows SH4-056 to SH4-066. |
+| `demo/psm/compare/NOTES.md` | 2026-11-25 | Spikes Compare by blending [c1], Bump unit as a subtract [c3b], Full compare chain [c4] and Measured edges and punch-through route [c4b] on a console: the Full compare chain design, its two runs (live view and tile stage; all six result pages) and what the console said against the model; Measured edges and punch-through route's measured window edges, placing fix, frame waits and punch-through mask route (`:413-463`). |
+| `demo/psm/bench/RAY1_RESULTS_cortana.md`, `RAY1_RESULTS_junior.md` | 2026-11-25 | The ray bench Ray bench, run one [ray1] read from its photos: the thesis's P1 overturned, P2 mixed, P9 stands; the transform with 1/w; OC-RAM; the clock lines flagged. Ledger rows SH4-051 to SH4-055. |
+| `demo/psm/bench/RAY2_RESULTS_cortana.md`, `RAY2_RESULTS_junior.md` | 2026-11-25 | The ray bench Ray bench, repeat and clock [ray2] read from its photos: Ray bench, run one repeated (P1 line stands, P2 cold start 47 us again, P9 137.80, h3, OC-RAM verdict), the KOS ns clock's 2.5 ms reload step confirmed, the ray-triangle test (33.16 prepared, 62.49 any direction). Ledger rows SH4-056 to SH4-066. |
 | `demo/psm/ROUTE_AB_NOTES.md` | 2026-11-24 | Route AB feasibility: PVR-DMA download, exact codes, held pixels, dither. |
 | `demo/psm/PVR_FEATURES.md` | — | Index of per-pixel PVR operations, ranked compare ideas, Sega's bug list, KOS issues. |
-| `demo/psm/POLLY2_NOTES.md` | 2026-11-25 | Rules read from skmp's PowerVR2 model and console tests (cited, nothing copied); c4 checked against them. |
+| `demo/psm/POLLY2_NOTES.md` | 2026-11-25 | Rules read from skmp's PowerVR2 model and console tests (cited, nothing copied); Full compare chain checked against them. |
 | `demo/psm/ARM7_TOOLCHAIN_NOTES.md` | 2026-11-25 | The sound CPU is ARMv3; a modern GCC cannot target it; how KOS builds for it. |
 | `demo/psm/OFFLOAD_PLAN.md` | 2026-11-25 | Which idle chips could take work. Its sound RAM rates are Sega's and about twice too hopeful (AICA-024). |
 | `demo/psm/SHZ_TRIG_PROBE.md` | 2026-11-25 | Host accuracy of SH4ZAM's trig; written for an upstream report. |
@@ -31,7 +31,7 @@ The notes stay where they are; this page indexes them. Measured numbers from the
 | `demo/psm/DC_MOCKUP.md` | — | The field scene's disc layout, cost label and controls. |
 | `demo/psm/CREDITS.md` | — | Credits for CC0 art and the technique sources. |
 | `demo/psm/RECIPES_NOTES.md` | 2026-11-25 | Pass recipes for crude programmable shading from the PVR's fixed units: settings, SH-4 maths, evidence and a host test for each. Builds on the two idea pages below. Nothing built or run. |
-| `demo/psm/BUMP_REVIEW_NOTES.md` | 2026-11-25 | Could `sh4der_bump.h` use c3b and c4's measured level table? Not directly: since v0.14 that header does not use the bump unit. |
+| `demo/psm/BUMP_REVIEW_NOTES.md` | 2026-11-25 | Could `sh4der_bump.h` use Bump unit as a subtract and Full compare chain's measured level table? Not directly: since v0.14 that header does not use the bump unit. |
 | `demo/psm/town_ray_data.h` (made by `demo/psm/tools/town_ray_data.c`) | 2026-11-25 | Generated data for the thesis's ray bench (P1, P2, P9): the static town's 64 × 64 height grid of 1.5 m cells, block maxima, overhangs, and the twelve movers with their shadow runs at 14:00 and 16:00. Host tool; changes nothing in the town. |
 
 Pages written here (research ideas, nothing built):
@@ -44,7 +44,7 @@ Pages written here (research ideas, nothing built):
 | [Ray uses beyond shadows](ray-uses.md) | 2026-11-25 | What the town's grid rays can do besides sun shadows: occluded sound, a reverb probe, AI sight, camera collision and picking, projectiles, culling, ground probes, wind shelter. Rays a frame, cycles from SH4-052, SH4-053 and SH4-055, the sound chip side, a test each; a game frame of them adds up to about 0.25 ms. DERIVED / ESTIMATE. |
 | [PVR bugs as features](pvr-bugs-as-features.md) | 2026-11-25 | Every bug in Sega's Holly bug list (SysArc §9, pp.402-407) in our words, with the revisions it touches and whether it touches a 2.4-class console; a use or a safe spike for each; cross-checked against our rows (PVR-021 is not CORE 10/11/15 on 2.x; PVR-063 read back right). The console's own revision is OPEN until a boot read. FACT (marks) / ESTIMATE / OPEN. |
 | [GPU Gems depth techniques](gems-depth-techniques.md) | 2026-11-25 | 33 chapters of the three GPU Gems books that use depth, by category, each mapped to the PVR pieces with ledger costs and a host test; what the PVR already does in hardware (sorted translucency, hidden-surface removal, table fog); six ideas J1-J6. ESTIMATE / OPEN. |
-| [Depth fog and glow ideas](depth-fog-ideas.md) | 2026-11-25 | Film and TV depth fog and light; what table fog already does; fog between c4's bands, and its cost against the mask. All ESTIMATE or OPEN. |
+| [Depth fog and glow ideas](depth-fog-ideas.md) | 2026-11-25 | Film and TV depth fog and light; what table fog already does; fog between Full compare chain's bands, and its cost against the mask. All ESTIMATE or OPEN. |
 | [Heat haze reference](heat-haze-reference.md) | 2026-11-25 | The owner's reference heat haze measured frame by frame: flat-topped hexagons 14 px wide (3 % of the height) rising 2 px a second, each shifting the picture 1 to 5 px (median 2) and flickering every 0.1 s, in a band on the horizon with a sharp bottom and a faded top. MEASURED from one video |
 
 Outside sources: [skmp's repositories](outside-sources.md).

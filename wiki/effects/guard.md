@@ -1,10 +1,10 @@
 ---
-title: guard (real hardware checks)
+title: Send checks [guard] (real hardware checks)
 tags: [effect, guard, hardware]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_guard.h, README.md "Real hardware notes", README.md "Guard tuning"]
 ---
-# guard: checks for what an emulator forgives
+# Send checks [guard]: checks for what an emulator forgives
 
 **What you will learn:** the two checks every hand-made polygon should pass, and the three faults that stop a real console but not an emulator.
 **For:** anyone sending their own quads or fans to the PVR. Read this before your first console run.
@@ -30,7 +30,7 @@ These are FACT as the README records them: seen on a console by the author. They
 
 ## Call order
 
-There is none of its own. The checks sit inside the call orders of [spark](spark.md), [bolt](bolt.md), [motes](motes.md), [pool](pool.md) and [pl4nar](pl4nar.md) (`AGENTS.md`).
+There is none of its own. The checks sit inside the call orders of [Sparks and tracers](spark.md), [Lightning](bolt.md), [Drifting specks](motes.md), [Light pools](pool.md) and [Planar reflection](pl4nar.md) (`AGENTS.md`).
 
 ## Cost
 
@@ -45,7 +45,7 @@ None stated. A few multiplies a triangle (README effect table).
 - A triangle with a point behind the near plane is left to your clipper (README:~1306).
 - The header must be 4-byte aligned for the check (guard.h:33).
 - Colour writers need a stride that is a multiple of 4 (README:1316).
-- Fans seen edge-on, such as [pool](pool.md) on flat ground or the [torch](torch.md) boost's first band, make zero-area triangles. Test every one.
+- Fans seen edge-on, such as [Light pools](pool.md) on flat ground or the [Screen spotlight](torch.md) boost's first band, make zero-area triangles. Test every one.
 
 ## Related
 

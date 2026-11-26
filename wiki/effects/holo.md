@@ -1,10 +1,10 @@
 ---
-title: holo
+title: Inner light [holo]
 tags: [effect, holo]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_holo.h, src/sh4der_holo.c, README.md "The holo effect", AGENTS.md "Call order: holo"]
 ---
-# holo
+# Inner light [holo]
 
 **What you will learn:** how the holo effect makes an inner light breathe with a translucent body, and what it costs.
 **For:** a programmer drawing a hologram, a ghost, or any see-through body with a glow inside.
@@ -53,5 +53,5 @@ See `README.md` "Holo tuning" (README:291-308).
 
 ## Related
 
-- [core](core.md), which holds the breath tracker
+- [Shared parts](core.md), which holds the breath tracker
 - [Glossary](../glossary.md)

@@ -1,10 +1,10 @@
 ---
-title: "split (a movable divider for a left and a right half)"
+title: "Split screen [split]: a movable divider for a left and a right half"
 tags: [effect, split, clip, divider]
 updated: 2026-11-26
 sources: [include/sh4der_split.h, test/split_test.c, README.md "The split screen divider", wiki/status/maturity.md "split divider", wiki/hardware/ledger-pvr.md PVR-144, PVR-161]
 ---
-# split: a movable divider for a left and a right half
+# Split screen [split]: a movable divider for a left and a right half
 
 **What you will learn:** how a screen is cut into two halves at a divider the triggers move, in 32-pixel tile columns, and which clip each half gets.
 **For:** a programmer making a side-by-side comparison (one look on the left, another on the right) who wants the divider to move under the player's hands.

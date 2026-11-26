@@ -31,10 +31,16 @@ wiki/
   llms.txt                   llms.txt-style summary for agents: what the library is, where to start, key links
   STRUCTURE.md               this file
   start-here/
+    what-do-you-want.md      the starter: a picture or a goal, to the effect and its genre guide
+    genre-*.md               the six effect genre guides (light and glow, water and weather, shadows, surfaces and materials,
+                             camera and screen, tools and safety): what you can make, each effect's settings, its cost
+    demo-guide.md            each demo program: its plain name, what you see, the effects it shows, the code name
     what-it-is.md            the library, its parts, its dependencies (SH4ZAM, SH4DOW-DC, KallistiOS)
     setup.md                 build, host tests first, SH4ZAM checkout, make targets (links the Makefile and AGENTS.md)
     call-orders.md           one short section an effect, each linking its AGENTS.md section (not copied)
     license-and-credit.md    what LICENSE and AGENTS.md require: credit, no strip, no resale; link, do not restate the terms
+  guides/                    game-type guides: one recipe a kind of game, with its effects, pass order, budget table,
+                             settings to start with, what to cut first and common mistakes (racing-game.md first)
   effects/
     <effect>.md              one page an effect: blade, holo, bloom, water, look, frame, taa, glow, warp, trail,
                              lens, focus, visor, torch, guard, bump, sss, uvwarp, spark, bolt, motes, pl4nar,
@@ -68,7 +74,7 @@ wiki/
   shadows/
     README.md                map of the shadow work: routes A, B, AB, the c-spikes, the thesis
     psm-routes.md            SH-4 depth map, PVR-drawn map, the AB hybrid; what each costs
-    bump-compare-chain.md    c1 .. c4: the PVR-side compare, bands, bias, 1555 mask
+    bump-compare-chain.md    Compare by blending [c1] .. Full compare chain [c4]: the PVR-side compare, bands, bias, 1555 mask
     thesis.md                summary of THESIS_SH4_SHADOWS.md with its predictions and their status
   research/
     README.md                one line a research note, with its date and what it settled
@@ -160,6 +166,7 @@ A limit in `recommended-limits.md` is **PROVEN** only when the number behind it 
 11. **People first.** Every page opens with "What you will learn" and "For". Plain sentences; terms defined on first use or linked to the glossary; tables after the words that explain them.
 12. **Outside sources.** `third_party/skmp` is read-only and git-ignored. Cite it; never copy it. nulldc3's licences are mixed (Reicast's BSD 3-clause, with GPL and LGPL files), and polly2-rtl and dreamcast-tests have no licence file. An emulator's output is never MEASURED: it is REPORTED, "emulator, not evidence".
 13. **Limits.** In `recommended-limits.md` a limit is PROVEN only when its number is MEASURED. Every ADVISED limit names the test that would prove it.
+14. **Every new effect or routine ships with its human guide entry.** The same change that adds a page for an effect or a routine also adds its entry in the human guides: the plain name (the reader name in `effects/names.md` section 0), one line on what it looks like, and its "Try this first" settings with their status tags. A page with no guide entry is not finished, and a guide entry with no page is not finished either.
 
 ## INDEX.md and llms.txt
 

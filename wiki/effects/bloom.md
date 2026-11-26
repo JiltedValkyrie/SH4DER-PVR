@@ -1,10 +1,10 @@
 ---
-title: bloom
+title: Mesh bloom [bloom]
 tags: [effect, bloom]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_bloom.h, src/sh4der_bloom.c, README.md "The bloom effect"]
 ---
-# bloom
+# Mesh bloom [bloom]
 
 **What you will learn:** how to get a soft glow round a blade or a lamp without reading the frame back, and what it costs.
 **For:** a programmer who wants a cheap halo, sun disc or lens-flare ghost.
@@ -17,7 +17,7 @@ A few feathered additive polygons make a glow (README:312-322; bloom.h:8-45):
 - a disc at the blade's tip (8 rim vertices);
 - `sh4der_bloom_rings`, a round glow with its own level per ring: a sun disc, a lamp, a lens-flare ghost.
 
-There is no frame read and no texture. This is not the screen bloom; that one is [glow](glow.md).
+There is no frame read and no texture. This is not the screen bloom; that one is [Screen bloom](glow.md).
 
 Version: v1.00, used in a released game (bloom.h:31).
 
@@ -59,7 +59,7 @@ See `README.md` "Bloom tuning" (README:345-368) and the MAX preset (README:370-3
 
 ## Related
 
-- [blade](blade.md)
-- [glow](glow.md)
-- [spark](spark.md), for a lamp's halo quad
-- [guard](guard.md)
+- [Glowing tubes](blade.md)
+- [Screen bloom](glow.md)
+- [Sparks and tracers](spark.md), for a lamp's halo quad
+- [Send checks](guard.md)

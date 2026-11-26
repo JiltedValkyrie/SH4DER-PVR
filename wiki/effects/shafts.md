@@ -1,17 +1,17 @@
 ---
-title: shafts (shadow shafts)
+title: Dark shafts of light [shafts] (shadow shafts)
 tags: [effect, shafts, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_shafts.h, src/sh4der_shafts.c, README.md "The shadow shafts"]
 ---
-# shafts: shadow shafts
+# Dark shafts of light [shafts]: dark shapes cast as rays from a light
 
 **What you will learn:** how dark shapes in the frame cast darker copies away from a light, and what that costs per frame.
-**For:** a programmer who wants light shafts through a dark scene: the dark twin of the [glow](glow.md)'s god rays.
+**For:** a programmer who wants light shafts through a dark scene: the dark twin of the [Screen bloom](glow.md)'s god rays.
 
 ## What it does
 
-The frame's dark cells cast a darker copy of themselves, pushed away from a light. It works from the [frame](frame.md) read (README:749-777).
+The frame's dark cells cast a darker copy of themselves, pushed away from a light. It works from the [Frame read](frame.md) read (README:749-777).
 
 `src/sh4der_shafts.c` does the init, upload and draw. The map maths is inline.
 
@@ -47,4 +47,4 @@ There is no README table. The macros are at shafts.h:73-81, described at README:
 
 ## Related
 
-- [glow](glow.md), [frame](frame.md)
+- [Screen bloom](glow.md), [Frame read](frame.md)

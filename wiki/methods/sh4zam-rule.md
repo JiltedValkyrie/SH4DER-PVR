@@ -1,7 +1,7 @@
 ---
 title: The SH4ZAM rule
 tags: [method, sh4]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [AGENTS.md "Maths and speed: standing rule for every agent", third_party/sh4zam-dce/README.md]
 ---
 # The SH4ZAM rule
@@ -51,7 +51,7 @@ Our hooks that exist so far are listed in `third_party/sh4zam-dce/README.md`. On
 
 Uncached and badly placed buffers are the commonest slow code here:
 
-![The placing trap: the SH-4 operand cache is 16 KB, direct-mapped, indexed by address bits 13..5, so two arrays a multiple of 16 KB apart put line i of each in the same entry and every access misses; measured on one console, mat_transform 13.16 against 38.67 cycles a vertex (1 MB apart), pvr_project 21.15 against 132.5 (256 KB apart in c4), memcpy 398.0 against 46.6 MB/s; the fix is one pool with the second array 8 KB off modulo 16 KB (SH4-002, 003, 020-023, 030-032, 046).](../images/cache-placing-trap.svg)
+![The placing trap: the SH-4 operand cache is 16 KB, direct-mapped, indexed by address bits 13..5, so two arrays a multiple of 16 KB apart put line i of each in the same entry and every access misses; measured on one console, mat_transform 13.16 against 38.67 cycles a vertex (1 MB apart), pvr_project 21.15 against 132.5 (256 KB apart in Full compare chain [c4]), memcpy 398.0 against 46.6 MB/s; the fix is one pool with the second array 8 KB off modulo 16 KB (SH4-002, 003, 020-023, 030-032, 046).](../images/cache-placing-trap.svg)
 
 ## 4. Proof is a console number
 
@@ -62,7 +62,7 @@ An assembly kernel is kept only with a measured gain on a real console. An emula
 - plain C took 72.43;
 - FIPR and FTRV gave bit-identical results.
 
-The rule also cuts the other way. In ray1 (one console, one run) our batch kernel `shz_dce_xmtrx_project_point3_batch` gave the right bytes and ran 2 times faster than a C loop of SH4ZAM calls, but 5.8 % slower than KallistiOS's `mat_transform` in the cache and 7.3 % out of it (SH4-050). It has no measured gain over the routine it would replace; whether it stays is the owner's call.
+The rule also cuts the other way. In Ray bench, run one [ray1] (one console, one run) our batch kernel `shz_dce_xmtrx_project_point3_batch` gave the right bytes and ran 2 times faster than a C loop of SH4ZAM calls, but 5.8 % slower than KallistiOS's `mat_transform` in the cache and 7.3 % out of it (SH4-050). It has no measured gain over the routine it would replace; whether it stays is the owner's call.
 
 ## Related
 

@@ -1,7 +1,7 @@
 ---
 title: The fault catcher
 tags: [method, debug]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_fault.h, test/fault_test.c, demo/psm/fault/psm_fault_f1.c]
 ---
 # The fault catcher
@@ -62,4 +62,4 @@ Build with `-DSH4DER_FAULT_TEST` for `sh4der_fault_test()` with ADDRESS, ILLEGAL
 
 ## Related
 
-- [Benchmarking](benchmarking.md), [guard](../effects/guard.md)
+- [Benchmarking](benchmarking.md), [Send checks](../effects/guard.md)

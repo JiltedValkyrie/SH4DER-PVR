@@ -1,10 +1,10 @@
 ---
-title: sss (back-lit transmission)
+title: Light through thin parts [sss] (back-lit transmission)
 tags: [effect, sss]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_sss.h, README.md "The sss effect", AGENTS.md "Call order: sss (transmission)"]
 ---
-# sss: back-lit transmission
+# Light through thin parts [sss]: back-lit transmission
 
 **What you will learn:** what the sss call gives you, what it does not, and where its starting values come from.
 **For:** a programmer who wants light through a thin part of a model: an ear against the sun, a leaf, wax, ice, a wave crest.
@@ -26,7 +26,7 @@ The full steps, a material table and worked examples are in `AGENTS.md` "Call or
 3. Per vertex: `sh4der_sss_rgb` with a path (thickness), coverage, entry and visibility.
 4. Put the result in the offset colour, or add it to the vertex colour. Clamp it to 0..1 when you pack it.
 
-Water has a wrapper, `sh4der_water_crest_sss`; see [water](water.md).
+Water has a wrapper, `sh4der_water_crest_sss`; see [Water waves](water.md).
 
 ## Cost
 
@@ -58,4 +58,4 @@ From `AGENTS.md` "Where it looks best on the PVR":
 
 ## Related
 
-- [water](water.md), [ao](ao.md), [sh4dow-dc](sh4dow-dc.md) (its heightfield visibility fits `visibility`)
+- [Water waves](water.md), [Corner darkening](ao.md), [Soft character shadows](sh4dow-dc.md) (its heightfield visibility fits `visibility`)

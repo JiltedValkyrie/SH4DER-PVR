@@ -1,10 +1,10 @@
 ---
-title: ca (frame texture and chromatic aberration)
+title: Colour fringe [ca] (frame texture and chromatic aberration)
 tags: [effect, ca, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_ca.h, src/sh4der_ca.c, README.md "The frame texture and chromatic aberration"]
 ---
-# ca: the frame texture and chromatic aberration
+# Colour fringe [ca]: the frame texture and chromatic aberration
 
 **What you will learn:** how the world is drawn into a texture, how the colour fringe is made from it, and what it costs in video memory.
 **For:** a programmer who wants a lens colour fringe, or any effect that needs the whole frame as a texture.
@@ -44,7 +44,7 @@ There is no README table. The macros are at ca.h:75-78. The meaning of strength 
 ## Pitfalls
 
 - A setup that cannot get video memory returns 0 and gives `short_kb`. The effect is then off, and you draw normally. Print `short_kb` once (README:~742-745).
-- There is one stride register for all stride textures. The setup sets it to the frame width. [trail](trail.md) shares it: never run both at once.
+- There is one stride register for all stride textures. The setup sets it to the frame width. [Motion blur](trail.md) shares it: never run both at once.
 
 ## Open
 
@@ -52,6 +52,6 @@ There is no README table. The macros are at ca.h:75-78. The meaning of strength 
 
 ## Related
 
-- [timebase](timebase.md): the frame texture drawn as bands, each row moved sideways (`sh4der_ca_channel_rows`)
-- [warp](warp.md), [taa](taa.md), [trail](trail.md)
+- [Tape wobble](timebase.md): the frame texture drawn as bands, each row moved sideways (`sh4der_ca_channel_rows`)
+- [Screen warp](warp.md), [Smooth edges over time](taa.md), [Motion blur](trail.md)
 - [Video ledger](../hardware/ledger-video.md)

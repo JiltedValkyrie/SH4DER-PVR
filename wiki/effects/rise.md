@@ -1,10 +1,10 @@
 ---
-title: rise (lights that lift and become stars)
+title: Rising lights [rise] (lights that lift and become stars)
 tags: [effect, rise]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_rise.h, README.md effect table, test/rise_test.c]
 ---
-# rise: lights that lift and become stars
+# Rising lights [rise]: lights that lift and become stars
 
 **What you will learn:** what the rise effect draws and what it costs.
 **For:** a programmer adding released lanterns, candles that become stars, or fireflies leaving a bush.
@@ -33,6 +33,6 @@ Additive quads that pile up in one 32 × 32 tile are expensive: 256 sorted trans
 
 ## Related
 
-- [spark](spark.md)
-- [motes](motes.md)
+- [Sparks and tracers](spark.md)
+- [Drifting specks](motes.md)
 - [Recommended limits](../limits/recommended-limits.md)

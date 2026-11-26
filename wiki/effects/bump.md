@@ -1,10 +1,10 @@
 ---
-title: bump (normal map, highlight power 2)
+title: Normal map [bump] (highlight power 2)
 tags: [effect, bump]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_bump.h, README.md "The normal map effect", AGENTS.md "Call order: normal map (highlight power 2)", demo/torchwalk_ab.c]
 ---
-# bump: a normal map lit by a moving light
+# Normal map [bump]: lit surface bumps with no bump unit
 
 **What you will learn:** how a normal map is lit with plain blend passes instead of the PVR's bump unit, and what it costs in draws and video memory.
 **For:** a programmer who wants relief on a large flat surface, such as a floor or a wall, lit by a torch or another moving light.
@@ -64,6 +64,6 @@ These are "Not checked on a real console" (README:1200; `AGENTS.md`):
 
 ## Related
 
-- [torch](torch.md)
+- [Screen spotlight](torch.md)
 - [Bump compare chain](../shadows/bump-compare-chain.md), a different use of the PVR's bump unit
 - [PVR ledger](../hardware/ledger-pvr.md)

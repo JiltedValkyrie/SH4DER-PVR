@@ -1,4 +1,4 @@
-/* Host test of the baked occlusion (demo/psm/psm_ao.h), its colours (psm_colour in psm_scene.h), the AO row and the
+/* Host test of the baked occlusion (demo/psm/psm_ao.h over include/sh4der_aomesh.h), its colours (psm_colour in psm_scene.h), the AO row and the
    one-press hide (psm_input, psm_send_hud). Plain C, on the town or the square's mesh:
 
    cc -std=c11 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -I<mesh dir> -I<sky dir> -Iinclude -Ish4dow-dc/include \
@@ -26,6 +26,18 @@ static uint32_t ref_m[PSM_MV_MAX], ref_g[PSM_GV_MAX], tab_m[PSM_MV_MAX];
 static unsigned ticks;
 static void tick(void) { ticks++; }
 
+/* The bytes' checksum (FNV-1a 64). The plain C path pins it: the bake's bytes do not move on a refactor. The SH4ZAM path
+   prints it and, with argv[1], writes the raw bytes (vertices, then ground); with argv[2] (a file of those bytes from the
+   plain path) it prints the largest difference. */
+/* The pin is for the town's mesh from the Fantasy-kit zip (demo/psm/assets/_dl/modular_village_collection.zip), the mesh
+   with PIN_MESH_VERT static vertices and PIN_MESH_TRI static triangles. Any other mesh (no zip: the stand-in; SQUARE=square:
+   the walled square) prints "pin NOT RUN" and passes: the pin is not its bytes. */
+#define PIN_VERT_FNV   0x7f1f04588085b50full
+#define PIN_GROUND_FNV 0x9eacf14eb738d88full
+#define PIN_MESH_VERT  8697u
+#define PIN_MESH_TRI   5320u
+static uint64_t fnv_(uint64_t h, const uint8_t *p, size_t n) { size_t i; for (i = 0; i < n; i++) { h ^= p[i]; h *= 1099511628211ull; } return h; }
+
 static void lit(psm_state_t *st) {
     psm_frame_setup(&frame, &scene, st);
     psm_place_geo(&frame, &scene);
@@ -39,7 +51,7 @@ static unsigned chan_far(uint32_t a, uint32_t b, unsigned tol) {
     return n + ((a >> 24) != (b >> 24));
 }
 
-int main(void) {
+int main(int argc, char **argv) {
     psm_state_t st;
     unsigned i, n, open = 0, dark = 0, lo_y = 0, hi_y = 0;
     unsigned long lo_sum = 0, hi_sum = 0;
@@ -57,8 +69,7 @@ int main(void) {
     printf("bake: %u static vertices, %u static triangles, %u rays, %u ray-triangle tests (%.1f a ray), ground grid %u x %u, %.0f ms on this host\n",
            scene.mdyn0, scene.tdyn0, (unsigned)ao.rays, (unsigned)ao.tests, (double)ao.tests / (double)(ao.rays ? ao.rays : 1u), ao.gw, ao.gh,
            (double)(clock() - t0) * 1000.0 / CLOCKS_PER_SEC);
-    CHECK(ao.box == NULL && ao.cell0 == NULL && ao.list == NULL);          /* the scratch is given back */
-    CHECK(ao.rays == (scene.mdyn0 + ao.gw * ao.gh) * PSM_AO_RAYS);
+    CHECK(ao.rays == (scene.mdyn0 + ao.gw * ao.gh) * SH4DER_AOMESH_RAYS);
     for (i = 0; i < scene.mdyn0; i++) {
         open += ao.mao[i] >= 250u; dark += ao.mao[i] < 128u;
         if (scene.mn[i][1] < 0.3f && scene.mn[i][1] > -0.3f) {           /* a wall's vertex: its foot is darker than its head */
@@ -82,6 +93,48 @@ int main(void) {
         CHECK(psm_ao_bake(&ao2, &scene, NULL) && memcmp(ao.mao, ao2.mao, sizeof ao.mao) == 0 && ao2.gw == ao.gw && memcmp(ao.g, ao2.g, ao.gw * ao.gh) == 0);
         psm_ao_free(&ao2);
         CHECK(ao2.g == NULL && !ao2.ok && ao2.mao[0] == 255u);
+    }
+
+    {   /* the bytes' checksum, the pin (plain C), the raw dump and the comparison (argv, for the SH4ZAM path) */
+        const uint64_t hv = fnv_(1469598103934665603ull, ao.mao, scene.mdyn0);
+        const uint64_t hg = fnv_(1469598103934665603ull, ao.g, ao.gw * ao.gh);
+
+        printf("bytes: %u vertices fnv1a64 %016llx; ground %u x %u fnv1a64 %016llx\n", scene.mdyn0, (unsigned long long)hv,
+               ao.gw, ao.gh, (unsigned long long)hg);
+#ifdef SH4DER_CORE_NO_SH4ZAM
+        if (scene.mdyn0 == PIN_MESH_VERT && scene.tdyn0 == PIN_MESH_TRI) {
+            CHECK(hv == PIN_VERT_FNV && hg == PIN_GROUND_FNV);
+            printf("pin checked: the town's kit mesh (%u vertices, %u triangles)\n", scene.mdyn0, scene.tdyn0);
+        } else {
+            printf("pin NOT RUN: not the town's kit mesh (%u vertices)\n", scene.mdyn0);
+        }
+#endif
+        if (argc > 1) {                                                  /* dump: vertices, then the ground */
+            FILE *f = fopen(argv[1], "wb");
+
+            CHECK(f != NULL);
+            if (f) { fwrite(ao.mao, 1, scene.mdyn0, f); fwrite(ao.g, 1, ao.gw * ao.gh, f); fclose(f); }
+        }
+        if (argc > 2) {                                                  /* compare with a plain dump */
+            const unsigned n = scene.mdyn0 + ao.gw * ao.gh;
+            uint8_t *ref = (uint8_t *)malloc(n);
+            FILE *f = fopen(argv[2], "rb");
+            unsigned k, diff = 0, big = 0;
+
+            CHECK(ref != NULL && f != NULL);
+            if (ref && f && fread(ref, 1, n, f) == n) {
+                for (k = 0; k < n; k++) {
+                    const int d = (int)(k < scene.mdyn0 ? ao.mao[k] : ao.g[k - scene.mdyn0]) - (int)ref[k];
+                    const unsigned a = d < 0 ? (unsigned)-d : (unsigned)d;
+
+                    diff += a != 0u;
+                    if (a > big) big = a;
+                }
+                printf("vs plain dump: %u bytes, %u differ, largest difference %u\n", n, diff, big);
+            }
+            if (f) fclose(f);
+            free(ref);
+        }
     }
 
     /* the colours: off is what it always was; all open is the same colours; baked is darker or equal, never brighter; the

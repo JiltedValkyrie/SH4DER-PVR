@@ -1,10 +1,10 @@
 ---
-title: glow (screen bloom)
+title: "Screen bloom [glow]: light from the bright parts, and god rays"
 tags: [effect, glow, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_glow.h, src/sh4der_glow.c, README.md "The glow effect"]
 ---
-# glow: screen bloom and god rays
+# Screen bloom [glow]: light from the bright parts, and god rays
 
 **What you will learn:** how the screen bloom is built from a small map of the frame, and how to stop it feeding itself.
 **For:** a programmer who wants bright lights to bleed into the picture, or sun shafts.
@@ -38,7 +38,7 @@ As-stated. None of it is measured on a console.
 | Rays | each copy is a layer; no time stated | |
 | Darken | capped at 0.25 | README:469 |
 
-The init returns 0 when video memory is short (glow.h:294). Each full-screen translucent layer costs the PVR about 3.1 ms at 640 × 480 (MEASURED, one console, 2026-11-25, h1 and c1; see the [PVR ledger](../hardware/ledger-pvr.md)).
+The init returns 0 when video memory is short (glow.h:294). Each full-screen translucent layer costs the PVR about 3.1 ms at 640 × 480 (MEASURED, one console, 2026-11-25, h1 and Compare by blending [c1]; see the [PVR ledger](../hardware/ledger-pvr.md)).
 
 ## Recommended limits
 
@@ -66,5 +66,5 @@ See `README.md` "Glow tuning" (README:453-478).
 
 ## Related
 
-- [frame](frame.md), [bloom](bloom.md) (the glow with no frame read), [shafts](shafts.md) (the dark twin)
+- [Frame read](frame.md), [Mesh bloom](bloom.md) (the glow with no frame read), [Dark shafts of light](shafts.md) (the dark twin)
 - [PVR ledger](../hardware/ledger-pvr.md)

@@ -1,7 +1,7 @@
 ---
 title: Call orders
 tags: [start, effect]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [AGENTS.md "Call order" sections, README.md effect sections]
 ---
 # Call orders
@@ -24,20 +24,20 @@ The steps themselves live in [`AGENTS.md`](../../AGENTS.md) and [`README.md`](..
 4. **While drawing:**
    - put the result in the right display list (opaque, punch-through or translucent);
    - check every header with `sh4der_poly_hdr_ok`;
-   - check every triangle with `sh4der_tri_area_ok` (see [guard](../effects/guard.md)).
+   - check every triangle with `sh4der_tri_area_ok` (see [Send checks](../effects/guard.md)).
 
 ## Where each one is
 
 | Effect | Call order |
 |---|---|
-| blade | `AGENTS.md` "Call order: blade" |
-| holo | `AGENTS.md` "Call order: holo" |
-| look | `AGENTS.md` "Call order: look" |
-| spark | `AGENTS.md` "Call order: spark" |
-| pl4nar | `AGENTS.md` "Call order: pl4nar"; for an engine with no normals, "pl4nar in an engine that has no normals" and `demo/pl4nar/AGENT_WORKFLOW.md` |
-| pool | `AGENTS.md` "Call order: pool" |
+| Glowing tubes [blade] | `AGENTS.md` "Call order: blade" |
+| Inner light [holo] | `AGENTS.md` "Call order: holo" |
+| Exposure and grade [look] | `AGENTS.md` "Call order: look" |
+| Sparks and tracers [spark] | `AGENTS.md` "Call order: spark" |
+| Planar reflection [pl4nar] | `AGENTS.md` "Call order: pl4nar"; for an engine with no normals, "pl4nar in an engine that has no normals" and `demo/pl4nar/AGENT_WORKFLOW.md` |
+| Light pools [pool] | `AGENTS.md` "Call order: pool" |
 | bump (normal map) | `AGENTS.md` "Call order: normal map (highlight power 2)" |
-| sss | `AGENTS.md` "Call order: sss (transmission)", with starting values per material |
+| Light through thin parts [sss] | `AGENTS.md` "Call order: sss (transmission)", with starting values per material |
 | every other effect | its section in `README.md` ("The <name> effect") and its header's top comment |
 
 Each [effect page](../effects/) links its own call order again, beside its costs and limits.

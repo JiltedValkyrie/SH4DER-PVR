@@ -1,10 +1,10 @@
 ---
-title: spark (pooled additive quads)
+title: Sparks and tracers [spark] (pooled additive quads)
 tags: [effect, spark, particles]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_spark.h, src/sh4der_spark.c, README.md "The spark effect", AGENTS.md "Call order: spark"]
 ---
-# spark: pooled additive quads
+# Sparks and tracers [spark]: pooled additive quads
 
 **What you will learn:** how the fixed pool of 24 sparks works, what it costs, and how it protects the quads that matter.
 **For:** a programmer adding muzzle flashes, tracers, impact sparks or lamp halos.
@@ -61,4 +61,4 @@ See `README.md` "Spark tuning" (README:839-846).
 
 ## Related
 
-- [bolt](bolt.md) (uses the same view and screen records), [motes](motes.md), [guard](guard.md), [pool](pool.md) (a lamp's halo)
+- [Lightning](bolt.md) (uses the same view and screen records), [Drifting specks](motes.md), [Send checks](guard.md), [Light pools](pool.md) (a lamp's halo)

@@ -1,10 +1,10 @@
 ---
-title: uvwarp (per-vertex texture offset)
+title: Texture ripple [uvwarp] (per-vertex texture offset)
 tags: [effect, uvwarp]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_uvwarp.h, README.md "The uvwarp effect"]
 ---
-# uvwarp: per-vertex texture offset
+# Texture ripple [uvwarp]: per-vertex texture offset
 
 **What you will learn:** how a small table pushes each vertex's texture coordinate, and how to keep it precise over time.
 **For:** a programmer who wants a crawling arc, a rippling banner or a shimmering strip: a distortion the PVR cannot read per pixel.
@@ -43,4 +43,4 @@ See README:1141-1143. `AGENTS.md` has no section of its own. The build tool down
 
 ## Related
 
-- [warp](warp.md), the per-pixel route through the frame texture
+- [Screen warp](warp.md), the per-pixel route through the frame texture

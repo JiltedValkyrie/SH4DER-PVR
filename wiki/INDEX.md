@@ -1,7 +1,7 @@
 ---
 title: Index
 tags: [index]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [every page's front matter]
 ---
 # Index
@@ -13,71 +13,77 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 
 ## top level
 
-- [README.md](README.md) | SH4DER-PVR wiki | start | 2026-11-25 | what this wiki holds, how to read a page, and where to start.
-- [STRUCTURE.md](STRUCTURE.md) | Wiki structure | meta | 2026-11-25 | how the wiki is laid out and kept: the tree, the page template, the ledger row, the status legend, the rules.
-- [glossary.md](glossary.md) | Glossary | glossary | 2026-11-25 | what the words on these pages mean.
+- [README.md](README.md) | SH4DER-PVR wiki | start | 2026-11-26 | what this wiki holds, how to read a page, and where to start.
+- [STRUCTURE.md](STRUCTURE.md) | Wiki structure | meta | 2026-11-26 | how the wiki is laid out and kept: the tree, the page template, the ledger row, the status legend, the rules.
+- [glossary.md](glossary.md) | Glossary | glossary | 2026-11-26 | what the words on these pages mean.
 - [open-questions.md](open-questions.md) | Open questions | open | 2026-11-25 | everything this project does not know yet, in the order we would settle it, and the test that would settle each. IDs AICA-003 to VID-011 (31 rows).
 
 ## effects
 
 - [effects/README.md](effects/README.md) | Effects index | effect, index | 2026-11-25 | every effect in the library in one line, how far along it is, and whether any of its cost has been measured on a real console.
-- [effects/ao.md](effects/ao.md) | ao (small-scale occlusion) | effect, ao | 2026-11-25 | the two kinds of darkening the ao header gives, and when each is computed.
-- [effects/aobake.md](effects/aobake.md) | aobake (baked occlusion against exact shapes) | effect, ao, bake, load | 2026-11-26 | one ambient occlusion byte a vertex, baked at load by rays against spheres, boxes and a plane; 252 to 254 ms for scene A on a console.
-- [effects/aosky.md](effects/aosky.md) | aosky (occlusion of the sky drawn into a shadow target) | effect, ao, psm, pvr, shadow | 2026-11-26 | the sky's occlusion drawn as K slid shadows into the sun's target; the depth union failed on the console; plain blending, one side, ran in ao4.
-- [effects/ao-bake.md](effects/ao-bake.md) | ao-bake (baked occlusion over any triangle list, host tool) | tool, ao, bake, host | 2026-11-26 | a host build tool that bakes one ambient occlusion byte a vertex from a triangle list: 64 rays, inside-solid fill, street wrap; the room's bytes match to 2.
-- [effects/blade.md](effects/blade.md) | blade | effect, blade | 2026-11-25 | what the blade effect draws, how to call it and what it costs.
-- [effects/bloom.md](effects/bloom.md) | bloom | effect, bloom | 2026-11-25 | how to get a soft glow round a blade or a lamp without reading the frame back, and what it costs.
-- [effects/bolt.md](effects/bolt.md) | bolt (branching strands) | effect, bolt, particles | 2026-11-25 | how the bolt draws lightning that changes a few times a second, and how much it sends to the PVR.
-- [effects/bump.md](effects/bump.md) | bump (normal map, highlight power 2) | effect, bump | 2026-11-25 | how a normal map is lit with plain blend passes instead of the PVR's bump unit, and what it costs in draws and video memory.
-- [effects/ca.md](effects/ca.md) | ca (frame texture and chromatic aberration) | effect, ca, post | 2026-11-25 | how the world is drawn into a texture, how the colour fringe is made from it, and what it costs in video memory.
-- [effects/cloudvolume.md](effects/cloudvolume.md) | cloudvolume (a cloud deck you fly through) | effect, cloudvolume | 2026-11-25 | how the SH-4 ray-marches a cloud layer into a small buffer that the PVR draws over the sky, and what that is estimated to cost.
-- [effects/core.md](effects/core.md) | core (the shared parts) | effect, core | 2026-11-25 | what every other effect borrows from `sh4der_core.h`, and what it costs.
-- [effects/deform.md](effects/deform.md) | deform (ground that keeps a dent) | effect, deform | 2026-11-25 | how feet and wheels press lasting dents into a ground mesh you already draw, and what it costs.
-- [effects/film.md](effects/film.md) | film (old projector wear) | effect, film | 2026-11-25 | what the film effect draws and what it costs.
-- [effects/focus.md](effects/focus.md) | focus (fake depth of field) | effect, focus, post | 2026-11-25 | how a sharp region is kept while the rest of the frame softens, without a depth read.
-- [effects/frame.md](effects/frame.md) | frame (the frame read) | effect, frame, post | 2026-11-25 | how the library reads the finished frame back, and why each frame carries a number.
-- [effects/glow.md](effects/glow.md) | glow (screen bloom) | effect, glow, post | 2026-11-25 | how the screen bloom is built from a small map of the frame, and how to stop it feeding itself.
-- [effects/guard.md](effects/guard.md) | guard (real hardware checks) | effect, guard, hardware | 2026-11-25 | the two checks every hand-made polygon should pass, and the three faults that stop a real console but not an emulator.
-- [effects/holo.md](effects/holo.md) | holo | effect, holo | 2026-11-25 | how the holo effect makes an inner light breathe with a translucent body, and what it costs.
-- [effects/lens.md](effects/lens.md) | lens | effect, lens, post | 2026-11-25 | what the lens overlays are, and the one piece of video memory they use.
-- [effects/look.md](effects/look.md) | look | effect, look, post | 2026-11-25 | how the look effect adapts exposure, grades the picture and adds fog glare, and what each part costs.
-- [effects/mist.md](effects/mist.md) | mist (a bank of slices) | effect, mist | 2026-11-25 | how a fog bank that things walk into is drawn as upright translucent sheets, and why fill is its whole cost.
-- [effects/motes.md](effects/motes.md) | motes (drifting specks) | effect, motes, particles | 2026-11-25 | how the motes store nothing per speck, and how many they draw.
+- [effects/ao-bake.md](effects/ao-bake.md) | Bake tool [ao-bake]: baked occlusion over any triangle list (host tool) | tool, ao, bake, host | 2026-11-26 | how a build-time tool bakes one byte of ambient occlusion a vertex from a triangle list, what the inside-solid fill and the street wrap do, and what the host run proves.
+- [effects/ao.md](effects/ao.md) | Corner darkening [ao] (small-scale occlusion) | effect, ao | 2026-11-26 | the two kinds of darkening the ao header gives, and when each is computed.
+- [effects/aobake.md](effects/aobake.md) | Baked corner shading [aobake]: baked occlusion against exact shapes | effect, ao, bake, load | 2026-11-26 | how one ambient occlusion byte a vertex is baked at load by casting rays at spheres, boxes and a ground plane, what it costs on the console, and which of the three occlusion tools fits your job.
+- [effects/aomesh.md](effects/aomesh.md) | aomesh (baked occlusion over a triangle mesh) | effect, ao, bake, mesh, load | 2026-11-26 | how one ambient occlusion byte a vertex is baked at load by casting 12 rays through a cell grid of a triangle mesh, how the optional ground grid works, what the bake costs (counted on the host; the console is NOT MEASURED), and how it differs from the other occlusion tools.
+- [effects/aosky.md](effects/aosky.md) | Sky shading [aosky]: occlusion of the sky drawn into a shadow target | effect, ao, psm, pvr, shadow | 2026-11-26 | how the sky's occlusion of the ground is drawn as a few extra shadows into the sun's shadow target, what it costs on the PVR and the SH-4, and which result is measured and which is not.
+- [effects/blade.md](effects/blade.md) | Glowing tubes [blade] | effect, blade | 2026-11-26 | what the blade effect draws, how to call it and what it costs.
+- [effects/bloom.md](effects/bloom.md) | Mesh bloom [bloom] | effect, bloom | 2026-11-26 | how to get a soft glow round a blade or a lamp without reading the frame back, and what it costs.
+- [effects/bolt.md](effects/bolt.md) | Lightning [bolt] (branching strands) | effect, bolt, particles | 2026-11-26 | how the bolt draws lightning that changes a few times a second, and how much it sends to the PVR.
+- [effects/bump.md](effects/bump.md) | Normal map [bump] (highlight power 2) | effect, bump | 2026-11-26 | how a normal map is lit with plain blend passes instead of the PVR's bump unit, and what it costs in draws and video memory.
+- [effects/ca.md](effects/ca.md) | Colour fringe [ca] (frame texture and chromatic aberration) | effect, ca, post | 2026-11-26 | how the world is drawn into a texture, how the colour fringe is made from it, and what it costs in video memory.
+- [effects/cloudvolume.md](effects/cloudvolume.md) | Cloud deck [cloudvolume] (a cloud slab you fly through) | effect, cloudvolume | 2026-11-26 | how the SH-4 ray-marches a cloud layer into a small buffer that the PVR draws over the sky, and what that is estimated to cost.
+- [effects/core.md](effects/core.md) | Shared parts [core] (the feather, tube shape, breath tracker and glint) | effect, core | 2026-11-26 | what every other effect borrows from `sh4der_core.h`, and what it costs.
+- [effects/deform.md](effects/deform.md) | Dented ground [deform] (ground that keeps a dent) | effect, deform | 2026-11-26 | how feet and wheels press lasting dents into a ground mesh you already draw, and what it costs.
+- [effects/fault.md](effects/fault.md) | Crash and hang screen [fault] (the fault catcher) | effect, debug, fault | 2026-11-26 | what the fault catcher puts on the screen when a console program raises an exception, hangs, asserts or exits, and what it does not catch.
+- [effects/film.md](effects/film.md) | Old film wear [film] (old projector wear) | effect, film | 2026-11-26 | what the film effect draws and what it costs.
+- [effects/focus.md](effects/focus.md) | Fake focus blur [focus] (fake depth of field) | effect, focus, post | 2026-11-26 | how a sharp region is kept while the rest of the frame softens, without a depth read.
+- [effects/frame.md](effects/frame.md) | Frame read [frame]: the picture on screen read back | effect, frame, post | 2026-11-26 | how the library reads the finished frame back, and why each frame carries a number.
+- [effects/glow.md](effects/glow.md) | Screen bloom [glow]: light from the bright parts, and god rays | effect, glow, post | 2026-11-26 | how the screen bloom is built from a small map of the frame, and how to stop it feeding itself.
+- [effects/guard.md](effects/guard.md) | Send checks [guard] (real hardware checks) | effect, guard, hardware | 2026-11-26 | the two checks every hand-made polygon should pass, and the three faults that stop a real console but not an emulator.
+- [effects/hexheat.md](effects/hexheat.md) | Heat haze hexagons [hexheat]: a few floating hexagons that show the picture behind them | effect, hexheat, heat-haze, render-target | 2026-11-26 | what the hexheat effect draws, where its picture comes from, and what it costs.
+- [effects/holo.md](effects/holo.md) | Inner light [holo] | effect, holo | 2026-11-26 | how the holo effect makes an inner light breathe with a translucent body, and what it costs.
+- [effects/lens.md](effects/lens.md) | Screen overlays [lens] | effect, lens, post | 2026-11-26 | what the lens overlays are, and the one piece of video memory they use.
+- [effects/look.md](effects/look.md) | Exposure and grade [look] | effect, look, post | 2026-11-26 | how the look effect adapts exposure, grades the picture and adds fog glare, and what each part costs.
+- [effects/mist.md](effects/mist.md) | Mist bank [mist] (a bank of slices) | effect, mist | 2026-11-26 | how a fog bank that things walk into is drawn as upright translucent sheets, and why fill is its whole cost.
+- [effects/motes.md](effects/motes.md) | Drifting specks [motes] (a steady field of dust, embers and pollen) | effect, motes, particles | 2026-11-26 | how the motes store nothing per speck, and how many they draw.
 - [effects/names.md](effects/names.md) | Names: what each module actually is | effects, names, index, migration | 2026-11-25 | the technique behind each module and demo name, the other names people search for, and the plain names proposed in place of the old ones, with how the old names keep working.
-- [effects/pl4nar.md](effects/pl4nar.md) | pl4nar (planar reflection) | effect, pl4nar, reflection | 2026-11-25 | how the world is mirrored into a small render target and looked up per vertex, what it costs in video memory, and which costs are still unmeasured.
-- [effects/fault.md](effects/fault.md) | fault (the fault catcher) | effect, debug, fault | 2026-11-26 | a report on the screen when a program faults or hangs: the registers, the stack's calls, the breadcrumbs, and what it cannot catch.
-- [effects/split.md](effects/split.md) | split (a movable divider for a left and a right half) | effect, split, clip, divider | 2026-11-26 | a screen cut in two halves by a divider the triggers move, in 32-pixel tile columns; each half's user clip; host tested, the moving divider not run on a console.
-- [effects/tilecut.md](effects/tilecut.md) | tilecut (a render target through its own tiles) | effect, tilecut, pvr, render-target | 2026-11-26 | why a small render target costs the PVR a whole screen under KallistiOS, how the cut ends the tile table after the target's own tiles, what that saved on a console, and the rules that keep it safe.
-- [effects/ramp.md](effects/ramp.md) | ramp (one linear 0..1 ramp between two distances) | effect, ramp | 2026-11-26 | a linear 0..1 ramp between two distances, one call or prepared for a loop; CPU only, no console run.
-- [effects/pool.md](effects/pool.md) | pool (light pools on a plane) | effect, pool | 2026-11-25 | how a lamp's pool of light or a blob shadow is drawn as a fading fan, and why fill is its cost.
-- [effects/psm.md](effects/psm.md) | psm (shadow map placement and the two map routes) | effect, psm, shadows | 2026-11-25 | what the three psm headers do, which route draws the map, and what the town demo measured on a console.
-- [effects/rise.md](effects/rise.md) | rise (lights that lift and become stars) | effect, rise | 2026-11-25 | what the rise effect draws and what it costs.
-- [effects/sh4dow-dc.md](effects/sh4dow-dc.md) | sh4dow-dc (soft character shadows) | effect, shadows, dependency | 2026-11-25 | what SH4DOW-DC does, what its published numbers are worth, and which of its limits are proven.
-- [effects/shafts.md](effects/shafts.md) | shafts (shadow shafts) | effect, shafts, post | 2026-11-25 | how dark shapes in the frame cast darker copies away from a light, and what that costs per frame.
-- [effects/spark.md](effects/spark.md) | spark (pooled additive quads) | effect, spark, particles | 2026-11-25 | how the fixed pool of 24 sparks works, what it costs, and how it protects the quads that matter.
-- [effects/sss.md](effects/sss.md) | sss (back-lit transmission) | effect, sss | 2026-11-25 | what the sss call gives you, what it does not, and where its starting values come from.
-- [effects/taa.md](effects/taa.md) | taa (temporal AA maths) | effect, taa, post | 2026-11-25 | what the TAA header computes, where the history comes from, and how far to push its weight.
-- [effects/timebase.md](effects/timebase.md) | timebase (a video tape's bent picture) | effect, timebase, tape, frame-texture | 2026-11-26 | what the timebase effect works out, how the picture is bent with it, and what it costs.
-- [effects/hexheat.md](effects/hexheat.md) | hexheat (heat haze as hexagons) | effect, hexheat, heat-haze, render-target | 2026-11-26 | what the hexheat effect draws, where its picture comes from, and what it costs.
-- [effects/torch.md](effects/torch.md) | torch (flashlight) | effect, torch, post | 2026-11-25 | how the torch fakes a flashlight with no light source, and the trap with AA 2X.
-- [effects/trail.md](effects/trail.md) | trail | effect, trail, post | 2026-11-25 | how motion blur and the TAA blend draw the frame before over this one, and what that needs from the screen setup.
-- [effects/uvwarp.md](effects/uvwarp.md) | uvwarp (per-vertex texture offset) | effect, uvwarp | 2026-11-25 | how a small table pushes each vertex's texture coordinate, and how to keep it precise over time.
-- [effects/visor.md](effects/visor.md) | visor | effect, visor, post | 2026-11-25 | how the night, amber and thermal visor looks are built from tables, and what they cost.
-- [effects/warp.md](effects/warp.md) | warp | effect, warp, post | 2026-11-25 | how the warp bends the frame through a mesh, and what it measured on a console.
-- [effects/water.md](effects/water.md) | water | effect, water | 2026-11-25 | what the water header computes per vertex, and where its numbers come from.
+- [effects/pl4nar.md](effects/pl4nar.md) | Planar reflection [pl4nar]: the world mirrored in a floor, car paint or a wet road | effect, pl4nar, reflection | 2026-11-26 | how the world is mirrored into a small render target and looked up per vertex, what it costs in video memory, and which costs are still unmeasured.
+- [effects/pool.md](effects/pool.md) | Light pools [pool] (fading round or wedge-shaped light on a plane) | effect, pool | 2026-11-26 | how a lamp's pool of light or a blob shadow is drawn as a fading fan, and why fill is its cost.
+- [effects/psm.md](effects/psm.md) | Sun shadow map [psm] (shadow map placement and the two map routes) | effect, psm, shadows | 2026-11-26 | what the three psm headers do, which route draws the map, and what the town demo measured on a console.
+- [effects/ramp.md](effects/ramp.md) | Distance ramp [ramp]: one linear 0..1 ramp between two distances | effect, ramp | 2026-11-26 | how a strength eases in or out between two distances, in the two forms the library offers (one call, or a prepared ramp for a loop), and what each costs.
+- [effects/rise.md](effects/rise.md) | Rising lights [rise] (lights that lift and become stars) | effect, rise | 2026-11-26 | what the rise effect draws and what it costs.
+- [effects/sh4dow-dc.md](effects/sh4dow-dc.md) | Soft character shadows [sh4dow-dc] (a separate library) | effect, shadows, dependency | 2026-11-26 | what SH4DOW-DC does, what its published numbers are worth, and which of its limits are proven.
+- [effects/shafts.md](effects/shafts.md) | Dark shafts of light [shafts] (shadow shafts) | effect, shafts, post | 2026-11-26 | how dark shapes in the frame cast darker copies away from a light, and what that costs per frame.
+- [effects/softfade.md](effects/softfade.md) | Soft edges for light [softfade]: a glow, a pool or a beam fades out at a wall the SH-4 knows | effect, softfade, light | 2026-11-26 | how a light is faded per vertex near planes and walls with no depth read, the three tiers (near, fit, fade), and what is and is not measured.
+- [effects/spark.md](effects/spark.md) | Sparks and tracers [spark] (pooled additive quads) | effect, spark, particles | 2026-11-26 | how the fixed pool of 24 sparks works, what it costs, and how it protects the quads that matter.
+- [effects/split.md](effects/split.md) | Split screen [split]: a movable divider for a left and a right half | effect, split, clip, divider | 2026-11-26 | how a screen is cut into two halves at a divider the triggers move, in 32-pixel tile columns, and which clip each half gets.
+- [effects/sss.md](effects/sss.md) | Light through thin parts [sss] (back-lit transmission) | effect, sss | 2026-11-26 | what the sss call gives you, what it does not, and where its starting values come from.
+- [effects/taa.md](effects/taa.md) | Smooth edges over time [taa] (temporal AA maths) | effect, taa, post | 2026-11-26 | what the TAA header computes, where the history comes from, and how far to push its weight.
+- [effects/tilecut.md](effects/tilecut.md) | Tile-cut pass [tilecut]: a render target through its own tiles | effect, tilecut, pvr, render-target | 2026-11-26 | why a small render target costs the PVR as much as a whole screen under KallistiOS, how the cut ends the tile table after the target's own tiles for one pass, what that saved on a console, and the rules that keep it safe.
+- [effects/timebase.md](effects/timebase.md) | Tape wobble [timebase] (a video tape's bent picture) | effect, timebase, tape, frame-texture | 2026-11-26 | what the timebase effect works out, how the picture is bent with it, and what it costs.
+- [effects/torch.md](effects/torch.md) | Screen spotlight [torch] (flashlight) | effect, torch, post | 2026-11-26 | how the torch fakes a flashlight with no light source, and the trap with AA 2X.
+- [effects/trail.md](effects/trail.md) | Motion blur [trail] | effect, trail, post | 2026-11-26 | how motion blur and the TAA blend draw the frame before over this one, and what that needs from the screen setup.
+- [effects/uvwarp.md](effects/uvwarp.md) | Texture ripple [uvwarp] (per-vertex texture offset) | effect, uvwarp | 2026-11-26 | how a small table pushes each vertex's texture coordinate, and how to keep it precise over time.
+- [effects/visor.md](effects/visor.md) | Screen filters [visor] | effect, visor, post | 2026-11-26 | how the night, amber and thermal visor looks are built from tables, and what they cost.
+- [effects/warp.md](effects/warp.md) | Screen warp [warp] | effect, warp, post | 2026-11-26 | how the warp bends the frame through a mesh, and what it measured on a console.
+- [effects/water.md](effects/water.md) | Water waves [water] | effect, water | 2026-11-26 | what the water header computes per vertex, and where its numbers come from.
 
 ## errata
 
-- [errata/README.md](errata/README.md) | Errata | errata, pvr, sh4 | 2026-11-25 | where Sega's documents, KallistiOS, outside sources and our own earlier notes disagree with each other or with the console, and which rule we follow.
+- [errata/README.md](errata/README.md) | Errata | errata, pvr, sh4 | 2026-11-26 | where Sega's documents, KallistiOS, outside sources and our own earlier notes disagree with each other or with the console, and which rule we follow.
+
+## guides
+
+- [guides/racing-game.md](guides/racing-game.md) | Racing game: a recipe for the car, its shadow and its lights | guide, racing, game-type, recipe, effect | 2026-11-26 | how to build one racing frame with this library: a car on a road, with its reflection in the paint and the wet tarmac, a shadow under the car, and street lamps and headlights. You will also learn what each part costs, what to turn off first when the frame is too slow, and what goes wrong.
 
 ## hardware
 
-- [hardware/README.md](hardware/README.md) | The hardware ledger | hardware, ledger | 2026-11-25 | where each hardware fact is kept, how to read a ledger row, and how to add one after a console run.
+- [hardware/README.md](hardware/README.md) | The hardware ledger | hardware, ledger | 2026-11-26 | where each hardware fact is kept, how to read a ledger row, and how to add one after a console run.
 - [hardware/ledger-aica.md](hardware/ledger-aica.md) | Ledger: AICA sound chip and its ARM7DI | hardware, ledger, aica | 2026-11-25 | what is known about the sound chip's processor and memory, for anyone who wants to run their own code on it or use its RAM. IDs AICA-001 to AICA-031 (28 rows).
-- [hardware/ledger-bus-dma.md](hardware/ledger-bus-dma.md) | Ledger: buses, DMA and the TA send | hardware, ledger, bus, dma | 2026-11-25 | how fast data moves between main RAM, video memory, the tile accelerator and sound RAM, and how much of the SH-4 each route leaves free. IDs BUS-001 to BUS-053 (33 rows).
-- [hardware/ledger-pvr.md](hardware/ledger-pvr.md) | Ledger: PowerVR2 (PVR) | hardware, ledger, pvr | 2026-11-25 | what the graphics chip costs to fill, which per-pixel tricks work on a real console, and where Sega's documents and the console disagree. IDs PVR-001 to PVR-211 (170 rows).
-- [hardware/ledger-sh4.md](hardware/ledger-sh4.md) | Ledger: SH-4 processor | hardware, ledger, sh4 | 2026-11-25 | what our console runs measured about the SH-4's cache, transforms and copies, and which earlier numbers were withdrawn. IDs PVR-160 to SH4-086 (75 rows).
-- [hardware/ledger-video.md](hardware/ledger-video.md) | Ledger: video memory and the frame | hardware, ledger, video | 2026-11-25 | how much video memory a frame and its targets take, and what reading the frame back costs. IDs VID-001 to VID-016 (16 rows).
+- [hardware/ledger-bus-dma.md](hardware/ledger-bus-dma.md) | Ledger: buses, DMA and the TA send | hardware, ledger, bus, dma | 2026-11-26 | how fast data moves between main RAM, video memory, the tile accelerator and sound RAM, and how much of the SH-4 each route leaves free. IDs BUS-001 to BUS-053 (33 rows).
+- [hardware/ledger-pvr.md](hardware/ledger-pvr.md) | Ledger: PowerVR2 (PVR) | hardware, ledger, pvr | 2026-11-26 | what the graphics chip costs to fill, which per-pixel tricks work on a real console, and where Sega's documents and the console disagree. IDs PVR-001 to PVR-211 (170 rows).
+- [hardware/ledger-sh4.md](hardware/ledger-sh4.md) | Ledger: SH-4 processor | hardware, ledger, sh4 | 2026-11-26 | what our console runs measured about the SH-4's cache, transforms and copies, and which earlier numbers were withdrawn. IDs PVR-160 to SH4-086 (75 rows).
+- [hardware/ledger-video.md](hardware/ledger-video.md) | Ledger: video memory and the frame | hardware, ledger, video | 2026-11-26 | how much video memory a frame and its targets take, and what reading the frame back costs. IDs VID-001 to VID-016 (16 rows).
 
 ## limits
 
@@ -91,39 +97,47 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 
 ## methods
 
-- [methods/benchmarking.md](methods/benchmarking.md) | Benchmarking on a real console | method, bench | 2026-11-25 | how this project measures, what counts as evidence, and the traps that have already given wrong numbers.
-- [methods/fault-catcher.md](methods/fault-catcher.md) | The fault catcher | method, debug | 2026-11-25 | what the fault catcher shows when a console crashes or hangs, how to read its screen, and what it cannot catch.
-- [methods/host-test-first.md](methods/host-test-first.md) | Host test first | method, test | 2026-11-25 | how code is checked on a PC before it reaches a console, and what a host test can and cannot prove.
-- [methods/sh4zam-rule.md](methods/sh4zam-rule.md) | The SH4ZAM rule | method, sh4 | 2026-11-25 | why all maths goes through SH4ZAM, what to do when SH4ZAM has no call for it, and what counts as "slow".
+- [methods/benchmarking.md](methods/benchmarking.md) | Benchmarking on a real console | method, bench | 2026-11-26 | how this project measures, what counts as evidence, and the traps that have already given wrong numbers.
+- [methods/fault-catcher.md](methods/fault-catcher.md) | The fault catcher | method, debug | 2026-11-26 | what the fault catcher shows when a console crashes or hangs, how to read its screen, and what it cannot catch.
+- [methods/host-test-first.md](methods/host-test-first.md) | Host test first | method, test | 2026-11-26 | how code is checked on a PC before it reaches a console, and what a host test can and cannot prove.
+- [methods/sh4zam-rule.md](methods/sh4zam-rule.md) | The SH4ZAM rule | method, sh4 | 2026-11-26 | why all maths goes through SH4ZAM, what to do when SH4ZAM has no call for it, and what counts as "slow".
 - [methods/suite-12.md](methods/suite-12.md) | Suite 12: what each program tests and what to read | method, suite, run, ledger | 2026-11-25 | what each program on the suite 12 disc shows, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to. IDs BUS-054 to VID-017 (11 rows).
 - [methods/suite-13.md](methods/suite-13.md) | Suite 13: what each program tests and what to read | method, suite, run, ledger | 2026-11-25 | what each program on the suite 13 disc should show, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to. IDs BUS-054 to VID-017 (9 rows).
 
 ## research
 
-- [research/README.md](research/README.md) | Research notes | research | 2026-11-25 | what each research note in `demo/psm/` is for and what it settled, so you can find the right one.
-- [research/depth-fog-ideas.md](research/depth-fog-ideas.md) | Depth fog and glow ideas | research, pvr, fog, depth | 2026-11-25 | which film and TV fog and light effects depend on depth, what the PVR's own table fog already gives, and whether fog could fill the space between c4's depth bands more cheaply than the shadow mask. IDs PVR-002 to PVR-100 (6 rows).
-- [research/depth-shading-ideas.md](research/depth-shading-ideas.md) | Depth shading ideas: material inputs on the PVR | research, pvr, shading, depth | 2026-11-25 | how the inputs of a modern material map onto what the PVR already does, where a depth compare on the PVR could fill a gap, and which ideas are worth a spike. IDs PVR-028 to SH4-052 (3 rows).
-- [research/gems-depth-techniques.md](research/gems-depth-techniques.md) | GPU Gems depth techniques on the PVR | research, pvr, depth, gpu-gems | 2026-11-25 | every chapter of the three GPU Gems books that uses depth, or that a depth-aware trick could imitate, sorted by what it does; for each, what it needs, which PVR or SH-4 piece could carry it, what that costs by our measured ledger rows, and the host test that would check it. IDs PVR-009 to PVR-009 (1 rows).
+- [research/README.md](research/README.md) | Research notes | research | 2026-11-26 | what each research note in `demo/psm/` is for and what it settled, so you can find the right one.
+- [research/depth-fog-ideas.md](research/depth-fog-ideas.md) | Depth fog and glow ideas | research, pvr, fog, depth | 2026-11-26 | which film and TV fog and light effects depend on depth, what the PVR's own table fog already gives, and whether fog could fill the space between Full compare chain [c4]'s depth bands more cheaply than the shadow mask. IDs PVR-002 to PVR-100 (6 rows).
+- [research/depth-shading-ideas.md](research/depth-shading-ideas.md) | Depth shading ideas: material inputs on the PVR | research, pvr, shading, depth | 2026-11-26 | how the inputs of a modern material map onto what the PVR already does, where a depth compare on the PVR could fill a gap, and which ideas are worth a spike. IDs PVR-028 to SH4-052 (3 rows).
+- [research/gems-depth-techniques.md](research/gems-depth-techniques.md) | GPU Gems depth techniques on the PVR | research, pvr, depth, gpu-gems | 2026-11-26 | every chapter of the three GPU Gems books that uses depth, or that a depth-aware trick could imitate, sorted by what it does; for each, what it needs, which PVR or SH-4 piece could carry it, what that costs by our measured ledger rows, and the host test that would check it. IDs PVR-009 to PVR-009 (1 rows).
 - [research/heat-haze-reference.md](research/heat-haze-reference.md) | Heat haze reference: floating hexagons, measured from a video | research, heat, haze, reference, car | 2026-11-25 | what the heat haze in the owner's reference video does, pixel by pixel: the size of its hexagons, how they move, how far they shift the picture, and where on the screen the haze sits. These are the numbers to match when reworking `demo/pl4nar/src/heat.h`.
-- [research/outside-sources.md](research/outside-sources.md) | Outside sources (skmp's repositories) | research, license, pvr | 2026-11-25 | what the three outside repositories in `third_party/skmp` are, what we may do with them, and how their results are tagged here.
-- [research/post-pvr-tricks.md](research/post-pvr-tricks.md) | Tricks from after and around the PVR | research, pvr, shading, history | 2026-11-25 | which GPU techniques of about 2003-2010, and which tricks that earlier fixed-function consoles used to get masks and depth out of their hardware, could be done on the PVR and the SH-4 in spirit; what each would cost by our measured ledger rows; which are the most useful and which the craziest. IDs PVR-044 to PVR-049 (2 rows).
-- [research/pvr-bugs-as-features.md](research/pvr-bugs-as-features.md) | PVR bugs as features | research, pvr, holly, errata, bugs, revisions | 2026-11-25 | every bug in Sega's Holly bug list (Dev.Box System Architecture, §9, pp.402-407), in our own words; which Holly revisions each one touches; whether it can touch the stock console; what it breaks; and any way we might use it: a look, a trick, a saving, or a mode we would not otherwise have. Each bug is checked against our measured rows.
-- [research/ray-uses.md](research/ray-uses.md) | Ray uses beyond shadows | research, sh4, rays, sound, aica, gameplay | 2026-11-25 | what else the town's grid rays can do besides sun shadows: sound, AI sight, culling, picking, projectiles, ground probes, wind and occlusion. For each use: how many rays a frame it needs, what that costs by our measured ray and ray-triangle rows, what the sound chip side needs, and the test that would prove it.
+- [research/outside-sources.md](research/outside-sources.md) | Outside sources (skmp's repositories) | research, license, pvr | 2026-11-26 | what the three outside repositories in `third_party/skmp` are, what we may do with them, and how their results are tagged here.
+- [research/post-pvr-tricks.md](research/post-pvr-tricks.md) | Tricks from after and around the PVR | research, pvr, shading, history | 2026-11-26 | which GPU techniques of about 2003-2010, and which tricks that earlier fixed-function consoles used to get masks and depth out of their hardware, could be done on the PVR and the SH-4 in spirit; what each would cost by our measured ledger rows; which are the most useful and which the craziest. IDs PVR-044 to PVR-049 (2 rows).
+- [research/pvr-bugs-as-features.md](research/pvr-bugs-as-features.md) | PVR bugs as features | research, pvr, holly, errata, bugs, revisions | 2026-11-26 | every bug in Sega's Holly bug list (Dev.Box System Architecture, §9, pp.402-407), in our own words; which Holly revisions each one touches; whether it can touch the stock console; what it breaks; and any way we might use it: a look, a trick, a saving, or a mode we would not otherwise have. Each bug is checked against our measured rows.
+- [research/ray-uses.md](research/ray-uses.md) | Ray uses beyond shadows | research, sh4, rays, sound, aica, gameplay | 2026-11-26 | what else the town's grid rays can do besides sun shadows: sound, AI sight, culling, picking, projectiles, ground probes, wind and occlusion. For each use: how many rays a frame it needs, what that costs by our measured ray and ray-triangle rows, what the sound chip side needs, and the test that would prove it.
 - [research/sound-chip-precompute.md](research/sound-chip-precompute.md) | The sound chip as a precompute unit | research, aica, arm7, dsp, offload | 2026-11-25 | what the sound chip's three engines (the ARM7, the DSP and the 64 voices) can and cannot compute for shading and shadows, beyond what `demo/psm/OFFLOAD_PLAN.md` already says, and the console test for each idea.
 
 ## shadows
 
-- [shadows/README.md](shadows/README.md) | Shadows on the Dreamcast | shadows | 2026-11-25 | the shadow methods this project has, which are ready, which are research, and where each one is written up.
-- [shadows/bump-compare-chain.md](shadows/bump-compare-chain.md) | The bump compare chain (spikes c1 to c4b) | shadows, pvr, bump | 2026-11-25 | how we tried to make the PVR itself compare a shadow map against each pixel, what each console spike showed, and where the chain stands.
-- [shadows/psm-routes.md](shadows/psm-routes.md) | PSM routes A, B and AB | shadows, psm | 2026-11-25 | the three ways this project makes and uses a shadow map, what each costs on a console, and what is still unknown.
-- [shadows/thesis.md](shadows/thesis.md) | The thesis: cached per-vertex sun visibility | shadows, research | 2026-11-25 | the idea in `demo/psm/THESIS_SH4_SHADOWS.md`, its predictions, and which have evidence.
+- [shadows/README.md](shadows/README.md) | Shadows on the Dreamcast | shadows | 2026-11-26 | the shadow methods this project has, which are ready, which are research, and where each one is written up.
+- [shadows/bump-compare-chain.md](shadows/bump-compare-chain.md) | Normal map compare chain [bump] (spikes c1 to c4b) | shadows, pvr, bump | 2026-11-26 | how we tried to make the PVR itself compare a shadow map against each pixel, what each console spike showed, and where the chain stands.
+- [shadows/psm-routes.md](shadows/psm-routes.md) | Sun shadow map [psm]: routes A, B and AB | shadows, psm | 2026-11-26 | the three ways this project makes and uses a shadow map, what each costs on a console, and what is still unknown.
+- [shadows/thesis.md](shadows/thesis.md) | The thesis: cached per-vertex sun visibility | shadows, research | 2026-11-26 | the idea in `demo/psm/THESIS_SH4_SHADOWS.md`, its predictions, and which have evidence.
 
 ## start-here
 
-- [start-here/call-orders.md](start-here/call-orders.md) | Call orders | start, effect | 2026-11-25 | where to find the exact order of calls for each effect, and the shape all of them share.
+- [start-here/call-orders.md](start-here/call-orders.md) | Call orders | start, effect | 2026-11-26 | where to find the exact order of calls for each effect, and the shape all of them share.
+- [start-here/demo-guide.md](start-here/demo-guide.md) | Demo guide: what each program shows | start, demos, names | 2026-11-26 | which program on the Dreamcast disc shows which effect, what each program is called in its menu, and the code name the files and the ledger use for it.
+- [start-here/genre-camera-and-screen.md](start-here/genre-camera-and-screen.md) | Genre guide: camera and screen | genre, guide, camera, screen, post, effect | 2026-11-26 | which screen effect fits the look you want, what each one starts from, and what it costs.
+- [start-here/genre-light-and-glow.md](start-here/genre-light-and-glow.md) | Genre guide: light and glow | start, guide, effect, light | 2026-11-26 | which light and glow effect fits a picture, what each one costs, and how to start it.
+- [start-here/genre-shadows.md](start-here/genre-shadows.md) | Genre guide: shadows and depth | guide, genre, shadows, effect | 2026-11-26 | which shadow or depth effect fits your picture, what each one costs on the Dreamcast, and which of its numbers are measured.
+- [start-here/genre-surfaces-and-materials.md](start-here/genre-surfaces-and-materials.md) | Genre guide: surfaces and materials | start, guide, genre, surfaces, materials | 2026-11-26 | which effect gives a surface its look (bumps, a mirror, a rippling texture, light through a thin edge, or a glow inside a body), what each one costs, and how far each one has been tried on a real Dreamcast.
+- [start-here/genre-tools-and-safety.md](start-here/genre-tools-and-safety.md) | Genre guide: tools and safety | start, guide, safety, tools, pvr, hardware | 2026-11-26 | which helpers stop a Dreamcast program from freezing or drawing stray lines, which ones save PVR time, what each costs, and how much console proof backs it.
+- [start-here/genre-water-and-weather.md](start-here/genre-water-and-weather.md) | Genre guide: water and weather | start, guide, effect, water, mist, motes, rise, cloudvolume, deform | 2026-11-26 | which water and weather effect to use, what it looks like, what it costs, and which numbers nobody has measured yet.
 - [start-here/license-and-credit.md](start-here/license-and-credit.md) | License and credit | start, license | 2026-11-25 | what you must do when you use SH4DER-PVR, and what you must not do.
 - [start-here/setup.md](start-here/setup.md) | Setup | start, build, test | 2026-11-25 | how to get SH4ZAM, run the host tests and build for the Dreamcast.
-- [start-here/what-it-is.md](start-here/what-it-is.md) | What SH4DER-PVR is | start, overview | 2026-11-25 | what the library does, what it needs, and where each part lives.
+- [start-here/what-do-you-want.md](start-here/what-do-you-want.md) | What do you want to make? | start, guide, effect | 2026-11-26 | which effect to look at for the picture you have in mind, and which genre guide explains it in more depth.
+- [start-here/what-it-is.md](start-here/what-it-is.md) | What SH4DER-PVR is | start, overview | 2026-11-26 | what the library does, what it needs, and where each part lives.
 
 ## status
 

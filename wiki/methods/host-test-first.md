@@ -1,7 +1,7 @@
 ---
 title: Host test first
 tags: [method, test]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [README.md "Adding an effect", README.md build section, AGENTS.md, third_party/sh4zam-dce/KERNEL_GUIDE.md, third_party/sh4zam-dce/README.md]
 ---
 # Host test first
@@ -46,7 +46,7 @@ From `third_party/sh4zam-dce/KERNEL_GUIDE.md`:93-107:
 - **Speed.** Host cycle numbers are model estimates for comparing two routines, not console times (sh4zam-dce/README.md:27, 31). An assembly kernel is kept only with a measured gain on a console ([the SH4ZAM rule](sh4zam-rule.md)).
 - **FIPR and FTRV rounding.** They do not round like IEEE; a host-against-console check needs a tolerance. On our console FIPR and FTRV gave the same bits as each other, and were nearer the exact sum than plain C (MEASURED, h2, one console, 2026-11-25; see the [SH-4 ledger](../hardware/ledger-sh4.md)).
 - **The matrix load and the render target.** A console is the only test of these (`AGENTS.md`, pl4nar "Checks").
-- **Hardware faults** an emulator forgives: zero-area triangles, uncompiled headers, unaligned access. See [guard](../effects/guard.md).
+- **Hardware faults** an emulator forgives: zero-area triangles, uncompiled headers, unaligned access. See [Send checks](../effects/guard.md).
 
 Files say "Not run on a console when this file was written" until a console has run them (sh4der_fault.h:62; bench_h1.c:21).
 

@@ -1,12 +1,12 @@
 ---
 title: Depth fog and glow ideas
 tags: [research, pvr, fog, depth]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [wiki/hardware/ledger-pvr.md, demo/psm/PVR_FEATURES.md, demo/psm/compare/NOTES.md, public sources listed under Sources]
 ---
 # Depth fog and glow ideas
 
-**What you will learn:** which film and TV fog and light effects depend on depth, what the PVR's own table fog already gives, and whether fog could fill the space between c4's depth bands more cheaply than the shadow mask.
+**What you will learn:** which film and TV fog and light effects depend on depth, what the PVR's own table fog already gives, and whether fog could fill the space between Full compare chain [c4]'s depth bands more cheaply than the shadow mask.
 **For:** the owner, and anyone planning atmosphere for a Dreamcast scene. Research, not a recipe.
 
 **Status: research ideas only.** Nothing here has been built or run. Every PVR mapping is **ESTIMATE** or **OPEN**. Costs are built from MEASURED ledger rows; no idea is measured itself.
@@ -53,30 +53,30 @@ In PVR terms: a shaft or a lit haze layer only pays off when the light is in fro
 
 ## The owner's two questions
 
-### (a) Could the space between c4's depth bands be filled with fog instead of a shadow mask?
+### (a) Could the space between Full compare chain's depth bands be filled with fog instead of a shadow mask?
 
-First, what the bands are. c4's bands lie **on the receiving surfaces** (ground and walls), cut along lines of equal depth **from the light**. They are not slices of air. So "fog between the bands" can mean two things.
+First, what the bands are. Full compare chain's bands lie **on the receiving surfaces** (ground and walls), cut along lines of equal depth **from the light**. They are not slices of air. So "fog between the bands" can mean two things.
 
 **(a1) Fog on the surfaces, steered by the mask. ESTIMATE: yes.**
 
-- Keep c4's mask (lit or shadowed, one bit a pixel, PVR-028).
+- Keep Full compare chain's mask (lit or shadowed, one bit a pixel, PVR-028).
 - In the screen layer, add a haze colour where the bit says lit, instead of black where it says shadowed.
 - Sunlit ground glows with haze; shadowed ground stays clear.
-- It is the same layer c4 already draws, with another colour and blend.
+- It is the same layer Full compare chain already draws, with another colour and blend.
 - It colours the surfaces, not the air between them and the camera. So it gives "sunny haze", not visible shafts.
 
 **(a2) Fog in the air, as light shafts. ESTIMATE: possible in principle; OPEN.**
 
 - Draw K camera-facing slices through the view volume, as `sh4der_mist.h` draws sheets.
-- Use each slice as a c4 receiver: cut it into bands of equal light depth, and bump-compare it against the light's map.
+- Use each slice as a Full compare chain receiver: cut it into bands of equal light depth, and bump-compare it against the light's map.
 - Lit pixels of a slice add a little haze; shadowed pixels add nothing.
 - Summed over the slices, the air is lit where the sun reaches it and dark in the shadow volumes. That is a sliced version of volumetric shadowed fog.
 - Risks:
-  - The slices face the camera, but their depth **from the light** varies across them, so each slice needs bands, and vertices with them (c4 needed 1,288-2,192 for its receivers, PVR-090, PVR-091).
+  - The slices face the camera, but their depth **from the light** varies across them, so each slice needs bands, and vertices with them (Full compare chain needed 1,288-2,192 for its receivers, PVR-090, PVR-091).
   - The bump unit's 256-code cycle limits the depth range.
   - Too few slices show as steps.
 
-**Test for both:** a c4 variant.
+**Test for both:** a Full compare chain variant.
 
 - (a1): the screen layer's colour and blend switched to additive haze.
 - (a2): K = 4 and K = 8 slices added as receivers in the mask pass.
@@ -88,9 +88,9 @@ First, what the bands are. c4's bands lie **on the receiving surfaces** (ground 
 
 | What | Time | Ledger |
 |---|---|---|
-| c4 mask pass, bands 2 wide, 1,288 vertices | 6,137 us | PVR-090 |
-| c4 mask pass, bands 1 wide, 2,192 vertices | 10,171 us | PVR-091 |
-| c4 mask pass, bands 4 wide, 692 vertices | 5,015 us | PVR-100 |
+| Full compare chain mask pass, bands 2 wide, 1,288 vertices | 6,137 us | PVR-090 |
+| Full compare chain mask pass, bands 1 wide, 2,192 vertices | 10,171 us | PVR-091 |
+| Full compare chain mask pass, bands 4 wide, 692 vertices | 5,015 us | PVR-100 |
 | Mask pass, whole tile list vs cut to its 80 tiles | 6,130 vs 3,760 us | PVR-092 |
 | Map pass, whole list vs cut to its 20 tiles | 3,312 vs 375 us | PVR-092 |
 | Full-screen translucent layer, 640 × 480 | about 3,112 us | PVR-002 |
@@ -98,7 +98,7 @@ First, what the bands are. c4's bands lie **on the receiving surfaces** (ground 
 
 **Answers (ESTIMATE):**
 
-- **(a1) does not replace the mask, it reuses it.** It costs no more than c4's own screen layer: a recolour, not a new pass. Fog this way is "free" only because the mask is already paid for.
+- **(a1) does not replace the mask, it reuses it.** It costs no more than Full compare chain's own screen layer: a recolour, not a new pass. Fog this way is "free" only because the mask is already paid for.
 - **(a2) is not cheaper than the mask; it adds to it.**
   - At 320 × 240 each slice is at least a translucent layer, about 0.77 ms (PVR-004). Eight slices add about 6.2 ms of fill.
   - The slices also add band vertices.
@@ -109,7 +109,7 @@ First, what the bands are. c4's bands lie **on the receiving surfaces** (ground 
 **Tests that would settle (b):**
 
 1. Time `sh4der_glow.h`'s god rays on a console. That is the baseline.
-2. Run the c4 (a2) variant with K = 4 and 8.
+2. Run the Full compare chain (a2) variant with K = 4 and 8.
 3. Compare the PVR render times by `pvr_get_stats`, at the same view as PVR-090.
 
 ## Sources

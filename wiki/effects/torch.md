@@ -1,10 +1,10 @@
 ---
-title: torch (flashlight)
+title: Screen spotlight [torch] (flashlight)
 tags: [effect, torch, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_torch.h, src/sh4der_torch.c, README.md "The torch effect"]
 ---
-# torch: a flashlight on screen
+# Screen spotlight [torch]: a flashlight on screen
 
 **What you will learn:** how the torch fakes a flashlight with no light source, and the trap with AA 2X.
 **For:** a programmer adding a first-person flashlight to a dark level.
@@ -52,9 +52,9 @@ See `README.md` "Torch tuning" (README:660-687).
 
 - **AA 2X.** With AA 2X on, the PVR renders 1,280 wide. Scale x exactly once: in `cx`, the x scale given to `sh4der_torch_radii`, and the width given to `sh4der_torch_umax`. Scale it twice and the spot sits on the right edge as an oval (README:632; torch.h:~40-46).
 - Gate the torch from baked luminance, not from the frame read, or the carve feeds back (README:628).
-- The boost mesh's first band is made of zero-area triangles (torch.c:39). The [guard](guard.md) should drop them. A real console draws zero-area triangles as bright lines (README:1304).
+- The boost mesh's first band is made of zero-area triangles (torch.c:39). The [Send checks](guard.md) should drop them. A real console draws zero-area triangles as bright lines (README:1304).
 - Distances are scaled for one world unit being about 3 m in the author's game (torch.h:~66). Scale them for your own units.
 
 ## Related
 
-- [look](look.md) (hold the eye while the torch is lit), [guard](guard.md), [bump](bump.md) (relief lit by the torch)
+- [Exposure and grade](look.md) (hold the eye while the torch is lit), [Send checks](guard.md), [Normal map](bump.md) (relief lit by the torch)

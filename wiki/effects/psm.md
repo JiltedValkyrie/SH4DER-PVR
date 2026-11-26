@@ -1,10 +1,10 @@
 ---
-title: psm (shadow map placement and the two map routes)
+title: Sun shadow map [psm] (shadow map placement and the two map routes)
 tags: [effect, psm, shadows]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_psm.h, include/sh4der_psm_raster.h, include/sh4der_psm_pvr.h, README.md "The psm effect", demo/psm/psm_demo.c, logs/benchmarks/older/PXL_20261125_0701*.jpg]
 ---
-# psm: shadow maps for a directional light
+# Sun shadow map [psm]: shadow maps for a directional light
 
 **What you will learn:** what the three psm headers do, which route draws the map, and what the town demo measured on a console.
 **For:** a programmer adding sun shadows from a [shadow map](../glossary.md), and anyone choosing between the routes.
@@ -87,5 +87,5 @@ See `README.md` "Psm tuning" (README:1001-1018).
 ## Related
 
 - [PSM routes](../shadows/psm-routes.md), [bump compare chain](../shadows/bump-compare-chain.md)
-- [sh4dow-dc](sh4dow-dc.md), [pool](pool.md) (blob shadows)
+- [Soft character shadows](sh4dow-dc.md), [Light pools](pool.md) (blob shadows)
 - [PVR ledger](../hardware/ledger-pvr.md), [Bus and DMA ledger](../hardware/ledger-bus-dma.md)

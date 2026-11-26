@@ -1,10 +1,10 @@
 ---
-title: "ramp (one linear 0..1 ramp between two distances)"
+title: "Distance ramp [ramp]: one linear 0..1 ramp between two distances"
 tags: [effect, ramp]
 updated: 2026-11-26
 sources: [include/sh4der_ramp.h, test/ramp_test.c, README.md "The ramp helper", AGENTS.md "Files"]
 ---
-# ramp: one linear 0..1 ramp between two distances
+# Distance ramp [ramp]: one linear 0..1 ramp between two distances
 
 **What you will learn:** how a strength eases in or out between two distances, in the two forms the library offers (one call, or a prepared ramp for a loop), and what each costs.
 **For:** a programmer fading a shadow, a fog, a level of detail or a light's reach by camera distance.
@@ -57,4 +57,4 @@ None. The ramp has no tuning macros; the two distances are the caller's.
 
 ## Related
 
-- [pool](pool.md) (a fade by distance for light pools), [psm](psm.md) (shadow tiles and the shadow demo), [tilecut](tilecut.md)
+- [Light pools](pool.md) (a fade by distance for light pools), [Sun shadow map](psm.md) (shadow tiles and the shadow demo), [Tile-cut pass](tilecut.md)

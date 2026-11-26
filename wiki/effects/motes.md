@@ -1,10 +1,10 @@
 ---
-title: motes (drifting specks)
+title: Drifting specks [motes] (a steady field of dust, embers and pollen)
 tags: [effect, motes, particles]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_motes.h, src/sh4der_motes.c, README.md "The motes effect"]
 ---
-# motes: a steady field of drifting specks
+# Drifting specks [motes]: a steady field of dust, embers and pollen
 
 **What you will learn:** how the motes store nothing per speck, and how many they draw.
 **For:** a programmer adding embers, dust, pollen or ash round the player or a source.
@@ -51,4 +51,4 @@ There is no README table. The macros are at motes.h:58-64.
 
 ## Related
 
-- [spark](spark.md), [bolt](bolt.md)
+- [Sparks and tracers](spark.md), [Lightning](bolt.md)

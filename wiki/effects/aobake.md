@@ -1,10 +1,10 @@
 ---
-title: "aobake (baked occlusion against exact shapes)"
+title: "Baked corner shading [aobake]: baked occlusion against exact shapes"
 tags: [effect, ao, bake, load]
 updated: 2026-11-26
 sources: [include/sh4der_aobake.h, test/aobake_test.c, demo/psm/ao/ao4_scene.h, README.md "The aobake effect", tools/ao_bake_core.h]
 ---
-# aobake: baked occlusion against exact shapes
+# Baked corner shading [aobake]: baked occlusion against exact shapes
 
 **What you will learn:** how one ambient occlusion byte a vertex is baked at load by casting rays at spheres, boxes and a ground plane, what it costs on the console, and which of the three occlusion tools fits your job.
 **For:** a programmer who has static geometry and wants a contact shadow in the vertex colour, paid once at load.
@@ -38,7 +38,7 @@ The steps are in `AGENTS.md`'s "Files" list and the header's top comment:
 | RAM | one byte a vertex, plus the 64-ray array (768 B) | as-stated by the code |
 | VRAM | 0 | |
 
-This copy of the code is the one measured (the move kept the bytes), but it has not run on a console since the move: its status is ADVISED. See [ao-bake](ao-bake.md) for the host tool's cost, which is not measured.
+This copy of the code is the one measured (the move kept the bytes), but it has not run on a console since the move: its status is ADVISED. See [Bake tool](ao-bake.md) for the host tool's cost, which is not measured.
 
 ## Recommended limits
 
@@ -54,9 +54,9 @@ See `README.md` "Aobake tuning": `SH4DER_AOBAKE_RAYS`, `SH4DER_AOBAKE_REACH`, `S
 
 | Tool | What it is | Where it runs |
 |---|---|---|
-| [ao](ao.md) (`sh4der_ao.h`) | crease darkening from the angle between faces, and a screen cavity cue | console (no rays, no occluders) |
+| [Corner darkening [ao]](ao.md) (`sh4der_ao.h`) | crease darkening from the angle between faces, and a screen cavity cue | console (no rays, no occluders) |
 | aobake (this page) | rays at exact spheres, boxes and a plane, once at load | console |
-| [ao-bake](ao-bake.md) (`tools/ao_bake_core.h`) | the same rule over any triangle list, with a closed-object inside test | host build tool only |
+| [Bake tool [ao-bake]](ao-bake.md) (`tools/ao_bake_core.h`) | the same rule over any triangle list, with a closed-object inside test | host build tool only |
 
 The console's triangle-mesh bake (`demo/psm/psm_ao.h`, 12 golden-ratio rays, its own reach) has its own bytes and is not merged with this header. It moves later as `sh4der_aomesh.h`.
 
@@ -68,11 +68,11 @@ The console's triangle-mesh bake (`demo/psm/psm_ao.h`, 12 golden-ratio rays, its
 
 ## Open
 
-- The bake's time on a console for a mesh other than the two ao4 scenes and the room is not measured.
+- The bake's time on a console for a mesh other than the two scenes of Room shading, four ways [ao4] and the room is not measured.
 - Per-vertex cost is an estimate until a console run times a count of rays and occluders.
 - The `meshbuild` helper (building the shapes into caller buffers) is parked until a second client exists.
 - `psm_ao.h`'s triangle-mesh bake moves next, as `sh4der_aomesh.h`.
 
 ## Related
 
-- [ao](ao.md), [ao-bake](ao-bake.md), [limits: recommended](../limits/recommended-limits.md), [frame budget](../limits/frame-budget.md)
+- [Corner darkening](ao.md), [Bake tool](ao-bake.md), [limits: recommended](../limits/recommended-limits.md), [frame budget](../limits/frame-budget.md)

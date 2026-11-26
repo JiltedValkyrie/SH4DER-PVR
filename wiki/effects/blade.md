@@ -1,10 +1,10 @@
 ---
-title: blade
+title: Glowing tubes [blade]
 tags: [effect, blade]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_blade.h, src/sh4der_blade.c, README.md "The blade effect", AGENTS.md "Call order: blade"]
 ---
-# blade
+# Glowing tubes [blade]
 
 **What you will learn:** what the blade effect draws, how to call it and what it costs.
 **For:** a programmer adding a glowing energy blade, rod or tube to a model.
@@ -53,6 +53,6 @@ See `README.md` "Blade tuning" (README:215-255), with the WHITE preset (README:2
 
 ## Related
 
-- [core](core.md)
-- [bloom](bloom.md), the glow round a blade
-- [guard](guard.md)
+- [Shared parts](core.md)
+- [Mesh bloom](bloom.md), the glow round a blade
+- [Send checks](guard.md)

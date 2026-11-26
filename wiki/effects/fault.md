@@ -1,10 +1,10 @@
 ---
-title: fault (the fault catcher)
+title: Crash and hang screen [fault] (the fault catcher)
 tags: [effect, debug, fault]
 updated: 2026-11-26
 sources: [include/sh4der_fault.h, test/fault_test.c, demo/psm/fault/psm_fault_f1.c, wiki/methods/fault-catcher.md, wiki/limits/header-recommended.md]
 ---
-# fault: the fault catcher
+# Crash and hang screen [fault]: the fault catcher
 
 **What you will learn:** what the fault catcher puts on the screen when a console program raises an exception, hangs, asserts or exits, and what it does not catch.
 **For:** a programmer whose test image dies with nothing on screen, and an agent reading a crash photograph.
@@ -63,4 +63,4 @@ See `README.md` "The fault catcher" (the fault tuning table). The layout constan
 
 ## Related
 
-- [guard](guard.md), [host test first](../methods/host-test-first.md), [the fault catcher method](../methods/fault-catcher.md)
+- [Send checks](guard.md), [host test first](../methods/host-test-first.md), [the fault catcher method](../methods/fault-catcher.md)

@@ -1,10 +1,10 @@
 ---
-title: sh4dow-dc (soft character shadows)
+title: Soft character shadows [sh4dow-dc] (a separate library)
 tags: [effect, shadows, dependency]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [sh4dow-dc/README.md]
 ---
-# sh4dow-dc: soft shadows on characters
+# Soft character shadows [sh4dow-dc]: limb columns cast along the light
 
 **What you will learn:** what SH4DOW-DC does, what its published numbers are worth, and which of its limits are proven.
 **For:** a programmer putting soft shadows on characters, and anyone setting a budget for how many characters cast.
@@ -13,7 +13,7 @@ sources: [sh4dow-dc/README.md]
 
 SH4DOW-DC is a separate library, included whole in `sh4dow-dc/`. It darkens characters by limb "columns" cast along the light. Each vertex is shaded as colour × (1 − dark × strength). It also has foot cones, and a separate, experimental heightfield sunlight module (`sh4dow-dc/README.md`).
 
-SH4DER-PVR takes its column feather for every effect (see [core](core.md)). Do not copy its code into the effect files.
+SH4DER-PVR takes its column feather for every effect (see [Shared parts](core.md)). Do not copy its code into the effect files.
 
 The library needs no KallistiOS header. A Dreamcast build wants the SH4ZAM include path and `-ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno`. Elsewhere, define `SH4DOW_DC_NO_SH4ZAM` (sh4dow-dc/README.md:313).
 
@@ -68,5 +68,5 @@ Also:
 
 ## Related
 
-- [core](core.md), [psm](psm.md), [pool](pool.md) (blob shadows), [sss](sss.md) (the heightfield as `visibility`)
+- [Shared parts](core.md), [Sun shadow map](psm.md), [Light pools](pool.md) (blob shadows), [Light through thin parts](sss.md) (the heightfield as `visibility`)
 - [Licence and credit](../start-here/license-and-credit.md)

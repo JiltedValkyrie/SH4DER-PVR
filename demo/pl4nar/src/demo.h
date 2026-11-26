@@ -148,6 +148,9 @@ void  demo_auto_heat(unsigned level);              /* the heat shimmer: 0 OFF, 1
 void  demo_auto_hex(int on, int gate_free);        /* the heat as hexagons (heat_hex.h) in place of the layer, their band in the
                                                       target (a resize); gate_free: drawn under a moving camera too. Not wet */
 unsigned demo_hex_band_tris(void);                 /* triangles sent a second time into the band, the last frame */
+void  demo_auto_beam(int on);                      /* the headlights' fade by distance (sh4der_pool_beam, the lamps' reach): 0 the
+                                                      two wedges (the start, unless -DPL4NAR_HEAD_BEAM), 1 the beam. Shows only
+                                                      where the camera is far from the car (the fly-by). NOT RUN on a console */
 void  demo_auto_cine(void);                        /* the fly-by shot from here (CINE_TOTAL s, then the follow camera again) */
 int   demo_cine_on(void);                          /* the fly-by shot is running */
 void  demo_heat_copy(uint32_t *us, uint32_t *copies);   /* the heat's last copy time and copies made (0, 0 off the Dreamcast) */

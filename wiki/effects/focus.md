@@ -1,17 +1,17 @@
 ---
-title: focus (fake depth of field)
+title: Fake focus blur [focus] (fake depth of field)
 tags: [effect, focus, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_focus.h, src/sh4der_focus.c, README.md "The focus effect"]
 ---
-# focus: fake depth of field
+# Fake focus blur [focus]: fake depth of field
 
 **What you will learn:** how a sharp region is kept while the rest of the frame softens, without a depth read.
 **For:** a programmer who wants a tilt-shift look, or a sharp subject on a soft background.
 
 ## What it does
 
-The [look](look.md) read's 80 × 60 grid is box-blurred on the SH-4 into a 128 × 64 RGB565 texture. A mesh whose vertex alpha is 1 − sharpness draws that texture over the sharp frame. It keeps a disc, a band or a rectangle sharp (README:574-576; focus.h:8-45).
+The [Exposure and grade](look.md) read's 80 × 60 grid is box-blurred on the SH-4 into a 128 × 64 RGB565 texture. A mesh whose vertex alpha is 1 − sharpness draws that texture over the sharp frame. It keeps a disc, a band or a rectangle sharp (README:574-576; focus.h:8-45).
 
 There is no real depth read-back on this hardware path, so it is a fake (focus.h:~11).
 
@@ -49,4 +49,4 @@ See `README.md` "Focus tuning" (README:578-596).
 
 ## Related
 
-- [look](look.md), [frame](frame.md), [visor](visor.md) (its thermal mode uses the same 16 KB map)
+- [Exposure and grade](look.md), [Frame read](frame.md), [Screen filters](visor.md) (its thermal mode uses the same 16 KB map)

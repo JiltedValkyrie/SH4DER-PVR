@@ -1,10 +1,10 @@
 ---
-title: deform (ground that keeps a dent)
+title: Dented ground [deform] (ground that keeps a dent)
 tags: [effect, deform]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_deform.h, README.md "The deform effect (ground that keeps a dent)", test/deform_test.c]
 ---
-# deform: ground that keeps a dent
+# Dented ground [deform]: ground that keeps a dent
 
 **What you will learn:** how feet and wheels press lasting dents into a ground mesh you already draw, and what it costs.
 **For:** a programmer adding footprints or tracks in snow, mud, sand or ash.
@@ -28,7 +28,7 @@ See README "The deform effect":
 1. Stamp each presser once a frame.
 2. Recentre on the camera.
 3. Read the height per ground vertex.
-4. Draw print quads as blended decals just above the ground, each tested with `sh4der_tri_area_ok` ([guard](guard.md)).
+4. Draw print quads as blended decals just above the ground, each tested with `sh4der_tri_area_ok` ([Send checks](guard.md)).
 
 ## Cost
 

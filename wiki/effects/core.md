@@ -1,10 +1,10 @@
 ---
-title: core (the shared parts)
+title: Shared parts [core] (the feather, tube shape, breath tracker and glint)
 tags: [effect, core]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_core.h, src/sh4der_core.c, README.md "The core shared parts", README.md "Shared tuning"]
 ---
-# core: the shared parts
+# Shared parts [core]: the feather, tube shape, breath tracker and glint
 
 **What you will learn:** what every other effect borrows from `sh4der_core.h`, and what it costs.
 **For:** a programmer using any effect, or building a new effect from the shared pieces.
@@ -14,8 +14,8 @@ sources: [include/sh4der_core.h, src/sh4der_core.c, README.md "The core shared p
 `sh4der_core.h` and `src/sh4der_core.c` hold the parts every effect uses (core.h:8-40; README:121-127, 1130-1136):
 
 - the soft column **feather** edge, taken from [SH4DOW-DC](sh4dow-dc.md);
-- the **tube** and **blocker** shapes the [blade](blade.md) uses;
-- the **breath tracker**, a number from 0 (out) to 1 (in) that follows a body's chest, for [holo](holo.md);
+- the **tube** and **blocker** shapes the [Glowing tubes](blade.md) uses;
+- the **breath tracker**, a number from 0 (out) to 1 (in) that follows a body's chest, for [Inner light](holo.md);
 - the **glint**, which sets how bright a flare quad is by its depth from the camera;
 - the **colour ramp** (EDGE and CORE from a texture's average colour);
 - the SH4ZAM helper steps, with a plain C mirror for the host. See [the SH4ZAM rule](../methods/sh4zam-rule.md).
@@ -57,4 +57,4 @@ The `SH4DER_BREATH_*`, `SH4DER_GLINT_*` and `SH4DER_RAMP_*` macros. Their defaul
 
 - [Effects index](README.md)
 - [The SH4ZAM rule](../methods/sh4zam-rule.md)
-- [sh4dow-dc](sh4dow-dc.md)
+- [Soft character shadows](sh4dow-dc.md)

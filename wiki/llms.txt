@@ -4,6 +4,9 @@
 
 ## Start
 
+- [What do you want to make?](start-here/what-do-you-want.md): pick a picture or a goal; get the effect, its genre guide and its starting settings
+- [Demo guide](start-here/demo-guide.md): each demo program, what it shows, and the code name it goes by
+- [Racing game recipe](guides/racing-game.md): one racing frame, step by step: car shadow, reflection, lamps, budget, what to cut, what goes wrong
 - [README](README.md): what the wiki holds, the status legend, the tree
 - [What it is](start-here/what-it-is.md): the library's parts and dependencies
 - [Setup](start-here/setup.md): host tests, the SH4ZAM checkout, the Dreamcast build, demo discs

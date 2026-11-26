@@ -1,10 +1,10 @@
 ---
-title: timebase (a video tape's bent picture)
+title: Tape wobble [timebase] (a video tape's bent picture)
 tags: [effect, timebase, tape, frame-texture]
 updated: 2026-11-26
 sources: [include/sh4der_timebase.h, include/sh4der_ca.h, src/sh4der_ca.c, README.md effect table, test/timebase_test.c]
 ---
-# timebase: a video tape's bent picture
+# Tape wobble [timebase]: a video tape's bent picture
 
 **What you will learn:** what the timebase effect works out, how the picture is bent with it, and what it costs.
 **For:** a programmer who wants a tape look, or who wants to move parts of the finished picture sideways for another reason.
@@ -28,7 +28,7 @@ Header only. The header's version line reads "v0.1" (`include/sh4der_timebase.h:
 
 ## How the picture is bent
 
-1. The world is drawn into a frame texture ([ca](ca.md): `sh4der_ca_begin`).
+1. The world is drawn into a frame texture ([Colour fringe](ca.md): `sh4der_ca_begin`).
 2. `sh4der_timebase_field` fills a table: one shift a row.
 3. The frame texture is put on the screen as horizontal bands with `sh4der_ca_channel_rows`. Each mesh row keeps its height and
    is moved sideways by its shift. Two rows at the same height are a break: a step in the picture.
@@ -43,7 +43,7 @@ The same band call serves any effect that moves rows of the finished picture sid
 |---|---|---|
 | RAM | 40 B parameter block, 4 B state | as-stated (README effect table) |
 | Stack | about 4.2 KB inside `sh4der_timebase_field` | as-stated (header) |
-| VRAM | 0 of its own; the frame texture is 640 KB at 640 x 480 or 160 KB at 320 x 240 | as-stated ([ca](ca.md)) |
+| VRAM | 0 of its own; the frame texture is 640 KB at 640 x 480 or 160 KB at 320 x 240 | as-stated ([Colour fringe [ca]](ca.md)) |
 | CPU | two sines a line; with the line noise on, a logarithm and six hashes a line | as-stated (counts) |
 | PVR | the frame texture drawn once more as three channels of bands: 4 vertices a mesh row a channel | as-stated (counts) |
 | Console time | not measured | OPEN |
@@ -56,6 +56,6 @@ The same band call serves any effect that moves rows of the finished picture sid
 
 ## Related
 
-- [ca](ca.md): the frame texture and the band call
-- [film](film.md): the wear of old film, laid over the same picture
+- [Colour fringe](ca.md): the frame texture and the band call
+- [Old film wear](film.md): the wear of old film, laid over the same picture
 - [Budgets](../limits/budgets.md)

@@ -1,10 +1,10 @@
 ---
-title: "ao-bake (baked occlusion over any triangle list, host tool)"
+title: "Bake tool [ao-bake]: baked occlusion over any triangle list (host tool)"
 tags: [tool, ao, bake, host]
 updated: 2026-11-26
 sources: [tools/ao_bake_core.h, test/ao_bake_test.c, demo/pl4nar/tools/map_ao.c, demo/psm/ao/tools/room_bake.c, demo/psm/ao/build.py]
 ---
-# ao-bake: baked occlusion over any triangle list (host tool)
+# Bake tool [ao-bake]: baked occlusion over any triangle list (host tool)
 
 **What you will learn:** how a build-time tool bakes one byte of ambient occlusion a vertex from a triangle list, what the inside-solid fill and the street wrap do, and what the host run proves.
 **For:** a programmer baking a level's vertex occlusion on the host before the Dreamcast build, or adding a client to the two that exist.
@@ -70,6 +70,6 @@ These are host checks against the room's own baked bytes. They are not a console
 
 ## Related
 
-- [ao](ao.md): small-scale occlusion in `include/sh4der_ao.h` (crease darkening and a screen cavity cue). A different thing: nothing is shared.
-- [pl4nar](pl4nar.md): the street demo whose road grid is baked by `map_ao.c`.
-- [core](core.md)
+- [Corner darkening](ao.md): small-scale occlusion in `include/sh4der_ao.h` (crease darkening and a screen cavity cue). A different thing: nothing is shared.
+- [Planar reflection](pl4nar.md): the street demo whose road grid is baked by `map_ao.c`.
+- [Shared parts](core.md)

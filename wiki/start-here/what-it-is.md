@@ -1,7 +1,7 @@
 ---
 title: What SH4DER-PVR is
 tags: [start, overview]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [README.md, AGENTS.md, LICENSE]
 ---
 # What SH4DER-PVR is
@@ -24,7 +24,7 @@ The library is licensed work, not a free sample. Before using any of it, read [L
 |---|---|---|
 | The effects | `include/sh4der_*.h`, `src/sh4der_*.c` | One header (and often one `.c`) per effect. Headers are portable and host-tested; the `.c` files are the drawing code for the Dreamcast. See [the effect pages](../effects/). |
 | Shared core | `include/sh4der_core.h`, `src/sh4der_core.c` | Maths helpers, the soft edge ("feather"), shapes, the breath tracker and the glint. |
-| SH4DOW-DC | `sh4dow-dc/` | The soft shadow library, included whole. Its own page: [sh4dow-dc](../effects/sh4dow-dc.md). |
+| SH4DOW-DC | `sh4dow-dc/` | The soft shadow library, included whole. Its own page: [Soft character shadows [sh4dow-dc]](../effects/sh4dow-dc.md). |
 | Tests | `test/*.c`, `make test` | Host tests for every header. |
 | Demos | `demo/` | The demo disc, the ocean, the street reflection demo, the torch walk, the shadow research programs in `demo/psm/`. |
 

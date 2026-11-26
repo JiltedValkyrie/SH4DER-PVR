@@ -1,10 +1,10 @@
 ---
-title: visor
+title: Screen filters [visor]
 tags: [effect, visor, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_visor.h, src/sh4der_visor.c, README.md "The visor effect"]
 ---
-# visor
+# Screen filters [visor]
 
 **What you will learn:** how the night, amber and thermal visor looks are built from tables, and what they cost.
 **For:** a programmer adding helmet or goggle overlays.
@@ -13,7 +13,7 @@ sources: [include/sh4der_visor.h, src/sh4der_visor.c, README.md "The visor effec
 
 Visor looks as tables of numbers: night, amber and thermal. Each look is (README:598-600; visor.h:8-40):
 
-- a tint through the [look](look.md) grade;
+- a tint through the [Exposure and grade](look.md) grade;
 - grain;
 - a scanline tile;
 - a dark vignette disc;
@@ -21,7 +21,7 @@ Visor looks as tables of numbers: night, amber and thermal. Each look is (README
 
 Thermal cannot be a straight line per channel. It uses a 64-entry luma ramp over the 80 × 60 grid, into a 128 × 64 texture.
 
-`src/sh4der_visor.c` holds the headers and two video-memory textures, built on the [focus](focus.md) init.
+`src/sh4der_visor.c` holds the headers and two video-memory textures, built on the [Fake focus blur](focus.md) init.
 
 Version: v0.10, passes its maths tests (visor.h:37).
 
@@ -60,4 +60,4 @@ See `README.md` "Visor tuning" (README:602-615).
 
 ## Related
 
-- [look](look.md), [focus](focus.md), [lens](lens.md)
+- [Exposure and grade](look.md), [Fake focus blur](focus.md), [Screen overlays](lens.md)

@@ -21,6 +21,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | --- | --- | --- | --- | --- | --- |
 | ao | Darkens creases from the angle between faces (at bake time) and adds a screen cavity cue from a small map. | Baked crevice shading for a model, or a cheap cavity cue on a finished frame. | see section | `sh4der_ao.h` (header only) | [section](#the-ao-effect) |
 | aobake | Baked ambient occlusion against exact shapes: one byte a vertex from cosine rays cast at spheres, boxes and a ground plane, paid once at load. | Contact shadows baked into static geometry: room corners, the ground under props. | RAM one byte a vertex plus 768 B for 64 rays; VRAM 0; nothing a frame | `sh4der_aobake.h` (header only) | [section](#the-aobake-effect-baked-occlusion-against-exact-shapes) |
+| aomesh | Baked ambient occlusion over a triangle mesh: one byte a vertex from 12 rays through a cell grid of the mesh, and a byte grid over the ground, paid once at load. | Contact shadows on static scenery built as a triangle mesh (a walled street), and the ground's bytes under a ground that moves with the camera. | RAM one byte a vertex and a byte a ground cell, plus the bake's scratch; VRAM 0; nothing a frame | `sh4der_aomesh.h` (header only) | [section](#the-aomesh-effect-baked-occlusion-over-a-triangle-mesh) |
 | aosky | Occlusion of the sky drawn into the sun's shadow target: K slid shadows as a faint black, one side, plain blending. | Contact darkening on flat ground under props, with no bake. | VRAM 0 more (the sun's target); RAM the caller's scratch, 9 B a caster vertex | `sh4der_aosky.h` (header only) | [section](#the-aosky-effect-occlusion-of-the-sky-drawn-into-a-shadow-target) |
 | blade | Light tubes orbit an axis, a soft blocker runs through them and a pulse breathes over both, all written into vertex colours. | Energy blades, glowing rods, anything that is a bright tube. | RAM 156 B a frame + 160 B params; VRAM 0; CPU two 2D tests and one 3D test a vertex | `sh4der_blade.h` + `sh4der_blade.c` | [section](#the-blade-effect) |
 | bloom | A feathered glow ribbon and tip disc round a blade (24 triangles), plus `sh4der_bloom_rings` for a round glow with its own level per ring. | A soft halo round a blade, a sun disc, a lamp or a lens-flare ghost. | RAM the caller's vertices; VRAM 0; 24 triangles a blade | `sh4der_bloom.h` + `sh4der_bloom.c` | [section](#the-bloom-effect) |
@@ -44,6 +45,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | hexheat | Heat haze as a few floating hexagons over a hot far view, each showing the picture behind it 1 to 5 pixels from where it belongs, rolled again ten times a second; they rise, lean, live about 1.7 s and wrap with a turn. The picture is this frame's: the client draws the far world a second time into a 256 x 128 band of a render target it already fills (no copy, no frame late). | A road's or a runway's far end by day, a desert horizon, the air over a far fire. | VRAM the band, 64 KB at 16 bit, in a target already allocated; RAM 4 B state; SH-4 48 slots hashed a frame and the far world sent again into the band; TA about 17 hexagons, 104 vertices a frame (counts, not measured) | `sh4der_hexheat.h` | header comment |
 | cloudvolume | A cloud deck you fly through: a software ray march through a cloud slab (cover map, tiling noise erosion, sun light with Beer and forward scatter) into a small 8-bit buffer that the PVR draws as one filtered quad over its own sky; real fly-through, so whiteout falls out of the march. Dreamcast demo with a sea under the clouds (three options) and on-screen controls. | A flight over and through cumulus, 1970s and 1980s cinema sky fly-through, any scene that needs a lit cloud layer. | RAM about 143 KB; VRAM 32 KB for the cloud texture at the default, 128 KB at the top resolution; one blended full-screen quad; CPU 14 to 22 ms a frame at the default (ESTIMATE, not measured on a console) | `sh4der_cloudvolume.h` | header comment, `demo/cloudvolume.c` |
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); 0.92 to 0.97 ms for the player car's 320 looked-up vertices on a console (street demo, one run, PVR-160); 0.43 ms for 1,623 vertices on an emulator, earlier version | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
+| softfade | Soft edges for light: a glow, a pool or a beam fades out at a wall or a floor the SH-4 knows (planes and rectangles), with no depth read. | Lamp halos near walls, headlight beams and pools that run into a barrier. | CPU only: a dot and a smooth step a surface a vertex; VRAM 0; no PVR pass | `sh4der_softfade.h` (header only) | [section](#the-softfade-effect-soft-edges-for-light) |
 | ramp | A linear 0 .. 1 ramp between two distances, saturated at both ends: one call, or prepared once for a loop. A helper: it draws nothing. | Fading an effect by distance (a shadow, a fake anisotropic filter's range). | CPU only: one reciprocal, then a multiply a point; VRAM 0 | `sh4der_ramp.h` (header only) | [section](#the-ramp-helper) |
 | pool | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing (also a dark blob shadow). | Street lamp pools and headlight beams on ground polygons too big to light per vertex. | RAM 16 B a vertex (176 B for a 10 triangle disc); VRAM 0 | `sh4der_pool.h` (header only) | [section](#the-pool-effect-light-pools-on-a-plane) |
 | psm | Where the texels of a shadow map go: a uniform map for a directional light, and a perspective shadow map fitted in the camera's post-projective space so near ground gets more texels. | Sharper shadows near the camera for the same map size; a software renderer or a client with its own depth compare. | RAM 80 B a map description; VRAM 0 | `sh4der_psm.h` (header only) | [section](#the-psm-effect-perspective-shadow-maps) |
@@ -114,6 +116,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table | v0.50 |
 | ao | `sh4der_ao.h` | Small-scale occlusion: crease darkening from the angle between faces for a bake, and a screen cavity cue from a small map | vertex colour at bake; a small multiply map | v0.10 |
 | aobake | `sh4der_aobake.h` | Baked ambient occlusion against exact shapes (spheres, boxes, a ground plane): one byte a vertex from cosine rays, at load. The ao4 scenes' bake, 252 to 254 ms for scene A's 2,142 vertices and 391 to 393 ms for scene B's 2,544 on a console (SH4-076, SH4-082) | One byte a vertex, multiplied into the ambient light | v0.50 |
+| aomesh | `sh4der_aomesh.h` | Baked ambient occlusion over a triangle mesh (a cell grid, 12 golden-ratio rays, a reach of 1.6 m, a byte grid over the ground), at load. The walled square's bake (`demo/psm/psm_ao.h` is an adapter over it). Not run on a console: the bake's time is NOT MEASURED | One byte a vertex and a ground grid, multiplied into the ambient light | v0.10 |
 | aosky | `sh4der_aosky.h` | Occlusion of the sky drawn into the sun's shadow target: K directions slid onto the ground as a faint black, one side, plain blending (AO method 2). The ao4 scenes ran it (PVR-138 to PVR-186); about 451 us of PVR a direction for scene A (DERIVED from PVR-140); the depth union failed on the PVR (PVR-127) | The sun's shadow target and its ground layer; no new target | v0.10 |
 | ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | v0.50 |
 | shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | v0.50 |
@@ -124,6 +127,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | uvwarp | `sh4der_uvwarp.h` | A texture coordinate pushed per vertex by a small two-channel table (64 x 16 is 2 KB, from a source distortion map): weight x table(u + su t, v + sv t), bilinear, both axes wrapping, unsigned; a prepared form (`sh4der_uvwarp_prepare` once, `sh4der_uvwarp_offset_p` a vertex, or `sh4der_uvwarp_offset_pn` without the input gates for a loop that checked once) for a mesh loop. For what a material does per pixel and the PVR cannot (an arc, a banner, a water strip). | nothing (the mesh's own UV: a table and a weight a vertex) | v0.10 |
 | spark | `sh4der_spark.h` | A fixed pool of 24 short-lived additive quads that face the camera, in two shapes: a billboard (a muzzle flash, an impact flash) and a streak (a tracer whose tail retreats to its hit, a spark that flies and falls), with a least width in pixels, a fade along the length, a burst helper and a pool rule (sparks die first, a flash or tracer is never lost to one). Sizes, colours, lives and atlas cells are the caller's table | one atlas texture (64 x 64 VQ: 3 KB), additive ONE / ONE on the translucent list, depth test on, write off | v0.10 |
 | pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
+| softfade | `sh4der_softfade.h` | How much of a light a point keeps near the planes and walls the caller names: a near test, a fit for a 4-vertex halo, and a per-vertex fade for a ring halo, a pool or a beam. Draws nothing | CPU only; no texture, no PVR pass | v0.10 |
 | ramp | `sh4der_ramp.h` | A linear 0 .. 1 ramp between two distances, saturated at both ends: one call, or a prepared ramp for a loop (one reciprocal, then a multiply a point). A helper: draws nothing | CPU only; no tuning macros | v0.10 |
 | pool | `sh4der_pool.h` | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing: a disc under a street lamp, a wedge ahead of a headlight, and the same disc, dark, as a blob shadow. For ground polygons too big to light per vertex | untextured vertex-alpha fans on the translucent list: additive for light, blended for shadow | v0.10 |
 | psm | `sh4der_psm.h` | A world-to-map matrix for a directional light, fitted to the receivers inside the view frustum: uniform (orthographic) or warped through the camera's post-projective space (one point L' for the parallel rays, either sign of w), with a virtual near plane for the warp, the depth key (distance along the light), a world-space bias, texel and pixel footprints for the A/B, the frustum corners and a slab clip. The map is the client's: a depth compare in software, a silhouette on the PVR (no depth compare there) | none; a map the client draws and reads | v0.10 |
@@ -722,7 +726,7 @@ unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 
 ### The aobake effect (baked occlusion against exact shapes)
 
-`include/sh4der_aobake.h`, header only; `test/aobake_test.c` tests it on the host. One byte a vertex, 255 open .. 0 closed, from cosine-weighted rays over the vertex's hemisphere against exact occluders the caller owns (spheres, boxes, a ground plane); a start inside an occluder is closed. Paid once at load (`sh4der_aobake_bytes`, with a tick every 64 vertices for a watchdog); a frame costs one multiply a vertex on the ambient light. The ao4 scenes bake through it: scene A 252 to 254 ms, scene B 391 to 393 ms (SH4-076, SH4-082, MEASURED, one console). Its rays are the same set as `tools/ao_bake_core.h`'s (checked by the test). It differs from `sh4der_ao.h` (crease and screen cavity), from the host tool below (a triangle list, an inside fill) and from `demo/psm/psm_ao.h` (a triangle mesh, 12 rays; to move as `sh4der_aomesh.h`). Wiki: effects/aobake.md.
+`include/sh4der_aobake.h`, header only; `test/aobake_test.c` tests it on the host. One byte a vertex, 255 open .. 0 closed, from cosine-weighted rays over the vertex's hemisphere against exact occluders the caller owns (spheres, boxes, a ground plane); a start inside an occluder is closed. Paid once at load (`sh4der_aobake_bytes`, with a tick every 64 vertices for a watchdog); a frame costs one multiply a vertex on the ambient light. The ao4 scenes bake through it: scene A 252 to 254 ms, scene B 391 to 393 ms (SH4-076, SH4-082, MEASURED, one console). Its rays are the same set as `tools/ao_bake_core.h`'s (checked by the test). It differs from `sh4der_ao.h` (crease and screen cavity), from the host tool below (a triangle list, an inside fill) and from `sh4der_aomesh.h` (a triangle mesh through a cell grid, 12 rays, a ground grid). Wiki: effects/aobake.md.
 
 #### Aobake tuning
 
@@ -731,6 +735,22 @@ unsigned sh4der_torch_carve_mesh(sh4der_torch_vert_t out[SH4DER_TORCH_VERTS], fl
 | SH4DER_AOBAKE_RAYS | 64 | Rays a vertex (a start value: each call takes its own count) |
 | SH4DER_AOBAKE_REACH | 3.0 | Metres a ray looks for an occluder (a start value) |
 | SH4DER_AOBAKE_PUSH | 0.02 | Metres a ray starts off its surface (a start value) |
+
+### The aomesh effect (baked occlusion over a triangle mesh)
+
+`include/sh4der_aomesh.h`, header only; `test/aomesh_test.c` tests it on the host. One byte a vertex, 255 open .. 0 closed, from 12 golden-ratio rays over the vertex's hemisphere, each against the triangles of the 2 m cells its box touches; a hit at t inside the 1.6 m reach closes the ray by 1 - t / reach. An optional ground grid gives one byte a 0.5 m cell over a rectangle and a margin, normal up, for a ground that moves with the camera (NULL rectangle: the vertex bytes only). The plane y = 0 occludes the vertices, not the grid. Paid once at load: `sh4der_aomesh_need` gives the sizes of the caller's buffers, `sh4der_aomesh_bake` fills them (a tick every 256 vertices and every 8 ground rows); it writes nothing and returns 0 when a buffer is too small. A frame costs one table read. It differs from `sh4der_aobake.h` (exact shapes, 64 Hammersley rays), from `sh4der_ao.h` (crease and screen cavity) and from the host tool `tools/ao_bake_core.h` (the same kind of bake, off the console). The walled square's bake, `demo/psm/psm_ao.h`, is an adapter over it. PROTOTYPE v0.1: the bake's time and the look on a console are NOT MEASURED. Wiki: effects/aomesh.md.
+
+#### Aomesh tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_AOMESH_RAYS | 12 | Rays a vertex: a golden-ratio spiral over the hemisphere, cosine weighted |
+| SH4DER_AOMESH_REACH | 1.6 | Metres a ray looks for an occluder; a hit at t closes the ray by 1 - t / reach |
+| SH4DER_AOMESH_PUSH | 0.03 | Metres a ray starts off its surface |
+| SH4DER_AOMESH_CELL | 2.0 | Metres: the triangles' grid; not under the reach, so a ray touches 4 cells at most |
+| SH4DER_AOMESH_GCELL | 0.5 | Metres: the ground's grid of bytes |
+| SH4DER_AOMESH_MARGIN | 8.0 | Metres: the ground's grid goes this far past the rectangle |
+| SH4DER_AOMESH_GMAX | 65536 | The most cells of the ground's grid |
 
 ### The aosky effect (occlusion of the sky drawn into a shadow target)
 
@@ -1023,6 +1043,8 @@ A stylised look wants more than the physical F0: the first client's paint read b
 
 - **Disc.** A centre and two axes in the plane, whose lengths are the two radii: a circle under a lamp, an ellipse under a car. The centre has the full alpha, the rim 0. n triangles, n + 1 vertices; the caller closes the rim (triangle k is 0, k + 1, (k + 1) % n + 1).
 - **Wedge.** An apex, a direction and a side axis in the plane, a length and a half angle. The apex has the full alpha, the far arc 0, so the light dies with distance. n triangles, n + 2 vertices (triangle k is 0, k + 1, k + 2). Two wedges read softer than one: a narrow long beam and a wide short spill at half the alpha.
+- **Reach (the fade by distance).** A lamp that comes into range must not pop in. `sh4der_pool_reach_make(&r, reach, width)` once a frame, then `sh4der_pool_reach_fade(&r, distance)` a lamp: 1 inside the reach less the width, 0 at the reach, linear between (one ramp of `sh4der_ramp.h`). Multiply the pool's alpha, and its halo's, by it. `sh4der_pool_reach_fade2` takes a squared distance and gives 0 past the reach with no square root; `sh4der_pool_reach_verts` fades a fan's vertices each by its own distance from the eye. The arithmetic is the street demo's lamp line, moved here.
+- **Beam.** `sh4der_pool_beam`: a wedge with `rows` arcs along its length (1 + rows (n + 1) vertices; triangles from `sh4der_pool_beam_tris`), for a headlight seen from outside. Along the beam the alpha falls linearly to 0 as the wedge's does; with a reach each vertex is also faded by its own distance from the eye, so a far car's beam comes in from its near end. One row and no reach is the wedge. The player's own headlights need no reach: use the wedge.
 - **Light or shadow.** Additive (source alpha / one) with the lamp's colour for light; blended (source alpha / 1 - source alpha) with black for a blob shadow. Depth test on, depth write off.
 - **Lift.** Raise the fan a little off the ground along the plane's normal (2 to 4 cm at car scale) so the depth test does not fight the ground.
 - **Guards.** The calls write world positions and colours; the caller transforms and submits, with a compiled header (`sh4der_poly_hdr_ok`) and its own area test (`sh4der_tri_area_ok`): a fan seen edge on has no area.
@@ -1035,7 +1057,17 @@ unsigned sh4der_pool_disc(const float centre[3], const float u[3], const float v
                           uint32_t rgb, float alpha, sh4der_pool_vtx_t *out);
 unsigned sh4der_pool_wedge(const float apex[3], const float dir[3], const float side[3], float length,
                            float half_angle, unsigned n, uint32_t rgb, float alpha, sh4der_pool_vtx_t *out);
+int      sh4der_pool_reach_make(sh4der_pool_reach_t *r, float reach, float width);
+float    sh4der_pool_reach_fade(const sh4der_pool_reach_t *r, float dist);
+float    sh4der_pool_reach_fade2(const sh4der_pool_reach_t *r, float dist2);
+unsigned sh4der_pool_reach_verts(const sh4der_pool_reach_t *r, const float eye[3], sh4der_pool_vtx_t *v, unsigned nv);
+unsigned sh4der_pool_beam(const float apex[3], const float dir[3], const float side[3], float length,
+                          float half_angle, unsigned n, unsigned rows, uint32_t rgb, float alpha,
+                          const sh4der_pool_reach_t *reach, const float eye[3], sh4der_pool_vtx_t *out);
+unsigned sh4der_pool_beam_tris(unsigned n, unsigned rows, uint16_t *idx);
 ```
+
+The fade by distance and the beam are PROTOTYPE v0.1: host tested, NOT RUN on a console as this code, their cost NOT MEASURED (ESTIMATE: one FSRRA reciprocal a `sh4der_pool_reach_make`; a subtract, a multiply and a saturate a `sh4der_pool_reach_fade`; one FSRRA square root a vertex with alpha in `sh4der_pool_reach_verts`; a 2 x 3 beam is 10 vertices and 10 triangles against the wedge's 4 and 2, the same fill). `sh4der_pool_beam` returns 0 with nothing written when a reach leaves no vertex with alpha. `test/pool_test.c` checks the reach fade against the street demo's old line (the same bits on the plain C path), the step, the squared form, the per-vertex form, the beam's arcs, alphas and triangles, and that one row is the wedge.
 
 Both return the vertices written, or 0 with nothing written for a bad count, length, angle or pointer. The array a call writes must hold `SH4DER_POOL_MAX_N + 2` vertices (or n + 2 for the n you pass). `test/pool_test.c`: the disc's centre and rim (circle, ellipse, the plane, alpha, colour, counts), the wedge's apex and arc (length, the half angle at both ends), every triangle through the area guard, bad arguments; both maths back ends.
 
@@ -1045,6 +1077,53 @@ Both return the vertices written, or 0 with nothing written for a bad count, len
 | --- | --- | --- |
 | SH4DER_POOL_MAX_N | 16 | Most triangles in one fan (the caller's array holds SH4DER_POOL_MAX_N + 2 vertices) |
 | SH4DER_POOL_TAU | 6.28318530718 | A whole turn, radians |
+| SH4DER_POOL_REACH | 60 | Metres within which a lamp's pool is drawn (the street demo's lamps) |
+| SH4DER_POOL_FADE_W | 10 | Metres: a pool fades to nothing over the last this of the reach |
+| SH4DER_POOL_BEAM_ROWS | 3 | Arcs along a beam (`sh4der_pool_beam`) |
+| SH4DER_POOL_BEAM_ROWS_MAX | 4 | Most arcs along a beam |
+| SH4DER_POOL_BEAM_VTX_MAX | 69 | Most vertices of a beam: 1 + SH4DER_POOL_BEAM_ROWS_MAX x (SH4DER_POOL_MAX_N + 1) |
+## The softfade effect (soft edges for light)
+
+`include/sh4der_softfade.h`, header only, maths only (no KallistiOS or PVR calls: it builds on the host); `test/softfade_test.c` tests it. A camera-facing glow that passes through a wall is cut on a hard line, and so is a pool or a beam of light where a wall stands on it. The PVR cannot read the depth behind a pixel. The SH-4 knows where the walls are, so it takes the light off the vertices near them. PROTOTYPE v0.1: host tested, NOT RUN on a console.
+
+- **Surfaces.** A plane (unit normal toward the lit side and d with dot(n, x) = d; `sh4der_softfade_plane` makes one from a point and a normal), endless; and a wall (`sh4der_softfade_wall`: a plane over a rectangle, a centre, one unit axis and two half sizes), so a barrier does not fade a light far along its line. At most `SH4DER_SOFTFADE_MAX` planes and as many walls a call; more are refused (no fade).
+- **Near** (`sh4der_softfade_near`). Is any surface within the light's radius and the fade distance? A 0: draw the light plain and call nothing else.
+- **Fit** (`sh4der_softfade_fit`). A scale 0 .. 1 for a 4-vertex halo's radius and alpha, so the quad never reaches the surface. The glow shrinks near a wall; it does not fade into it. No extra vertices.
+- **Fade** (`sh4der_softfade_point`; `sh4der_softfade_levels` for a mesh with a float level a vertex, `sh4der_softfade_argb` for one with the light in the alpha byte). The keep at a vertex: 0 on or behind a surface, 1 from `SH4DER_SOFTFADE_DIST` in front of it, a smooth step between; the surfaces multiply. It needs vertices where it acts: a halo as rings (`sh4der_bloom_rings`), a beam as `sh4der_pool_beam` with 3 or 4 rows.
+- **Limits.** Planes and rectangles only: nothing against a car, a person or a curved shape (no depth is read). Per vertex: where a wall crosses a triangle, a hard edge of at most that triangle stays. A light within the fade distance in front of a wall is dimmed too.
+- **Cost.** NOT MEASURED as this code. ESTIMATE: a plane a vertex is one 3-term dot, a subtract, a multiply, a saturate and a smooth step (3 multiplies); a wall is that and two more dots; `sh4der_softfade_make` one FSRRA reciprocal, once. No PVR pass, VRAM 0, sound RAM 0, RAM the caller's surfaces (16 B a plane, 60 B a wall). The nearest number, MEASURED as another program's own code on one console (SH4-083, PVR-157): a lamp's halo of 129 vertices faded against a room's planes, 205 us of SH-4 a frame with the halo's build in it.
+- **The other route** is a camera depth map the PVR draws, read as a bump texture: per pixel, any shape. It ran on a console in a test program (the hard line gone, PVR-204; the map 5.1 ms of PVR, 1.4 ms cut to its tiles, PVR-203, PVR-205) and is not in the library.
+
+### Calls
+
+```c
+int      sh4der_softfade_make(sh4der_softfade_t *f, float dist);
+void     sh4der_softfade_plane(sh4der_softfade_plane_t *p, const float point[3], const float normal[3]);
+int      sh4der_softfade_wall(sh4der_softfade_wall_t *w, const float centre[3], const float normal[3],
+                              const float u[3], float hu, float hv);
+int      sh4der_softfade_near(const sh4der_softfade_t *f, const sh4der_softfade_plane_t *planes, unsigned np,
+                              const sh4der_softfade_wall_t *walls, unsigned nw, const float centre[3], float radius);
+float    sh4der_softfade_fit(const sh4der_softfade_t *f, const sh4der_softfade_plane_t *planes, unsigned np,
+                             const sh4der_softfade_wall_t *walls, unsigned nw, const float centre[3], float radius);
+float    sh4der_softfade_point(const sh4der_softfade_t *f, const sh4der_softfade_plane_t *planes, unsigned np,
+                               const sh4der_softfade_wall_t *walls, unsigned nw, const float p[3]);
+unsigned sh4der_softfade_levels(const sh4der_softfade_t *f, const sh4der_softfade_plane_t *planes, unsigned np,
+                                const sh4der_softfade_wall_t *walls, unsigned nw,
+                                const float *xyz, unsigned stride, float *level, unsigned nv);
+unsigned sh4der_softfade_argb(const sh4der_softfade_t *f, const sh4der_softfade_plane_t *planes, unsigned np,
+                              const sh4der_softfade_wall_t *walls, unsigned nw,
+                              const float *xyz, size_t xyz_stride, uint32_t *argb, size_t argb_stride, unsigned nv);
+```
+
+The two mesh calls return the vertices that still have light (0: do not send the mesh); bad arguments change nothing and mean no fade. `test/softfade_test.c`: a plane's keep (0 behind, 1 from the distance on, a half at half), a corner, the step for no distance, a wall's rectangle and its edge, near and fit, both mesh forms (a beam run into a wall), bad arguments, and the keep against a lamp's halo fade written by hand (within one level of 255); both maths back ends.
+
+### Softfade tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_SOFTFADE_DIST | 0.30 | Metres in front of a surface over which the light comes back |
+| SH4DER_SOFTFADE_MAX | 8 | Most planes, and most walls, one call takes |
+
 ## The ramp helper
 
 `include/sh4der_ramp.h`, header only; `test/ramp_test.c` tests it on the host. A linear 0 .. 1 ramp between two distances, saturated at both ends. `sh4der_ramp_in(from, len, d)` is one call (one FSRRA reciprocal through SH4ZAM); for a loop, `sh4der_ramp_make(&r, from, to)` once, then `sh4der_ramp_up` / `sh4der_ramp_down` a point (a multiply and a saturate). It has no tuning macros: the two distances are the caller's. Used by `demo/psm/fakeaf.h` and `demo/psm/psm_shtile.h` (which still includes it through the forward `demo/psm/psm_ramp.h`). No console run; costs not measured. Moved from `demo/psm/psm_ramp.h` on 2026-11-26; wiki/effects/ramp.md.

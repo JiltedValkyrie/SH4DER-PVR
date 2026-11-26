@@ -1,10 +1,10 @@
 ---
-title: taa (temporal AA maths)
+title: Smooth edges over time [taa] (temporal AA maths)
 tags: [effect, taa, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_taa.h, README.md "The temporal AA maths", README.md "Recommended settings"]
 ---
-# taa: temporal AA maths
+# Smooth edges over time [taa]: temporal AA maths
 
 **What you will learn:** what the TAA header computes, where the history comes from, and how far to push its weight.
 **For:** a programmer smoothing a still picture without ghosting a moving one.
@@ -18,7 +18,7 @@ Header-only maths (README:433-435; taa.h:8-60):
 - a pan shift;
 - a cut on a big turn.
 
-The history layers themselves are drawn by [trail](trail.md), through the front-buffer copy.
+The history layers themselves are drawn by [Motion blur](trail.md), through the front-buffer copy.
 
 Version: v0.50, runs on screen on the demo disc (taa.h:39).
 
@@ -52,4 +52,4 @@ See `README.md` "TAA tuning" (README:437-447) and "Recommended settings" (README
 
 ## Related
 
-- [trail](trail.md), [ca](ca.md) (the frame texture)
+- [Motion blur](trail.md), [Colour fringe](ca.md) (the frame texture)

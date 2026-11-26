@@ -16,6 +16,7 @@
 #include "../src/demo.h"
 #include "../src/gfx.h"
 #include "gfx_host.h"
+#include "sh4der_pool.h"                 /* SH4DER_POOL_BEAM_ROWS, for the beam's line */
 
 uint64_t plat_us(void) { return (uint64_t)clock() * 1000000ull / CLOCKS_PER_SEC; }
 void  demo_host_car(float *x, float *z, float *yaw);
@@ -110,6 +111,30 @@ int main(int argc, char **argv) {
             if ((nx != ex || nz != ez) && demo_host_heat() > 0.0f) { printf("driving off: heat on frame %u with the eye moving\n", f); bad++; break; }
             ex = nx; ez = nz;
         }
+    }
+#endif
+#ifndef PL4NAR_WET
+    {   /* the headlights' fade by distance (demo_auto_beam): the same night fly-by twice, the beam off and on. The
+           triangles sent are counted (every frame's, summed); with the beam on the run must send no fewer in the
+           frames near the car and must never fail to draw. Not a picture test. */
+        unsigned long sent[2] = { 0ul, 0ul };
+        unsigned most[2] = { 0u, 0u }, pass;
+        for (pass = 0; pass < 2u; pass++) {
+            demo_auto_beam((int)pass);
+            (void)demo_auto_set(1, 0, 2, 0);
+            demo_auto_place(argc > 1 ? (float)atof(argv[1]) : 60.0f, -2.0f, 14.0f);
+            demo_auto_cine();
+            in.gas = 1.0f;
+            for (f = 0; f < 7u * 30u; f++) {
+                const unsigned n = (demo_update(&in, dt), demo_draw(&st), gfx_tris_sent());
+                sent[pass] += n;
+                if (n > most[pass]) most[pass] = n;
+            }
+        }
+        demo_auto_beam(0);
+        printf("headlight beam (rows %u), night fly-by, 210 frames: triangles sent off %lu (most a frame %u), on %lu (most %u)\n",
+               (unsigned)SH4DER_POOL_BEAM_ROWS, sent[0], most[0], sent[1], most[1]);
+        if (!sent[0] || !sent[1]) { printf("the beam run drew nothing\n"); bad++; }
     }
 #endif
     printf(bad ? "SNAP_TEST FAIL (%u)\n" : "SNAP_TEST_OK %u frames, %u stages, no jump\n", bad ? bad : frames, (unsigned)(sizeof seq / sizeof seq[0]));

@@ -24,8 +24,8 @@
                         (no rays, no occluders).
      tools/ao_bake_core.h  the same rule over any triangle list, on the host at build time (libc, a closed-object
                         inside test, a street wrap). Not for the console.
-     demo/psm/psm_ao.h  the console bake over a triangle mesh with 12 golden-ratio rays and its own reach (1.6 m); it
-                        moves later as sh4der_aomesh.h. Its bytes are its own: not merged with this header.
+     sh4der_aomesh.h    the console bake over a triangle mesh with 12 golden-ratio rays and its own reach (1.6 m); its
+                        bytes are its own: not merged with this header.
 
    No allocation, no globals. The caller owns the occluder arrays, the ray set and the output bytes.
    The maths goes through sh4der_core.h (SH4ZAM on the Dreamcast, plain C under SH4DER_CORE_NO_SH4ZAM).

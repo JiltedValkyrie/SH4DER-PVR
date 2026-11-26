@@ -1,7 +1,7 @@
 ---
 title: Ray uses beyond shadows
 tags: [research, sh4, rays, sound, aica, gameplay]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [wiki/hardware/ledger-sh4.md, wiki/hardware/ledger-aica.md, wiki/research/depth-shading-ideas.md, wiki/research/sound-chip-precompute.md, demo/psm/bench/ray_kernels.h]
 ---
 # Ray uses beyond shadows
@@ -15,11 +15,11 @@ sources: [wiki/hardware/ledger-sh4.md, wiki/hardware/ledger-aica.md, wiki/resear
 
 | Row | What it measured (one console, one run, 2026-11-25) | Used here as |
 |---|---|---|
-| [SH4-052](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9) | A ray through the 64 × 64 byte grid, in the cache: about 22 cycles a cell (C_step 22.07 to 22.21) and 71 to 74 to set up a ray. Whole rays: n 1 = 94, n 8 = 248, n 24 = 602, n 48 = 1,133, n 64 = 1,486 cycles | **ray(n) ≈ 74 + 22.2 n cycles**; the whole-ray figures where n matches |
-| [SH4-053](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9) | A slice of 1,024 receivers batched: 540 to 563 cycles a ray; a cold grid adds 46 to 47 us a slice; mixing the rays into the vertex transform adds 89 to 117 cycles a ray | The cost of a sun ray from a real receiver; the cold-start and mixing penalties |
-| [SH4-055](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9) | Receiver against character proxy: 137.87 cycles a pair with early outs | Tests against movers, which the grid does not hold |
-| [SH4-059](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test) | ray2's repeat of the grid walk: eight more fits, C_step 22.09 to 22.20, C_setup 70.99 to 76.04 | The same line holds over two runs |
-| [SH4-066](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test) | A ray against a triangle, no divide, 96 triangles in the cache: 33.16 cycles a test prepared for one direction, 62.49 any direction, with early outs | Group D |
+| [SH4-052](../hardware/ledger-sh4.md#ray-bench-run-one-thesis-p1-p2-p9) | A ray through the 64 × 64 byte grid, in the cache: about 22 cycles a cell (C_step 22.07 to 22.21) and 71 to 74 to set up a ray. Whole rays: n 1 = 94, n 8 = 248, n 24 = 602, n 48 = 1,133, n 64 = 1,486 cycles | **ray(n) ≈ 74 + 22.2 n cycles**; the whole-ray figures where n matches |
+| [SH4-053](../hardware/ledger-sh4.md#ray-bench-run-one-thesis-p1-p2-p9) | A slice of 1,024 receivers batched: 540 to 563 cycles a ray; a cold grid adds 46 to 47 us a slice; mixing the rays into the vertex transform adds 89 to 117 cycles a ray | The cost of a sun ray from a real receiver; the cold-start and mixing penalties |
+| [SH4-055](../hardware/ledger-sh4.md#ray-bench-run-one-thesis-p1-p2-p9) | Receiver against character proxy: 137.87 cycles a pair with early outs | Tests against movers, which the grid does not hold |
+| [SH4-059](../hardware/ledger-sh4.md#ray-bench-repeat-and-clock-repeat-of-run-one-the-clock-the-ray-triangle-test) | Ray bench, repeat and clock [ray2]'s repeat of the grid walk: eight more fits, C_step 22.09 to 22.20, C_setup 70.99 to 76.04 | The same line holds over two runs |
+| [SH4-066](../hardware/ledger-sh4.md#ray-bench-repeat-and-clock-repeat-of-run-one-the-clock-the-ray-triangle-test) | A ray against a triangle, no divide, 96 triangles in the cache: 33.16 cycles a test prepared for one direction, 62.49 any direction, with early outs | Group D |
 
 The grid ([`ray_kernels.h:8-13`](../../demo/psm/bench/ray_kernels.h)): 64 × 64 cells of 1.5 m (96 m a side), one byte of caster height a cell in steps of 28 m / 255 (`TOWN_RAY_H`, the tower's roof, [`town_ray_data.h:19`](../../demo/psm/town_ray_data.h)). A rising ray stops when it clears 28 m or leaves the grid. The cell test is conservative: a cell blocks if its height is above the ray's height where the ray enters it. At 200 MHz, 1 ms is 200,000 cycles.
 
@@ -39,9 +39,9 @@ These rays rise from a point in a fixed direction until they clear the tallest c
 |---|---|---|---|---|---|---|---|---|---|
 | RU1 | **Sky openness at the listener** (a reverb probe) | How enclosed the listener is: a street between tall houses against an open square. Drives the reverb's wet level and its length | 8 (8 azimuths at 20° elevation), every 4th frame | ≤ 51 (a 28 m climb at 20° is 77 m) | 8 × (74 + 51 × 22.2) = 9,648; 2,412 a frame over 4 frames | 0.048 (0.012 a frame) | One or two writes a change: the DSP's send level or a reverb coefficient. A reverb program on the DSP and the silent DSP blur (S1) cannot both hold the DSP; whether a muted DSP still runs is [Q59](../open-questions.md) | Host: open fraction over a walk through the town against a picture of the grid. Console: the 8 rays timed in a game frame | ESTIMATE |
 | RU2 | **Wind shelter map**, baked at load | A byte a cell: how sheltered it is from one wind direction. Drives motes, mist drift, cloth and grass sway, and wind noise level | 0 a frame; 4,096 at load (one a cell) | ≤ 64 (at 10° the ray leaves a row of the grid before it clears 28 m) | 4,096 × 1,486 = 6.09 M once a wind direction | 30 at load; 243 for 8 directions | Wind sound level from the listener's cell: one level write when it changes | Host: the map against the grid; the bake timed once on a console | ESTIMATE |
-| RU3 | Ambient occlusion per vertex | [X5](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25) | 8 a vertex | 6 | 1,650 a vertex | 8.2 us a vertex | — | X5's test | ESTIMATE |
-| RU4 | Contact darkening for movers | [X6](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25) | one a vertex near a mover | ≤ 4 | 160 a vertex; 500 vertices 80,000 | 0.4 | — | X6's test | ESTIMATE |
-| RU5 | Sun shafts in mist | [X8](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25) | 972 | as the sun's | 972 × 554 = 0.54 M | 2.7 | — | X8's test | ESTIMATE |
+| RU3 | Ambient occlusion per vertex | [X5](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25) | 8 a vertex | 6 | 1,650 a vertex | 8.2 us a vertex | — | X5's test | ESTIMATE |
+| RU4 | Contact darkening for movers | [X6](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25) | one a vertex near a mover | ≤ 4 | 160 a vertex; 500 vertices 80,000 | 0.4 | — | X6's test | ESTIMATE |
+| RU5 | Sun shafts in mist | [X8](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25) | 972 | as the sun's | 972 × 554 = 0.54 M | 2.7 | — | X8's test | ESTIMATE |
 | RU6 | **Sun visibility of a sound source or a mover** | Whether a person stands in sun or shade: a gameplay flag (stealth, heat), a cue for a sound (birdsong in the sun, a drip in the shade) | one a mover; 12 movers | as the sun's | 12 × 563 = 6,756 | 0.034 | A level change for a source when its flag flips | Host: flags against the shadow picture; console: the 12 rays timed | ESTIMATE |
 
 ## Group B: the same walk to a target point
@@ -50,7 +50,7 @@ These rays run from one point to another (an eye to a target, a source to a list
 
 | # | Use | What it gives | Rays a frame | Cells a ray | Cycles a frame (DERIVED) | ms | Sound chip side | Test that would prove it | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| RU7 | **Occluded sound** (expands [X7](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25)) | A source behind a building is quieter and duller. Three rays a source (the source to each ear and the head) give a soft edge as it passes a corner | 16 sources × 3 = 48, at 15 Hz (every 4th frame) | ≤ 64 | 48 × 1,486 = 71,328 worst; 17,832 a frame over 4 frames | 0.36 worst; 0.09 a frame | A level and a filter cutoff a source when the result changes; the pan comes from the direction alone and needs no ray. Two to three register writes a source, 4 bytes at a time ([AICA-011](../hardware/ledger-aica.md)), a G2 FIFO wait after every 8 ([AICA-012](../hardware/ledger-aica.md)). The voice registers for pan, level, filter and send are not yet in the ledger, and the cost of one write is not measured ([Q65](../open-questions.md)) | Host: levels along a walk past a corner; console: the rays and the register writes timed in a game frame, and listened to | ESTIMATE |
+| RU7 | **Occluded sound** (expands [X7](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25)) | A source behind a building is quieter and duller. Three rays a source (the source to each ear and the head) give a soft edge as it passes a corner | 16 sources × 3 = 48, at 15 Hz (every 4th frame) | ≤ 64 | 48 × 1,486 = 71,328 worst; 17,832 a frame over 4 frames | 0.36 worst; 0.09 a frame | A level and a filter cutoff a source when the result changes; the pan comes from the direction alone and needs no ray. Two to three register writes a source, 4 bytes at a time ([AICA-011](../hardware/ledger-aica.md)), a G2 FIFO wait after every 8 ([AICA-012](../hardware/ledger-aica.md)). The voice registers for pan, level, filter and send are not yet in the ledger, and the cost of one write is not measured ([Q65](../open-questions.md)) | Host: levels along a walk past a corner; console: the rays and the register writes timed in a game frame, and listened to | ESTIMATE |
 | RU8 | **AI line of sight** | Can a guard see the player; can a hen see the fox. Height of the eye and of the target set the ray's slope | 8 watchers × 1, every frame | ≤ 64 | 8 × 1,486 = 11,888 | 0.06 | — | Host: sight against a picture of the grid; console: timed | ESTIMATE |
 | RU9 | **Camera collision and picking** | A third-person camera pulled in when a wall is between it and the player; what the pointer or the aim is on | 1 to 2 | ≤ 64 | ≤ 2,972 | 0.015 | — | Host: the hit cell against a reference | ESTIMATE |
 | RU10 | **Projectile paths** | A bullet, arrow or thrown stone tested against buildings over the distance it moved this frame; hitscan as one long ray | 32 projectiles × 1 of ≤ 4 cells; or 4 hitscans of ≤ 64 | ≤ 4 (or ≤ 64) | 32 × (74 + 4 × 22.2) = 5,210; hitscan 4 × 1,486 = 5,944 | 0.026; 0.030 | A hit sound: one key-on with level and pan from RU7's figures | Host: hits against a reference stepper | ESTIMATE |
@@ -62,9 +62,9 @@ These rays run from one point to another (an eye to a target, a source to a list
 |---|---|---|---|---|---|---|---|---|
 | RU12 | **Footstep and ground probes** | The ground height under a foot (and, with a second byte grid, the material: cobbles, grass, snow). Footstep sound choice, foot placement, a dust puff | 12 movers × 2 feet = 24 | 24 × 94 = 2,256, an upper bound (a whole 1-cell ray, SH4-052) | 0.011 | A key-on a step: the sample by material, level and pan from RU7 | Host: heights under a walk against the grid; the material grid is a new table, not measured | ESTIMATE |
 
-## Group D: rays against triangles (ray2's test)
+## Group D: rays against triangles (Ray bench, repeat and clock's test)
 
-ray2 timed a shadow ray against triangles with no divide ([SH4-066](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test)): **33.16 cycles a test** when every ray shares one direction and each triangle is prepared once for it (64 bytes a triangle), **62.49** for any direction, both with early outs and 96 triangles in the cache. Triangles hold what the grid cannot: overhangs, arches, inside spaces, movers' own shapes. A ray's cost is its tests × the cycles a test. How many triangles a ray must test depends on bins that are not built or measured; the town's host count is 18 tests for a model vertex's ray (TOWN-060), and the bench's own scene 89.2. All rows ESTIMATE.
+Ray bench, repeat and clock timed a shadow ray against triangles with no divide ([SH4-066](../hardware/ledger-sh4.md#ray-bench-repeat-and-clock-repeat-of-run-one-the-clock-the-ray-triangle-test)): **33.16 cycles a test** when every ray shares one direction and each triangle is prepared once for it (64 bytes a triangle), **62.49** for any direction, both with early outs and 96 triangles in the cache. Triangles hold what the grid cannot: overhangs, arches, inside spaces, movers' own shapes. A ray's cost is its tests × the cycles a test. How many triangles a ray must test depends on bins that are not built or measured; the town's host count is 18 tests for a model vertex's ray (TOWN-060), and the bench's own scene 89.2. All rows ESTIMATE.
 
 | # | Use | What it gives | Rays a frame | Tests a ray | Cycles a frame (DERIVED) | ms | Sound chip side | Test that would prove it | Status |
 |---|---|---|---|---|---|---|---|---|---|
@@ -74,7 +74,7 @@ ray2 timed a shadow ray against triangles with no divide ([SH4-066](../hardware/
 | RU16 | **Rain and snow cover** (prepared form) | Which ground points lie under eaves, awnings and arches: dry patches in rain, bare ground in snow, no splashes there. Rain falls in one direction, so every ray shares it, as the sun's do. Feeds the deform grid (`sh4der_deform.h`: snow only where it falls), a wet-ground darkening, and splash spawns (sparks, motes) | 0 a frame; 6,305 ground points (TOWN-066) at load or when the wind turns the rain | 18 | 6,305 × 18 × 33.16 = 3.76 M once | 18.8 once | Rain on a roof against rain on the ground: two loops, a level each by cover under the listener | Host: the cover map against a picture of the town; the bake timed once on a console | ESTIMATE |
 | RU17 | **Static lamp occlusion** | A street lamp's pool (`sh4der_pool.h`) cut by a wall or a cart: rays from ground points to the lamp. Every ray has its own direction, so any-direction tests; a static lamp and static casters bake once | 0 a frame; 200 ground points a lamp at load | 18 | 200 × 18 × 62.49 = 225k a lamp | 1.1 a lamp, once | — | Host picture; one lamp's bake timed | ESTIMATE |
 
-**What triangles do not pay for.** Contact darkening round a mover from its own triangles: 18 tests × 33.16 = 597 cycles a receiver, against 137.80 for a receiver-proxy pair ([SH4-064](../hardware/ledger-sh4.md#ray-bench-ray2-repeat-of-ray1-the-clock-the-ray-triangle-test)). Keep the proxies for movers (X6, [X10](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25)); use triangles for static shapes the grid cannot hold.
+**What triangles do not pay for.** Contact darkening round a mover from its own triangles: 18 tests × 33.16 = 597 cycles a receiver, against 137.80 for a receiver-proxy pair ([SH4-064](../hardware/ledger-sh4.md#ray-bench-repeat-and-clock-repeat-of-run-one-the-clock-the-ray-triangle-test)). Keep the proxies for movers (X6, [X10](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25)); use triangles for static shapes the grid cannot hold.
 
 **The bake.** The sun bake (TOWN-063) moves from an assumed 50 cycles a test to 33.16 measured with the prepared form: about 28 ms a sun with the proxies' test count, 96 ms with the screen mesh's (host counts; `RAY2_RESULTS_junior.md:116-133`). Rain has its own direction, so RU16 prepares the triangles again: the unit of work is one prepare a direction, shared by every use with that direction.
 
@@ -84,7 +84,7 @@ ray2 timed a shadow ray against triangles with no divide ([SH4-066](../hardware/
 
 One frame of a game that runs RU1, RU7, RU8, RU9, RU10 (projectiles), RU6 and RU12 together, all from the rows above: 2,412 + 17,832 + 11,888 + 2,972 + 5,210 + 6,756 + 2,256 = **49,326 cycles, about 0.25 ms** (DERIVED, ESTIMATE). Add a cold start of at most about 0.05 ms (SH4-053). That is 0.44 % of the town's 55.6 ms frame at 18 fps ([PVR-108](../hardware/ledger-pvr.md#town-scene-hud-photos)) and 1.5 % of a 16.7 ms frame at 60 fps. RU11's culling adds up to 0.48 ms; RU3 to RU5 are the shading uses and have their own budgets.
 
-Where to run them: batched in one block, not mixed into the vertex transform (mixing cost 89 to 164 cycles a ray over two runs, SH4-053, SH4-062; [X9](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25)). If the render-done wait can be cut ([X4](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25), [Q53](../open-questions.md)), they fit in that gap.
+Where to run them: batched in one block, not mixed into the vertex transform (mixing cost 89 to 164 cycles a ray over two runs, SH4-053, SH4-062; [X9](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25)). If the render-done wait can be cut ([X4](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25), [Q53](../open-questions.md)), they fit in that gap.
 
 ## The sound chip side
 
@@ -104,8 +104,8 @@ Where to run them: batched in one block, not mixed into the vertex transform (mi
 
 ## Related
 
-- [Depth shading ideas: ideas from console results](depth-shading-ideas.md#ideas-from-console-results-c4b-ray1-town-2026-11-25) (X4 to X10)
+- [Depth shading ideas: ideas from console results](depth-shading-ideas.md#ideas-from-console-results-measured-edges-and-punch-through-route-c4b-ray-bench-run-one-ray1-town-2026-11-25) (X4 to X10)
 - [The sound chip as a precompute unit](sound-chip-precompute.md)
-- [SH-4 ledger: ray bench ray1](../hardware/ledger-sh4.md#ray-bench-ray1-thesis-p1-p2-p9)
+- [SH-4 ledger: ray bench ray1](../hardware/ledger-sh4.md#ray-bench-run-one-thesis-p1-p2-p9)
 - [AICA ledger](../hardware/ledger-aica.md)
 - [The shadow thesis](../shadows/thesis.md)

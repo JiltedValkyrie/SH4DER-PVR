@@ -1,7 +1,7 @@
 ---
 title: Tricks from after and around the PVR
 tags: [research, pvr, shading, history]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [wiki/hardware/ledger-pvr.md, wiki/hardware/ledger-sh4.md, src/sh4der_trail.c, demo/psm/POLLY2_NOTES.md, public papers and manuals listed under Sources]
 ---
 # Tricks from after and around the PVR
@@ -17,14 +17,14 @@ Every mapping on this page and on [GPU Gems depth techniques](gems-depth-techniq
 
 | Key | Piece | What it gives | Measured cost | Ledger |
 |---|---|---|---|---|
-| CMP | c4 compare | A depth code from a map, per pixel, against one Q a polygon; bands on slanted receivers | Map pass 3.3 ms through the whole tile list, 375 us cut to 20 tiles; mask pass 5.0-9.1 ms by band width, 3.76 ms cut to 80 tiles | PVR-092, PVR-100 |
+| CMP | Full compare chain [c4] compare | A depth code from a map, per pixel, against one Q a polygon; bands on slanted receivers | Map pass 3.3 ms through the whole tile list, 375 us cut to 20 tiles; mask pass 5.0-9.1 ms by band width, 3.76 ms cut to 80 tiles | PVR-092, PVR-100 |
 | RAMP | Ramp texture | A per-pixel function of an interpolated coordinate: a depth code by 1/(2z), or any 1-D curve | Within 1 code with 8 sub-steps; one textured pass | PVR-095, PVR-006 |
 | BUMP | Bump unit | A per-pixel level from a texel and one light (or Q) a polygon; at window 32 the console passes differences 99 to 157, measured at boot | As the mask line above | PVR-045, PVR-096, PVR-102 |
 | TILE | Tile-list cut | A target rendered through only the tiles it covers | Map 3,312 → 375 us; mask 6,130 → 3,760 us | PVR-092, PVR-093 |
 | FOG | Table fog | Per-pixel blend toward one colour by 1/w, 128 entries | Nothing on the SH-4 until the table changes | PVR-049 |
 | PT | Punch-through | Texture alpha × vertex alpha ≥ one reference: a per-pixel cut; with the bump level as the alpha it gives the same mask as the 1555 route | 3.3-4.3 ms a full-screen 4444 layer; as a mask route 14-18 % dearer than 1555 (7.2-7.9 ms for a 320 × 240 mask) | PVR-060, PVR-064, PVR-006, PVR-105 |
 | TR | Translucent layer | A blended layer | 3.1 ms full screen at 640 × 480; 0.77 ms at 320 × 240 on a 3.2 ms target floor | PVR-002, PVR-004 |
-| DA | Destination alpha | The frame keeps an alpha that later blends read (DESTALPHA, INVDESTALPHA) | A compare in destination alpha worked (c1); the library's trail pass uses it as a column mask | PVR-040; `src/sh4der_trail.c:127-151` |
+| DA | Destination alpha | The frame keeps an alpha that later blends read (DESTALPHA, INVDESTALPHA) | A compare in destination alpha worked (Compare by blending [c1]); the library's trail pass uses it as a column mask | PVR-040; `src/sh4der_trail.c:127-151` |
 | MV | Modifier volume | Exact inside/outside per pixel, in hardware | Cost did not show in one test | PVR-044 |
 | RTT | Render to texture | A pass into a 16-bit target, textured in the next pass | 3.2 ms floor a pass through the whole list | PVR-004, PVR-020, PVR-021 |
 | READ | Frame read | The SH-4 reads pixels back | PVR-DMA 36-38 MB/s; cached 38.7 MB/s; uncached 7.5 MB/s | BUS-021, BUS-051, SH4-040, SH4-041 |
@@ -59,7 +59,7 @@ Our reader judged the fits from a short brief. Five of its remarks are wrong aga
 | N6 | Stochastic (screen-door) transparency (Enderton et al. 2010, F) | A transparent surface covers a random share of samples equal to its alpha: no sorting | PT: a dither texture's alpha × vertex alpha against one reference (PVR-064), one layer, no sort. [C6](depth-shading-ideas.md) | One punch-through layer of the object | Coverage of a 4 × 4 pattern per vertex alpha step against the intended alpha | high / med | ESTIMATE |
 | N7 | Billboard clouds (Décoret et al. 2003, F) | A model replaced by a few textured planes with alpha, chosen to stay within an error | PT, VTX: a handful of quads a tree or a far prop | Tiny vertex count; the cost is overdraw in a tile (PVR-009: 256 translucent triangles in one tile 6.4 ms) | Silhouette difference against the model from 16 views | med / low | ESTIMATE |
 | N8 | View-aligned volume slices (Engel, Kraus, Ertl 2001, F) | A volume as a stack of slices facing the eye, blended | TR, FOG: 4-8 slices, the fog table as a free per-pixel falloff; `sh4der_mist.h` is this family | 0.77 ms a 320 × 240 slice layer, 3.1 ms at 640 × 480 | Slice count against step visibility in a host render | med / med | ESTIMATE |
-| N9 | Soft particles (Lorach 2007, F) | A sprite fades where the scene behind it is close | CMP from the camera ([D1](depth-shading-ideas.md)); or a fixed-plane fade per vertex with no map | The camera map pass (3.3 ms whole list) plus the sprite twice | Fade curve against the depth gap in the c4 host model | med / low | ESTIMATE; needs the camera map |
+| N9 | Soft particles (Lorach 2007, F) | A sprite fades where the scene behind it is close | CMP from the camera ([D1](depth-shading-ideas.md)); or a fixed-plane fade per vertex with no map | The camera map pass (3.3 ms whole list) plus the sprite twice | Fade curve against the depth gap in the Full compare chain host model | med / low | ESTIMATE; needs the camera map |
 | N10 | Cascaded shadow maps (Dimitrov 2007, F) | Several shadow maps by view-depth slice | Route B's RAM map per slice, or route A silhouettes per slice; the split rule is already in `GPU_GEMS_NOTES.md` | One map pass per slice (PVR-092: 375 us a small map cut to its tiles) | The split depths against the texel footprint in `test/psm_test.c`'s terms | med / low | ESTIMATE |
 | N11 | Reverse reprojection cache (Nehab et al. 2007, F) | Reuse last frame's shading where the surface point is still the same | SH4: per-vertex lit colours cached and refreshed in bands, the thesis's cached sun visibility in another form | Saves the per-vertex lighting on unchanged vertices (ESTIMATE) | Error of the stale colour against a fresh one over a camera path | med / med | ESTIMATE |
 | N12 | Depth and normal outlines (Saito, Takahashi 1990, F) | Edges from jumps in a depth and normal image | Mesh outlines (inverted hull, [D6](depth-shading-ideas.md)) instead; the image form needs neighbour compares (OPEN) | Doubles the outline mesh's vertices | Edge set against a host image-space detector | med / low | ESTIMATE |
@@ -84,12 +84,12 @@ Not ported (need what the PVR lacks, and no spirit survives): horizon-based scre
 | H3 | **Shadow by halving marked pixels** (a 1994 console's sprite processor; Sega's manual, F, FACT for that chip) | A "shadow" draw halves the colour of pixels already drawn whose top bit is set | Modifier volume shading (MV), or a DESTCOLOR multiply layer over a destination-alpha mask (DA) | ESTIMATE |
 | H4 | Alpha compare with a random threshold (a 1996 console's display processor; its programming manual, F, FACT; the manual disagrees with itself on modes, DISPUTED) | Pixels dropped against a fixed or a noise threshold | Punch-through with a noise texture × vertex alpha (PVR-064): the threshold is fixed, the noise is in the texture | ESTIMATE |
 | H5 | Stenciled shadow volumes, made robust (Everitt, Kilgard 2002, F) | Count volume faces per pixel; the far plane moved to infinity | The PVR's modifier volumes do the inside test in hardware (PVR-044); the owner excluded volumes as the shadow method here | FACT (PVR-044); route not chosen |
-| H6 | **Cheap-shadow modifier volumes** (KallistiOS docs, F, REPORTED) | Inside a volume, the final colour is multiplied by one scale a frame | MV: exact in our test, cost not seen (PVR-044). Town scale is spike c2, built, not run (Q19) | MEASURED (one test); scale OPEN |
+| H6 | **Cheap-shadow modifier volumes** (KallistiOS docs, F, REPORTED) | Inside a volume, the final colour is multiplied by one scale a frame | MV: exact in our test, cost not seen (PVR-044). Town scale is spike Town-scale test [c2], built, not run (Q19) | MEASURED (one test); scale OPEN |
 | H7 | Projected textures and planar shadows (Segal et al. 1992, S) | A light's picture projected onto receivers | Route A's silhouette map; blob shadows in `sh4der_pool.h` | in the library |
 | H8 | Accumulation buffer (Haeberli, Akeley 1990, F) | Average of jittered passes: antialiasing, soft shadow, blur | TR sums into a 16-bit target, 2-4 passes; the shelved soft shadows (T1) are this, and too dear at 6.1-10.2 ms a mask pass | ESTIMATE |
 | H9 | Environment-mapped bump (a 1999 vendor article, F, REPORTED) | A per-pixel offset from a bump map shifts a second lookup | Not per pixel on the PVR; per vertex as `sh4der_warp.h` and `sh4der_uvwarp.h` | per pixel not possible |
 | H10 | Dot-product bump by combiners (Kilgard 2000, F partial) | Per-pixel N·L in the texture stage | The PVR's bump unit does this in hardware (PVR-045) | FACT (unit) |
-| H11 | Depth as a texture (ARB_depth_texture, 2002, F, FACT) | The depth buffer copied to a readable texture | No depth read; c4's ramp pass makes a depth code instead (PVR-095) | MEASURED (the ramp form) |
+| H11 | Depth as a texture (ARB_depth_texture, 2002, F, FACT) | The depth buffer copied to a readable texture | No depth read; Full compare chain's ramp pass makes a depth code instead (PVR-095) | MEASURED (the ramp form) |
 | H12 | Fog table as a depth ramp (KallistiOS docs, F) | A free per-pixel function of depth | FOG: one colour, any curve (PVR-049); `sh4der_torch.h` bends it | FACT |
 | H13 | **Palette cycling** (Wikipedia, "Color cycling", F) | Rotate palette entries; the image seems to move at no pixel cost | Paletted textures, one palette value a scene (PVR-043): water, fire, signs for nothing per pixel. Palette textures are always twiddled (PVR-072), so not a rendered target | ESTIMATE |
 | H14 | Render to texture and frame copy (KallistiOS docs, F partial) | Draw into a texture, draw it back | RTT: the base of glow, warp, trail, ca, focus in this library | in the library |
@@ -103,13 +103,13 @@ Not ported (need what the PVR lacks, and no spirit survives): horizon-based scre
 1. **N1, spherical-harmonic sky light per vertex.** Nine numbers a sky, FIPR per vertex, no texture, no pass. A host test settles the error before any console run.
 2. **N6, screen-door transparency by punch-through.** Order-free translucency in one layer; rests on PVR-064.
 3. **N5 / M3, shells for fur, grass, moss and relief,** each shell's cut-off set by its vertex alpha.
-4. **H6, modifier-volume shadows,** exact on the PVR, cost not seen in one test; the town-scale test is spike c2 (Q19).
+4. **H6, modifier-volume shadows,** exact on the PVR, cost not seen in one test; the town-scale test is spike Town-scale test (Q19).
 5. **N2, precomputed radiance transfer** for a static set: per-vertex vectors, FIPR, soft self-shadow in a sky light.
 6. **H1, the destination-alpha mask** as the join for several shadow compares (Q58); the library already uses the mechanism in `sh4der_trail.c`.
 
 ## Craziest (ESTIMATE)
 
-1. **H1 for Q58:** a console-era protect bit, rebuilt from destination alpha, as the way three c4 compares join into one mask.
+1. **H1 for Q58:** a console-era protect bit, rebuilt from destination alpha, as the way three Full compare chain compares join into one mask.
 2. **N20, one bounce of colour from route B's RAM map**, per vertex.
 3. **N19, a slow light grid** of SH coefficients on the SH-4.
 4. **H13, palette cycling on paletted ground art** for animated water and lamps, one palette value a scene.

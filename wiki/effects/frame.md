@@ -1,13 +1,13 @@
 ---
-title: frame (the frame read)
+title: "Frame read [frame]: the picture on screen read back"
 tags: [effect, frame, post]
-updated: 2026-11-25
+updated: 2026-11-26
 sources: [include/sh4der_frame.h, src/sh4der_frame.c, README.md "The frame read"]
 ---
-# frame: the frame read
+# Frame read [frame]: the picture on screen read back
 
 **What you will learn:** how the library reads the finished frame back, and why each frame carries a number.
-**For:** a programmer using [look](look.md), [glow](glow.md), [shafts](shafts.md), [focus](focus.md) or [ao](ao.md), which all measure the picture.
+**For:** a programmer using [Exposure and grade](look.md), [Screen bloom](glow.md), [Dark shafts of light](shafts.md), [Fake focus blur](focus.md) or [Corner darkening](ao.md), which all measure the picture.
 
 ## What it does
 
@@ -29,7 +29,7 @@ See README:1104-1118 "The frame read" and the order in frame.h:~28-35. `AGENTS.m
 |---|---|---|
 | Stamp | a 4 × 4-pixel block | as-stated |
 | History | 8 frames (the stamp's 3 bits) | as-stated (README:1127; frame.h:68) |
-| The read | 4,800 uncached loads (see [look](look.md)) | as-stated (README:431) |
+| The read | 4,800 uncached loads (see [Exposure and grade [look]](look.md)) | as-stated (README:431) |
 | A 16-bit loop from uncached video memory | 3.7 MB/s | MEASURED, one console, 2026-11-25 (demo/psm/bench/NOTES.md h2) |
 | Reading video memory through the cache | about 38.7 MB/s, but the range must be invalidated first | MEASURED, one console, 2026-11-25 (h2) |
 
@@ -57,5 +57,5 @@ See `README.md` "Frame tuning" (README:1120-1128).
 
 ## Related
 
-- [look](look.md), [glow](glow.md), [shafts](shafts.md)
+- [Exposure and grade](look.md), [Screen bloom](glow.md), [Dark shafts of light](shafts.md)
 - [Bus and DMA ledger](../hardware/ledger-bus-dma.md)
