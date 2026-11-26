@@ -14,6 +14,7 @@
 #include "sh4der_pl4nar.h"
 #include "sh4der_spark.h"
 #include "sh4der_pool.h"
+#include "heat.h"                                 /* the heat shimmer over the road's far end (Senior: day, dry) */
 #include "../../psm/psm_split.h"                   /* the divider's tile columns and stepping */
 #ifdef PL4NAR_MAP
 #include "../../psm/psm_effects.h"                 /* the effect labels' text */
@@ -237,6 +238,20 @@ static float s_aoy[MAP_AOG_ROWS][MAP_AOG_COLS];    /* the road's occlusion patch
 #define MODEL_Y 0.0f
 #define CAR_Y   0.0f
 #endif
+#ifdef PL4NAR_AUTORUN
+static unsigned s_heat_lvl = 0u;                   /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (X); off in the autorun, so its numbers compare */
+#else
+static unsigned s_heat_lvl = 1u;
+#endif
+/* The heat's gate (heat.h: 0 in rain, gone by night 0.25) x the key's level. */
+static inline float heat_level(void) {
+#ifdef PL4NAR_WET
+    const unsigned rain = s_rain;
+#else
+    const unsigned rain = 0u;                     /* no rain in this build */
+#endif
+    return heat_gate(s_night, rain) * (float)s_heat_lvl * 0.5f;
+}
 static unsigned s_haze_max = (unsigned)(HAZE_MAX * 256.0f);   /* this pass: the reflection pass keeps more contrast (less haze) */
 static sh4der_pl4nar_view_t s_pv;
 static int s_pv_ok;                               /* this frame's reflection view was built: the layer may be drawn */
@@ -303,6 +318,14 @@ static void tile_cut_size(unsigned *cw, unsigned *ch) {
 }
 #endif
 #endif
+void demo_auto_heat(unsigned level) { s_heat_lvl = level % 3u; }
+void demo_heat_copy(uint32_t *us, uint32_t *copies) {
+#ifdef _arch_dreamcast
+    *us = s_heat.copy_us; *copies = s_heat.copies;
+#else
+    *us = 0u; *copies = 0u;
+#endif
+}
 
 int demo_reflect_on(void) { return s_reflect; }
 int demo_info_on(void) { return s_info; }
@@ -513,6 +536,7 @@ void demo_update(const demo_input_t *in, float dt) {
     if (in->pressed & DEMO_BTN_RAIN) s_rain = (s_rain + 1u) % 3u;
 #endif
     if (in->pressed & DEMO_BTN_FX) s_fx_hidden = !s_fx_hidden;
+    if (in->pressed & DEMO_BTN_HEAT) s_heat_lvl = (s_heat_lvl + 1u) % 3u;
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
     if (in->pressed & DEMO_BTN_TILES) s_tiles = s_tiles == 1 ? 2 : s_tiles == 2 ? 0 : 1;   /* ON -> TYPICAL -> OFF */
@@ -792,7 +816,10 @@ static void draw_road(void) {
 static const float s_wet_gain[3]    = { 0.0f, 1.0f, 2.2f };     /* the reflection's share x the Fresnel (WET_ROAD, f0 raised) */
 static const float s_wet_stretch[3] = { 1.0f, 1.5f, 2.6f };     /* v toward the horizon: 1 none */
 static const float s_wet_dark[3]    = { 1.0f, 0.75f, 0.5f };    /* the road's own tone kept: water darkens it */
-static const float s_grit_alpha[3]  = { 0.0f, 1.0f, 0.7f };     /* the grit layer (tex_grit) over the reflection: dry none, wet more water */
+#define GRIT_DRY     1.00f         /* the grit layer's share (tex_grit's alpha x this): dry, on the plain road */
+#define GRIT_DAMP    0.80f         /* damp: the reflection starts to come through */
+#define GRIT_WET     0.35f         /* wet: mostly the reflection, the grit faint (by eye on the host) */
+static const float s_grit_alpha[3]  = { GRIT_DRY, GRIT_DAMP, GRIT_WET };
 static uint32_t wet_hash(uint32_t a, uint32_t b) {
     uint32_t h = a * 0x9e3779b1u ^ (b + 0x7f4a7c15u) * 0x85ebca77u;
     h ^= h >> 15; h *= 0x2c1b3c6du; h ^= h >> 12;
@@ -809,7 +836,8 @@ static void wet_grid(void) {
     const float k = s_wet_streak ? shz_invf(s_wet_stretch[s_rain]) : 1.0f, gain = s_wet_gain[s_rain];
     const uint32_t tick = (uint32_t)(s_car.clock * 15.0f);
     const uint64_t t0 = plat_us();
-    float zb = s_car.z, zf = s_car.z, dz = WET_ROW0, vh;
+    const int refl = s_rain && s_pv_ok && s_reflect;  /* dry, or no target: the grit alone, no lookup */
+    float zb = s_car.z, zf = s_car.z, dz = WET_ROW0, vh = 0.0f;
     unsigned r, c;
     mat.f0 = 0.15f;                                   /* the preset's 0.02 is water head on; wet asphalt at night wants more (tuned by eye on the host) */
     for (r = 0; r <= WET_FWD; r++) {                  /* row WET_BACK is under the car; the spacing grows away from it both ways */
@@ -820,8 +848,8 @@ static void wet_grid(void) {
         }
         zf += dz; zb -= dz; dz *= WET_GROW;
     }
-    sh4der_pl4nar_begin(&s_pv);                       /* XMTRX = the reflection view until VP_LOAD */
-    {   /* the horizon's row in the target: a point far down the road */
+    if (refl) sh4der_pl4nar_begin(&s_pv);            /* XMTRX = the reflection view until VP_LOAD */
+    if (refl) {   /* the horizon's row in the target: a point far down the road */
         const float far[3] = { s_car.wx, 0.0f, s_camz + 5000.0f };
         sh4der_pl4nar_sample_t smp;
         (void)sh4der_pl4nar_flat(&s_pv, far, &mat, &smp);
@@ -836,6 +864,7 @@ static void wet_grid(void) {
             const uint32_t h = wet_hash(c * 64u + (uint32_t)(int32_t)(pos[r][c][2] * 0.5f), tick)   /* rows behind z 0 are negative */;
             const float edge = c == 0u || c == WET_COLS - 1u ? 0.0f : row_fade;      /* the outer ring: 0 */
             fade[r][c] = edge;
+            if (!refl) continue;
             (void)sh4der_pl4nar_flat(&s_pv, pos[r][c], &mat, &smp);
             o->u = shz_saturatef(shz_fmaf((float)(h & 255u) - 127.5f, 0.5f * (1.0f / 128.0f) * iw, smp.u)) * us;   /* hand: a jitter of half a texel */
             o->v = shz_saturatef(shz_fmaf(smp.v - vh, k, vh) + ((float)((h >> 8) & 255u) - 127.5f) * (0.3f / 128.0f) * ih);
@@ -846,24 +875,26 @@ static void wet_grid(void) {
         }
     }
     VP_LOAD();
-    for (r = 0; r < WET_ROWS; r++)
-        for (c = 0; c < WET_COLS; c++) {
-            gfx_vert_t *o = &gv[r][c];
-            const float u = o->u, v = o->v;
-            const uint32_t argb = o->argb;
-            gfx_xform(o, shz_vec3_init(pos[r][c][0], WET_LIFT, pos[r][c][2]));
-            o->u = u; o->v = v; o->oargb = 0u;
-            {   /* the haze: the layer's share fades as the texel's does in haze_tex */
-                const unsigned t = (unsigned)(shz_saturatef((o->w - HAZE_START) * HAZE_INV) * (float)s_haze_max);
-                o->argb = (uint32_t)((((argb >> 24) * (256u - t)) >> 8) << 24) | (argb & 0x00ffffffu);
+    if (refl) {
+        for (r = 0; r < WET_ROWS; r++)
+            for (c = 0; c < WET_COLS; c++) {
+                gfx_vert_t *o = &gv[r][c];
+                const float u = o->u, v = o->v;
+                const uint32_t argb = o->argb;
+                gfx_xform(o, shz_vec3_init(pos[r][c][0], WET_LIFT, pos[r][c][2]));
+                o->u = u; o->v = v; o->oargb = 0u;
+                {   /* the haze: the layer's share fades as the texel's does in haze_tex */
+                    const unsigned t = (unsigned)(shz_saturatef((o->w - HAZE_START) * HAZE_INV) * (float)s_haze_max);
+                    o->argb = (uint32_t)((((argb >> 24) * (256u - t)) >> 8) << 24) | (argb & 0x00ffffffu);
+                }
             }
-        }
-    gfx_bind(GFX_MAT_REFLECT_ADD);
-    for (r = 0; r + 1u < WET_ROWS; r++)
-        for (c = 0; c + 1u < WET_COLS; c++) {
-            const gfx_vert_t q[4] = { gv[r + 1u][c], gv[r + 1u][c + 1u], gv[r][c + 1u], gv[r][c] };
-            quad(q);
-        }
+        gfx_bind(GFX_MAT_REFLECT_ADD);
+        for (r = 0; r + 1u < WET_ROWS; r++)
+            for (c = 0; c + 1u < WET_COLS; c++) {
+                const gfx_vert_t q[4] = { gv[r + 1u][c], gv[r + 1u][c + 1u], gv[r][c + 1u], gv[r][c] };
+                quad(q);
+            }
+    }
     {   /* the grit over it: tex_grit as tex_road lies (u = 1 at x -12, 0 at x 12), 12 m a repeat along; alpha = the rain's
            share x the edge x the haze, colour = the road's light, so the layer has the road's tone and no edge */
         const float ga = s_grit_alpha[s_rain] * 255.0f;
@@ -2100,6 +2131,14 @@ static void overlay(const demo_stats_t *st) {
         hud_text(64.0f, 404.0f, 1.0f, 0xffffdc00u, t);
     }
 #endif
+#ifdef _arch_dreamcast
+    if (!s_fx_hidden && s_heat_lvl && heat_level() > 0.0f) {   /* the heat's label, over the effect labels */
+        if (s_heat.short_kb) snprintf(t, sizeof t, "Heat Haze %s (no video memory)", s_heat_lvl == 1u ? "LIGHT" : "STRONG");
+        else snprintf(t, sizeof t, "Heat Haze %s copy %u.%02u ms (%lu)", s_heat_lvl == 1u ? "LIGHT" : "STRONG",   /* the read's time: the one cost not measured */
+                      (unsigned)(s_heat.copy_us / 1000u), (unsigned)(s_heat.copy_us % 1000u / 10u), (unsigned long)s_heat.copies);
+        hud_text(64.0f, 368.0f, 1.0f, 0xffffdc00u, t);
+    }
+#endif
 #ifdef PL4NAR_HILLS
     {
         gfx_cut_stats_t cs;
@@ -2204,6 +2243,17 @@ void demo_draw(const demo_stats_t *st) {
     s_camz = eye.z; s_camx = eye.x;
     s_tris_refl = 0u;
     tod_eval();
+#ifdef _arch_dreamcast
+#ifdef PL4NAR_HILLS
+    {   /* a failed tile cut restarts the PVR (gfx_pvr.c): the heat texture went with the old video memory */
+        static uint32_t failed_seen;
+        gfx_cut_stats_t cs;
+        gfx_tile_cut_stats(&cs);
+        if (cs.failed != failed_seen) { failed_seen = cs.failed; heat_reset(); }
+    }
+#endif
+    heat_copy(heat_level());                      /* no scene open yet: the store queue through pvr_txr_load */
+#endif
     gfx_clear_colour(s_haze);
     s_pv_ok = 0;
 #ifdef PL4NAR_MAP
@@ -2271,7 +2321,7 @@ void demo_draw(const demo_stats_t *st) {
     spark_view(eye, at);
     gfx_cull(GFX_CULL_NONE);
 #ifdef PL4NAR_WET
-    if (s_rain && s_pv_ok && s_reflect) wet_grid();   /* under the shadows and the pools */
+    wet_grid();                                       /* the reflection (in rain) and the grit, under the shadows and the pools */
 #endif
     VP_LOAD();
     gfx_bind(GFX_MAT_HUD);
@@ -2287,6 +2337,20 @@ void demo_draw(const demo_stats_t *st) {
 #ifdef PL4NAR_WET
     wet_lights(0);
     wet_rain();
+#endif
+#ifdef _arch_dreamcast
+    {   /* the heat shimmer, the last world thing; its own header and strips (not counted in s_tris_main) */
+        float hp[3];
+        gfx_vert_t hv;
+        if (heat_anchor(eye3, at3, CAR_Y, hp)) {
+#ifdef PL4NAR_HILLS
+            if (!heat_anchor(eye3, at3, hills_h(hp[0], hp[2]), hp)) hp[1] = -1e9f;   /* the road's own height 30 m on */
+#endif
+            VP_LOAD();
+            gfx_xform(&hv, shz_vec3_init(hp[0], hp[1], hp[2]));
+            if (hp[1] > -1e8f && !hv.clip) heat_draw(hv.x, hv.y, hv.z, heat_level(), s_car.clock);
+        }
+    }
 #endif
     s_tris_main = gfx_tris_sent();
     overlay(st);

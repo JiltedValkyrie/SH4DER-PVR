@@ -68,6 +68,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **stick or D-pad left / right** | steer | all | always |
 | **RT** | engine | all | always |
 | **LT** | brake, then reverse | all | always |
+| **X** | heat haze over the road's far end: OFF, LIGHT (the start), STRONG; by day and dry only | street, map, hills | always |
 | **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | street, map, hills | tech |
 | **Y** | the rain: DRY, DAMP, WET in turn (night always) | wet | tech |
 | **A** | textures: low (64 x 64, 16 colours, the start) or full | all | tech |

@@ -21,6 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_coupe  # noqa: E402  (tools/check_coupe.py: the hero car has no hole)
+import grit_gen  # noqa: E402  (tools/grit_gen.py: the asphalt's grey, Cortana's generator)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 A = os.path.join(ROOT, "assets")            # fetched packs (tools/fetch.py), not in the repository
@@ -291,8 +292,10 @@ def mip_twiddled4444(im):
 def grit_tex(n=128, seed=4444):
     """The wet road's grit layer, RGBA n x n, our own (an integer hash, nothing fetched): u across the road's 24 m as
     tex_road's (sidewalk, kerb, 16 m of asphalt, kerb, sidewalk), v along 12 m (one dash period). Alpha is how much of
-    the dry surface shows over the reflection: grit everywhere, cracks and lane paint nearly opaque, patches of newer
-    asphalt fairly opaque and smooth, puddles nearly clear. The vertex alpha scales it by the rain."""
+    the dry surface shows over the reflection. The asphalt is tools/grit_gen.py's grey laid 12 m x 12 m (a texel here
+    the mean of two of its texels across, one along, so its speckles stay round): colour the grey, alpha 0.3 on the
+    dark binder up to 1 on the bright chips and dots. Over it our own road: cracks and lane paint nearly opaque,
+    patches of newer asphalt fairly opaque and smooth, puddles nearly clear. The vertex alpha scales it by the rain."""
     rnd = random.Random(seed)
     m_u, m_v = 24.0 / n, 12.0 / n                     # metres a texel across, along
     im = Image.new("RGBA", (n, n))
@@ -313,6 +316,7 @@ def grit_tex(n=128, seed=4444):
         return (g(x0, y0) * (1 - tx) + g(x0 + 1, y0) * tx) * (1 - ty) + (g(x0, y0 + 1) * (1 - tx) + g(x0 + 1, y0 + 1) * tx) * ty
 
     side = lambda x: x * m_u < 4.0 or x * m_u >= 20.0   # noqa: E731
+    grey = grit_gen.asphalt_grit(n)
     for y in range(n):
         for x in range(n):
             g = h(x, y, 1)
@@ -322,8 +326,9 @@ def grit_tex(n=128, seed=4444):
                 if (y * m_v) % 2.0 < m_v: c, a = 84, 0.95
                 px[x, y] = (c, c, c - 4, int(a * 255))
                 continue
-            c = 62 + int(g * 26)                      # the asphalt's grit
-            a = 0.50 + 0.30 * g
+            gg = (grey[y * n + (2 * x) % n] + grey[y * n + (2 * x + 1) % n]) * 0.5   # the asphalt: grit_gen's grey
+            c = int(gg)
+            a = 0.30 + 0.70 * min(1.0, max(0.0, (gg - 40.0) / 120.0))   # the binder faint, the chips and dots opaque
             pud = vnoise(x, y, 1.5, 2) * 0.7 + vnoise(x, y, 0.5, 3) * 0.3
             if pud > 0.58:                            # standing water: the mirror
                 a *= max(0.08, 1.0 - (pud - 0.58) * 6.0)

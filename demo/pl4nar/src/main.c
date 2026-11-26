@@ -117,6 +117,7 @@ typedef struct stage { const char *name; int reflect; unsigned size, tod; int or
 #define XS_CUT   2u                                /* the mirror pass through its own tiles (tile_cut.h) */
 #define XS_INFO  4u                                /* the overlay on */
 #define XS_STOP  8u                                /* the car stands: traffic crosses the tiles' fade band */
+#define XS_HEAT  16u                               /* (the map) the heat shimmer on STRONG; every other stage has it OFF */
 #define AUTO_V(k) ((stages[k].xs & XS_STOP) ? 0.0f : AUTO_SPEED)   /* blobs: no shadow tiles (the hills: 2 the flat quad); noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default; sun: 1 the sweep (the hills) */
 #if defined(PL4NAR_HILLS)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night; blobs 0 mesh, 1 off, 2 flat quad */
@@ -131,13 +132,14 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
 };
 #elif defined(PL4NAR_MAP)
 static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 2 512x256; tod 1 day, 2 night */
-    /* 10 stages, 70 s. Dropped for the 90 s limit: the split (a picture, its cost is between on and off), the night
-       orbit (the day orbit has the number), off at lod 30. */
+    /* 11 stages, 77 s. Dropped for the 90 s limit: the split (a picture, its cost is between on and off), the night
+       orbit (the day orbit has the number), off at lod 30. The last stage is stage 1 with the heat on STRONG: its twin. */
     { "on 256x128 day",   1, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day blobs", 1, 0, 1, 0, 1, 0, 0, 0.0f, 0, 0 }, { "on 256 day no AO", 1, 0, 1, 0, 0, 1, 0, 0.0f, 0, 0 },
     { "off day",          0, 0, 1, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "off night",        0, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
-    { "on 256 day lod30", 1, 0, 1, 0, 0, 0, 0, 30.0f, 0, 0 }
+    { "on 256 day lod30", 1, 0, 1, 0, 0, 0, 0, 30.0f, 0, 0 },
+    { "on 256 day heat",  1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_HEAT }
 };
 #elif defined(PL4NAR_WET)
 #define WET_STAGE(rain, streak) ((unsigned)(rain) | ((streak) ? 0u : 4u))   /* in the sun field: the rain, 4 = the streak off, 8 = the pools undimmed */
@@ -186,7 +188,7 @@ static void report(void) {
 #else
 #ifdef PL4NAR_WET
     pg_say("pl4m %s: the wet road (the street at night in rain), each stage's cost.", STR(PL4M_TAG));
-    pg_say("look = the car's lookup AND the wet grid's (329 vertices, 552 triangles, one added layer)");
+    pg_say("look = the car's lookup AND the wet grid's (329 vertices: the added reflection in rain, the grit always)");
     pg_say("the grid is round the car: 64 m behind, 362 m ahead, to the building lines; its edge fades to 0");
     pg_say("pools dimmed by the rain: damp %u %%, wet %u %% (by eye); AO: the street has no baked AO (map only)", (unsigned)WET_POOL_DIM_DAMP, (unsigned)WET_POOL_DIM_WET);
 #else
@@ -257,8 +259,13 @@ static void report(void) {
         for (k = 0; k < STAGES; k++) if (stages[k].xs) pg_say("%-2u %-16s %5u / %-5u   %u", k + 1u, stages[k].name, (unsigned)acc[k].cut_passes, (unsigned)acc[k].cut_refused, (unsigned)acc[k].band_frames);
     }
 #else
-    pg_say("effect labels OFF in every stage (fill); no split stage (10 stages, 70 s)");
+    pg_say("effect labels OFF in every stage (fill); no split stage (11 stages, 77 s)");
     pg_say("buildings boxed past %u m (traffic %u), stage 10 past 30 m", 50u, 40u);
+    {
+        uint32_t heat_us, heat_n;
+        demo_heat_copy(&heat_us, &heat_n);
+        pg_say("stage 11 = stage 1 + heat STRONG: last copy %u us, %u copies (0: no read)", (unsigned)heat_us, (unsigned)heat_n);
+    }
 #endif
 #endif
     g = pg_plot("pl4m: frame and PVR a stage, ms", "stage", "ms", 1);
@@ -298,6 +305,7 @@ int main(int argc, char **argv) {
     demo_auto_tile_set(!!(stages[0].xs & XS_SMALL)); demo_auto_cut(!!(stages[0].xs & XS_CUT)); demo_auto_info(!!(stages[0].xs & XS_INFO));
 #else
     demo_auto_tiles(!stages[0].blobs);
+    demo_auto_heat((stages[0].xs & XS_HEAT) ? 2u : 0u);
 #endif
     demo_auto_ao(!stages[0].noao);
     demo_auto_split(stages[0].split);
@@ -406,6 +414,7 @@ int main(int argc, char **argv) {
             demo_auto_tile_set(!!(stages[stage].xs & XS_SMALL)); demo_auto_cut(!!(stages[stage].xs & XS_CUT)); demo_auto_info(!!(stages[stage].xs & XS_INFO));
 #else
             demo_auto_tiles(!stages[stage].blobs);
+            demo_auto_heat((stages[stage].xs & XS_HEAT) ? 2u : 0u);
 #endif
             demo_auto_ao(!stages[stage].noao);
             demo_auto_split(stages[stage].split);

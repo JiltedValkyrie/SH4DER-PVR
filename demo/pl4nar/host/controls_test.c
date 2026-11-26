@@ -21,6 +21,11 @@ static uint32_t old_map(uint32_t p) {                /* main.c's read_pad, as it
 }
 
 #define GONE (DEMO_BTN_REFLECT | DEMO_BTN_SPLIT | DEMO_BTN_TILES)   /* reflection and shadow always on live: no key */
+#ifdef PL4NAR_WET
+#define HEAT_X 0u                                  /* no heat in the rain build */
+#else
+#define HEAT_X DEMO_BTN_HEAT                       /* X alone: the heat, in both key sets */
+#endif
 
 int main(void) {
 #if defined(PL4NAR_WET)                            /* Y is the rain there: checked below */
@@ -35,9 +40,12 @@ int main(void) {
     char t[96];
     for (p = 0; p < 512u; p++) {
         const uint32_t tech = ctl_map(p, ctl_when(1)), drive = ctl_map(p, CTL_W_DRIVE);
-        const uint32_t want = ((p & CTL_A) && !(p & CTL_B) ? DEMO_BTN_RESTART : 0u) | ((p & CTL_START) && !(p & CTL_B) ? DEMO_BTN_INFO : 0u);
+        const uint32_t want = ((p & CTL_A) && !(p & CTL_B) ? DEMO_BTN_RESTART : 0u) | ((p & CTL_START) && !(p & CTL_B) ? DEMO_BTN_INFO : 0u)
+                            | ((p & CTL_X) && !(p & CTL_B) ? HEAT_X : 0u);
+        const uint32_t heat = (p & CTL_X) && !(p & CTL_B) ? HEAT_X : 0u;
         if (tech & GONE) { if (bad++ < 8u) printf("pad %03x: a removed key still maps (%05x)\n", (unsigned)p, (unsigned)(tech & GONE)); }
-        if ((tech & acted & ~(uint32_t)GONE) != (old_map(p) & acted & ~(uint32_t)GONE)) { if (bad++ < 8u) printf("pad %03x: tech %05x, old %05x\n", (unsigned)p, (unsigned)tech, (unsigned)old_map(p)); }
+        if ((tech & DEMO_BTN_HEAT) != heat) { if (bad++ < 8u) printf("pad %03x: heat %05x, want %05x\n", (unsigned)p, (unsigned)(tech & DEMO_BTN_HEAT), (unsigned)heat); }
+        if ((tech & acted & ~(uint32_t)(GONE | DEMO_BTN_HEAT)) != (old_map(p) & acted & ~(uint32_t)(GONE | DEMO_BTN_HEAT))) { if (bad++ < 8u) printf("pad %03x: tech %05x, old %05x\n", (unsigned)p, (unsigned)tech, (unsigned)old_map(p)); }
         if (drive != want) { if (bad++ < 8u) printf("pad %03x: drive %05x, want %05x\n", (unsigned)p, (unsigned)drive, (unsigned)want); }
     }
 #ifdef PL4NAR_WET

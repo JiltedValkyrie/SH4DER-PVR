@@ -68,7 +68,8 @@ enum {
     DEMO_BTN_TILES   = 1u << 12,   /* the new map: car shadow tiles on / off, blobs only (B + Y) */
     DEMO_BTN_AO      = 1u << 13,   /* the new map: baked occlusion on / off (B + D-pad left) */
     DEMO_BTN_SUN     = 1u << 14,   /* the sun: FIXED -> SWEEP (azimuth, one diagonal to the other) -> HOLD (B + D-pad right) */
-    DEMO_BTN_RAIN    = 1u << 15    /* the wet road build: the rain DRY -> DAMP -> WET (Y there) */
+    DEMO_BTN_RAIN    = 1u << 15,   /* the wet road build: the rain DRY -> DAMP -> WET (Y there) */
+    DEMO_BTN_HEAT    = 1u << 16    /* the heat shimmer: OFF -> LIGHT -> STRONG (X; by day, dry: heat.h) */
 };
 
 typedef struct demo_input {
@@ -129,6 +130,8 @@ void  demo_auto_tile_set(int small);               /* the shadow tiles: 0 four o
 void  demo_auto_cut(int on);                       /* the mirror pass through its own tiles (tile_cut.h) */
 void  demo_auto_info(int on);                      /* the overlay (after demo_auto_set, which turns it off) */
 #endif
+void  demo_auto_heat(unsigned level);              /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (heat.h; by day, dry) */
+void  demo_heat_copy(uint32_t *us, uint32_t *copies);   /* the heat's last copy time and copies made (0, 0 off the Dreamcast) */
 
 /* Platform: microseconds since start. */
 uint64_t plat_us(void);
