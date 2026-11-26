@@ -1,7 +1,7 @@
 /* SH4DOW-DC
 
    sh4dow_dc.c
-   Copyright (C) 2026 Emerald May
+   Copyright (C) 2026 Jilted Valkyrie
    See ../LICENSE.
 */
 

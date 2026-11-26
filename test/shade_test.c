@@ -1,7 +1,7 @@
 /* SH4DOW-DC
 
    test/shade_test.c
-   Copyright (C) 2026 Emerald May
+   Copyright (C) 2026 Jilted Valkyrie
 
    Host check of the plain C path: fixed points on one column, a grid and
    random frames against the reference formula (every column, no early

@@ -1869,7 +1869,7 @@ See `AGENTS.md` "Call order: sh4dow" for the step list. Tests: `test/shade_test.
 
 A client that ships the soft shadows prints this line, as the library's author asks:
 
-> Soft self-shadow: SH4DOW-DC by Emerald May (JiltedValkyrie). Dreamcast math: SH4ZAM by Falco Girgis.
+> Soft self-shadow: SH4DOW-DC by Jilted Valkyrie. Dreamcast math: SH4ZAM by Falco Girgis.
 
 SH4DOW-DC's origin is in the "Credits and license" section below.
 

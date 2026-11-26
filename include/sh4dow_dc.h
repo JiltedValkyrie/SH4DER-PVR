@@ -1,7 +1,7 @@
 /* SH4DOW-DC
 
    sh4dow_dc.h
-   Copyright (C) 2026 Emerald May
+   Copyright (C) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 
    RECOMMENDED (one console run by the library's author, REPORTED: not in the ledger yet; wiki/effects/sh4dow.md)
@@ -46,7 +46,7 @@
     The dot products, square roots and reciprocals are SH4ZAM. Define
     SH4DOW_DC_NO_SH4ZAM to build the same steps in plain C.
 
-    \author Emerald May
+    \author Jilted Valkyrie
 */
 
 #ifndef SH4DOW_DC_H

@@ -1,7 +1,7 @@
 /* SH4DOW-DC
 
    sh4dow_foot.c
-   Copyright (C) 2026 Emerald May
+   Copyright (C) 2026 Jilted Valkyrie
    See ../LICENSE.
 
    Foot cones: two small floor shadows per character, one under each foot,

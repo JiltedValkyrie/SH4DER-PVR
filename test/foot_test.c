@@ -1,7 +1,7 @@
 /* SH4DOW-DC
 
    foot_test.c
-   Copyright (C) 2026 Emerald May
+   Copyright (C) 2026 Jilted Valkyrie
    See ../LICENSE.
 
    Foot cones: the shipped numbers, the cone's geometry on flat, sloped and

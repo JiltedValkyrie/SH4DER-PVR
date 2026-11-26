@@ -1,7 +1,7 @@
 /* SH4DOW-DC
 
    example/example.c
-   Copyright (C) 2026 Emerald May
+   Copyright (C) 2026 Jilted Valkyrie
 
    A head, a neck and a chest under a light straight down (Z up). Builds on a
    host with -DSH4DOW_DC_NO_SH4ZAM (make test), or on the Dreamcast with SH4ZAM.
