@@ -16,8 +16,8 @@ sources: [include/sh4der_aosky.h, test/aosky_test.c, demo/psm/ao_layer.h, demo/p
 What it is for: darker ground under props, from a few sky directions drawn into the sun's shadow target you already have.
 
 1. Make the directions' header with plain blending: `sh4der_aosky_header(&h, 0)`, not 1 (`include/sh4der_aosky.h:8`, `:55`, ADVISED). The depth union (1) failed on the PVR (PVR-127, MEASURED).
-2. Take k = 4 directions. `sh4der_aosky_count` rounds k to 0, 1, 2, 4 or 8, and `SH4DER_AOSKY_DIRS_MAX` = 8 is the most a call takes (`include/sh4der_aosky.h:85`, `:104`; `README.md:763`, ADVISED). Draw one side: it gives the same darkening as both sides for half the vertices (PVR-128, MEASURED).
-3. `SH4DER_AOSKY_FLOOR` = 0.5, what is left of the ground's light with every direction blocked (`include/sh4der_aosky.h:87`; `README.md:764`, ADVISED). `SH4DER_AOSKY_Z0` = 1.25 is direction 0's depth in the map pass (`include/sh4der_aosky.h:88`; `README.md:765`, ADVISED).
+2. Take k = 4 directions. `sh4der_aosky_count` rounds k to 0, 1, 2, 4 or 8, and `SH4DER_AOSKY_DIRS_MAX` = 8 is the most a call takes (`include/sh4der_aosky.h:85`, `:104`; `README.md:824`, ADVISED). Draw one side: it gives the same darkening as both sides for half the vertices (PVR-128, MEASURED).
+3. `SH4DER_AOSKY_FLOOR` = 0.5, what is left of the ground's light with every direction blocked (`include/sh4der_aosky.h:87`; `README.md:825`, ADVISED). `SH4DER_AOSKY_Z0` = 1.25 is direction 0's depth in the map pass (`include/sh4der_aosky.h:88`; `README.md:826`, ADVISED).
 4. Each frame, after the sun's casters: for each direction `d < k`, `sh4der_aosky_slope(k, d, s)` (`include/sh4der_aosky.h:114`), then `sh4der_aosky_dir` (`:202`) with `sh4der_aosky_argb(k, strength)`. No value to set.
 5. Cap k at what the frame pays: about 0.35 to 0.45 ms of PVR a direction for scenes of about 1,100 caster triangles (the page's Recommended limits). ESTIMATE: arithmetic from the target passes in PVR-140 (451 us and 347 us a direction).
 
@@ -55,7 +55,7 @@ The demo's version of the call sits in `demo/psm/ao/ao4_draw.h` (`ao4_draw_dir`)
 | VRAM | the shadow target the sun already uses; no new target | |
 | RAM | the caller's `xy` and `ok` arrays: 9 bytes a vertex | by the code |
 
-The scenes of Room shading ran this method in Room shading, build d, Room shading, build h, Room shading, build i and Room shading, build j (PVR-138, PVR-152, PVR-176, PVR-186; the target passes in PVR-140 and PVR-153). This copy of the code is the same maths, checked on the host against the scenes of Room shading; Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet) for this copy. Its status is ADVISED for the copy and PROVEN for the start settings.
+The scenes of Room shading ran this method in Room shading, build d, Room shading, build h, Room shading, build i and Room shading, build j (PVR-138, PVR-152, PVR-176, PVR-186; the target passes in PVR-140 and PVR-153). This copy of the code is the same maths, checked on the host against the scenes of Room shading; Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet) for this copy. Its status is ADVISED for the copy and PROVEN for the start settings. The rows measure K 4 with reach 60%; no row names the header's start settings, and the header keeps this copy ADVISED until a console run of it (include/sh4der_aosky.h:16-17).
 
 ## What the console said
 

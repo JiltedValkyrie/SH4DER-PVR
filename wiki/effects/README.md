@@ -54,7 +54,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [Distance ramp [ramp]](ramp.md) | A linear 0..1 ramp between two distances (a helper) | v0.10 | no |
 | [Crash and hang screen [fault]](fault.md) | A report on the screen for an exception or a hang: registers, calls, breadcrumbs | PROTOTYPE v0.1 | no: no run has shown it catching a fault (PVR-183, PVR-208 froze with no HANG screen) |
 | [Split screen [split]](split.md) | A movable divider for a left and a right half (tile columns, held triggers) | ALPHA v0.2 | **yes**: the middle position (PVR-144, PVR-161), one console; moving it OPEN |
-| [Tile-cut pass [tilecut]](tilecut.md) | A render target pass through a tile table its own size | ALPHA v0.5 | **yes**: Whole shadow chain by the PVR [c4]; Room shading, four ways [ao4], build h; Glow that meets a wall [d1], build c; Glow that meets a wall, build d (PVR-092, PVR-156, PVR-192, PVR-205), one console |
+| [Tile-cut pass [tilecut]](tilecut.md) | A render target pass through a tile table its own size | ALPHA v0.5 | **yes**: Full compare chain on a console [c4]; Room shading, four ways [ao4], build h; Glow that meets a wall [d1], build c; Glow that meets a wall, build d (PVR-092, PVR-156, PVR-192, PVR-205), one console |
 | [Sun shadow map [psm]](psm.md) | Shadow map placement; the SH-4 and PVR map routes | v0.10 | **yes**: the town demo HUD, one console, 2026-11-25 |
 | [Corner darkening [ao]](ao.md) | Crease darkening (bake) and a screen cavity cue | v0.10 | no |
 | [Baked corner shading [aobake]](aobake.md) | Baked ambient occlusion against exact shapes, at load (the console bake) | ALPHA v0.5 | **yes**: the bake in the scenes of Room shading, four ways (SH4-076, SH4-082), one console |
