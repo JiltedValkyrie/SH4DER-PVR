@@ -11,11 +11,16 @@ Host maths only (build machine): nothing here runs on the Dreamcast.
 """
 import argparse
 import colorsys
+import math
 import os
 import random
 import struct
+import sys
 
 from PIL import Image, ImageDraw, ImageFont
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import check_coupe  # noqa: E402  (tools/check_coupe.py: the hero car has no hole)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 A = os.path.join(ROOT, "assets")            # fetched packs (tools/fetch.py), not in the repository
@@ -262,6 +267,104 @@ def mip_twiddled(im):
     return words
 
 
+def argb4444(px):
+    return ((px[3] >> 4) << 12) | ((px[0] >> 4) << 8) | ((px[1] >> 4) << 4) | (px[2] >> 4)
+
+
+def mip_twiddled4444(im):
+    """Square RGBA image -> list of 16-bit words: PVR twiddled mipmap chain, ARGB4444 (the levels as mip_twiddled)."""
+    n = im.size[0]
+    assert im.size[0] == im.size[1] and n & (n - 1) == 0
+    top = n.bit_length() - 1
+    words = [0] * (MIP_WORDS[top] + n * n)
+    for lvl in range(top + 1):
+        s = 1 << lvl
+        m = im if s == n else im.resize((s, s), Image.BOX)
+        px = m.load()
+        base = MIP_WORDS[lvl]
+        for y in range(s):
+            for x in range(s):
+                words[base + twid(x, y, lvl)] = argb4444(px[x, y])
+    return words
+
+
+def grit_tex(n=128, seed=4444):
+    """The wet road's grit layer, RGBA n x n, our own (an integer hash, nothing fetched): u across the road's 24 m as
+    tex_road's (sidewalk, kerb, 16 m of asphalt, kerb, sidewalk), v along 12 m (one dash period). Alpha is how much of
+    the dry surface shows over the reflection: grit everywhere, cracks and lane paint nearly opaque, patches of newer
+    asphalt fairly opaque and smooth, puddles nearly clear. The vertex alpha scales it by the rain."""
+    rnd = random.Random(seed)
+    m_u, m_v = 24.0 / n, 12.0 / n                     # metres a texel across, along
+    im = Image.new("RGBA", (n, n))
+    px = im.load()
+
+    def h(x, y, k):
+        v = (x * 0x9E3779B1 ^ (y + 0x7F4A7C15) * 0x85EBCA77 ^ k * 0x2C1B3C6D) & 0xFFFFFFFF
+        v ^= v >> 15; v = (v * 0x2C1B3C6D) & 0xFFFFFFFF; v ^= v >> 12
+        return (v & 0xFFFF) / 65535.0
+
+    def vnoise(x, y, cell, k):                        # value noise in metres, tiles with the texture
+        cx, cy = int(n * m_u / cell), int(n * m_v / cell)
+        fx, fy = x * m_u / cell, y * m_v / cell
+        x0, y0 = int(fx), int(fy)
+        tx, ty = fx - x0, fy - y0
+        tx, ty = tx * tx * (3 - 2 * tx), ty * ty * (3 - 2 * ty)
+        g = lambda i, j: h(i % cx, j % cy, k)          # noqa: E731
+        return (g(x0, y0) * (1 - tx) + g(x0 + 1, y0) * tx) * (1 - ty) + (g(x0, y0 + 1) * (1 - tx) + g(x0 + 1, y0 + 1) * tx) * ty
+
+    side = lambda x: x * m_u < 4.0 or x * m_u >= 20.0   # noqa: E731
+    for y in range(n):
+        for x in range(n):
+            g = h(x, y, 1)
+            if side(x):                               # the sidewalk: concrete, slabs 2 m long, holds little water
+                c = 116 + int(g * 18)
+                a = 0.82 + 0.12 * g
+                if (y * m_v) % 2.0 < m_v: c, a = 84, 0.95
+                px[x, y] = (c, c, c - 4, int(a * 255))
+                continue
+            c = 62 + int(g * 26)                      # the asphalt's grit
+            a = 0.50 + 0.30 * g
+            pud = vnoise(x, y, 1.5, 2) * 0.7 + vnoise(x, y, 0.5, 3) * 0.3
+            if pud > 0.58:                            # standing water: the mirror
+                a *= max(0.08, 1.0 - (pud - 0.58) * 6.0)
+            px[x, y] = (c, c, c + 4, int(a * 255))
+    for _k in range(3):                               # patches of newer asphalt, a sealed seam round each
+        w, hh = rnd.randint(10, 22), rnd.randint(14, 34)
+        x0, y0 = rnd.randint(int(4.6 / m_u), int(19.4 / m_u) - w), rnd.randint(0, n - 1)
+        for y in range(hh):
+            for x in range(w):
+                yy = (y0 + y) % n
+                seam = x == 0 or y == 0 or x == w - 1 or y == hh - 1
+                c = 40 if seam else 52 + int(h(x0 + x, yy, 5) * 10)
+                px[x0 + x, yy] = (c, c, c + 3, 240 if seam else 190)
+    for _k in range(7):                               # cracks: a random walk, a texel wide, dark, they hold the eye
+        x, y = rnd.uniform(4.5 / m_u, 19.5 / m_u), rnd.uniform(0, n)
+        ang = rnd.uniform(0, 6.283)
+        for _s in range(rnd.randint(25, 70)):
+            ix, iy = int(x) % n, int(y) % n
+            if not side(ix):
+                px[ix, iy] = (30, 30, 32, 235)
+            ang += rnd.uniform(-0.6, 0.6)
+            x += math.cos(ang) * 0.8; y += math.sin(ang) * 1.2
+    def paint(x_m, half_m, col, dash):                # lane paint where tex_road has it; worn in places
+        for y in range(n):
+            if dash and y * m_v >= 3.0:
+                continue
+            for x in range(int((x_m - half_m) / m_u), int((x_m + half_m) / m_u) + 1):
+                a = 0.9 if h(x, y, 7) > 0.15 else 0.55
+                px[x, y] = col + (int(a * 255),)
+    paint(12.0 - 0.18, 0.07, (196, 160, 40), False)   # the double yellow
+    paint(12.0 + 0.18, 0.07, (196, 160, 40), False)
+    paint(8.0, 0.08, (200, 200, 196), True)           # the dashed lane lines
+    paint(16.0, 0.08, (200, 200, 196), True)
+    paint(4.55, 0.06, (176, 176, 172), False)         # the solid edge lines
+    paint(19.45, 0.06, (176, 176, 172), False)
+    for x_m in (3.95, 20.05):                         # the kerb stones
+        for y in range(n):
+            px[int(x_m / m_u), y] = (150, 150, 146, 250)
+    return im
+
+
 def emit_words(out, name, words):
     out.append("const uint16_t %s[%d] __attribute__((aligned(32))) = {" % (name, len(words)))
     for k in range(0, len(words), 16):
@@ -407,6 +510,8 @@ def main():
     rep = []
     car_pal = Image.open(os.path.join(A, "kenney_car-kit", "colormap.png")).convert("RGB")
     cars = os.path.join(A, "kenney_car-kit")
+    if check_coupe.main_path(a.coupe) != 0:              # a crack shows the road through the car: refuse it
+        raise SystemExit("%s has holes (tools/check_coupe.py): make it again with tools/coupe.py" % os.path.basename(a.coupe))
     rep.append(("mdl_player_body", emit_model(out, "mdl_player_body", bake_class_model(a.coupe, 1.0, skip_groups=["wheel"]), smooth_out=True)))
     rep.append(("mdl_player_wheels", emit_model(out, "mdl_player_wheels", bake_class_model(a.coupe, 1.0, groups=["wheel"]))))
     for n in ("taxi", "police", "van"):
@@ -449,6 +554,9 @@ def main():
             k = int(255 * min(1.0, (1.0 - r) ** 2 * 1.1 + max(0.0, 1.0 - r * 4.0) * 0.6))
             glow.append(rgb565((k, k, k)))
     emit_words(out, "tex_glow", glow)
+    grit = grit_tex()                                  # the wet road's grit layer (ARGB4444, twiddled mips: 43,696 bytes)
+    emit_words(out, "tex_grit", mip_twiddled4444(grit))
+    grit.resize((512, 512), Image.NEAREST).save(os.path.join(a.out, "grit_x4.png"))
     emit_words(out, "tex_font", font_words())
     prev.save(os.path.join(a.out, "textures_preview.png"))
     with open(os.path.join(a.out, "assets_gen.c"), "w", encoding="utf-8", newline="\n") as fh:

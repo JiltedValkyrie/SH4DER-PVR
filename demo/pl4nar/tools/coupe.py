@@ -86,7 +86,9 @@ def body(m):
     for (z, w, s, d), nz, part, lamp in ((STATIONS[0], -1.0, "tail", LAMP_R), (STATIONS[-1], 1.0, "nose", LAMP_F)):
         top = d - SHOULDER_DROP
         # the end panel: a dark grille or tail panel between the lamps, the lamps at the corners, paint above
-        m.add("%s__paint__%s" % (part, PAINT), [(-w, top, z), (w, top, z), (w - SHOULDER_IN, d, z), (-(w - SHOULDER_IN), d, z)], (0, 0, nz))
+        # its top follows the deck's edge and the stripe's lift, so no gap opens under the end of the deck
+        m.add("%s__paint__%s" % (part, PAINT), [(-w, top, z), (w, top, z), (w - SHOULDER_IN, d, z), (STRIPE_HALF, d + 0.012, z),
+                                                (-STRIPE_HALF, d + 0.012, z), (-(w - SHOULDER_IN), d, z)], (0, 0, nz))
         m.add("%s-panel__trim__%s" % (part, BLACK), [(-w + 0.30, s + 0.06, z), (w - 0.30, s + 0.06, z), (w - 0.30, top, z), (-w + 0.30, top, z)], (0, 0, nz))
         for sx in (-1.0, 1.0):
             m.add("%s-lamp__lamp__%s" % (part, lamp), [(sx * (w - 0.30), s + 0.06, z), (sx * w, s + 0.06, z), (sx * w, top, z), (sx * (w - 0.30), top, z)], (0, 0, nz))
@@ -99,21 +101,24 @@ def body(m):
         m.add(ch, [(-wb, y0, zb), (wb, y0, zb), (wb, y0, z), (-wb, y0, z)], (0, -1, 0))
         for sx in (-1.0, 1.0):
             m.add(ch, [(sx * wb, y0, zb), (sx * wb, y1, zb), (sx * wb, y1, z - nz * 0.25), (sx * wb, y0, z - nz * 0.25)], (sx, 0, 0))
+        m.add(ch, [(-wb, y0, z), (wb, y0, z), (wb, y1, z), (-wb, y1, z)], (0, 0, -nz))     # its back: the bar is wider than the body
 
 
 def greenhouse(m):
     paint, stripe, glass = "roof__paint__" + PAINT, "stripe__paint__" + STRIPE, "glass__glass__" + GLASS
     (z0, w0, y0), (z1, w1, y1), (z2, w2, y2), (z3, w3, y3) = ROOF
-    m.add(glass, [(-w0, y0, z0), (w0, y0, z0), (w1, y1, z1), (-w1, y1, z1)], (0, 1, 1))            # the windscreen
-    m.add(glass, [(-w2, y2, z2), (w2, y2, z2), (w3, y3, z3), (-w3, y3, z3)], (0, 1, -1))           # the fastback rear window
+    # the windscreen and the rear window: the top edge rises with the stripe as the roof's does, so the two meet
+    m.add(glass, [(-w0, y0, z0), (w0, y0, z0), (w1, y1, z1), (STRIPE_HALF, y1 + 0.008, z1), (-STRIPE_HALF, y1 + 0.008, z1), (-w1, y1, z1)], (0, 1, 1))
+    m.add(glass, [(-w3, y3, z3), (w3, y3, z3), (w2, y2, z2), (STRIPE_HALF, y2 + 0.008, z2), (-STRIPE_HALF, y2 + 0.008, z2), (-w2, y2, z2)], (0, 1, -1))
     for sx in (-1.0, 1.0):
         m.add(paint, [(sx * w1, y1, z1), (sx * w2, y2, z2), (sx * STRIPE_HALF, y2 + 0.008, z2), (sx * STRIPE_HALF, y1 + 0.008, z1)], (0, 1, 0))
         # the side: the door glass under the roof, a solid sail panel behind it
         zq = z2 + 0.12                                                                               # where the door glass ends
         yq = y0 + (y3 - y0) * (zq - z0) / (z3 - z0)                                                  # the belt line there
         wq = w0 + (w3 - w0) * (zq - z0) / (z3 - z0)
-        m.add(glass, [(sx * w0, y0, z0), (sx * w1, y1, z1), (sx * w2, y2, zq), (sx * wq, yq, zq)], (sx, 0.4, 0))
-        m.add(paint, [(sx * wq, yq, zq), (sx * w2, y2, zq), (sx * w2, y2, z2), (sx * w3, y3, z3)], (sx, 0.4, 0))
+        yr = y1 + (y2 - y1) * (zq - z1) / (z2 - z1)                                                  # the roof's edge there
+        m.add(glass, [(sx * w0, y0, z0), (sx * w1, y1, z1), (sx * w2, yr, zq), (sx * wq, yq, zq)], (sx, 0.4, 0))
+        m.add(paint, [(sx * wq, yq, zq), (sx * w2, yr, zq), (sx * w2, y2, z2), (sx * w3, y3, z3)], (sx, 0.4, 0))
     m.add(stripe, [(-STRIPE_HALF, y1 + 0.008, z1), (STRIPE_HALF, y1 + 0.008, z1), (STRIPE_HALF, y2 + 0.008, z2), (-STRIPE_HALF, y2 + 0.008, z2)], (0, 1, 0))
 
 

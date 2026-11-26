@@ -43,6 +43,10 @@ extern const uint16_t pal_facade0[16], pal_facade1[16], pal_facade2[16], pal_fac
 extern const uint16_t tex_glow[];
 #define TEX_FONT_SIZE   128
 extern const uint16_t tex_font[];
+/* ARGB4444, twiddled mip chain, 128 x 128: the wet road's grit layer (tools/bake.py grit_tex: u across the road's 24 m,
+   v along 12 m; alpha = the dry surface over the reflection). */
+#define TEX_GRIT_SIZE   128
+extern const uint16_t tex_grit[];
 
 static inline uint32_t tex_mip_bytes(uint32_t size) {       /* bytes of a square 16-bit twiddled mip chain */
     uint32_t words = 3u, s;

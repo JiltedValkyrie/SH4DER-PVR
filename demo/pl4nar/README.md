@@ -61,14 +61,13 @@ To put these effects into another engine, follow `AGENT_WORKFLOW.md`. See `CREDI
 
 ## Controls
 
-The table is `src/controls.h`, the table the pad is read through and the HUD's key lines come from; `python tools/check_controls.py` fails when this one differs from it. Builds: street (`--street`), map (the default), hills (the map built with `PL4NAR_HILLS`), wet (the street built with `PL4NAR_WET`: the wet road one-off, night only). When: DRIVE (the game program, `build.py` without `--tech`) has two key sets, the drive keys while the overlay is closed and the tech keys while START has it open; "always" is both. Every other program (the live view, the autorun) has the tech keys all the time.
+The table is `src/controls.h`, the table the pad is read through and the HUD's key lines come from; `python tools/check_controls.py` fails when this one differs from it. Builds: street (`--street`), map (the default), hills (the map built with `PL4NAR_HILLS`), wet (the street built with `PL4NAR_WET`: the wet road one-off, night only). When: DRIVE (the game program, `build.py` without `--tech`) has two key sets, the drive keys while the overlay is closed and the tech keys while START has it open; "always" is both. Every other program (the live view, the autorun) has the tech keys all the time. On the suite disc (`../psm/psm_suite.h`), A + B + X + Y held together goes back to the menu: in the live programs at any time, in the autorun on its result pages; a "run all" passes the live programs over (they have no pages). On a disc of their own the four do nothing more than their own keys.
 
 | Keys | Action | Builds | When |
 |---|---|---|---|
 | **stick or D-pad left / right** | steer | all | always |
 | **RT** | engine | all | always |
 | **LT** | brake, then reverse | all | always |
-| **X** | reflection on / off | all | tech |
 | **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | street, map, hills | tech |
 | **Y** | the rain: DRY, DAMP, WET in turn (night always) | wet | tech |
 | **A** | textures: low (64 x 64, 16 colours, the start) or full | all | tech |
@@ -77,19 +76,34 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **D-pad down** | F0 down | all | tech |
 | **START** | the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills and in DRIVE | all | always |
 | **B + stick** | the camera round the car | all | always |
-| **B + LT / RT** | move the split's divider (with the split on) | all | always |
-| **B + X** | the split: the reflection on the left of a divider only | all | tech |
 | **B + A** | the target's size: 128 x 64 (the start), 64 x 32, 256 x 128 in turn | wet | tech |
 | **B + A** | the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64) | street, map, hills | tech |
 | **B + D-pad up** | the reflection's night gain up | all | tech |
 | **B + D-pad down** | the night gain down | all | tech |
 | **B + D-pad right** | the sun: FIXED, SWEEP (to DAY unless NIGHT), HOLD | all | tech |
 | **B + D-pad left** | baked occlusion on / off | map, hills | tech |
-| **B + Y** | car shadow tiles on / off (off: blob discs) | map | tech |
-| **B + Y** | car shadow: on the ground mesh, one flat quad, off (blob discs) in turn | hills | tech |
 | **B + START** | the effect labels shown / hidden | map, hills | tech |
 
-In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick and B + LT / RT change no work and mark nothing). No key ends the autorun: it runs every stage, then shows its result pages, and a key pressed during a stage only marks it. The tile cut and the small tile set have no key: they are autorun stages only, and the cut is off by default. Its cost: the PVR side of a map pass fell 5.1 -> 1.4 ms but the SH-4 side rose 3.9 ms, measured in another program (d1-c, PVR-192, one console), not yet measured here; nothing more is built on it until the cause is found.
+No key turns the reflection or the car's shadow off, and there is no split key: in DRIVE and the live view both are always on (the projected shadow; on the hills, laid on the ground mesh). The comparisons (reflection off, the split, blob discs, the flat quad) are stages of the autorun, set by it.
+
+In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick changes no work and marks nothing). No key ends the autorun: it runs every stage, then shows its result pages, and a key pressed during a stage only marks it. The tile cut and the small tile set have no key: they are autorun stages only, and the cut is off by default. Its cost: the PVR side of a map pass fell 5.1 -> 1.4 ms but the SH-4 side rose 3.9 ms, measured in another program (d1-c, PVR-192, one console), not yet measured here; nothing more is built on it until the cause is found.
+
+## Camera and thumbnail
+
+The values are macros in `src/demo.h` (each can be set with `-D` through `EXTRA=`).
+
+| Macro | Value | What it is |
+|---|---|---|
+| `CAM_HEIGHT` | 1.9 m (DRIVE, the wet live view); 1.5 m (the wet autorun); 3.3 m (the map and hills autoruns) | the chase camera over the car's ground |
+| `CAM_DIST` | 6.0 m (DRIVE, wet); 7.0 m (the autoruns) | behind the car's centre |
+| `CAM_PITCH` | 0.09 rad, about 5 degrees down (DRIVE, the wet live view); 0.10 rad (the wet autorun) | puts the horizon near 41 % from the top at the 55 degree field of view (40 % at 0.10), the car's centre near 61 % |
+| `THUMB_MIRROR_W` | 128 px | the mirror inset's width (its height from the mirror's shape) |
+| `THUMB_TILES_W` | 96 px | the shadow tiles' inset (the map builds) |
+| `THUMB_RIGHT` | 620 px | both insets' right edge |
+| `THUMB_TOP` | 20 px on the map, 124 px on the street (under its map) | the mirror inset's top |
+| `THUMB_GAP` | 24 px | under an inset: its label, then the next |
+
+The map and hills autoruns keep the old high camera so their stage numbers compare with the earlier console runs. The B + stick orbit turns the low camera round the car as before. The insets show the reflection target (it is not a rear-view mirror) and are drawn only with the tech overlay open (START), so DRIVE starts with neither.
 
 ## Cost
 

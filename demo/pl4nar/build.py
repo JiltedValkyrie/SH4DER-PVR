@@ -150,7 +150,7 @@ def dry_run(a):
     rows = [ln.split() for ln in f.stdout.splitlines() if ln.strip()]
     print("DRY_RUN 2 fetch: %d packs, %d present, %d not pinned%s"
           % (len(rows), sum(1 for w in rows if w[0] == "have"), sum(1 for w in rows if w[-2:] == ["NOT", "pinned"]), " (would need --pin)" if not a.pin else ""))
-    coupe = os.path.join(gen, "coupe.obj")
+    coupe = coupe_obj(gen)
     print("DRY_RUN 3 coupe: %s" % ("%s is there, kept" % rel(coupe) if os.path.exists(coupe) else "would run tools/coupe.py -> %s" % rel(coupe)))
     if not street:
         st = os.path.join(GEN_MAP, "structures.obj")
@@ -169,6 +169,14 @@ def dry_run(a):
     print("DRY_RUN 7 image: would write %s (volume %s)" % (next_image(a.out, stem)[1], vol))
     print("DRY_RUN_OK" if r.returncode == 0 else "DRY_RUN_FAILED credits")
     return 0 if r.returncode == 0 else 1
+
+
+def coupe_obj(gen):
+    """The hero car's OBJ, named by the hash of tools/coupe.py: a changed coupe gets a new file and an old one is never
+    baked again (a kept coupe.obj from an earlier coupe.py once put a cracked boot in the map builds)."""
+    import hashlib
+    with open(os.path.join(ROOT, "tools", "coupe.py"), "rb") as fh:
+        return os.path.join(gen, "coupe-%s.obj" % hashlib.sha256(fh.read()).hexdigest()[:8])
 
 
 def fresh(path):
@@ -213,8 +221,9 @@ def main():
     run("credits", [py, os.path.join("tools", "check_credits.py")])
     run("controls", [py, os.path.join("tools", "check_controls.py")])
     run("fetch", [py, os.path.join("tools", "fetch.py")] + (["--pin"] if a.pin else []))
-    if fresh(os.path.join(gen, "coupe.obj")):
-        run("coupe", [py, os.path.join("tools", "coupe.py"), os.path.join(gen, "coupe.obj")])
+    coupe = coupe_obj(gen)
+    if fresh(coupe):
+        run("coupe", [py, os.path.join("tools", "coupe.py"), coupe])
     if fresh(os.path.join(GEN, "props.obj")):
         run("props", [py, os.path.join("tools", "props.py"), os.path.join(GEN, "props.obj")])
     if not street and fresh(os.path.join(GEN_MAP, "structures.obj")):
@@ -227,9 +236,9 @@ def main():
             [a.blender, "-b", "--factory-startup", "--python", os.path.join("tools", "car_lod.py"), "--",
              os.path.join("assets", *src.split("/")), os.path.join(LOD, os.path.basename(src)), "--body", str(body), "--wheel", str(wheel)])
     if street:
-        run("bake", [py, os.path.join("tools", "bake.py")])
+        run("bake", [py, os.path.join("tools", "bake.py"), "--coupe", coupe])
     else:
-        run("bake", [py, os.path.join("tools", "bake.py"), "--out", GEN_MAP, "--coupe", os.path.join(GEN_MAP, "coupe.obj")])
+        run("bake", [py, os.path.join("tools", "bake.py"), "--out", GEN_MAP, "--coupe", coupe])
         run("map", [py, os.path.join("tools", "map.py"), "--out", GEN_MAP, "--structures", os.path.join(GEN_MAP, "structures.obj")]
             + (["--blender", a.blender] if shutil.which(a.blender) else []))
         exe = os.path.join(BUILD_MAP, "host", "map_ao" + (".exe" if os.name == "nt" else ""))

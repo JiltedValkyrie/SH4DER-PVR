@@ -1,7 +1,8 @@
 /* controls.h against the hand-written pad read it replaced (main.c before the table), every pad state, one build a
  * compile (-DPL4NAR_MAP, -DPL4NAR_MAP -DPL4NAR_HILLS, or neither; each with or without -DPL4NAR_DRIVE): the tech set is
  * the old read exactly; DRIVE's drive set is the restart (A) and the overlay (START) alone. The HUD's key lines fit.
- * Bits an older build set but never acted on (tiles, AO and the labels on the street) are left out of the comparison. */
+ * Bits an older build set but never acted on (tiles, AO and the labels on the street) are left out of the comparison,
+ * and so are the keys taken out since (X reflection, B + X split, B + Y shadow): they must map to nothing now. */
 #include <stdio.h>
 #include "controls.h"
 
@@ -19,6 +20,8 @@ static uint32_t old_map(uint32_t p) {                /* main.c's read_pad, as it
     return now;
 }
 
+#define GONE (DEMO_BTN_REFLECT | DEMO_BTN_SPLIT | DEMO_BTN_TILES)   /* reflection and shadow always on live: no key */
+
 int main(void) {
 #if defined(PL4NAR_WET)                            /* Y is the rain there: checked below */
     const uint32_t acted = ~(uint32_t)(DEMO_BTN_TILES | DEMO_BTN_AO | DEMO_BTN_FX | DEMO_BTN_TOD | DEMO_BTN_RAIN);
@@ -33,7 +36,8 @@ int main(void) {
     for (p = 0; p < 512u; p++) {
         const uint32_t tech = ctl_map(p, ctl_when(1)), drive = ctl_map(p, CTL_W_DRIVE);
         const uint32_t want = ((p & CTL_A) && !(p & CTL_B) ? DEMO_BTN_RESTART : 0u) | ((p & CTL_START) && !(p & CTL_B) ? DEMO_BTN_INFO : 0u);
-        if ((tech & acted) != (old_map(p) & acted)) { if (bad++ < 8u) printf("pad %03x: tech %05x, old %05x\n", (unsigned)p, (unsigned)tech, (unsigned)old_map(p)); }
+        if (tech & GONE) { if (bad++ < 8u) printf("pad %03x: a removed key still maps (%05x)\n", (unsigned)p, (unsigned)(tech & GONE)); }
+        if ((tech & acted & ~(uint32_t)GONE) != (old_map(p) & acted & ~(uint32_t)GONE)) { if (bad++ < 8u) printf("pad %03x: tech %05x, old %05x\n", (unsigned)p, (unsigned)tech, (unsigned)old_map(p)); }
         if (drive != want) { if (bad++ < 8u) printf("pad %03x: drive %05x, want %05x\n", (unsigned)p, (unsigned)drive, (unsigned)want); }
     }
 #ifdef PL4NAR_WET

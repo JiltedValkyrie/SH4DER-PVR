@@ -21,6 +21,7 @@ void demo_host_cam(float ex, float ey, float ez, float ax, float ay, float az);
 void demo_host_car(float *x, float *z, float *yaw);
 #ifdef PL4NAR_HILLS
 float demo_host_car_y(void);
+float demo_host_lamp_err(void);
 #endif
 uint64_t plat_us(void) { return (uint64_t)clock() * 1000000ull / CLOCKS_PER_SEC; }
 
@@ -121,6 +122,12 @@ int main(int argc, char **argv) {
     for (k = 0; k < sizeof shots / sizeof shots[0]; k++) {
         const shot_t *s = &shots[k];
         set(s, 1);
+#ifdef PL4NAR_HILLS
+        {   /* the car's lamps on its body (car_point against the body's matrix): fail over 1 mm */
+            const float e = demo_host_lamp_err();
+            if (e > 0.001f) { printf("LAMP_FAIL shot %u: %.4f m off the body\n", k, (double)e); bad++; }
+        }
+#endif
         demo_auto_split(strstr(s->name, "split") != NULL);
         demo_draw(&st);
         snprintf(p, sizeof p, "%s/%02u_on.ppm", dir, k); gfx_host_save(p, 0);

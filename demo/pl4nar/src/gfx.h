@@ -27,6 +27,8 @@ enum {
                                       there (DESTCOLOR x ZERO): white keeps the ground, grey darkens it */
     GFX_MAT_MUL,                   /* translucent, vertex colour multiplied into what is there (DESTCOLOR x ZERO): baked occlusion */
     GFX_MAT_WET,                   /* opaque: the reflection target x vertex colour + offset colour (the wet road: one pass) */
+    GFX_MAT_GRIT,                  /* translucent: the wet road's grit (tex_grit, ARGB4444, mips) x vertex colour, alpha =
+                                      texel x vertex alpha, src alpha / 1 - src alpha; loaded in the wet build only */
     GFX_MAT_COUNT
 };
 enum { GFX_CULL_NONE = 0, GFX_CULL_BACK = 1, GFX_CULL_MIRROR = 2 };

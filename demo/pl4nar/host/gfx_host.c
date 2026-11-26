@@ -60,6 +60,22 @@ static uint8_t *decode_pal4(const uint8_t *nib, const uint16_t *pal, int size) {
     return o;
 }
 
+#ifdef PL4NAR_WET
+static uint8_t *decode_mip4444(const uint16_t *words, int size) {
+    uint8_t *o = malloc((size_t)size * size * 4);
+    unsigned bits = 0, base = 3u, s, x, y;
+    for (s = 1; s < (unsigned)size; s <<= 1) { base += s * s; bits++; }
+    for (y = 0; y < (unsigned)size; y++)
+        for (x = 0; x < (unsigned)size; x++) {
+            const uint16_t p = words[base + untwid(x, y, bits)];
+            uint8_t *d = o + (y * (unsigned)size + x) * 4u;
+            d[0] = (uint8_t)(((p >> 8) & 15u) * 17u); d[1] = (uint8_t)(((p >> 4) & 15u) * 17u);
+            d[2] = (uint8_t)((p & 15u) * 17u); d[3] = (uint8_t)(((p >> 12) & 15u) * 17u);
+        }
+    return o;
+}
+#endif
+
 static uint8_t *decode_565_rows(const uint16_t *words, int size) {
     uint8_t *o = malloc((size_t)size * size * 4);
     int i;
@@ -109,6 +125,9 @@ void gfx_be_init(void) {
     }
     s_tex[GFX_MAT_GLOW].rgba = decode_565_rows(tex_glow, TEX_GLOW_SIZE); s_tex[GFX_MAT_GLOW].w = s_tex[GFX_MAT_GLOW].h = TEX_GLOW_SIZE;
     s_tex[GFX_MAT_FONT].rgba = decode_1555(tex_font, TEX_FONT_SIZE); s_tex[GFX_MAT_FONT].w = s_tex[GFX_MAT_FONT].h = TEX_FONT_SIZE;
+#ifdef PL4NAR_WET
+    s_tex[GFX_MAT_GRIT].rgba = decode_mip4444(tex_grit, TEX_GRIT_SIZE); s_tex[GFX_MAT_GRIT].w = s_tex[GFX_MAT_GRIT].h = TEX_GRIT_SIZE;
+#endif
     s_t = &s_scr;
 }
 void gfx_be_shutdown(void) {}
@@ -206,7 +225,7 @@ void gfx_be_tri(const gfx_vert_t *a, const gfx_vert_t *b, const gfx_vert_t *c) {
             if (tx) texel(tx, pa * a->u + pb * b->u + pc * c->u, pa * a->v + pb * b->v + pc * c->v, refl || s_mat == GFX_MAT_FONT || s_mat == GFX_MAT_GLOW || s_mat == GFX_MAT_WET,
                           s_mat != GFX_MAT_FONT && !tx->nearest, t);
             alpha = 1.0f;
-            if (s_translucent) alpha = s_mat == GFX_MAT_GLOW ? 1.0f : col[0] * (s_mat == GFX_MAT_FONT ? t[3] : 1.0f);
+            if (s_translucent) alpha = s_mat == GFX_MAT_GLOW ? 1.0f : col[0] * (s_mat == GFX_MAT_FONT || s_mat == GFX_MAT_GRIT ? t[3] : 1.0f);
             for (k = 0; k < 3; k++) {
                 float v = t[k] * col[k + 1] + (tx && !refl && s_mat != GFX_MAT_FONT ? off[k] : 0.0f);
                 v = v > 1.0f ? 1.0f : v;

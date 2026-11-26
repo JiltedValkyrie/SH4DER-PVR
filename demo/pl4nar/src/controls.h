@@ -6,7 +6,9 @@
  * the HUD's short form (NULL: not on the HUD). The driving rows (steer, gas, brake) are the autorun's own: there its
  * driver holds them.
  * When: DRIVE (PL4NAR_DRIVE, the game program) has two key sets: the drive keys while the overlay is closed, the tech
- * keys while START has it open. Every other program (the live view, the autorun) has the tech keys always. */
+ * keys while START has it open. Every other program (the live view, the autorun) has the tech keys always.
+ * No key turns the reflection or the car's shadow off, and no key shows the split: live, both are always on; the
+ * comparisons (reflection off, the split, blob or flat shadows) are the autorun's stages (demo_auto_*). */
 #ifndef PL4NAR_CONTROLS_H
 #define PL4NAR_CONTROLS_H
 #include <stdint.h>
@@ -46,7 +48,6 @@ static const ctl_row_t ctl_rows[] = {
 CTL_ROW(CTL_STICK | CTL_LEFT | CTL_RIGHT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "stick or D-pad left / right", "steer", "stick steer")
 CTL_ROW(CTL_RT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "RT", "engine", "RT gas")
 CTL_ROW(CTL_LT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "LT", "brake, then reverse", "LT brake")
-CTL_ROW(CTL_X, DEMO_BTN_REFLECT, CTL_B_ALL, CTL_W_TECH, "X", "reflection on / off", "X reflect")
 CTL_ROW(CTL_Y, DEMO_BTN_TOD, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "Y", "time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE", "Y time")
 CTL_ROW(CTL_Y, DEMO_BTN_RAIN, CTL_B_WET, CTL_W_TECH, "Y", "the rain: DRY, DAMP, WET in turn (night always)", "Y rain")
 CTL_ROW(CTL_A, DEMO_BTN_LOOK, CTL_B_ALL, CTL_W_TECH, "A", "textures: low (64 x 64, 16 colours, the start) or full", "A look")
@@ -55,16 +56,12 @@ CTL_ROW(CTL_UP, DEMO_BTN_MORE, CTL_B_ALL, CTL_W_TECH, "D-pad up", "F0 (the refle
 CTL_ROW(CTL_DOWN, DEMO_BTN_LESS, CTL_B_ALL, CTL_W_TECH, "D-pad down", "F0 down", NULL)
 CTL_ROW(CTL_START, DEMO_BTN_INFO, CTL_B_ALL, CTL_W_ALL, "START", "the overlay (times, triangles, memory, the target as a thumbnail) on / off; off at the start on the hills and in DRIVE", "START info")
 CTL_ROW(CTL_B | CTL_STICK, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "B + stick", "the camera round the car", "B+stick camera")
-CTL_ROW(CTL_B | CTL_LT | CTL_RT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "B + LT / RT", "move the split's divider (with the split on)", NULL)
-CTL_ROW(CTL_B | CTL_X, DEMO_BTN_SPLIT, CTL_B_ALL, CTL_W_TECH, "B + X", "the split: the reflection on the left of a divider only", "B+X split")
 CTL_ROW(CTL_B | CTL_A, DEMO_BTN_SIZE, CTL_B_WET, CTL_W_TECH, "B + A", "the target's size: 128 x 64 (the start), 64 x 32, 256 x 128 in turn", "B+A size")
 CTL_ROW(CTL_B | CTL_A, DEMO_BTN_SIZE, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "B + A", "the target's size: 256 x 128, 128 x 64, 512 x 256 in turn (the start: 256 x 128; the hills: 128 x 64)", "B+A size")
 CTL_ROW(CTL_B | CTL_UP, DEMO_BTN_LAMP_UP, CTL_B_ALL, CTL_W_TECH, "B + D-pad up", "the reflection's night gain up", "B+UP/DOWN night gain")
 CTL_ROW(CTL_B | CTL_DOWN, DEMO_BTN_LAMP_DN, CTL_B_ALL, CTL_W_TECH, "B + D-pad down", "the night gain down", NULL)
 CTL_ROW(CTL_B | CTL_RIGHT, DEMO_BTN_SUN, CTL_B_ALL, CTL_W_TECH, "B + D-pad right", "the sun: FIXED, SWEEP (to DAY unless NIGHT), HOLD", "B+RIGHT sun")
 CTL_ROW(CTL_B | CTL_LEFT, DEMO_BTN_AO, CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "B + D-pad left", "baked occlusion on / off", "B+LEFT AO")
-CTL_ROW(CTL_B | CTL_Y, DEMO_BTN_TILES, CTL_B_MAP, CTL_W_TECH, "B + Y", "car shadow tiles on / off (off: blob discs)", "B+Y shadow")
-CTL_ROW(CTL_B | CTL_Y, DEMO_BTN_TILES, CTL_B_HILLS, CTL_W_TECH, "B + Y", "car shadow: on the ground mesh, one flat quad, off (blob discs) in turn", "B+Y shadow")
 CTL_ROW(CTL_B | CTL_START, DEMO_BTN_FX, CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "B + START", "the effect labels shown / hidden", "B+START labels")
 };
 #define CTL_ROWS (sizeof ctl_rows / sizeof ctl_rows[0])

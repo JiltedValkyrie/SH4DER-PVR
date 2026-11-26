@@ -3,6 +3,55 @@
 #define DEMO_H
 #include <stdint.h>
 
+/* The chase camera (README "Camera and thumbnail"). DRIVE and the wet road: a racing game's, low behind the car,
+   looking down by CAM_PITCH (radians), so the horizon sits near 41 % from the top at the 55 degree field of view
+   (the horizon's place depends on the pitch alone) and the car's centre near 61 %. The wet road's autorun keeps the
+   1.5 m camera of its earlier runs; the measuring autoruns of the map and the hills keep the old high one, so their
+   numbers compare with earlier runs. */
+#if defined(PL4NAR_DRIVE) || defined(PL4NAR_WET)
+#ifndef CAM_HEIGHT
+#if defined(PL4NAR_AUTORUN)
+#define CAM_HEIGHT   1.5f          /* metres over the car's ground */
+#else
+#define CAM_HEIGHT   1.9f          /* metres over the car's ground (DRIVE and the live view) */
+#endif
+#endif
+#ifndef CAM_DIST
+#define CAM_DIST     6.0f          /* metres behind the car's centre */
+#endif
+#ifndef CAM_PITCH
+#if defined(PL4NAR_AUTORUN)
+#define CAM_PITCH    0.10f         /* down, about 6 degrees */
+#else
+#define CAM_PITCH    0.09f         /* down, about 5 degrees */
+#endif
+#endif
+#else
+#define CAM_HEIGHT   3.3f          /* the old camera: looks at a point 1.2 m ahead of the car, 1 m up */
+#define CAM_DIST     7.0f
+#endif
+/* The reflection target in the tech overlay only (START; hidden in DRIVE until then), as two small insets down the
+   right edge, neither over the other: the mirror on top, the car shadow tiles under it (the map builds). Pixels. */
+#ifndef THUMB_MIRROR_W
+#define THUMB_MIRROR_W 128.0f      /* the mirror's width; its height from the mirror's own shape */
+#endif
+#ifndef THUMB_TILES_W
+#define THUMB_TILES_W  96.0f       /* the tiles' region's width; its height from the region's shape */
+#endif
+#ifndef THUMB_RIGHT
+#define THUMB_RIGHT    620.0f      /* both insets' right edge */
+#endif
+#ifndef THUMB_TOP
+#ifdef PL4NAR_MAP
+#define THUMB_TOP      20.0f       /* the mirror's top: the map builds have nothing at the top right */
+#else
+#define THUMB_TOP      124.0f      /* the mirror's top: under the street's map */
+#endif
+#endif
+#ifndef THUMB_GAP
+#define THUMB_GAP      24.0f       /* under an inset: its label, then the next */
+#endif
+
 enum {
     DEMO_BTN_REFLECT = 1u << 0,    /* reflection on / off (X; the keys of every action: controls.h) */
     DEMO_BTN_SIZE    = 1u << 1,    /* next reflection target size */
@@ -42,10 +91,17 @@ void demo_init(void);
 void demo_update(const demo_input_t *in, float dt);
 void demo_draw(const demo_stats_t *st);
 int  demo_reflect_on(void);
-int  demo_info_on(void);
+int  demo_info_on(void);           /* the overlay is open (DRIVE: the tech keys are live, controls.h ctl_when) */
 #ifdef PL4NAR_WET
-void demo_auto_rain(unsigned rain, int streak);    /* the wet road: rain 0 dry, 1 damp, 2 wet; streak 0: the stretch off */
-#endif           /* the overlay is open (DRIVE: the tech keys are live, controls.h ctl_when) */
+/* A lit pool on a wet road looks shinier (the mirror's streak), not brighter: its alpha scaled down by the rain, in percent. By eye, not measured. */
+#ifndef WET_POOL_DIM_DAMP
+#define WET_POOL_DIM_DAMP 80
+#endif
+#ifndef WET_POOL_DIM_WET
+#define WET_POOL_DIM_WET  60
+#endif
+void demo_auto_rain(unsigned rain, int streak, int pool_dim);    /* the wet road: rain 0 dry, 1 damp, 2 wet; streak 0: the stretch off; pool_dim 0: pools at full alpha */
+#endif
 
 /* The autorun (main.c, PL4NAR_AUTORUN): set a stage, read what the last frame drew. */
 typedef struct demo_counts {

@@ -188,6 +188,20 @@ void gfx_be_init(void) {
     c.blend.src = PVR_BLEND_DESTCOLOR; c.blend.dst = PVR_BLEND_ZERO;
     c.depth.write = PVR_DEPTHWRITE_DISABLE;
     pvr_poly_compile(&s_hdr[GFX_MAT_MUL], &c);
+#ifdef PL4NAR_WET
+    {   /* the wet road's grit: 128 x 128 ARGB4444 with mips (43,696 B), texel x vertex colour, alpha blended, repeats */
+        pvr_ptr_t grit = load(tex_grit, tex_mip_bytes(TEX_GRIT_SIZE));
+        if (grit) {
+            pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_ARGB4444 | PVR_TXRFMT_TWIDDLED, TEX_GRIT_SIZE, TEX_GRIT_SIZE, grit, PVR_FILTER_BILINEAR);
+            c.txr.mipmap = PVR_MIPMAP_ENABLE;
+            c.txr.mipmap_bias = PVR_MIPBIAS_NORMAL;
+            c.txr.env = PVR_TXRENV_MODULATEALPHA;
+            c.gen.culling = PVR_CULLING_NONE;
+            c.depth.write = PVR_DEPTHWRITE_DISABLE;
+            pvr_poly_compile(&s_hdr[GFX_MAT_GRIT], &c);
+        }
+    }
+#endif
     /* GFX_MAT_REFLECT / _ADD / _SHADOW are compiled by gfx_be_reflect_resize (they name the target) */
 }
 
