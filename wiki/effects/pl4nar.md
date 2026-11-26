@@ -9,6 +9,22 @@ sources: [include/sh4der_pl4nar.h, src/sh4der_pl4nar.c, README.md "The pl4nar ef
 **What you will learn:** how the world is mirrored into a small render target and looked up per vertex, what it costs in video memory, and which costs are still unmeasured.
 **For:** a programmer adding reflections to car paint, glass, chrome, a wet road, water or a polished floor.
 
+> **In plain words.** The world is drawn a second time, turned upside down, into a small [render to texture](../glossary.md) picture. Shiny things, such as car paint, glass or a wet road, show that picture, so they look like a mirror of the street. The reflection is strongest where a surface is seen at a sharp angle. Use it when a shiny floor or car body must show its surroundings, and the frame has room for a second pass of the world.
+
+## Try this first
+
+**What it is for:** a mirror of the world in a shiny floor or car paint, made from one small picture drawn each frame.
+
+1. **Make the target.** `sh4der_pl4nar_target_init(&target, 256, 128)` gives a 256 × 128 target, 64 KB with `SH4DER_PL4NAR_HAVE_RTT` (include/sh4der_pl4nar.h:8; ADVISED). That flag needs `pvr_scene_begin_rtt` (README:957). The sources disagree on the size. The header (line 8) and AGENTS.md say turn it down before anything else. This page's Recommended limits says the ledger (PVR-174, PVR-175) does not support that order. Not picked here: measure the mirror pass at each size.
+2. **Set the field of view.** `SH4DER_PL4NAR_FOV_SCALE` = 1.55 for a body, 1 for a flat surface (include/sh4der_pl4nar.h:118; README:1033; ADVISED).
+3. **Set the paint.** `SH4DER_PL4NAR_F0_PAINT` = 0.06 (include/sh4der_pl4nar.h:112; README:1027; ADVISED). The earlier client's paint read best at 0.14 (README:1020), so 0.06 is a start, not a look. No recommended value yet for a stylised paint: judge 0.06 and 0.14 on screen.
+4. **Set the reach and the ground.** `SH4DER_PL4NAR_REACH` = 18.0 world units (include/sh4der_pl4nar.h:116; README:1031) and `SH4DER_PL4NAR_GROUND_KEEP` = 0.55 (include/sh4der_pl4nar.h:121; README:1036). Both ADVISED.
+5. **Set the other materials.** Glass: `SH4DER_PL4NAR_F0_GLASS` = 0.10 (include/sh4der_pl4nar.h:113; README:1028; ADVISED). Paint is additive and glass is blended (README:950). The wet road's gain of 0.7 and the floor's 0.8 (README:1017-1018) have not been judged on screen (README:1009): no recommended value yet.
+
+On a console: the page's status, "Measured on a console so far: the street demo's lookups and targets only" (Times). Its mirror pass PVR time has street demo rows too (PVR-174, PVR-175).
+
+Read next: [the header](../../include/sh4der_pl4nar.h), [the call order](../../AGENTS.md#call-order-pl4nar).
+
 ## What it does
 
 The world is drawn a second time, mirrored about a plane, into a small [render target](../glossary.md). A surface then looks the target up per vertex. That surface is either a body near the plane (`sh4der_pl4nar_shade`, for paint or glass) or a surface in the plane (`sh4der_pl4nar_flat`, for water or a road). The reflection is blended in as one translucent layer, with Fresnel as its vertex alpha (README:848-945).

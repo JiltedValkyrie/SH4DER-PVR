@@ -9,6 +9,22 @@ sources: [include/sh4der_ramp.h, test/ramp_test.c, README.md "The ramp helper", 
 **What you will learn:** how a strength eases in or out between two distances, in the two forms the library offers (one call, or a prepared ramp for a loop), and what each costs.
 **For:** a programmer fading a shadow, a fog, a level of detail or a light's reach by camera distance.
 
+> **In plain words.** A ramp is a number that rises or falls smoothly from 0 to 1 between two distances, such as a shadow that fades in as you walk toward it. It draws nothing itself; other code uses the number as a strength. Use it when a strength should ease in or out with distance, instead of switching on and off.
+
+## Try this first
+
+It turns a distance into a strength from 0 to 1 that eases between two distances. It has no tuning macros: the two distances are yours.
+
+1. The two distances: where the effect starts and where it is full. No recommended value yet. The test that would settle them is the same view with the fade against a hard step, watching PVR time and frame time on a console (include/sh4der_ramp.h:7-8).
+2. For a loop: `sh4der_ramp_make(&r, start, end)` once at load (one reciprocal) (include/sh4der_ramp.h:58-61; ADVISED).
+3. Per point: `sh4der_ramp_up(&r, d)` rises from 0 at the start to 1 at the end; `sh4der_ramp_down(&r, d)` is the fade-out, 1 at the start and 0 at the end (include/sh4der_ramp.h:64-70; ADVISED).
+4. For one point: `sh4der_ramp_in(from, len, d)`, one call with one reciprocal (include/sh4der_ramp.h:44-50; ADVISED).
+5. An end at or before the start, or a length of 0 or less, is a step at the start and not a fade (include/sh4der_ramp.h:43, 47, 60).
+
+On a console: NOT RUN. The page says: "Nothing has run on a console."
+
+Header: [include/sh4der_ramp.h](../../include/sh4der_ramp.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 A linear 0 .. 1 ramp between two distances, saturated at both ends. It is a helper, not a picture: it draws nothing. The rising form gives 0 up to the start and 1 from the end on; the falling form is its complement, a strength that fades out with distance.

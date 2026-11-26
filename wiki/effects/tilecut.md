@@ -9,6 +9,22 @@ sources: [include/sh4der_tilecut.h, test/tilecut_test.c, README.md "The tilecut 
 **What you will learn:** why a small render target costs the PVR as much as a whole screen under KallistiOS, how the cut ends the tile table after the target's own tiles for one pass, what that saved on a console, and the rules that keep it safe.
 **For:** a programmer with a render target pass (a shadow tile, a mirror, a small map) that is smaller than the screen.
 
+> **In plain words.** A picture drawn into memory instead of onto the screen (a render target, such as a small shadow or a mirror) normally costs the console as much as a full screen, because the hardware walks the whole grid of [tiles](../glossary.md), which are 32 by 32-pixel squares. This cut ends that grid after the tiles the small picture covers, for one pass, then puts the grid back. Use it when a small pass is slow, and time it with the cut and without it.
+
+## Try this first
+
+It makes a small render target pass cost what its size costs, not what a full screen costs.
+
+1. At load: `sh4der_tilecut_init(&cut, 20, 15)` for the screen's grid. `cut.need` is `SH4DER_TILECUT_TABLES` = 2, the number of tile tables the console keeps (include/sh4der_tilecut.h:75, 92; ADVISED, README "Tilecut tuning"). A program with one table sets `need` to 1 after init (include/sh4der_tilecut.h:55-56).
+2. After each scene's render, until both tables are found: `sh4der_tilecut_find(&cut)`. It needs the Dreamcast build (include/sh4der_tilecut.h:219; ADVISED).
+3. Around each small pass: `sh4der_tilecut_begin(&cut, cw, ch)`, the pass, a wait for render done, then `sh4der_tilecut_end(&cut)`. A 128 x 130 target is 4 by 5 tiles. Time the pass cut and uncut first. If `end` returns other than 0, `pvr_shutdown` and then `pvr_init` again (include/sh4der_tilecut.h:6-7, 46-51, 59-60; ADVISED).
+4. `SH4DER_TILECUT_TRIES` = 3 read-backs of a restore before `end` reports it bad (include/sh4der_tilecut.h:78; ADVISED, RECOMMENDED line 7).
+5. `SH4DER_TILECUT_MAX` = 96 tiles, the most a cut keeps (include/sh4der_tilecut.h:76; ADVISED).
+
+On a console: MEASURED for the PVR time, one console each: 3,312 to 375 us for a 20-tile target (PVR-092), 3,256 to 344 us (PVR-156), and 5,075 to 1,425 us for a 10 x 8-tile target (PVR-205). The page's Open list still has "The refusal when not every table is found, on a console."
+
+Header: [include/sh4der_tilecut.h](../../include/sh4der_tilecut.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 KallistiOS renders a render target through the screen's whole tile table: 20 x 15 tiles whatever the target's size, and the PVR's ISP visits every one, about 3.2 ms a pass (PVR-004). `sh4der_tilecut_begin(&cut, cw, ch)` makes each tile table end after the target's cw x ch tiles; `sh4der_tilecut_end` writes every changed word back. Only video memory is written: the header keeps a RAM copy of each table from the moment `sh4der_tilecut_find` takes it. `sh4der_tilecut_begin_cols(&cut, cw)` is the cheapest form: the first cw whole columns, one word written a table.

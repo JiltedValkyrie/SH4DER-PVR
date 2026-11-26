@@ -9,6 +9,21 @@ sources: [include/sh4der_look.h, README.md "The look effect", README.md "Recomme
 **What you will learn:** how the look effect adapts exposure, grades the picture and adds fog glare, and what each part costs.
 **For:** a programmer who wants auto exposure and a colour grade over the whole screen.
 
+> **In plain words.** The eye makes the picture brighter in a dark place and dimmer in a bright one, the way your own eyes adjust when you walk out into sunshine. The grade, a straight-line change to each colour, gives the whole picture one mood, and glare makes fog glow near a bright light. Use it when a scene swings between dark and light, or when the whole screen needs a colour mood. It reads a grid of samples from the [frame read](frame.md) and draws a few full-screen layers over the picture.
+
+## Try this first
+
+Make the picture adjust its brightness to the scene, with a light colour grade.
+
+1. At load, call `sh4der_look_params_default(&p)` (`include/sh4der_look.h:183`). It fills the shipped eye: `SH4DER_LOOK_LIGHT_S` = 2.0 s into light and `SH4DER_LOOK_DARK_S` = 6.0 s into dark (`include/sh4der_look.h:87-88`, ADVISED).
+2. Set the eye to strength 0.25, as the header's "Recommended settings" say: `p.transient` = `SH4DER_LOOK_TRANSIENT` x 0.25 = 0.125; `p.open` = `SH4DER_LOOK_OPEN` x 0.25 = 0.075; `p.gain_hi` = 1 + (`SH4DER_LOOK_GAIN_HI` - 1) x 0.25 = 1.125; `p.gain_lo` = 1 - (1 - `SH4DER_LOOK_GAIN_LO`) x 0.25 = 0.9375 (`include/sh4der_look.h:45-51`, ADVISED; the four results are arithmetic on those lines). Keep `gain_hi` at 2.0 or less and `gain_lo` at 0.4 or more, or RGB565 bands show (`include/sh4der_look.h:52-53`, ADVISED).
+3. Each frame, call `sh4der_look_eye_step(&e, &p, read_ln, dt)` (`include/sh4der_look.h:194`), where `read_ln` is the frame read's log-average (`sh4der_look_log_average`, `include/sh4der_look.h:169`). Skip the step while a flashlight is lit (`include/sh4der_look.h:55-56`, ADVISED).
+4. Pass the grade to `sh4der_look_solve` (`include/sh4der_look.h:214`), which gives at most `SH4DER_LOOK_LAYERS` = 6 layers (`include/sh4der_look.h:91`, ADVISED). Draw each layer full screen, under the HUD (the on-screen display), with depth always and no depth write (`README.md:431`, ADVISED).
+
+On a console: NOT RUN (the page: "None of it is measured on a console.").
+
+Header: [include/sh4der_look.h](../../include/sh4der_look.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 Maths only, in a header (README:386-394; look.h:8-60):

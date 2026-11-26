@@ -9,6 +9,22 @@ sources: [include/sh4der_aomesh.h, test/aomesh_test.c, demo/psm/psm_ao.h, demo/p
 **What you will learn:** how one ambient occlusion byte a vertex is baked at load by casting 12 rays through a cell grid of a triangle mesh, how the optional ground grid works, what the bake costs (counted on the host; the console is NOT MEASURED), and how it differs from the other occlusion tools.
 **For:** a programmer with static scenery built as triangles (a walled street) who wants a contact shadow in the vertex colour, paid once at load.
 
+> **In plain words.** This is the corner-shading bake for scenery made of triangles, such as a walled street. For each vertex it casts 12 rays over the half-sphere above it and writes one brightness byte, so corners and the foot of a wall come out darker. A byte grid over the ground does the same for a floor that moves with the camera. It runs once at load, and moving things are left out so they keep their full light.
+
+## Try this first
+
+What it is for: contact shading on static triangle scenery, baked once at load, plus a ground grid.
+
+1. Fill a `sh4der_aomesh_tris_t` (positions, index list, triangle count), call `sh4der_aomesh_need`, and allocate the buffers it names (`include/sh4der_aomesh.h:76`, `:146`). No value to set.
+2. `SH4DER_AOMESH_RAYS` = 12 and `SH4DER_AOMESH_REACH` = 1.6 m (`include/sh4der_aomesh.h:62-63`; "Start with" at `:12`; `README.md:747-748`, ADVISED).
+3. `SH4DER_AOMESH_CELL` = 2.0 m (`include/sh4der_aomesh.h:65`; `README.md:750`), kept at least the reach (the page's Recommended limits), and `SH4DER_AOMESH_PUSH` = 0.03 m (`include/sh4der_aomesh.h:64`; `README.md:749`), ADVISED.
+4. Ground grid: `SH4DER_AOMESH_GCELL` = 0.5 m and `SH4DER_AOMESH_MARGIN` = 8.0 m (`include/sh4der_aomesh.h:66-67`; `README.md:751-752`, ADVISED). Pass NULL for the rectangle when you want the vertex bytes alone (`README.md:741`).
+5. Call `sh4der_aomesh_bake` at load with a tick every 256 vertices and every 8 ground rows (`README.md:741`, ADVISED), then read the ground each frame with `sh4der_aomesh_ground` (`include/sh4der_aomesh.h:356`).
+
+On a console: NOT RUN. The page's status: "Load-time bake on a console | NOT MEASURED".
+
+Header: [include/sh4der_aomesh.h](../../include/sh4der_aomesh.h). Call order: [below](#call-order).
+
 ## What it does
 
 For each vertex, `sh4der_aomesh_bake` casts 12 cosine-weighted rays over the vertex's hemisphere (a golden-ratio spiral, the same set every bake). Each ray is tested against the triangles of the 2 m cells its box touches; the nearest hit within the 1.6 m reach closes the ray by `1 - t / reach`. The byte is `255 * (1 - closed / rays)`: 255 open, 0 closed. The ray starts 0.03 m off the surface. A vertex with a zero normal is open (255) and casts no rays. The plane y = 0 occludes the vertices (the floor the mesh stands on); it never occludes the ground grid.

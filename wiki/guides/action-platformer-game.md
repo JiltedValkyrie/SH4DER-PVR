@@ -12,6 +12,14 @@ sources: [wiki/guides/racing-game.md, wiki/start-here/call-orders.md, wiki/effec
 
 No program in the ledger runs this whole recipe. Each number names its part.
 
+## The short version
+
+- Start with the hero's blob shadow from a light pool, then baked corners for rooms.
+- Build one untextured translucent header for the pool: source alpha blending, depth test on, depth write off, no culling.
+- The hero demo's every pass totals 18.76 ms (MEASURED, PVR-178): over 60 Hz at 16.7 ms, inside 30 Hz at 33.3 ms.
+- Cut order: glow's ray copies, specks and shafts, then the shadow target for blobs (about 3.2 ms of PVR uncut, MEASURED, PVR-004).
+- The glowing tubes, bloom rings, inner light, texture ripple and thin-part glow are NOT RUN, and the sources disagree on several version labels.
+
 ## What this kind of game needs
 
 Your hero is a **skinned** body: a mesh that bends over bones. He is opaque and needs a shadow. Glowing items, animals, plants and water sit beside him. The camera follows him, so the picture changes every frame. Rooms and ruins stay still, so their corner shading can be baked at load.

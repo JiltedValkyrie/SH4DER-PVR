@@ -9,6 +9,22 @@ sources: [tools/ao_bake_core.h, test/ao_bake_test.c, demo/pl4nar/tools/map_ao.c,
 **What you will learn:** how a build-time tool bakes one byte of ambient occlusion a vertex from a triangle list, what the inside-solid fill and the street wrap do, and what the host run proves.
 **For:** a programmer baking a level's vertex occlusion on the host before the Dreamcast build, or adding a client to the two that exist.
 
+> **In plain words.** This is a build tool: it runs on your PC, never on the console. For each point of a level it works out how much of the open sky the point can see, and writes one brightness byte a vertex, 255 for open and 0 for closed, so corners and crevices come out darker. It also copes with a point sunk inside a solid object and with a street that repeats, so both ends of a seam match. Use it to bake a level's corner shading before the console build; the console keeps just the bytes.
+
+## Try this first
+
+What it is for: one ambient occlusion byte a vertex, baked on your PC before the console build.
+
+1. `AOB_RAYS` = 64 rays a point (`tools/ao_bake_core.h:48`; "Start with" at `:7-8`, ADVISED).
+2. `AOB_R` = 2.5 m reach for a room or a street. A road grid uses 10 m at a scale of `AOB_R / 10` (`tools/ao_bake_core.h:49`; `:7-8`, ADVISED).
+3. `AOB_PUSH` = 0.02 m off the surface (`tools/ao_bake_core.h:50`) and `AOB_INSIDE` = 0.25 (`:51`, ADVISED): a point is inside a closed solid when more than a quarter of its rays strike the back of a closed triangle.
+4. Calls: `aob_init(&b, ot, closed, n)`, then per vertex `aob_at` and `aob_byte`; `aob_fill` for a point flagged inside, `aob_wrap` for a repeating street, and `aob_free` at the end (`tools/ao_bake_core.h:67`, `:123`, `:154`, `:178`, `:214`, `:99`). No value to set.
+5. Check your build against the room's bytes: `test/ao_bake_test.c` expects 0 of 1,905 vertices off by more than 2 (the page's Tests, host run 2026-11-26). It needs the room data from `demo/psm/ao/build.py --room-only --out <dir>`. A host check, not a console result: ADVISED.
+
+On a console: NOT RUN. The page's status: "Console: none: the program keeps the baked bytes, one a vertex (the client's)."
+
+Header: [tools/ao_bake_core.h](../../tools/ao_bake_core.h). Call order: [below](#call-order).
+
 ## What it does
 
 A host-only, libc-only header (`tools/ao_bake_core.h`, not a console header). A point casts 64 cosine-weighted rays over its hemisphere, each against the occluder triangles whose bounding sphere comes within 2.5 m. A hit at distance `t` takes `1 - t / R` of a ray. The byte is `255 (1 - sum / rays)`. The rules are those of `demo/psm/ao/tools/room_bake.c`, for a mesh that is not the room.

@@ -11,6 +11,14 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/start-here/cal
 
 No shooter has run on a console from this library. The nearest demo is `demo/torchwalk_ab.c`, a first-person walk with the torch. Each number below says what it rests on.
 
+## The short version
+
+- Start with sparks and tracers for the muzzle flash and hits, then the screen overlays for hit feedback.
+- Build a spark pool of 24 quads on a 64 x 64 atlas, where the flash and tracer are never pushed out (ADVISED).
+- Budget: each full-screen layer is 3.1 ms of PVR (MEASURED, PVR-002), so count layers before adding more.
+- Cut order: second views to their tiles (3,312 to 375 us of PVR on a 20-tile target, MEASURED, PVR-092), then specks and far pools.
+- The whole shooter is NOT RUN on a console, and the sources disagree on the torch's near light.
+
 ## What this kind of game needs
 
 A shooter frame has a gun near the eye, short bright flashes, a screen that reacts to hits, dark rooms, and sometimes fog, snow or an explosion. The library gives picture parts, not game logic. It has no gun, no hit test, no ammo and no enemies. The README's spark section says it plainly: "Nothing here knows a weapon."

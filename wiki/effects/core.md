@@ -9,6 +9,21 @@ sources: [include/sh4der_core.h, src/sh4der_core.c, README.md "The core shared p
 **What you will learn:** what every other effect borrows from `sh4der_core.h`, and what it costs.
 **For:** a programmer using any effect, or building a new effect from the shared pieces.
 
+> **In plain words.** This is the shared toolbox the other effects borrow from: a soft edge, the shapes of light tubes and blockers, a counter that turns a body's breathing into a number from 0 (breathing out) to 1 (breathing in), a glint (a small bright flare on a light that brightens when it is close), and colour ramps. Nothing here is drawn on its own. Use it when you write your own effect, so you do not write these pieces again.
+
+## Try this first
+
+It holds the shared maths the other effects call. Its settings are macros that the effect that calls them should set.
+
+1. Breathing: `SH4DER_BREATH_WINDOW` = 90 frames (3.0 s) and `SH4DER_BREATH_SPAN` = 0.0013, the least chest travel that counts as a full breath (include/sh4der_core.h:90-91; ADVISED, README "Shared tuning"). Reset a `sh4der_breath_t` with `sh4der_breath_reset`, then once a frame call `sh4der_breath_push(&b, sh4der_breath_raw(chest, pelvis_origin, pelvis_forward))` (include/sh4der_core.h:147-154).
+2. Glints: `SH4DER_GLINT_BRIGHTNESS` = 0.4 at full, full within `SH4DER_GLINT_NEAR` = 3.0 and none past `SH4DER_GLINT_FAR` = 6.5 camera depth. Call `sh4der_glint(depth, fade)` (include/sh4der_core.h:101-103, 162; ADVISED).
+3. Colour ramps, once at load: `sh4der_ramp_colours(avg, white, edge, core)` with `SH4DER_RAMP_EDGE_SAT` = 1.6 and `SH4DER_RAMP_CORE_SAT` = 0.25 (include/sh4der_core.h:113-114, 158; ADVISED). `white` (0 to 1): no recommended value yet; the test is the look on screen with it at 0 and at 1.
+4. Caps: `SH4DER_TUBE_MAX` = 2 tubes and `SH4DER_BLOCKER_MAX` = 2 blockers an effect frame holds (include/sh4der_core.h:85-86; ADVISED).
+
+On a console: NOT RUN for these numbers. The page says: "None of it is measured on a console."
+
+Header: [include/sh4der_core.h](../../include/sh4der_core.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 `sh4der_core.h` and `src/sh4der_core.c` hold the parts every effect uses (core.h:8-40; README:121-127, 1130-1136):

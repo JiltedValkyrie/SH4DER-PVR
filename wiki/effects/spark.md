@@ -9,6 +9,22 @@ sources: [include/sh4der_spark.h, src/sh4der_spark.c, README.md "The spark effec
 **What you will learn:** how the fixed pool of 24 sparks works, what it costs, and how it protects the quads that matter.
 **For:** a programmer adding muzzle flashes, tracers, impact sparks or lamp halos.
 
+> **In plain words.** A small pool of 24 short-lived flat shapes that always turn to face the camera: a muzzle flash, a tracer line, sparks. Each one brightens and then fades over its life, and it adds to the picture, so overlapping sparks just look brighter. A flash or tracer marked to keep is never thrown out to make room for a plain spark. Use it for a few dozen short bright things at once, such as gunfire, welding or fireflies.
+
+## Try this first
+
+For a few dozen short bright things at once: flashes, tracers, sparks, fireflies.
+
+1. Pool size: `SH4DER_SPARK_MAX` = 24 quads, 96 vertices a frame at most (include/sh4der_spark.h:101; ADVISED, README:937).
+2. Thinnest streak: `SH4DER_SPARK_MIN_PX` = 0.8 pixels, so a far tracer stays a line (include/sh4der_spark.h:102; ADVISED, README:938).
+3. Atlas edge: `SH4DER_SPARK_INSET` = 0.0078125 for a 64 × 64 atlas (include/sh4der_spark.h:103; ADVISED, README:939).
+4. Mark a flash and a tracer with `SH4DER_SPARK_KEEP`, and leave plain sparks unmarked (include/sh4der_spark.h:17, 111; ADVISED).
+5. A shot: a `SH4DER_SPARK_KEEP` billboard at the muzzle for 2 frames, and a `SH4DER_SPARK_KEEP` | `SH4DER_SPARK_RETREAT` | `SH4DER_SPARK_TAIL0` streak from the muzzle to the hit for 4 frames (README:931; ADVISED).
+
+On a console: NOT RUN. The header says "Cost: not measured: no ledger row names it" (include/sh4der_spark.h:13), and its status is "ADVISED; to prove: a stage with the pool full against empty, PVR and SH-4 apart" (include/sh4der_spark.h:16).
+
+Header: [sh4der_spark.h](../../include/sh4der_spark.h). Steps in full: [Call order](#call-order).
+
 ## What it does
 
 A fixed pool of 24 short-lived additive quads that face the camera. There are two kinds:

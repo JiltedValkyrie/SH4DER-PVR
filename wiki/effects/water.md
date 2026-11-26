@@ -9,6 +9,22 @@ sources: [include/sh4der_water.h, README.md "The water effect", demo/OCEAN.md]
 **What you will learn:** what the water header computes per vertex, and where its numbers come from.
 **For:** a programmer drawing a sea or lake surface as a vertex mesh.
 
+> **In plain words.** A sea or lake is drawn as a grid of points (a mesh; each point is a vertex). This code works out how each point moves, tilts and shines, from a few long waves and small ripples. The viewer sees water that rolls, reflects the sky and glows where a wave top is lit from behind. Use it for a sea, a lake or a puddle; the [glossary](../glossary.md) explains the chip terms.
+
+## Try this first
+
+What it is for: give a water mesh its waves, its sky reflection and its glow, one vertex at a time.
+
+1. Build a wave table of `sh4der_water_wave_t` entries, 28 B each (include/sh4der_water.h:25-32). Start from the demo's shape: four long swells and three short ripples (demo/OCEAN.md:11-12, ADVISED). The demo's own numbers are in demo/ocean_scene.h, which is not one of this page's sources, so there is no recommended value yet for amplitude, wavelength or speed. The test: draw the mesh at the eye heights you ship and look for shimmer on the crests.
+2. Keep every wave valid: `dx` and `dz` a unit vector, `wavelength` above 0. The header skips a wave that breaks this (include/sh4der_water.h:26-28). This is a rule of the header, not a tuning value.
+3. Pass `footprint` to `sh4der_water_sample` as the distance between neighbouring vertices, the vertex spacing (include/sh4der_water.h:54-57, ADVISED). A wave shorter than 2 spacings fades to nothing; a wave of 6 spacings or more is at full strength (include/sh4der_water.h:55-56). Pass 0 to turn the fade off.
+4. Pass `swell` and `ripple` to `sh4der_water_sample` as 1, meaning as authored (include/sh4der_water.h:58-59, ADVISED). Turn one down to 0 to see what it adds to the picture.
+5. Crest glow: `thin_path` and `thick_path` for `sh4der_water_crest_sss` have no recommended value yet; the header gives none. The test: put the sun behind a crest, then in front of it. The glow must fade to nothing with the sun in front (AGENTS.md, the sss worked examples).
+
+On a console: NOT RUN. This page says: 'None of it is measured on a console.' The ocean demo runs on a real Dreamcast, but its steady 33.3 ms frame is not yet measured (demo/OCEAN.md:5).
+
+Header: [sh4der_water.h](../../include/sh4der_water.h). Call order: [Call order](#call-order), below.
+
 ## What it does
 
 Header only, all inline, all per vertex (README:1148-1156; water.h:8-16):

@@ -9,6 +9,22 @@ sources: [include/sh4der_glow.h, src/sh4der_glow.c, README.md "The glow effect"]
 **What you will learn:** how the screen bloom is built from a small map of the frame, and how to stop it feeding itself.
 **For:** a programmer who wants bright lights to bleed into the picture, or sun shafts.
 
+> **In plain words.** Bright parts of the picture bleed light into the darker parts round them, the way a bright lamp looks in a photo. The sun's rays are copies of the bright spots, stretched away from the sun. It works from a small copy of the picture that the console reads back (a [frame read](frame.md)), so it reads the picture each frame. Use it for lamps, neon, a low sun or a white-hot blast, and keep the on-screen numbers and icons (the HUD) out of it.
+
+## Try this first
+
+For bright lights and the sun to bleed light into the picture, from one small map of the frame.
+
+1. Start with the bloom alone, no rays: the header's own starting set (include/sh4der_glow.h:7-9, RECOMMENDED).
+2. `SH4DER_GLOW_THRESHOLD` = 0.62, the brightness where the glow starts (include/sh4der_glow.h:113; ADVISED, README:486). The header's note for the author's own game uses a straight ramp from 0.80 instead (include/sh4der_glow.h:68-70).
+3. `SH4DER_GLOW_POWER` = 2 (include/sh4der_glow.h:114; ADVISED, README:487).
+4. `SH4DER_GLOW_STRENGTH` = 0.45 and `SH4DER_GLOW_RADIUS` = 0.5 (include/sh4der_glow.h:115-116; ADVISED, README:488-489).
+5. `SH4DER_GLOW_DARKEN_MAX` = 0.25 (include/sh4der_glow.h:117; ADVISED, README:490). Never draw the darken without the bloom, or the scene's mean brightness drops (include/sh4der_glow.h:16).
+
+On a console: the page says "As-stated. None of it is measured on a console." The header says "ADVISED; to prove: the demo disc's glow row on and off, then rays on, PVR time" (include/sh4der_glow.h:13).
+
+Header: [sh4der_glow.h](../../include/sh4der_glow.h). Steps in full: [Call order](#call-order).
+
 ## What it does
 
 A small bright map of the frame: the frame read's 80 × 60 grid, in a 128 × 64 RGB565 texture. Dark texels die and bright ones stay. From it (README:449-451; glow.h:8-45):

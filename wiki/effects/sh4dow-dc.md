@@ -9,6 +9,22 @@ sources: [sh4dow-dc/README.md]
 **What you will learn:** what SH4DOW-DC does, what its published numbers are worth, and which of its limits are proven.
 **For:** a programmer putting soft shadows on characters, and anyone setting a budget for how many characters cast.
 
+> **In plain words.** This makes soft shadows on a character, worked out by the processor for each vertex. Each limb (the head, neck and arms, say) casts a soft column of shade away from the light, and a vertex inside a column gets darker, with no shadow picture and no extra draw. It is a separate library, kept whole in `sh4dow-dc/`. Use it for a few characters where the processor has time to spare; how many may cast is still open.
+
+## Try this first
+
+What it is for: soft self-shadow on a character, from limb columns, with no extra draw.
+
+1. Describe the limbs: one `sh4dow_limb_t` each (position, radius, bone id, flags). Flag the head `SH4DOW_LIMB_HEAD` (`sh4dow-dc/include/sh4dow_dc.h:63`) and the neck `SH4DOW_LIMB_NECK` (the example, `sh4dow-dc/README.md:42-43`; the flag rule is at `:68`). Radii are in the same space as your vertices (`sh4dow-dc/README.md:64`).
+2. Once per character per frame, after posing: `sh4dow_prepare(&frame, NULL, limbs, n, down)` (`sh4dow-dc/README.md:52`, `:139`). `down` is the way the shadow falls: `(0, 0, -1)` for Z up (`sh4dow-dc/README.md:65`). `NULL` uses the shipped tuning (`sh4dow-dc/README.md:158`), ADVISED.
+3. Tuning, one number at a time: `SH4DOW_OUTER` = 1.35 (`sh4dow-dc/include/sh4dow_dc.h:77`; `README.md:151`), `SH4DOW_DARK` = 0.65 (`:80`; `README.md:154`), `SH4DOW_LENGTH` = 1.8 (`:78`; `README.md:152`). ADVISED: the shipped values.
+4. Column room: `SH4DOW_COLUMN_MAX` = 32 columns a frame (`sh4dow-dc/include/sh4dow_dc.h:57`; `sh4dow-dc/README.md:135`, ADVISED as a limit). No recommended value yet for how many limbs or characters cast: the README's 14 limbs and six characters are one published choice, not a measurement of ours (`sh4dow-dc/README.md:160`). The bench in [recommended limits](../limits/recommended-limits.md) settles it.
+5. Feet, if you want them: `sh4dow_foot_params_default(&p)`, then `sh4dow_foot_params_scale(&p, 3.048f)` for metres (`sh4dow-dc/README.md:211`). `SH4DOW_FOOT_RANGE` = 20.0 with `SH4DOW_FOOT_RANGE_FADE` = 2.0 (`sh4dow-dc/include/sh4dow_dc.h:329-330`; `sh4dow-dc/README.md:239-240`, ADVISED).
+
+On a console: NOT RUN. The page's status: "None of these numbers was measured on our console."
+
+Library: [sh4dow-dc/README.md](../../sh4dow-dc/README.md), a separate library with its own Quick start and API. Call order: [below](#call-order).
+
 ## What it does
 
 SH4DOW-DC is a separate library, included whole in `sh4dow-dc/`. It darkens characters by limb "columns" cast along the light. Each vertex is shaded as colour × (1 − dark × strength). It also has foot cones, and a separate, experimental heightfield sunlight module (`sh4dow-dc/README.md`).

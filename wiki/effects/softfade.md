@@ -9,6 +9,22 @@ sources: [include/sh4der_softfade.h, test/softfade_test.c, README.md "The softfa
 **What you will learn:** how a light is faded per vertex near planes and walls with no depth read, the three tiers (near, fit, fade), and what is and is not measured.
 **For:** a programmer whose lamp halo is cut on a hard line by a wall, or whose headlight beam runs through a barrier.
 
+> **In plain words.** A glow, a pool of light or a beam is normally cut off by a wall on a hard straight line. This effect fades the light out as it nears a wall or floor the program has been told about, so the edge goes soft. It lowers the light at each corner of the shape, so it knows just the walls and floors you name, not cars or people. Use it for a lamp's glow in a room's corner or a headlight beam that runs into a kerb.
+
+## Try this first
+
+**What it is for:** a light that dies softly at a wall or a floor the program knows, not on a hard line.
+
+1. **Set the fade distance.** `sh4der_softfade_make(&f, SH4DER_SOFTFADE_DIST)` with `SH4DER_SOFTFADE_DIST` = 0.30 m (include/sh4der_softfade.h:75; README:1124; ADVISED, the same value as the header's start line at include/sh4der_softfade.h:8).
+2. **Keep the lists short.** `SH4DER_SOFTFADE_MAX` = 8 planes and 8 walls a call. Pass just the surfaces near the light (include/sh4der_softfade.h:76; README:1125; ADVISED).
+3. **Check each light.** Call `sh4der_softfade_near` (include/sh4der_softfade.h:168). A 0 means draw the light plain. Call the fade only when it returns 1 (include/sh4der_softfade.h:8-9; ADVISED).
+4. **Give the mesh vertices.** A halo as 8 rings, from `sh4der_bloom_rings` (include/sh4der_softfade.h:19-20; ADVISED: the header says 8 rings ran in the lamp test). A beam with 3 or 4 rows, from `sh4der_pool_beam` (include/sh4der_softfade.h:20; README:1082-1083, `SH4DER_POOL_BEAM_ROWS` = 3 and its maximum of 4; ADVISED).
+5. **Point the planes.** A plane's normal points toward the lit side. Set the wrong way round, everything in front of it goes dark (this page's Pitfalls; `sh4der_softfade_plane`, include/sh4der_softfade.h:106).
+
+On a console: NOT RUN. The page's status: "PROTOTYPE v0.1: host tested (test/softfade_test.c), NOT RUN on a console."
+
+Read next: [the header](../../include/sh4der_softfade.h), [the call order](#call-order).
+
 ## What it does
 
 A camera-facing glow that passes through a wall is cut on a hard line. A pool or a beam of light on the ground is cut the same way where a wall stands on it. The PVR cannot read the depth behind a pixel. The SH-4 knows where the walls are, so it takes the light off the vertices near them.

@@ -9,6 +9,14 @@ sources: [include/sh4der_glow.h, include/sh4der_bloom.h, include/sh4der_spark.h,
 **What you will learn:** which effects suit a flight or space game, what each costs on a Dreamcast, the order of one frame, and what to cut when the frame is slow.
 **For:** a developer making a flight or space game on the Dreamcast who has never used SH4DER-PVR.
 
+## The short version
+
+- Start with sparks for tracers and exhaust, and mesh bloom for engine glow, which needs no frame read.
+- Build the spark pool, then the engine glow, and time the frame with sprites on and off (our advice, not tested).
+- Budget: an empty frame is 3.15 ms of PVR (MEASURED, PVR-001), and each full-screen layer adds 3.1 ms (MEASURED, PVR-002).
+- Cut order: glow rays (about 12.4 ms of PVR, ESTIMATE), then trail down to two copies, then screen bloom (9.3 ms, ESTIMATE).
+- The heat haze, motion blur and cloud deck are NOT RUN, and the sources disagree on the glow threshold (0.62 or 0.80, ADVISED).
+
 ## What this kind of game needs
 
 A flying ship needs a bright sun, engine glow, sparks from guns and hits, a sense of speed, shimmering hot air, a sea or cloud deck below, and eyes that adjust from sunlight into dark space.

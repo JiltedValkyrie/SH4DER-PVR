@@ -9,6 +9,22 @@ sources: [include/sh4der_pool.h, README.md "The pool effect", AGENTS.md "Call or
 **What you will learn:** how a lamp's pool of light or a blob shadow is drawn as a fading fan, and why fill is its cost.
 **For:** a programmer lighting coarse ground under street lamps or headlights, or adding a blob shadow under a car.
 
+> **In plain words.** A patch of light lying on the ground, like the pool under a street lamp or a headlight's beam. It is brightest in the middle and fades to nothing at the edge, so it has no hard rim. A dark version under a car makes a blob shadow. Its cost is how much of the screen it covers, so use it where the ground is too coarse to light corner by corner.
+
+## Try this first
+
+For light or a blob shadow lying on the ground, drawn as a fan of triangles that fades to nothing.
+
+1. A disc of 10 triangles for a lamp, 8 for a blob shadow, and a wedge of 2 to 4 for a headlight (include/sh4der_pool.h:8; ADVISED, the street demo). The cap is `SH4DER_POOL_MAX_N` = 16 (include/sh4der_pool.h:98; ADVISED, README:1078).
+2. Lift the centre 2 to 4 cm off the ground. A blob shadow's alpha is 0.50 by day and 0.25 at night (include/sh4der_pool.h:8-10; ADVISED, the street demo's values).
+3. Fade by distance: `SH4DER_POOL_REACH` = 60 m and `SH4DER_POOL_FADE_W` = 10 m, with `sh4der_pool_reach_make` once a frame and `sh4der_pool_reach_fade` per lamp (include/sh4der_pool.h:100-101; ADVISED, README:1080-1081; the fade is PROTOTYPE and NOT RUN, include/sh4der_pool.h:28-29).
+4. Do not put a reach on the player's own headlights: they are always near, so use a wedge for those (include/sh4der_pool.h:32).
+5. How many lamps to draw: no recommended value yet. Test: the same view with pools on and off, no key pressed, PVR time (include/sh4der_pool.h:14).
+
+On a console: NOT RUN for the fade and the beam. The page says: "NOT RUN on a console as this code." The disc and the wedge are ADVISED, and their console test is step 5 (include/sh4der_pool.h:14).
+
+Header: [sh4der_pool.h](../../include/sh4der_pool.h). Steps in full: [Call order](#call-order).
+
 ## What it does
 
 A small fan of triangles lying on the ground. Its vertex alpha fades to nothing at the rim (a disc) or at the far arc (a wedge). It is drawn translucent, after the ground (README:946-972):

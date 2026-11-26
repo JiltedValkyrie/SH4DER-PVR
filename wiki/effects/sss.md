@@ -9,6 +9,22 @@ sources: [include/sh4der_sss.h, README.md "The sss effect", AGENTS.md "Call orde
 **What you will learn:** what the sss call gives you, what it does not, and where its starting values come from.
 **For:** a programmer who wants light through a thin part of a model: an ear against the sun, a leaf, wax, ice, a wave crest.
 
+> **In plain words.** Light that shines through a thin edge of a thing makes that edge glow: an ear held up to a lamp, a leaf against the sun, wax, or the top of a wave. This effect works out the glow at each corner of a model and gives back a colour to add to the picture. It is a quick trick, not a real light simulation: nothing spreads through the material. Use it on thin edges that have a light behind them, because a surface lit from the front shows nothing.
+
+## Try this first
+
+**What it is for:** a soft glow on a thin edge that faces a light behind it.
+
+1. **Start from a row.** Skin: absorption 0.5, 1.8, 3.0; wrap 0.5; distortion 0.3 (AGENTS.md:259, "Starting points per material"). Not a tested value: AGENTS.md:255 calls the table's values invented starting values, not measured and not from reference data, so tune them by eye. No console run. Tint: the light's own colour (AGENTS.md, "Call order: sss", step 1).
+2. **Build it at load.** `sh4der_sss_init(&p, tint, absorption, gain, wrap, distortion)` (include/sh4der_sss.h:87). The skin's gain is 0.4 to 0.8 (AGENTS.md:259). That is a range, not one value: no single recommended gain yet.
+3. **Feed each vertex.** `sh4der_sss_rgb(&p, view, light, normal, path, coverage, entry, visibility, out)` (include/sh4der_sss.h:114). Coverage is 1 on the thin part and 0 on the thick part. Entry and visibility are 1 when you have no Fresnel or shadow term (AGENTS.md, "Call order: sss", step 3).
+4. **Set the path.** The path is a thickness in units of 1 / absorption. No recommended value yet. The table's values suit a thickness of 0 to about 1, and a larger model is scaled down (AGENTS.md, worked examples). Test the glow on the thin part against a front-lit view.
+5. **Check the sign.** The glow must fade to nothing as the light moves in front. If it never fades, `view` or `light` points the wrong way (AGENTS.md, worked examples).
+
+On a console: NOT RUN. The page gives "There are no times" (Cost), and no ledger row covers sss.
+
+Read next: [the header](../../include/sh4der_sss.h), [the call order](../../AGENTS.md#call-order-sss-transmission).
+
 ## What it does
 
 An artistic stand-in for sub-surface scattering. It is per vertex: light comes through a thin or translucent part of a surface toward the eye, tinted by absorption over a thickness you supply. It returns an RGB for you to add, for example into the offset colour. It is **not** a multiple-scattering solve: there is no diffusion profile and no blur across the surface (`AGENTS.md` "Call order: sss"; README:779-805).

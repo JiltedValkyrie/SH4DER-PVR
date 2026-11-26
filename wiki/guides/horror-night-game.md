@@ -11,6 +11,14 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/effects/torch.
 
 **Status tags.** **MEASURED** means a ledger row backs the number (one console; the row is named). **ADVISED** means a value from a header's RECOMMENDED block, a README table or demo source (file and line). **NOT RUN** means no console run of that part. **ESTIMATE** means arithmetic or a model, and the model is named. A count read from the code is an ESTIMATE too. A host count is exact, but it is not a console number. Most effects here are PROTOTYPE, so most numbers are not measured. Reader names follow the [names page](../effects/names.md), section 0.
 
+## The short version
+
+- Start with the screen spotlight alone: a round lit patch that darkens the rest of a dark room, with no frame read.
+- Build the torch's gate and carve meshes, and check each triangle for zero area before it is sent.
+- The whole stack, on paper, is about 21.75 ms of PVR (ESTIMATE), about 5 ms over 60 Hz before the world's triangles are counted.
+- Our advice: cut specks, lightning, warp, mist, then grain (about 6.2 ms of PVR, ESTIMATE); the carve goes last.
+- Several parts are NOT RUN on a console, and the sources disagree on the torch's near light and the warp's frame texture size.
+
 ## What this kind of game needs
 
 - **One main light.** A torch, a lamp or a window. The rest of the room falls into dark.

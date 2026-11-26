@@ -9,6 +9,22 @@ sources: [include/sh4der_psm.h, include/sh4der_psm_raster.h, include/sh4der_psm_
 **What you will learn:** what the three psm headers do, which route draws the map, and what the town demo measured on a console.
 **For:** a programmer adding sun shadows from a [shadow map](../glossary.md), and anyone choosing between the routes.
 
+> **In plain words.** A shadow map is a picture taken from the sun's side. It records what is nearest the sun along each ray, so a point on the ground is in shadow when something in that picture sits between it and the sun. A perspective shadow map (PSM) gives the near ground more of the picture's pixels, because near ground is the big part on screen. Use it when a sun casts shadows over a wide scene; the plain uniform map is the simpler choice, and the fallback when a PSM build fails. The words are in the [glossary](../glossary.md).
+
+## Try this first
+
+What it is for: putting the sun's shadow on the ground and the things on it, with the near ground given more of the map.
+
+1. Build the map with `sh4der_psm_build_warp` (a PSM) or `sh4der_psm_build_uniform` (the plain map). Pass `light` as the unit direction toward the sun and `pts` as your receiver points (`include/sh4der_psm.h:363` and `:419`; `README.md:1156`). The town's HUD rows used a 256 x 256 map (PVR-108 to PVR-113, MEASURED, one console). No recommended value yet for the map side in another scene: a console run of your own scene settles it.
+2. Set `warp_near` (a function argument, not a macro) a little past the nearest receiver: 4 m for a 1.7 m eye height pitched down 7 degrees (`README.md:1137`, ADVISED).
+3. `SH4DER_PSM_MARGIN` = 1.01 (`include/sh4der_psm.h:89`; `README.md:1165`, ADVISED): the fit's square is a little larger than the points.
+4. `SH4DER_PSM_BIAS_A` = 0.02 m and `SH4DER_PSM_BIAS_B` = 1.5 texels (`include/sh4der_psm.h:91-92`; `README.md:1167-1168`, ADVISED), used through `sh4der_psm_bias` (`include/sh4der_psm.h:147`).
+5. If a build returns 0 (a degenerate frame), draw the uniform map instead (`README.md:1139`, the README's rule).
+
+On a console: quoted from the page: "Measured on a console: the town demo" for the routes (PVR-108 to PVR-113); the placement in `sh4der_psm.h` is "As-stated, not timed on a console."
+
+Header: [include/sh4der_psm.h](../../include/sh4der_psm.h). Call order: [below](#call-order).
+
 ## What it does
 
 Three headers, all inline and host tested:
@@ -29,7 +45,7 @@ Version: v0.10 for all three (psm.h:65; psm_raster.h:43; psm_pvr.h:35).
 
 ## Call order
 
-See README:974-1019 ("Calls" at README:990). `AGENTS.md` has a file entry, but no call-order section. The worked client is `demo/psm/psm_demo.c` on the host (`make psm-demo`); the console demo is the town in `demo/psm/`.
+See README "The psm effect" (line 1131 on; its "Calls" at line 1147). `AGENTS.md` has a file entry, but no call-order section. The worked client is `demo/psm/psm_demo.c` on the host (`make psm-demo`); the console demo is the town in `demo/psm/`.
 
 ## Cost
 
@@ -52,7 +68,7 @@ Read it with care:
 
 As-stated, not timed on a console:
 
-- `sh4der_psm.h`: 80 B a map description (`sizeof` on the host, 2026-11-25, Parity; README:988's 76 B leaves out the kind field); 4 × 4 products at build; a lookup is a 4 × 3 transform and a divide (README:988).
+- `sh4der_psm.h`: 80 B a map description (`sizeof` on the host, 2026-11-25, Parity; the README's 76 B, in its calls section at line 1145, leaves out the kind field); 4 × 4 products at build; a lookup is a 4 × 3 transform and a divide (README:988).
 - `sh4der_psm_raster.h`: RAM size × size × 2 B (32 KB at 128 × 128). One FTRV per caster vertex in a batch, three adds and one reciprocal per covered texel, three transforms per receiver vertex (psm_raster.h:34-42).
 - The MOVCA clear: 16.2 cycles a cache line against 41.9 for a plain write that misses (psm_raster.h:119-121). These are the h1 cache lines (MEASURED, one console, 2026-11-25; see the [SH-4 ledger](../hardware/ledger-sh4.md)).
 - `sh4der_psm_pvr.h`: per-vertex lookup error on the host only. With a 256 map, a 4 m ground cell is off by up to 57 texels at 6 m and 1.5 at 20 m; a 1 m cell by 1.1 and 0.07; a 0.25 m cell by 0.06 and 0.004 (README:985). This is ESTIMATE from the host model.
@@ -67,11 +83,11 @@ As-stated, not timed on a console:
 
 ## Tuning
 
-See `README.md` "Psm tuning" (README:1001-1018).
+See `README.md` "Psm tuning" (line 1158 on).
 
 ## Pitfalls
 
-- A build returns 0 for a degenerate frame (a cone near 90 degrees, or a point behind the camera). Fall back to a uniform map (README:976-982).
+- A build returns 0 for a degenerate frame (a cone near 90 degrees, or a point behind the camera). Fall back to a uniform map (README "The psm effect", line 1133 on).
 - Raise `warp_near` (4 m in the example), or the map degenerates with a render near plane of 0.3 m (README:~980).
 - Only a uniform map is exact for per-vertex lookups. The PVR has no q coordinate (README:~987).
 - Route A has no self-shadowing.
@@ -79,8 +95,8 @@ See `README.md` "Psm tuning" (README:1001-1018).
 
 ## Open
 
-- Route B's time on a console apart from the town frame (README:984, 986).
-- Route A's render-target pass and layer are not written as library code (README:985).
+- Route B's time on a console apart from the town frame (README "The psm effect", lines 1141 and 1143).
+- Route A's render-target pass and layer are not written as library code (README "The psm effect", line 1142).
 - The PVR's render time for a caster pass.
 - Why route A runs at 18 fps with 13.6 ms SH-4 and 15.9 ms PVR.
 

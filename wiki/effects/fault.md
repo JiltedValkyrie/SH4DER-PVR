@@ -9,6 +9,22 @@ sources: [include/sh4der_fault.h, test/fault_test.c, demo/psm/fault/psm_fault_f1
 **What you will learn:** what the fault catcher puts on the screen when a console program raises an exception, hangs, asserts or exits, and what it does not catch.
 **For:** a programmer whose test image dies with nothing on screen, and an agent reading a crash photograph.
 
+> **In plain words.** When a program crashes, freezes, fails an assert or quits, this puts a report on the screen instead of a blank picture. The report names the kind of failure, the processor's numbered storage slots (its registers), the places the program was called from (the return addresses on the stack), and the last frame's notes. Use it while building a program that dies with nothing on screen. Do not leave its test switch in a build for players.
+
+## Try this first
+
+It puts a readable report on the screen when the program crashes or freezes.
+
+1. Define `SH4DER_FAULT_IMPL` in one source file, and include `sh4der_fault.h` in the rest (include/sh4der_fault.h:66-68; ADVISED, the header's Use block).
+2. Call `sh4der_fault_init(&crumbs)` after `pvr_init`, and again after any later `pvr_init` (include/sh4der_fault.h:14, 70; ADVISED).
+3. Once a frame: `sh4der_fault_beat(&crumbs)` (one count), then the setters `sh4der_fault_stage`, `sh4der_fault_frame`, `sh4der_fault_menu`, `sh4der_fault_camera` and `sh4der_fault_counts` as the frame goes (include/sh4der_fault.h:71, 116-145; ADVISED).
+4. `SH4DER_FAULT_HANG_VBLANKS` = 120: 120 vertical blanks (the gaps between pictures, about 2 s at 60 Hz) with no beat before the HANG report (include/sh4der_fault.h:88 and its RECOMMENDED line 8; ADVISED, README "Fault tuning").
+5. Leave `SH4DER_FAULT_TEST` undefined in any build for players. It adds forced faults and hangs for seeing the screens (include/sh4der_fault.h:72-73, 391; ADVISED).
+
+On a console: NOT RUN. The header says: "no console run has shown it catching a fault or a hang."
+
+Header: [include/sh4der_fault.h](../../include/sh4der_fault.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 When the program faults, the catcher draws a report straight into video memory and stops. The first line says which kind: `*** EXCEPTION ***` (an address error, an illegal instruction, a TLB fault), `*** HANG ***` (no frame for 120 vertical blanks), `*** ASSERT ***` or `*** EXIT ***`. Under it: the code, the PC, PR, SR, SP and the registers, the address at fault, the return addresses found on the stack (CALLS), the breadcrumbs the frame last wrote (frame, stage, pad, menu, camera, vertices), and for a hang the main thread's PC and what it waits for.

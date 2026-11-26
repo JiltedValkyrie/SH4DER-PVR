@@ -9,6 +9,21 @@ sources: [include/sh4der_deform.h, README.md "The deform effect (ground that kee
 **What you will learn:** how feet and wheels press lasting dents into a ground mesh you already draw, and what it costs.
 **For:** a programmer adding footprints or tracks in snow, mud, sand or ash.
 
+> **In plain words.** Snow, mud or sand keeps the marks pressed into it. A grid stores how deep each small square of ground is pressed, and the ground mesh (the grid of points it is drawn from) reads that depth. Snow keeps a dent, mud slowly closes it, and a small raised lip stands round each one. Use it for footprints and tyre tracks that must stay put.
+
+## Try this first
+
+What it is for: footprints and tracks that stay pressed into snow, mud or sand, at one byte a grid cell.
+
+1. Keep the default window: `SH4DER_DEFORM_GRID_W` = 160 and `SH4DER_DEFORM_GRID_H` = 160 cells, `SH4DER_DEFORM_CELL` = 0.25 metres: 40 m across and 25,600 B (include/sh4der_deform.h:82-84, ADVISED; the 25,600 B is in the header's cost note, include/sh4der_deform.h:13).
+2. Snow: `refill` = 0, so dents stay (include/sh4der_deform.h:114; set at init, include/sh4der_deform.h:180, ADVISED). Mud: no recommended refill rate yet. README 'The deform effect' gives 'a few' steps a second, with no number. The test: walk a path through mud on a console and time how long a dent takes to close.
+3. Rim: `SH4DER_DEFORM_RIM` = 0.25 of the dent's depth (include/sh4der_deform.h:86, ADVISED), reaching out `SH4DER_DEFORM_RIM_REACH` = 1.6 stamp radii (include/sh4der_deform.h:85, ADVISED). Set `SH4DER_DEFORM_RIM` to 0 for no rim.
+4. Prints: `SH4DER_DEFORM_PRINTS` = 32 (include/sh4der_deform.h:87, ADVISED). The decal list keeps the last 32 prints; use it on a coarse mesh for crisp footprints.
+
+On a console: NOT RUN. README 'The deform effect' says: 'Not measured: the cost on a console'; this page's Console time row says: 'not measured | OPEN'.
+
+Header: [sh4der_deform.h](../../include/sh4der_deform.h). Call order: [Call order](#call-order), below.
+
 ## What it does
 
 A grid of one byte a cell under your ground mesh answers "how high is the ground here?" for every vertex (README "The deform effect"):

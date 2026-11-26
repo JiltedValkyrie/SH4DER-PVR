@@ -11,6 +11,14 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/start-here/cal
 
 Status tags: **MEASURED** means a [ledger](../hardware/ledger-pvr.md) row backs it, from one console. **ADVISED** means a header, README table or demo source says so, with file and line. **NOT RUN** means no console run exists. **ESTIMATE** means arithmetic or a model, named. A count from the code is an exact host count, not a console number. Most effects here have no console run: treat every setting as a start.
 
+## The short version
+
+- Start with baked corner shading for walls and boxes, then sun shadow tiles for the few nearest people (advised default).
+- Build the corner bake at load, never in a frame: a static sun bake of 152 ms does not fit (SH4-070, MEASURED).
+- The old town's whole-map route ran at 18 frames a second (MEASURED, one run, PVR-108), which misses 30 Hz.
+- Cut order: screen layers (3.1 ms of PVR each, MEASURED, PVR-002), then water, mist and motes; keep the baked corners.
+- Rising lights, mist, dented ground, uvwarp and focus are NOT RUN on a console, and the sources disagree on the look's version.
+
 ## What this kind of game needs
 
 A town is mostly still, so its corners can be baked once at load ([aobake] for boxes, [aomesh] for triangle walls). It has one sun and some lamps. The sun's shadow must reach passers-by, and a lamp throws a pool on the road. A few people move. The advised default is a shadow tile for each of the few nearest casters, not one map for the whole town (the owner's call of 2026-11-25; [frame budget, "The advised default look"](../limits/frame-budget.md), line 14; the tile count per frame is not measured). The old town's whole-map route ran at 18 frames a second in one view (PVR-108, MEASURED, one console).

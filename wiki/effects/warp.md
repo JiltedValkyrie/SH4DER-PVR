@@ -9,6 +9,22 @@ sources: [include/sh4der_warp.h, src/sh4der_warp.c, README.md "The warp effect",
 **What you will learn:** how the warp bends the frame through a mesh, and what it measured on a console.
 **For:** a programmer adding shockwaves, heat haze, underwater wobble or speed blur.
 
+> **In plain words.** The warp bends the finished picture, the way heat, water or a blast would. A ring can push outward like a shockwave, a column can shimmer like haze over a fire, and the whole screen can wobble as if it were underwater. Use it for explosions, heat haze, underwater levels, a boost blur or a retro wipe between scenes. It draws the frame, copied into a [render-to-texture](../glossary.md#drawing) picture, through a grid whose points are pushed, so the picture bends while the grid stays put.
+
+## Try this first
+
+Bend the finished picture with a shockwave ring, heat haze, a wobble, a speed blur or big pixels.
+
+1. The frame texture is 512 x 256 RGB565, with the 320 x 240 picture in its top-left corner (`SH4DER_WARP_TEX_W` = 512, `SH4DER_WARP_TEX_H` = 256, `include/sh4der_warp.h:69-70`, ADVISED). The Cost section keeps the note on the README's sizes.
+2. Grid: 20 x 15 cells for the coarse mesh (`SH4DER_WARP_GRID_X` = 20, `SH4DER_WARP_GRID_Y` = 15, `include/sh4der_warp.h:72-73`), or 40 x 30 for the fine one (`SH4DER_WARP_FINE_X` = 40, `SH4DER_WARP_FINE_Y` = 30, `include/sh4der_warp.h:74-75`). Build each grid row with `sh4der_warp_row` (`include/sh4der_warp.h:206`, ADVISED).
+3. Shockwave: `SH4DER_WARP_RING_SPEED` = 180 pixels a second, `SH4DER_WARP_RING_WIDTH` = 14, `SH4DER_WARP_RING_AMP` = 5 pixels (`include/sh4der_warp.h:76-78`). Heat haze: `SH4DER_WARP_HAZE_AMP` = 1.5, `SH4DER_WARP_HAZE_PERIOD` = 24, `SH4DER_WARP_HAZE_RISE` = 40 (`include/sh4der_warp.h:79-81`). Wobble: `SH4DER_WARP_WOBBLE_AMP` = 1.2, `SH4DER_WARP_WOBBLE_PERIOD` = 96, `SH4DER_WARP_WOBBLE_TURN` = 4.0 s (`include/sh4der_warp.h:83-85`, ADVISED).
+4. Speed blur: at most `SH4DER_WARP_BLUR_COPIES` = 4 copies, the outermost zoomed by `SH4DER_WARP_BLUR_ZOOM` = 0.06 at full strength (`include/sh4der_warp.h:86-87`, `sh4der_warp_blur_scale` at `:228`, ADVISED).
+5. Pixelate: `SH4DER_WARP_PIXEL_CELL` = 16 frame pixels, which divides 320 and 240 (`include/sh4der_warp.h:88`, ADVISED).
+
+On a console: MEASURED for the pass sends (the page: "Measured on a console"; [BUS-004](../hardware/ledger-bus-dma.md)). The values above are header defaults, not tuned on a console.
+
+Header: [include/sh4der_warp.h](../../include/sh4der_warp.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 The frame is a 512 × 256 texture with the 320 × 240 picture in its top-left corner. It is drawn through a grid mesh whose texture coordinates are pushed (README:480-482; warp.h:8-45). The pushes come from:

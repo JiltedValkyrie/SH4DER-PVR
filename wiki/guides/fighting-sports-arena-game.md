@@ -13,6 +13,14 @@ No source here is about fighting or sports; the effects are general. This page s
 
 **Status tags.** **MEASURED**: a ledger row backs the number (its ID is given), from one console. **ADVISED**: a start value from a header, the README or demo source (file and line given). **NOT RUN**: no console run of that code. **ESTIMATE**: arithmetic or a model, named. A host count is an exact PC count, not a console number. Terms: [glossary](../glossary.md).
 
+## The short version
+
+- Start with sparks and the screen flash for hits, the two parts the recipe below builds.
+- Build the spark pool at load with 24 sparks (ADVISED) on a 64 x 64 atlas, and test each quad's area before it is sent.
+- The budget is 16.7 ms at 60 Hz, and one full-screen layer alone costs 3.1 ms of PVR (MEASURED, PVR-002).
+- Cut order: the shockwave (saving not measured), then the grade's layers (3.1 ms of PVR each, MEASURED, PVR-002), then light pools.
+- Skin glow is NOT RUN on a console, and the sources disagree on the blade's and bloom's version labels.
+
 ## What this kind of game needs
 
 - **Skin and cloth up close.** They must look right at short range.

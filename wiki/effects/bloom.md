@@ -9,6 +9,22 @@ sources: [include/sh4der_bloom.h, src/sh4der_bloom.c, README.md "The bloom effec
 **What you will learn:** how to get a soft glow round a blade or a lamp without reading the frame back, and what it costs.
 **For:** a programmer who wants a cheap halo, sun disc or lens-flare ghost.
 
+> **In plain words.** A soft halo of light round one bright thing, such as a blade tip, a lamp or the sun. It is a few flat, soft-edged shapes added to the picture, so their colours add up and it looks like light. It needs no copy of the picture taken back from the screen. For a glow over the whole screen, use [screen bloom](glow.md).
+
+## Try this first
+
+For a soft glow round one bright point, with no read of the picture.
+
+1. Blade ribbon: `SH4DER_BLOOM_ROWS` = 3 rows and `SH4DER_BLOOM_COLS` = 5 columns (include/sh4der_bloom.h:54-55; ADVISED, README:369-370).
+2. Ribbon width: `SH4DER_BLOOM_HALF_WIDTH` = 0.0875, in the blade's units (include/sh4der_bloom.h:70; ADVISED, README:378).
+3. Tip disc: `SH4DER_BLOOM_RIM` = 8 rim vertices. A round glow uses 16, under the cap `SH4DER_BLOOM_DISC_MAX` = 24 (include/sh4der_bloom.h:56-57; ADVISED, README:371-372).
+4. Rings: `sh4der_bloom_rings` takes up to `SH4DER_BLOOM_RINGS_MAX` = 8 (include/sh4der_bloom.h:58). No recommended value yet for how many rings. Test: draw one lamp glow at 3 rings and at 8, then compare the picture and the PVR time on one console.
+5. Blend: added (source alpha / one), depth test on, depth write off, untextured (README:342; ADVISED).
+
+On a console: NOT RUN. The page says: "All as-stated. None of it is measured on a console."
+
+Header: [sh4der_bloom.h](../../include/sh4der_bloom.h). Steps in full: [Call order](#call-order).
+
 ## What it does
 
 A few feathered additive polygons make a glow (README:312-322; bloom.h:8-45):

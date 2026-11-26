@@ -9,6 +9,22 @@ sources: [include/sh4der_aobake.h, test/aobake_test.c, demo/psm/ao/ao4_scene.h, 
 **What you will learn:** how one ambient occlusion byte a vertex is baked at load by casting rays at spheres, boxes and a ground plane, what it costs on the console, and which of the three occlusion tools fits your job.
 **For:** a programmer who has static geometry and wants a contact shadow in the vertex colour, paid once at load.
 
+> **In plain words.** Before the program runs, this code walks every vertex of a still scene and casts a fan of rays into the space above it. A ray that hits a nearby box, sphere or the floor takes away some light, so a corner, or the ground under a box, gets a darker byte. The bake runs once at load, and the frame pays one multiply a vertex. Use it for scenery that does not move.
+
+## Try this first
+
+What it is for: contact shading on still scenery, computed once at load from boxes, spheres and a floor.
+
+1. Fill a `sh4der_aobake_occl_t` with your boxes and spheres, and set `ground` to 1 with `ground_y` at the floor's height (`include/sh4der_aobake.h:75-79`; the steps are in the top comment, `:35`). No value to set.
+2. `SH4DER_AOBAKE_RAYS` = 64 rays a vertex, built with `sh4der_aobake_rays` (`include/sh4der_aobake.h:64`; `README.md:735`, ADVISED: a start value, and each call takes its own count).
+3. `SH4DER_AOBAKE_REACH` = 3.0 m, how far a ray looks for an occluder (`include/sh4der_aobake.h:65`; `README.md:736`, ADVISED).
+4. `SH4DER_AOBAKE_PUSH` = 0.02 m off the surface (`include/sh4der_aobake.h:66`; `README.md:737`, ADVISED). Then `sh4der_aobake_bytes`, with a tick every 64 vertices for a watchdog (`include/sh4der_aobake.h:172-181`; `README.md:729`).
+5. In the frame, multiply the ambient light by the 0..1 share from `sh4der_aobake_open` (`include/sh4der_aobake.h:186`). No value to set.
+
+On a console: NOT RUN for this copy: the page says it "has not run on a console since the move: its status is ADVISED". The code this header moved unchanged took 254 ms for scene A on one console (SH4-076, MEASURED).
+
+Header: [include/sh4der_aobake.h](../../include/sh4der_aobake.h). Call order: [below](#call-order).
+
 ## What it does
 
 For each vertex, `sh4der_aobake_bytes` casts cosine-weighted rays over the vertex's hemisphere (a fixed Hammersley set, the same one the host tool uses) against your exact occluders: spheres, boxes, and optionally the plane `y = ground_y`. A hit at distance `t` inside the reach takes `1 - t / reach` of a ray. The byte is `255 * (1 - sum / rays)`: 255 open, 0 closed. A start inside a sphere or a box is 0.

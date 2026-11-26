@@ -9,6 +9,21 @@ sources: [include/sh4der_timebase.h, include/sh4der_ca.h, src/sh4der_ca.c, READM
 **What you will learn:** what the timebase effect works out, how the picture is bent with it, and what it costs.
 **For:** a programmer who wants a tape look, or who wants to move parts of the finished picture sideways for another reason.
 
+> **In plain words.** A video tape never delivers its lines exactly on time, so a picture played from one wobbles and tears sideways. This effect works out how far each row of the picture slides in one frame: the top rows hook sideways, the rows weave, and the bottom rows jump where the tape's two heads take over from each other. Use it for a tape look in a cutscene, a security monitor, a flashback or a broken broadcast. The model is ported from parts of NTSCRT by Finn McKenty (MIT), so a program that uses it credits NTSCRT and its author.
+
+## Try this first
+
+Slide the rows of the finished picture sideways, so it looks like a worn tape.
+
+1. At load, call `sh4der_timebase_init(&p, rows, width_px)` (`include/sh4der_timebase.h:265`), then `sh4der_timebase_reset(&st)` (`include/sh4der_timebase.h:282`). Set the header's RECOMMENDED start values on the `sh4der_timebase_t` fields (`include/sh4der_timebase.h:139-151`): for a 640-pixel-wide picture of 360 rows, `tension` = 0.375 (a hook of about 24 pixels at the top row), `flutter` = 0.135, `head_switch_us` = 0.6 (shown 1.5 s in every 20 s), `afc_speed` = 0, `amount` = 1 (`include/sh4der_timebase.h:37-39`, ADVISED).
+2. Each displayed frame, call `sh4der_timebase_field(&p, &st, field, shift_px)` (`include/sh4der_timebase.h:397`) from the main thread. It needs about 4.2 KB of stack (`include/sh4der_timebase.h:85-87`, ADVISED).
+3. Mesh: a mesh row every 6 picture rows, an overscan of 8 pixels, and `SH4DER_CA_ROWS_MESH_X` = 2 (`include/sh4der_timebase.h:39`, `include/sh4der_ca.h:78-79`, ADVISED). Draw the bands with `sh4der_ca_channel_rows` (`include/sh4der_ca.h:204`).
+4. Draw the HUD and text after the bent pass, not through it (`include/sh4der_timebase.h:49`, ADVISED).
+
+On a console: NOT RUN (the header: "no console run on record: nothing below is measured"; the page: "Console time | not measured | OPEN").
+
+Header: [include/sh4der_timebase.h](../../include/sh4der_timebase.h). Order: [How the picture is bent](#how-the-picture-is-bent).
+
 ## What it does
 
 It works out, for one displayed frame, how far each row of the picture sits sideways when the picture is played from a worn

@@ -9,6 +9,22 @@ sources: [include/sh4der_bump.h, README.md "The normal map effect", AGENTS.md "C
 **What you will learn:** how a normal map is lit with plain blend passes instead of the PVR's bump unit, and what it costs in draws and video memory.
 **For:** a programmer who wants relief on a large flat surface, such as a floor or a wall, lit by a torch or another moving light.
 
+> **In plain words.** A normal map is a picture that stores which way each tiny patch of a surface faces. This effect lights that picture with a moving torch, so a flat floor looks grooved, and the grooves catch the light as the torch moves. It uses ordinary blend passes, not the PVR's [bump unit](../glossary.md), so every lit spot costs several extra draws. Use it for a big flat surface under a light that moves.
+
+## Try this first
+
+**What it is for:** putting relief on a big flat surface that a moving light sweeps across.
+
+1. **Make the normal map once.** `sh4der_bump_from_height` (include/sh4der_bump.h:155) writes it from a height map. The side is a power of two up to 256 (README:1612). No recommended value yet for the side. The cost is 4 KB a grey map at 64 × 64 and 16 KB at 128 × 128 (README:1618). Test both on the torch walk's cost label.
+2. **Set the strength.** `SH4DER_BUMP_STRENGTH` = 0.65, the highlight at full light (include/sh4der_bump.h:67; README:1624; ADVISED). The torch walk scales the highlight by it.
+3. **Keep fans small.** `SH4DER_BUMP_MAX_FAN` = 12 corners at most for `sh4der_bump_send_fan` (include/sh4der_bump.h:70; README:1627; ADVISED, a limit).
+4. **Send in this order.** At most six grey passes a cell (README:1615; ADVISED, a limit). Send the header once with `sh4der_bump_send_header` (include/sh4der_bump.h:259), then each cell with `sh4der_bump_send_fan` (include/sh4der_bump.h:270).
+5. **Check the turn.** `sh4der_bump_frame_t.flip` = 0 for a normal map whose y runs up the image (include/sh4der_bump.h:74). No recommended value yet for the azimuth's turn on a console. If the highlight moves the wrong way, set `flip` to 1 and test it on a console (include/sh4der_bump.h:31-32; open question Q42 in ../open-questions.md).
+
+On a console: NOT RUN. The page says "none of it is measured on a console" (Cost), and the header lists what is "NOT checked on a real console" (include/sh4der_bump.h:31).
+
+Read next: [the header](../../include/sh4der_bump.h), [the call order](../../AGENTS.md#call-order-normal-map-highlight-power-2).
+
 ## What it does
 
 A normal map lit by a moving light, using ordinary add and multiply passes of grey textures. The PVR's own [bump unit](../glossary.md) is not used. The normals are kept decoded in RAM.

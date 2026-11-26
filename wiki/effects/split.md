@@ -9,6 +9,22 @@ sources: [include/sh4der_split.h, test/split_test.c, README.md "The split screen
 **What you will learn:** how a screen is cut into two halves at a divider the triggers move, in 32-pixel tile columns, and which clip each half gets.
 **For:** a programmer making a side-by-side comparison (one look on the left, another on the right) who wants the divider to move under the player's hands.
 
+> **In plain words.** The screen is cut into a left half and a right half, with a dividing line the player moves with the triggers. Each half shows its own look, so you can compare two versions side by side. The line moves one column of [tiles](../glossary.md) (32 pixels) at a time. Use it for a before-and-after comparison, and send nothing for a half that is hidden.
+
+## Try this first
+
+It moves a divider between a left half and a right half, and tells you what each half may draw.
+
+1. Screen grid: `SH4DER_SPLIT_TILE` = 32 pixels, `SH4DER_SPLIT_COLS` = 20 columns and `SH4DER_SPLIT_ROWS` = 15 rows, for a 640 by 480 screen (include/sh4der_split.h:46-48, 7-8; ADVISED).
+2. Start the divider in the middle: `sh4der_split_middle(SH4DER_SPLIT_COLS)` = 10 (include/sh4der_split.h:8-9, 63; ADVISED).
+3. Each frame, move it: `d = sh4der_split_step(&step, d, SH4DER_SPLIT_COLS, lt_down, rt_down)`. A press moves it once; held, it moves every `SH4DER_SPLIT_REPEAT` = 6 frames. Both triggers or neither: no move (include/sh4der_split.h:49, 75-87; ADVISED).
+4. `sh4der_split_halves(d, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &left, &right)`. Set each half's clip and send its look when `hidden` is 0, and put the dummy polygon before each change of clip (include/sh4der_split.h:13, 24, 68-73; ADVISED).
+5. Labels: keep them inside `SH4DER_SPLIT_SAFE_X0` = 64 and `SH4DER_SPLIT_SAFE_X1` = 576 pixels with `sh4der_split_label_x(&half, width)`. -1 means no room (include/sh4der_split.h:50-51, 89-100; ADVISED).
+
+On a console: MEASURED for the middle position (PVR-144 and PVR-161, one run each). The page says: "A divider that moves has no console run."
+
+Header: [include/sh4der_split.h](../../include/sh4der_split.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 The PVR's user clip works in tiles of 32 pixels. On a 640 x 480 screen that is 20 columns and 15 rows, so the divider has 21 places, `d = 0` to `20`. The left half is tile columns `0 .. d - 1`; the right half is `d .. 19`. At `d = 0` the left half is hidden; at `d = 20` the right half is hidden. A hidden half has no clip rectangle, so the program sends nothing for it.

@@ -9,6 +9,22 @@ sources: [include/sh4der_frame.h, src/sh4der_frame.c, README.md "The frame read"
 **What you will learn:** how the library reads the finished frame back, and why each frame carries a number.
 **For:** a programmer using [Exposure and grade](look.md), [Screen bloom](glow.md), [Dark shafts of light](shafts.md), [Fake focus blur](focus.md) or [Corner darkening](ao.md), which all measure the picture.
 
+> **In plain words.** The library can look at the picture already on the screen, on a small grid of 80 by 60 sample points, and read how bright it is and what colour. Each frame carries a tiny numbered block in its corner, so the program knows which frame it read, because the screen is one or two frames behind. Use it when an effect must know what the viewer sees: automatic brightness, a glow from the bright parts, or sound that follows the light.
+
+## Try this first
+
+It reads the finished picture back, and tags each frame with a number so the read knows which frame it saw.
+
+1. Each frame, before drawing: `sh4der_frame_next(&h, gain, gain_ln, glow)` gives the frame its number, 0 to 7, and keeps the gain and glow it is drawn with (include/sh4der_frame.h:29-31, 92; the header's order).
+2. The grid the read samples: `SH4DER_FRAME_GRID_X` = 80 and `SH4DER_FRAME_GRID_Y` = 60 (include/sh4der_frame.h:65-66; ADVISED, README "Frame tuning").
+3. The tag block: `SH4DER_FRAME_STAMP_PX` = 4 pixels a side. Draw it last with `sh4der_frame_stamp_draw(id, z)` so it sits over everything (include/sh4der_frame.h:29-31, 67, 145; ADVISED).
+4. `SH4DER_FRAME_HISTORY` = 8 frames of history, which matches the stamp's 3 bits (0 to 7). Change it together with the stamp (include/sh4der_frame.h:68; ADVISED).
+5. If you use the sun's "looked at" term: `SH4DER_FRAME_HOT_FROM` = 0.85, a cosine (about 32 degrees off the view axis), with `sh4der_frame_hot` (include/sh4der_frame.h:69, 131; ADVISED).
+
+On a console: the page says "Version: v0.50, runs on screen on the demo disc", and "The read's own time on our console is not measured."
+
+Header: [include/sh4der_frame.h](../../include/sh4der_frame.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 It reads the frame on screen back on an 80 × 60 grid. Each frame also carries a 4 × 4-pixel stamp holding a number from 0 to 7. So a read knows which frame it saw, and can take that frame's gain and glow off (README:1104-1106; frame.h:8-50).

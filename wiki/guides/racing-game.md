@@ -11,6 +11,14 @@ sources: [demo/pl4nar/src/demo.c, demo/pl4nar/build.py, include/sh4der_pool.h, i
 
 The guide follows one working example: the street driving demo in `demo/pl4nar`. Each value you see is taken from that demo's source, or from the library's header or wiki page, with its file and line. Where the code and the docs disagree, the guide says so at the end.
 
+## The short version
+
+- The effects to start with are the reflection on the paint and wet road, then light pools and headlights.
+- Build the mirror at 256 x 128, with the street drawn upside down (ADVISED).
+- The c7 build's day frame is 25.25 ms (MEASURED, PVR-174): it holds 30 Hz but is about 8.6 ms over 60 Hz (ESTIMATE).
+- Cut the heat haze when it is on (ESTIMATE, 0.4 to 0.8 ms of SH-4), then halos and light pools, whose savings are not measured.
+- The car programs are NOT RUN on a console as a set, and the sources disagree on the starting target size and the paint's F0.
+
 ## Read this first
 
 - **Status tags.** Every number says where it comes from. **MEASURED** means a row in the [hardware ledger](../hardware/ledger-pvr.md) backs it, from one Dreamcast. **ADVISED** means a start setting from a header or the demo's source. **NOT RUN** means the car programs have not run on a console yet ([suite 13](../methods/suite-13.md)). **ESTIMATE** means arithmetic or a model. **DERIVED** means arithmetic on measured numbers, such as a difference or a ratio. **OPEN** means nobody has measured it yet. A measured number and an estimate are never mixed in one cell.
@@ -211,11 +219,11 @@ Do not call `sh4der_pool_reach_make` once for each lamp. Do not put a reach on t
 
 ### The headlight beam switch (street build, NOT RUN on a console)
 
-A car's headlight in the street demo starts as two plain wedges. The switch `-DPL4NAR_HEAD_BEAM` (or `demo_auto_beam(1)` in code) turns on `sh4der_pool_beam` for the beam: 2 across, 3 rows, with reach `LAMP_NEAR` (60 m) and fade width `LAMP_FADE_W` (10 m), measured from the eye. The spill wedge is scaled by the car's distance. No autorun stage turns the switch on yet.
+A car's headlight in the street demo starts as two plain wedges. The switch `-DPL4NAR_HEAD_BEAM` (or `demo_auto_beam(1)` in code) turns on `sh4der_pool_beam` for the beam: 2 across, 3 rows, with reach `LAMP_NEAR` (60 m) and fade width `LAMP_FADE_W` (10 m), measured from the eye. The spill wedge is scaled by the car's distance. The street demo's autorun now has 12 stages (84 s). Stage 11, "Headlights fade with distance", turns the beam on; stage 12 is the two plain wedges for comparison. In stage 11 a car driving away at 14 m/s is 50 m off at 4.6 s and 60 m off at 5.3 s. NOT RUN on a console.
 
 The hills build keeps the long wedge with no fade along it; only its spill is scaled by the car's distance.
 
-The host count is an exact count, not a console number: over a 210-frame night fly-by in the street build, 251,468 triangles were sent with the switch off and 252,022 with it on (host, exact count; NOT RUN on a console).
+The host counts are exact counts, not console numbers. Over one stretch of road, a 210-frame night fly-by in the street build sent 251,468 triangles with the switch off and 252,022 with it on. The two autorun stages cover different stretches of road, so their counts are not a like-for-like comparison: with the fade, 264,908 triangles were sent (most in a frame: 1,351), without it 254,020 (most in a frame: 1,335). These are host numbers; NOT RUN on a console.
 
 ### Soft edges at planes and walls (not the depth fade)
 

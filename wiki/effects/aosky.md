@@ -9,6 +9,22 @@ sources: [include/sh4der_aosky.h, test/aosky_test.c, demo/psm/ao_layer.h, demo/p
 **What you will learn:** how the sky's occlusion of the ground is drawn as a few extra shadows into the sun's shadow target, what it costs on the PVR and the SH-4, and which result is measured and which is not.
 **For:** a programmer who already draws the sun's shadow into a render target for a flat ground, and wants contact darkening under props without a bake.
 
+> **In plain words.** The sun's shadow is drawn a few extra times, each time slid toward a different patch of sky and drawn as faint black. Where those faint shadows pile up, the ground gets darker, the way it does under a prop. It adds no new picture and no new pass, because it rides on the sun's shadow target. Use it on a flat ground that already has a sun shadow; it does not darken walls or moving things.
+
+## Try this first
+
+What it is for: darker ground under props, from a few sky directions drawn into the sun's shadow target you already have.
+
+1. Make the directions' header with plain blending: `sh4der_aosky_header(&h, 0)`, not 1 (`include/sh4der_aosky.h:8`, `:55`, ADVISED). The depth union (1) failed on the PVR (PVR-127, MEASURED).
+2. Take k = 4 directions. `sh4der_aosky_count` rounds k to 0, 1, 2, 4 or 8, and `SH4DER_AOSKY_DIRS_MAX` = 8 is the most a call takes (`include/sh4der_aosky.h:85`, `:104`; `README.md:763`, ADVISED). Draw one side: it gives the same darkening as both sides for half the vertices (PVR-128, MEASURED).
+3. `SH4DER_AOSKY_FLOOR` = 0.5, what is left of the ground's light with every direction blocked (`include/sh4der_aosky.h:87`; `README.md:764`, ADVISED). `SH4DER_AOSKY_Z0` = 1.25 is direction 0's depth in the map pass (`include/sh4der_aosky.h:88`; `README.md:765`, ADVISED).
+4. Each frame, after the sun's casters: for each direction `d < k`, `sh4der_aosky_slope(k, d, s)` (`include/sh4der_aosky.h:114`), then `sh4der_aosky_dir` (`:202`) with `sh4der_aosky_argb(k, strength)`. No value to set.
+5. Cap k at what the frame pays: about 0.35 to 0.45 ms of PVR a direction for scenes of about 1,100 caster triangles (the page's Recommended limits). ESTIMATE: arithmetic from the target passes in PVR-140 (451 us and 347 us a direction).
+
+On a console: NOT RUN for this copy. The page's status: "its status is ADVISED for the copy and PROVEN for the start settings."
+
+Header: [include/sh4der_aosky.h](../../include/sh4der_aosky.h). Call order: [below](#call-order).
+
 ## What it does
 
 The sun's casters are drawn once into the shadow target as the sun sees them. `sh4der_aosky_dir` draws the same casters again, once per sky direction, slid along that direction onto the ground and mapped into the target, each time as a faint black. Where the shadows pile up the ground gets darker: occlusion of the sky in K steps. No new target and no new pass; the layer that carries the sun's shadow carries this too.

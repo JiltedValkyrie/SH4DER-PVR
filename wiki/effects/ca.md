@@ -9,6 +9,21 @@ sources: [include/sh4der_ca.h, src/sh4der_ca.c, README.md "The frame texture and
 **What you will learn:** how the world is drawn into a texture, how the colour fringe is made from it, and what it costs in video memory.
 **For:** a programmer who wants a lens colour fringe, or any effect that needs the whole frame as a texture.
 
+> **In plain words.** The colour fringe pulls the colours a little apart toward the screen's edges, the way a cheap camera lens does: the corners show red and blue edges, and the middle stays clean. To do it, the world goes into a [render-to-texture](../glossary.md#drawing) picture, and that picture is drawn three times, once per colour. Use it for a scope or camera look, a hit or glitch, or a dream or old-tape look. It needs spare video memory, and when there is not enough it turns itself off and draws the picture as normal.
+
+## Try this first
+
+Split the colours toward the corners of the screen, so the edges show a lens fringe.
+
+1. At load, call `sh4der_ca_setup(&ca, half, 1)` (`include/sh4der_ca.h:176`): `half` 0 for 640 x 480 (640 KB), 1 for 320 x 240 (160 KB) (`include/sh4der_ca.h:11-12`). Use 640 x 480 for the fringe alone, and 320 x 240 when a temporal blend rides on it or video memory is short (`include/sh4der_ca.h:48-49`, ADVISED). The setup sets the PVR's one stride register, which the motion blur shares (`include/sh4der_ca.h:173-174`).
+2. If setup returns 0, print `short_kb` once and draw as before (`include/sh4der_ca.h:19-21`, `:50-51`, ADVISED).
+3. Strength 1.00 puts red and blue `SH4DER_CA_SPLIT_PX` = 3.0 screen pixels apart in the corner (`include/sh4der_ca.h:75`, `:46`, ADVISED). The useful range is 0.25 to 4.00; 12 pixels is a damaged lens (`include/sh4der_ca.h:46-47`, ADVISED).
+4. Draw the world with `sh4der_ca_begin(&ca, 0)` in place of `pvr_scene_begin` (`include/sh4der_ca.h:181-183`). Then draw green with `sh4der_ca_channel(..., SH4DER_CA_GREEN, ...)` in the opaque list, and red and blue in the translucent list (`include/sh4der_ca.h:190-192`, ADVISED). Draw the HUD after, sharp (`include/sh4der_ca.h:52`, ADVISED).
+
+On a console: NOT RUN (the page: "There are no times.").
+
+Header: [include/sh4der_ca.h](../../include/sh4der_ca.h). Call order: [Call order](#call-order).
+
 ## What it does
 
 The world is drawn into a 640 × 480 or 320 × 240 [render target](../glossary.md). The screen pass then draws it as one quad, or as three channel meshes (red, green, blue) at slightly different scales (README:706-747).

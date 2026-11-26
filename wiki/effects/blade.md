@@ -9,6 +9,22 @@ sources: [include/sh4der_blade.h, src/sh4der_blade.c, README.md "The blade effec
 **What you will learn:** what the blade effect draws, how to call it and what it costs.
 **For:** a programmer adding a glowing energy blade, rod or tube to a model.
 
+> **In plain words.** The blade glows with light that moves. Thin tubes of light spin inside it, a dark spot slides along it, and the glow pulses. For each corner of the mesh (a vertex) you work out a brightness, then draw the mesh with no texture and its colour added to the picture, so it looks like light. Use it for a sword, a staff, a neon tube or an engine's flame.
+
+## Try this first
+
+For a moving glow on a blade, rod or tube, with one untextured draw per material group.
+
+1. Start from the defaults: `sh4der_blade_params_default` fills the `SH4DER_BLADE_*` values (include/sh4der_blade.h:135).
+2. `SH4DER_BLADE_PERIOD` = 192 ticks for one loop, 6.4 s at the 30-ticks-a-second counter (include/sh4der_blade.h:62; ADVISED, README:241).
+3. `SH4DER_BLADE_PULSES` = 2 glow pulses in each loop (include/sh4der_blade.h:63; ADVISED, README:242).
+4. Give each object its own phase: 57 × the object's index, added to the tick, so a group does not pulse together (README:229; ADVISED).
+5. Call `sh4der_blade_prepare` once per instance per frame (include/sh4der_blade.h:146), then `sh4der_blade_argb` with the group's colour (include/sh4der_blade.h:158). A frame it refuses is dark (include/sh4der_blade.h:143-145).
+
+On a console: NOT RUN (for the cost). The page says: "None of it is measured on a console."
+
+Header: [sh4der_blade.h](../../include/sh4der_blade.h). Steps in full: [Call order](#call-order).
+
 ## What it does
 
 Light tubes orbit an axis. A soft blocker slides along the axis on a helix, and a pulse breathes over both. The result is a brightness for each vertex. You draw the mesh untextured and additive with that colour (README:129-151; blade.h:8-40).

@@ -9,6 +9,22 @@ sources: [include/sh4der_torch.h, src/sh4der_torch.c, README.md "The torch effec
 **What you will learn:** how the torch fakes a flashlight with no light source, and the trap with AA 2X.
 **For:** a programmer adding a first-person flashlight to a dark level.
 
+> **In plain words.** A flashlight with no real light in the scene. A round patch of the screen stays bright with a hot middle, the dark round it is pushed darker, and the light fades with distance. It switches on in dark places and off in light ones, with a band between so it does not flicker. Use it for a torch, a miner's lamp or a vehicle's head lamps; in daylight it darkens nothing.
+
+## Try this first
+
+For a flashlight or lamp in a dark level, with no light source in the scene.
+
+1. The gate reads the level's baked brightness, not the frame: `SH4DER_TORCH_ON_LO` = 0.12 switches it on below that, `SH4DER_TORCH_OFF_HI` = 0.22 switches it off above that (include/sh4der_torch.h:102-103; ADVISED, README:698-699; why: include/sh4der_torch.h:31-33).
+2. The carve follows darkness: `SH4DER_TORCH_DARK_LO` = 0.30 is a full carve, `SH4DER_TORCH_DARK_HI` = 0.80 is no carve (include/sh4der_torch.h:106-107; ADVISED, README:702-703).
+3. The near light and the reach: `SH4DER_TORCH_NEAR_WU` = 7.0 world units; the reach fades from `SH4DER_TORCH_FOG_NEAR` = 2.0 to `SH4DER_TORCH_FOG_FAR` = 6.0 (include/sh4der_torch.h:99-101; ADVISED, README:695-697). The header's author's-game note gives 6.0 and a reach of 5.0 (include/sh4der_torch.h:58-62), so check these against your own units.
+4. The edge: about 22 degrees off the view axis (the author's game, include/sh4der_torch.h:60-61). The carve mesh reaches `SH4DER_TORCH_UMAX` = 1.6 (include/sh4der_torch.h:97; ADVISED, README:693).
+5. With AA 2X on, scale x exactly once: in `cx`, in the x scale given to `sh4der_torch_radii`, and in the width given to `sh4der_torch_umax` (include/sh4der_torch.h:40-46; ledger VID-010, FACT).
+
+On a console: the page says "As-stated. None of it is measured on a console."
+
+Header: [sh4der_torch.h](../../include/sh4der_torch.h). Steps in full: [Call order](#call-order).
+
 ## What it does
 
 A flashlight hotspot carved on screen, with no light source in the scene (README:617-632; torch.h:8-40):
