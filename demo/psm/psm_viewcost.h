@@ -37,6 +37,8 @@
 #define VC_TAG        "vc-b2"
 #elif VC_PART == 3
 #define VC_TAG        "vc-c1"           /* the placement's options (psm_scene.h, PSM_PLACE_*) on route B */
+#elif VC_PART == 7
+#define VC_TAG        "vc-f"            /* the model colours from a table (c1), and only the sent vertices' (c3) */
 #elif VC_PART == 6
 #define VC_TAG        "vc-e"            /* the send's dry count left out (f8), beside the placement's options */
 #elif VC_PART == 5
@@ -76,7 +78,7 @@ typedef struct vc_stage {
     int route;              /* 0 route A, 1 route B (PSM_ROUTE_A, PSM_ROUTE_B) */
     float pitch;
     int turn, inset;
-    unsigned opt;           /* the placement's options this stage (PSM_PLACE_AREA 1, _BLOCKS 2, _SIDE 4), and 8: no dry send count */
+    unsigned opt;           /* the placement's options this stage (PSM_PLACE_AREA 1, _BLOCKS 2, _SIDE 4), 8: no dry send count, 16 and 32: PSM_COLOUR_TABLE and _SEEN */
 } vc_stage_t;
 
 static const vc_stage_t vc_script[] = {
@@ -94,6 +96,12 @@ static const vc_stage_t vc_script[] = {
     { "B boot tn f3", 1, VC_PITCH_BOOT, 1, 0, 3u },
     { "B boot tn f7", 1, VC_PITCH_BOOT, 1, 0, 7u },
     { "B boot st f7", 1, VC_PITCH_BOOT, 0, 0, 7u },
+#elif VC_PART == 7
+    { "B boot st c0", 1, VC_PITCH_BOOT, 0, 0, 0u },  { "B boot st c1", 1, VC_PITCH_BOOT, 0, 0, 16u }, { "B boot st c3", 1, VC_PITCH_BOOT, 0, 0, 48u },
+    { "A sky st c0",  0, VC_PITCH_SKY,  0, 0, 0u },  { "A sky st c1",  0, VC_PITCH_SKY,  0, 0, 16u }, { "A sky st c3",  0, VC_PITCH_SKY,  0, 0, 48u },
+    { "A boot st c0", 0, VC_PITCH_BOOT, 0, 0, 0u },  { "A boot st c1", 0, VC_PITCH_BOOT, 0, 0, 16u }, { "A boot st c3", 0, VC_PITCH_BOOT, 0, 0, 48u },
+    { "A boot tn c0", 0, VC_PITCH_BOOT, 1, 0, 0u },  { "A boot tn c3", 0, VC_PITCH_BOOT, 1, 0, 48u },
+    { "A boot st f7", 0, VC_PITCH_BOOT, 0, 0, 7u },  { "A boot c3f7",  0, VC_PITCH_BOOT, 0, 0, 55u },   /* with the placement's options: fewer vertices are sent */
 #elif VC_PART == 6
     { "B boot st f0", 1, VC_PITCH_BOOT, 0, 0, 0u },  { "B boot st f8", 1, VC_PITCH_BOOT, 0, 0, 8u },
     { "B boot tn f7", 1, VC_PITCH_BOOT, 1, 0, 7u },  { "B boot tn 15", 1, VC_PITCH_BOOT, 1, 0, 15u },
@@ -282,7 +290,7 @@ static inline void vc_report(const vc_run_t *r, void (*say)(const char *fmt, ...
     say(" KB = KallistiOS's buffer reading; gvn = ground window");
     say(" vertices, mvis = model vertices marked sent, blk = model");
     say(" blocks left out (sampled). f (or 15) in a name = options:");
-    say(" 1 area from 1/w, 2 blocks, 4 side cull, 8 no dry send count.");
+    say(" 1 area 2 blocks 4 side 8 no dry count; c: 1 table 2 sent only");
     say("TA events in the counted frames: PARAM = vertex buffer full,");
     say(" OPB = tile bins; other = ISP, strip, input error, overflow.");
     if (r->stopped) say("RUN STOPPED BY THE PAD at stage %u frame %u: n shows what ran", r->stop_stage + 1u, r->stop_frame);

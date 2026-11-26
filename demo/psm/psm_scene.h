@@ -1024,6 +1024,13 @@ typedef struct psm_frame {
     unsigned mbn, mb_tdyn0, mb_mdyn0;
     int mb_town;
     unsigned mb_culled, mb_culled_tris;   /* blocks and their triangles the last placement left out */
+    /* the colours' options (PSM_COLOUR_*). 0: every model vertex's colour worked out every frame, as it always was */
+    unsigned colour_opt;
+    int mlut_ok;                /* mlut is made for mlut_key and mlut_pal */
+    unsigned mlut_n;            /* its rows */
+    float mlut_key[6];          /* the light it was made for: amb, sunc */
+    float mlut_pal[PSM_PAL_MAX][3];        /* and the palette */
+    uint32_t mlut[PSM_PAL_MAX][256];       /* PSM_COLOUR_TABLE: a model vertex's colour by its palette entry and its sun share */
 } psm_frame_t;
 
 static const float psm_probe_m[4] = { 4.0f, 10.0f, 25.0f, 60.0f };
@@ -1526,9 +1533,40 @@ static inline void psm_place_geo(psm_frame_t *f, const psm_scene_t *s) {
     f->vis_ok = 1;
 }
 
+/* The colours' options, psm_frame_t.colour_opt (0: as it always was).
+   PSM_COLOUR_TABLE: a model vertex's colour is read from a table, a row a palette entry and a column a sun share: the
+   same expression as the per-vertex one, worked out 256 times a palette entry when the light or the palette changes
+   (the scene's amb, sunc and pal are compared every frame: under 1 KB) and not at all on the frames between. 64 KB of
+   RAM in psm_frame_t; the town's palette uses a part of it.
+   PSM_COLOUR_SEEN: only the vertices psm_place_geo marked as sent (mvis) get a colour; the others keep an old one,
+   which nothing reads. Call psm_place_geo before psm_colour, as the frame does. */
+#define PSM_COLOUR_TABLE 1u
+#define PSM_COLOUR_SEEN  2u
+
+static inline void psm_colour_table_(psm_frame_t *f, const psm_scene_t *s) {
+    const unsigned n = s->paln < PSM_PAL_MAX ? (s->paln ? s->paln : 1u) : PSM_PAL_MAX;
+    unsigned k, r;
+
+    if (f->mlut_ok && f->mlut_n == n && memcmp(f->mlut_key, s->amb, sizeof s->amb) == 0 && memcmp(f->mlut_key + 3, s->sunc, sizeof s->sunc) == 0
+        && memcmp(f->mlut_pal, s->pal, n * sizeof s->pal[0]) == 0) return;
+    for (k = 0; k < n; k++) {
+        const float *alb = s->pal[k];
+
+        for (r = 0; r < 256u; r++) {
+            const float d = (float)r * (1.0f / 255.0f);
+
+            f->mlut[k][r] = psm_pack_rgb(alb[0] * psm_light_c(s, 0u, d), alb[1] * psm_light_c(s, 1u, d), alb[2] * psm_light_c(s, 2u, d));
+        }
+    }
+    memcpy(f->mlut_key, s->amb, sizeof s->amb); memcpy(f->mlut_key + 3, s->sunc, sizeof s->sunc);
+    memcpy(f->mlut_pal, s->pal, n * sizeof s->pal[0]);
+    f->mlut_n = n; f->mlut_ok = 1;
+}
+
 /* This frame's colours: they follow the sun and the shadows, so they are made every frame, the ground's from a 256 level
    table. The light by channel (the field's is grey). */
 static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
+    const int seen = (f->colour_opt & PSM_COLOUR_SEEN) && f->vis_ok;
     unsigned i, r;
 
     for (r = 0; r < 256u; r++) {
@@ -1537,10 +1575,19 @@ static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
         f->glut[r] = psm_pack_rgb(psm_light_c(s, 0u, d), psm_light_c(s, 1u, d), psm_light_c(s, 2u, d));
     }
     for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut[f->glit[i]];
+    if (f->colour_opt & PSM_COLOUR_TABLE) {
+        psm_colour_table_(f, s);
+        for (i = 0; i < s->mvn; i++) {
+            if (seen && !f->mvis[i]) continue;
+            f->mcol[i] = f->mlut[s->mkind[i] < s->paln ? s->mkind[i] : 0u][f->mlit[i]];
+        }
+        return;
+    }
     for (i = 0; i < s->mvn; i++) {
         const float d = (float)f->mlit[i] * (1.0f / 255.0f);
         const float *alb = s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
 
+        if (seen && !f->mvis[i]) continue;
         f->mcol[i] = psm_pack_rgb(alb[0] * psm_light_c(s, 0u, d), alb[1] * psm_light_c(s, 1u, d), alb[2] * psm_light_c(s, 2u, d));
     }
 }

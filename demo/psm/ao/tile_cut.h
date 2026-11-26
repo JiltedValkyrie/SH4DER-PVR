@@ -47,7 +47,9 @@
        bad = tile_cut_end(&cut);             every word back; read back (three tries) on the first ends; bad: words
                                              still different
 
-   tile_cut_begin refuses (returns 0, nothing written) when no table was found, a table's first or last entry no longer
+   tile_cut_begin refuses (returns 0, nothing written) when not every table was found yet (c->need of them: two, as
+   KallistiOS has; with one of two the passes through the other table ran uncut, every second frame: PVR-200. A
+   program that knows it has one table sets need to 1 after tile_cut_init), a table's first or last entry no longer
    reads as laid out (two words read a table: all it looks at; tile_cut_check reads everything, for a load or a pause),
    the cut is larger than the screen or than TILE_CUT_MAX tiles, or a cut is on already. A table that is refused is
    left alone and the pass runs uncut. If tile_cut_end returns other than 0 the screen's next frame would be a corner
@@ -75,6 +77,7 @@
 typedef struct tile_cut {
     volatile uint32_t *table[TILE_CUT_TABLES];          /* each table's first word (its first entry) */
     unsigned n;                                         /* tables found */
+    unsigned need;                                      /* tables a cut wants found: TILE_CUT_TABLES from tile_cut_init */
     unsigned tw, th;                                    /* the screen's tiles */
     unsigned cw, ch;                                    /* the cut that is on */
     int on;                                             /* 0 none, 1 tile_cut_begin's, 2 tile_cut_begin_cols' */
@@ -83,7 +86,7 @@ typedef struct tile_cut {
 } tile_cut_t;
 
 static inline void tile_cut_init(tile_cut_t *c, unsigned tw, unsigned th) {
-    c->n = 0; c->tw = tw; c->th = th; c->cw = c->ch = 0; c->on = 0;
+    c->n = 0; c->need = TILE_CUT_TABLES; c->tw = tw; c->th = th; c->cw = c->ch = 0; c->on = 0;
     c->verify = TILE_CUT_VERIFY;
     c->table[0] = c->table[1] = 0;
 }
@@ -143,7 +146,7 @@ static inline int tile_cut_check(const tile_cut_t *c) {
 static inline int tile_cut_begin(tile_cut_t *c, unsigned cw, unsigned ch) {
     unsigned k, x, y, i, j;
 
-    if (c->on || !c->n || !cw || !ch || cw > c->tw || ch > c->th || cw * ch > TILE_CUT_MAX) return 0;
+    if (c->on || !c->n || c->n < c->need || !cw || !ch || cw > c->tw || ch > c->th || cw * ch > TILE_CUT_MAX) return 0;
     for (k = 0; k < c->n; k++) if (!tile_cut_ends_ok_(c, k)) return 0;
     for (k = 0; k < c->n; k++) {
         volatile uint32_t *t = c->table[k] + 6u;
@@ -167,7 +170,7 @@ static inline int tile_cut_begin(tile_cut_t *c, unsigned cw, unsigned ch) {
 static inline int tile_cut_begin_cols(tile_cut_t *c, unsigned cw) {
     unsigned k;
 
-    if (c->on || !c->n || !cw || cw > c->tw) return 0;
+    if (c->on || !c->n || c->n < c->need || !cw || cw > c->tw) return 0;
     for (k = 0; k < c->n; k++) if (!tile_cut_ends_ok_(c, k)) return 0;
     for (k = 0; k < c->n; k++) c->table[k][6u + 6u * (cw * c->th - 1u)] = c->copy[k][6u * (cw * c->th - 1u)] | 0x80000000u;
     c->cw = cw; c->ch = c->th; c->on = 2;

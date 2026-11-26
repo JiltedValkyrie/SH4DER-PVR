@@ -155,7 +155,10 @@ int main(void) {
         static tile_cut_t d;
 
         tile_cut_init(&d, TW, TH);
-        CHECK(tile_cut_add(&d, tab[0]) && d.verify == TILE_CUT_VERIFY, "a second cut state");
+        CHECK(tile_cut_add(&d, tab[0]) && d.verify == TILE_CUT_VERIFY && d.need == TILE_CUT_TABLES, "a second cut state");
+        CHECK(!tile_cut_begin(&d, 4u, 5u) && !tile_cut_begin_cols(&d, 4u) && !d.on && differ() == 0u, "a cut with one of the two tables found");
+        CHECK(tile_cut_end(&d) == 0u && differ() == 0u, "an end after a refused cut");
+        d.need = 1u;                                                        /* a program with one table says so */
         for (q = 0; q < TILE_CUT_VERIFY + 3u; q++) { CHECK(tile_cut_begin(&d, 4u, 5u), "begin %u", q); CHECK(tile_cut_end(&d) == 0u, "end %u", q); }
         CHECK(d.verify == 0u && differ() == 0u, "the read-back count");
     }

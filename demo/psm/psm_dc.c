@@ -692,6 +692,7 @@ int main(void) {
             state.route = v.route; state.inset = v.inset; state.pitch = v.pitch; state.yaw = vc_yaw0 + v.yaw;
             frame.place_opt = v.opt & 7u;    /* the placement's options this stage (psm_scene.h): the placement is made again on a change */
             plan_lazy = (v.opt & 8u) != 0u;  /* and the send's dry count left out */
+            frame.colour_opt = (v.opt >> 4) & 3u;   /* and the colours' options (PSM_COLOUR_*) */
             state.x = vc_x0; state.z = vc_z0; state.menu = 0;
             if (state.route != route_before) psm_mapsrc_reset(&mapsrc);
             dt = VC_DT;
