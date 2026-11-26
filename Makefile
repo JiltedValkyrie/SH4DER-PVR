@@ -1,6 +1,6 @@
 # SH4DER-PVR (SH4DOW-DC is included, in the folder sh4dow-dc; SH4DOW= names another checkout)
 #
-#   make test                       host check of the plain C path: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/deform_test, test/pl4nar_test, test/pool_test, test/ramp_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, example/blade
+#   make test                       host check of the plain C path: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/deform_test, test/pl4nar_test, test/pool_test, test/ramp_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, test/page_test, test/fxlabel_test, example/blade
 #   make test-shz SH4ZAM=<checkout> host check of the SH4ZAM path (SH4ZAM's software back-end, 0.10 or later): every test
 #   make dc SH4ZAM=<checkout>       Dreamcast library build/libsh4der_core.a (KallistiOS environment sourced)
 #   make test-dc SH4ZAM=<checkout>  build/*_test.elf: every test on the Dreamcast path
@@ -61,8 +61,12 @@ $(BUILD)/psm_demo: demo/psm/psm_demo.c include/sh4der_psm.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include $< src/sh4der_core.c -lm -o $@
 
-test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
+test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade $(BUILD)/page_test $(BUILD)/fxlabel_test
 	$(BUILD)/core_test
+	$(PYTHON) tools/page_crc.py --self-test
+	$(PYTHON) tools/qr_check.py --self-test
+	$(BUILD)/page_test
+	$(BUILD)/fxlabel_test
 	$(BUILD)/blade_test
 	$(BUILD)/holo_test
 	$(BUILD)/bloom_test
@@ -140,6 +144,8 @@ $(BUILD)/tilecut_test: test/tilecut_test.c
 $(BUILD)/split_test: test/split_test.c
 $(BUILD)/aobake_test: test/aobake_test.c include/sh4der_aobake.h tools/ao_bake_core.h
 $(BUILD)/aomesh_test: test/aomesh_test.c include/sh4der_aomesh.h
+$(BUILD)/page_test: test/page_test.c include/sh4der_page.h
+$(BUILD)/fxlabel_test: test/fxlabel_test.c include/sh4der_fxlabel.h
 $(BUILD)/aosky_test: test/aosky_test.c include/sh4der_aosky.h
 $(BUILD)/pvrx_test: test/pvrx_test.c include/sh4der_pvrx.h
 $(BUILD)/water_test: test/water_test.c include/sh4der_water.h include/sh4der_sss.h $(SH4DOW)/include/sh4dow_heightfield.h
@@ -204,7 +210,7 @@ $(BUILD)/psm_town_test: test/psm_town_test.c $(PSM_TOWN_DEPS) $(SRC) $(HDR)
 # line says so. The street layout only. psm_place_cmp draws 432 pictures: about 20 s.
 DEMO_T          = $(BUILD)/demo_test
 DEMO_CC         = $(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -Iinclude -I$(SH4DOW)/include
-DEMO_TESTS      = heat_test heat_hex_test psm_ground_test suite_ui_test psm_viewcost_test psm_colour_test psm_plan_test psm_ao_test psm_place_cmp ao_bake_test
+DEMO_TESTS      = heat_test heat_hex_test psm_ground_test suite_ui_test psm_viewcost_test psm_colour_test psm_plan_test psm_ao_test psm_place_cmp ao_bake_test fx_tables_test
 CONTROLS_TESTS  = controls_street controls_map controls_hills controls_wet controls_street_drive controls_map_drive controls_hills_drive
 controls_street_F       =
 controls_map_F          = -DPL4NAR_MAP
@@ -218,7 +224,8 @@ SNAP_SW         = $(SH4ZAM)/source/sw/shz_xmtrx_sw.c
 SNAP_TEST       = $(if $(wildcard $(SNAP_GEN)/assets_gen.c),$(if $(wildcard $(SNAP_SW)),$(DEMO_T)/snap_test))
 HERO_STRIP_ZIP ?= demo/pl4nar/assets/_dl/spacekit_2.0.zip
 HERO_STRIP_TEST = $(if $(wildcard $(HERO_STRIP_ZIP)),$(DEMO_T)/hero_strip_test)
-test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS) $(CONTROLS_TESTS)) $(HERO_STRIP_TEST) $(SNAP_TEST)
+QRPAGE_TEST     = $(if $(wildcard demo/psm/assets/_dl/qrcodegen.c),$(DEMO_T)/qrpage_test)
+test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS) $(CONTROLS_TESTS)) $(HERO_STRIP_TEST) $(SNAP_TEST) $(QRPAGE_TEST)
 	$(PYTHON) demo/pl4nar/tools/grit_gen.py --self-test
 	$(PYTHON) demo/pl4nar/tools/check_coupe.py --self-test
 	$(PYTHON) demo/psm/hero/tools/bake_strip.py --self-test
@@ -232,7 +239,9 @@ test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS) $(CONTROLS_TESTS)) $(HERO_STRIP_
 	$(DEMO_T)/psm_ao_test
 	$(DEMO_T)/psm_place_cmp
 	$(DEMO_T)/ao_bake_test
+	$(DEMO_T)/fx_tables_test
 	$(foreach c,$(CONTROLS_TESTS),$(DEMO_T)/$(c) &&) true
+	$(if $(QRPAGE_TEST),mkdir -p $(DEMO_T)/qrpage && $(QRPAGE_TEST) $(DEMO_T)/qrpage && $(PYTHON) tools/qr_check.py --matrices $(DEMO_T)/qrpage/qr_matrices.txt,@echo "qrpage_test: NOT RUN, no demo/psm/assets/_dl/qrcodegen.c (demo/psm/tools/fetch.py)")
 	$(if $(HERO_STRIP_TEST),$(HERO_STRIP_TEST),@echo "hero_strip_test: NOT RUN, no $(HERO_STRIP_ZIP)")
 	$(if $(SNAP_TEST),$(SNAP_TEST),@echo "snap_test: NOT RUN, no $(SNAP_GEN)/assets_gen.c or no $(SNAP_SW)")
 
@@ -252,6 +261,12 @@ $(addprefix $(DEMO_T)/,$(CONTROLS_TESTS)): demo/pl4nar/host/controls_test.c demo
 $(DEMO_T)/snap_test: demo/pl4nar/host/snap_test.c demo/pl4nar/src/demo.c demo/pl4nar/src/gfx.c demo/pl4nar/src/hud.c demo/pl4nar/host/gfx_host.c $(SNAP_GEN)/assets_gen.c $(SNAP_SW) demo/pl4nar/src/demo.h demo/pl4nar/src/heat.h demo/pl4nar/src/controls.h
 	@mkdir -p $(DEMO_T)
 	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DDEMO_HOST -Idemo/pl4nar/src -I$(SNAP_GEN) -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/fx_tables_test: demo/psm/test/fx_tables_test.c include/sh4der_fxlabel.h demo/psm/ao/ao_fx.h demo/psm/hero/hero_fx.h demo/pl4nar/src/pl4nar_fx.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/qrpage_test: test/qrpage_test.c include/sh4der_page.h include/sh4der_qrpage.h demo/psm/assets/_dl/qrcodegen.c
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) -Idemo/psm/assets/_dl $(filter %.c,$^) -lm -o $@
 $(DEMO_T)/psm_colour_test: demo/psm/test/psm_colour_test.c
 $(DEMO_T)/psm_plan_test: demo/psm/test/psm_plan_test.c
 $(DEMO_T)/psm_ao_test: demo/psm/test/psm_ao_test.c demo/psm/psm_ao.h include/sh4der_aomesh.h
@@ -284,8 +299,10 @@ $(BUILD)/cloudvolume_test: test/cloudvolume_test.c
 $(BUILD)/matchlight_scene_test: test/matchlight_scene_test.c
 $(BUILD)/blade: example/blade.c
 
-test-shz: $(addprefix $(BUILD)/shz/,$(TESTS))
+test-shz: $(addprefix $(BUILD)/shz/,$(TESTS)) $(BUILD)/shz/page_test $(BUILD)/shz/fxlabel_test
 	$(BUILD)/shz/core_test
+	$(BUILD)/shz/page_test
+	$(BUILD)/shz/fxlabel_test
 	$(BUILD)/shz/blade_test
 	$(BUILD)/shz/holo_test
 	$(BUILD)/shz/bloom_test

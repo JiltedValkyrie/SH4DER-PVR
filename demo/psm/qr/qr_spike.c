@@ -37,8 +37,8 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "qr"
 #define PG_LINES_MAX 200u
-#include "../psm_page.h"
-#include "qr_page.h"
+#include "../../../include/sh4der_page.h"
+#include "../../../include/sh4der_qrpage.h"
 #define say pg_say
 
 static sh4der_fault_crumbs_t crumbs;

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """SH4DER-PVR: check a result page typed from a photograph against the CRC in its header.
 
-demo/psm/tools/page_crc.py
-Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+tools/page_crc.py
+Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-The console test programs' pages (demo/psm/psm_page.h) end their header line with "CRC xxxxxxxx": the CRC-32 (zip's)
+The console test programs' pages (include/sh4der_page.h) end their header line with "CRC xxxxxxxx": the CRC-32 (zip's)
 of the page's content. A text page's content is each of its lines as shown, in order, each followed by one line feed,
 up to its last line that is not empty. Type the page's lines (not the header) into a file, exactly as shown, and:
 
-    python demo/psm/tools/page_crc.py page.txt [expected]
+    python tools/page_crc.py page.txt [expected]
 
 It prints the CRC; with the header's value as a second argument it says whether they agree, and exits 1 when they do
 not. A line's leading spaces count (a continued line starts with three). Trailing empty lines are dropped.
@@ -25,7 +25,7 @@ import itertools
 import sys
 import zlib
 
-COLS = 64                                   # psm_page.h, PG_COLS at the small size
+COLS = 64                                   # sh4der_page.h, PG_COLS at the small size
 
 
 def page_lines(text):
@@ -57,7 +57,7 @@ def with_cut_spaces(lines, want):
 
 
 def console_wrap(line, cols=COLS):
-    """pg_say's cut of one line into page lines (psm_page.h), for the self-test."""
+    """pg_say's cut of one line into page lines (sh4der_page.h), for the self-test."""
     out, s, first = [], line, True
     while True:
         room = cols if first else cols - 3

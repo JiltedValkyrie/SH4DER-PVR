@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "../../psm_effects.h"
+#include "../../../../include/sh4der_fxlabel.h"
 #include "../corr_scene.h"
 #include "../corr_modes.h"
 

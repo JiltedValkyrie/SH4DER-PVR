@@ -39,7 +39,7 @@ pg_draw(page, "RAY ray3", "START: group 2");            /* page 0 .. pg_pages() 
 - Limits: 16 graphs, 4 series a graph, 64 points a series, 12 bar groups, a title of 64 characters, a series name of 27.
 - Keep 3 to 5 key numbers of a graph as exact text on a text page.
 - The kit draws with the SH-4 into the frame buffer. It uses no PVR state, so call it after `pvr_shutdown`.
-- Host test: `compare/test/psm_page_test.c`. Programs that use the kit: `compare/c4_spike.c`, `compare/r3_spike.c`, `qr/qr_spike.c`.
+- Host test: `test/page_test.c` (the library's; make test). Programs that use the kit: `compare/c4_spike.c`, `compare/r3_spike.c`, `qr/qr_spike.c`.
 
 **Time intervals: use the cycle counter, or take the reload step out**
 

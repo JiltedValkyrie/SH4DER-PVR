@@ -27,7 +27,7 @@ The owner's finding: most of our demos are very hard to read. Someone watching c
 - **The disc's volume name** matches its file name: what the menu shows identifies the disc. The C9T video was filed as "hills" because the two names differed only by one letter (PVR-188).
 - **A label on every live view**: the mode and the stage, so a frame grabbed from a video can be filed without guessing.
 - **Stage times** long enough to read a page (the suite pages turn every few seconds).
-- **The page kit's CRC** stays on every text page (`demo/psm/psm_page.h`), so a transcription can be checked.
+- **The page kit's CRC** stays on every text page (`include/sh4der_page.h`), so a transcription can be checked.
 
 ## Related
 

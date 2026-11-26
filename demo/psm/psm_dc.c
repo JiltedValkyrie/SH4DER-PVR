@@ -60,7 +60,7 @@
 #include "sh4der_fault.h"
 #ifdef PSM_VIEWCOST                 /* the view cost test (psm_viewcost.h): a script for the pad and a timer between the frame's steps */
 #define PG_PREFIX "vc"
-#include "psm_page.h"
+#include "../../include/sh4der_page.h"
 #include "psm_viewcost.h"
 #include "psm_suite.h"              /* on the suite disc: back to the menu from the pages (A + B + X + Y), or after them in a chained run */
 static vc_run_t vc_run;

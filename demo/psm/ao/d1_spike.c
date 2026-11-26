@@ -76,8 +76,8 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define PG_PREFIX "d1"
 #define PG_LINES_MAX 120u
 #define PG_TOP 1u                           /* the effect labels of a page are two lines */
-#include "../psm_page.h"
-#include "../psm_effects.h"
+#include "../../../include/sh4der_page.h"
+#include "../../../include/sh4der_fxlabel.h"
 
 static const fx_entry_t d1_fx[2] = {        /* the room's baked vertex AO (ao4_light); the fade: the SH-4 sends the scene again and four quads, the PVR draws the depth map and compares */
     { "Ambient Occlusion", FX_SH4, FX_BAKED, NULL }, { "Depth Fade", FX_BOTH, FX_REALTIME, "soft halo" },

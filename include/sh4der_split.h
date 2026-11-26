@@ -47,7 +47,7 @@
 #define SH4DER_SPLIT_COLS 20u                      /* 640 / 32 */
 #define SH4DER_SPLIT_ROWS 15u                      /* 480 / 32 */
 #define SH4DER_SPLIT_REPEAT 6u                     /* frames between two steps while a trigger is held: the whole way in 2 s */
-#define SH4DER_SPLIT_SAFE_X0 64u                   /* the title-safe area's sides, as demo/psm/psm_page.h has them */
+#define SH4DER_SPLIT_SAFE_X0 64u                   /* the title-safe area's sides, as include/sh4der_page.h has them */
 #define SH4DER_SPLIT_SAFE_X1 576u
 
 typedef struct sh4der_split_half {

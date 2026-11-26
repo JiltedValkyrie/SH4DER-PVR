@@ -135,6 +135,9 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | split | `sh4der_split.h` | Divider of a left and a right half in 32-pixel tile columns, moved by held triggers; gives each half its clip rectangle (a hidden half has none). The middle position works on a console (PVR-144, PVR-161); a moving divider has not run | User clips, one per half | v0.20 |
 | tilecut | `sh4der_tilecut.h` | A render target pass through a tile table its own size: KallistiOS renders every target through the screen's 20 x 15 tile table, and this ends the table after the target's own tiles for one pass, then puts every word back. The PVR's time for a 20-tile target fell 3,312 -> 375 us (PVR-092), the frame 1,869 us in d1 (PVR-205) | KallistiOS's tile tables in video memory, rewritten between passes; no render may read them meanwhile | v0.50 |
 | pvrx | `sh4der_pvrx.h` | A layer over KallistiOS's PVR driver: polled render-done waits, a PVR-DMA download of video memory, counters for TA error events, the Holly revision read, a user clip change with its dummy polygon | nothing of its own (the driver's lists); the `.c` is Dreamcast only | v0.05 |
+| page | `sh4der_page.h` | Result pages for the console tests: text (64 x 22 characters, an 8 x 16 font) with a CRC line, and graphs (lines, bars, a legend) in the title-safe area, drawn after the PVR is shut down | the frame buffer, no PVR state | v0.50 |
+| fxlabel | `sh4der_fxlabel.h` | The effect label line on a result page and a live view: each effect by its field name, who does the work (SH-4, PVR, SH-4/PVR) and when (Baked, Texture, Realtime) | text only (the program draws it) | v0.50 |
+| qrpage | `sh4der_qrpage.h` | The QR test set: 16 codes of known payloads at 10, 8, 6 and 4 pixels a module, each on a light panel, for a photograph test of the page reader | the frame buffer, no PVR state | v0.50 |
 
 Versions: v1.00 is used in a released game. v0.50 runs on screen on the demo disc. v0.10 passes its maths tests. `sh4der_core.h`, the shared parts, is v1.00.
 
@@ -1128,6 +1131,38 @@ The two mesh calls return the vertices that still have light (0: do not send the
 
 `include/sh4der_ramp.h`, header only; `test/ramp_test.c` tests it on the host. A linear 0 .. 1 ramp between two distances, saturated at both ends. `sh4der_ramp_in(from, len, d)` is one call (one FSRRA reciprocal through SH4ZAM); for a loop, `sh4der_ramp_make(&r, from, to)` once, then `sh4der_ramp_up` / `sh4der_ramp_down` a point (a multiply and a saturate). It has no tuning macros: the two distances are the caller's. Used by `demo/psm/fakeaf.h` and `demo/psm/psm_shtile.h` (which still includes it through the forward `demo/psm/psm_ramp.h`). No console run; costs not measured. Moved from `demo/psm/psm_ramp.h` on 2026-11-26; wiki/effects/ramp.md.
 
+## The page kit (result pages)
+
+`include/sh4der_page.h`, header only. The console test programs print their numbers on pages that are photographed off a television, and this header draws those pages into the frame buffer after the PVR is shut down. Text pages hold 64 x 22 characters of an 8 x 16 font (a 3-to-2 reduction of the BIOS font) in the title-safe area, and each header ends in `CRC xxxxxxxx`, the CRC-32 of the page's content, so a page typed from a photograph can be checked with `tools/page_crc.py`. Graph pages have a title, labelled axes, up to four series as lines with point marks or as grouped bars, and a legend.
+
+Call order: `pg_init()` once at 640 x 480 RGB565; `pg_say()` for lines; `pg_plot()`, `pg_series()`, `pg_point()`, `pg_cat()` for graphs; `pg_draw(page, title, keys)` to show a page; `pg_pages()` for the count. Include `<kos.h>` first: the header uses `bfont_draw`, `vram_s` and `vid_clear`, and `test/page_test.c` stands in for those three names on the host.
+
+Settings are macros the client defines before the include. They are the kit's own `PG_*` names, not `SH4DER_*` tuning numbers, so they have no tuning rows: `PG_PREFIX` (the serial line's prefix), `PG_BIG` (1 for the BIOS font's own size, 42 x 14), `PG_TOP` (rows kept free under the header line: 1 when the labels take two lines, 2 for three), `PG_LINES_MAX` (900).
+
+The names are unchanged from the demos' (`pg_*`, `PG_*`). `demo/psm/psm_page.h` is a forward at the old path.
+
+Status: VID-015 and VID-016 in `wiki/hardware/ledger-video.md` are MEASURED, one run each on one console: the CRC lines agree, and 21 text pages and 4 graphs typed from two videos agree with their CRCs. Cost: drawn once a page, no frame cost; RAM by the layout (the glyphs 12 KB, the text lines 58 KB), not measured. The host test (`make test`, `test/page_test.c`) checks the arithmetic and the layout, not how the BIOS font photographs. Maturity ALPHA v0.5. Wiki: `wiki/effects/page.md`.
+
+## The effect labels
+
+`include/sh4der_fxlabel.h`, header only, plain C (`fx_page` also needs `sh4der_page.h` first). Each demo screen names the effects in use by the name the field knows them by, who does the work and when, as in `Ambient Occlusion  SH-4  Baked | Shadow Mapping  PVR  Realtime<<`. The rules are in the header: a label must be true, and "Shadow Mapping" only where a depth is compared against a map.
+
+Calls: `fx_format` (one picture), `fx_format_split` (a screen cut in a left and a right half), `fx_format_page` and `fx_page` (a result page's label line), `fx_hide_chord` (the program's own hide button). The limits are not tuning numbers: `FX_COLS` 64 characters, `FX_LINES` 2 (3 on a page), `FX_MAX` 16 entries.
+
+Each program's own table stays in the demo: `demo/psm/ao/ao_fx.h`, `demo/psm/hero/hero_fx.h`, `demo/pl4nar/src/pl4nar_fx.h`. Tests: `test/fxlabel_test.c` (the rules, in `make test`) and `demo/psm/test/fx_tables_test.c` (every program's table, in `make test-demo`), which fails at build time when a table does not fit.
+
+Status: VID-016: the labels were drawn on every page of eight programs on three discs, off in every measured stage, clear of the graph titles (MEASURED, one console). Maturity ALPHA v0.4 (Scholar) / v0.5 (Parity). Wiki: `wiki/effects/fxlabel.md`. `demo/psm/psm_effects.h` is a forward at the old path.
+
+## The QR result pages
+
+`include/sh4der_qrpage.h`, header only. The QR test set (image psm-qr-q1) draws 16 codes of known payloads at versions 3 and 5 and 10, 8, 6 and 4 pixels a module, each on a light panel with the 4-module quiet zone the standard asks for, and puts the text beside them. Each payload is `q1 <id> <crc>|<data>`, so a decoded string checks itself.
+
+The codes are made by Project Nayuki's QR Code generator library (C, MIT License). The library is not in this repository and this header does not vendor it: a client gets `qrcodegen.c` and `qrcodegen.h` from `demo/psm/tools/fetch.py` (`demo/psm/fetch_table.json`, sha256 checked, into `demo/psm/assets/_dl`), or any copy, and includes `qrcodegen.h` before `sh4der_page.h` and this header. This header calls only `qrcodegen_encodeBinary`, `qrcodegen_getSize` and `qrcodegen_getModule`.
+
+Tests: `test/qrpage_test.c` runs in `make test-demo` and says NOT RUN when the encoder is not fetched; `tools/qr_check.py --matrices` then decodes its dump with a decoder that shares no code with the encoder. The image is built by `demo/psm/qr/build.py`.
+
+Status: VID-014 in `wiki/hardware/ledger-video.md`: MEASURED, one console, one television, one phone, one run: 16 codes decoded from the photographs, each to its exact payload with its CRC right (OpenCV's detector read them). Maturity ALPHA v0.5. Wiki: `wiki/effects/qrpage.md`. `demo/psm/qr/qr_page.h` is a forward at the old path.
+
 ## The psm effect (perspective shadow maps)
 
 `sh4der_psm.h`, header only; `demo/psm` is the software demo. The placement of a shadow map for a directional light, in two forms through one interface: a uniform (orthographic) map fitted to the receivers, and a perspective shadow map, the same fit made in the camera's post-projective space. Idea from the GPU Gems chapter "Perspective Shadow Maps: Care and Feeding": near ground is large on screen and needs more texels than far ground. The equations were checked against the chapter's printed text (NVIDIA's PDF) and are written here in this library's own code and row form. Where it differs: the fit axis is the mean direction (the chapter uses the minimal cone), and the bias is in metres (the chapter's `Ltexel` is a squared length). They are pinned in `test/psm_test.c` against the numbers its prose gives.
@@ -1767,6 +1802,8 @@ SH4DOW-DC, by the same author, is included in the `sh4dow-dc` folder under its o
 Dreamcast math: [SH4ZAM](https://github.com/gyrovorbis/sh4zam), Copyright (c) 2025, 2026 Falco Girgis, MIT. Keep that notice with the library.
 
 Dreamcast kernels: [SH4ZAM-DCE](third_party/sh4zam-dce) (based on SH4ZAM by Falco Girgis; **not affiliated with, endorsed by or maintained by Falco Girgis or the SH4ZAM project: report problems with it here, not to them**), MIT, its LICENSE in the folder. It is based on SH4ZAM because it uses SH4ZAM as its library and adds the batch and array kernels SH4ZAM does not have; where SH4ZAM has a routine it only wraps it. Included whole and never edited here; the ocean demo uses `shz_dce_project_vertices` and `shz_dce_vec3_normalize_safe`. Keep that notice with the library.
+
+QR codes: the QR Code generator library (C) by Project Nayuki, MIT License (https://www.nayuki.io/page/qr-code-generator-library). The QR test set (`include/sh4der_qrpage.h`) uses it as a library; its two files are not in this repository (`demo/psm/tools/fetch.py` downloads them, sha256 checked), and its copyright and permission notice stays in them.
 
 Drawing: [KallistiOS](https://github.com/KallistiOS/KallistiOS), under its own license.
 

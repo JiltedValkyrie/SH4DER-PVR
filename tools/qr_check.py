@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """SH4DER-PVR: check what was read from the QR test image (psm-qr-q1), and decode its codes on the host.
 
-demo/psm/tools/qr_check.py
-Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+tools/qr_check.py
+Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
 The test image (demo/psm/qr) shows 16 QR codes of known payloads at 10, 8, 6 and 4 pixels a module. A payload is
 
@@ -10,18 +10,18 @@ The test image (demo/psm/qr) shows 16 QR codes of known payloads at 10, 8, 6 and
 
 Three uses:
 
-    python demo/psm/tools/qr_check.py read.txt
+    python tools/qr_check.py read.txt
         read.txt holds what a phone read, one decoded string a line, in any order (other lines are ignored).
         Each string is checked against its own CRC and against the payload this script makes again from the id.
         The table at the end says which of the 16 codes were read, by version and module size.
 
-    python demo/psm/tools/qr_check.py --photos <file or folder> ...
+    python tools/qr_check.py --photos <file or folder> ...
         The same, with the strings read from photographs by OpenCV's QR detector. Needs the cv2 module (it is not
         part of this repository and is not needed for the other uses). A code OpenCV does not read may still read
         on a phone, and the other way round: say which reader gave a result.
 
-    python demo/psm/tools/qr_check.py --matrices qr_matrices.txt
-        The host test's dump of every code's modules (demo/psm/qr/test/qr_test.c), decoded here: format bits, mask,
+    python tools/qr_check.py --matrices qr_matrices.txt
+        The host test's dump of every code's modules (test/qrpage_test.c), decoded here: format bits, mask,
         the codewords in their zigzag, the blocks, a Reed-Solomon check of every block (all syndromes zero), the
         byte segment. This decoder is written from the standard's layout and shares no code with the encoder.
 
@@ -40,7 +40,7 @@ ALIGN = {3: 22, 5: 30}
 
 
 def payload(ver, px, k):
-    """The payload of code k of the set (ver, px): the generator of demo/psm/qr/qr_page.h."""
+    """The payload of code k of the set (ver, px): the generator of include/sh4der_qrpage.h."""
     ident = "%u-%02u-%c" % (ver, px, ord("a") + k)
     r = zlib.crc32(ident.encode()) & 0xFFFFFFFF
     data = ""

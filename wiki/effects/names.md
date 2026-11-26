@@ -64,6 +64,9 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | fault | Crash and hang screen | A report on screen when a program crashes, hangs or stops | Tools and safety |
 | tilecut | Tile-cut pass | A render pass through a tile table its own size, so small targets cost less | Tools and safety |
 | pvrx | PVR extras | Extra calls over the PVR driver: waits, VRAM copy by DMA, error counters, clip | Tools and safety |
+| page | Result page | Text with a checksum line, or a graph (lines, bars), for a console test's numbers | Tools and safety |
+| fxlabel | Effect label line | Each effect by its name, who does the work and when, in small text on a result or live page | Tools and safety |
+| qrpage | QR test set | 16 codes of known payloads, drawn on a result page, to test a photograph reader | Tools and safety |
 | ramp | Distance ramp | A 0 to 1 fade between two distances | Tools and safety |
 | split | Split screen | A divider that cuts the screen into two halves | Tools and safety |
 | frame | Frame read | Reads the picture on screen back so other effects can use it | Tools and safety |
@@ -109,6 +112,9 @@ The "What it actually is" column is also the proposed text for a "What it is" co
 | fault | A report on the screen when a program raises an exception, hangs, asserts or exits: registers, the stack's calls, the last frame's breadcrumbs | crash screen, hang screen, fault page, crash dump | a test image that dies with nothing on screen | `sh4der_fault.h`; `test/fault_test.c` |
 | split | A screen cut in a left and a right half by a divider the triggers move, in 32-pixel tile columns, each half its own user clip | split screen, A/B wipe, comparison slider | a look on one half and not the other | `sh4der_split.h`; `test/split_test.c` |
 | tilecut | A render target pass through a tile table its own size: the screen's tile tables end after the target's tiles for one pass, then every word is put back | tile list trim, region array cut, partial tile render | a mirror, a shadow tile, a small depth or glow target | `sh4der_tilecut.h`; `test/tilecut_test.c` |
+| page | Text pages with a CRC line, and graph pages (lines, bars), drawn into the frame buffer after the PVR is shut down | result page, test page, CRC page, graph page | a console test's numbers on screen | `sh4der_page.h`; `test/page_test.c` |
+| fxlabel | The effect label line: each effect by its name, who does the work and when | effect label, credits line, feature list | a demo screen's label for each mode | `sh4der_fxlabel.h`; `test/fxlabel_test.c`, `demo/psm/test/fx_tables_test.c` |
+| qrpage | 16 QR codes of known payloads at four module sizes, drawn on a result page | QR test, code test page | a photograph test of the page reader | `sh4der_qrpage.h`; `test/qrpage_test.c` (make test-demo) |
 | ramp | A linear 0..1 ramp between two distances: one call, or prepared for a loop | distance fade, range weight, falloff | a shadow's fade by camera distance, a fake AF range weight | `sh4der_ramp.h`; `test/ramp_test.c` |
 | softfade | A per-vertex fade of a light near planes and rectangles the caller names: a near test, a fit for a quad, a smooth step a vertex | soft halo, soft light edge, wall fade (no depth is read: not the camera depth fade) | a lamp's halo in a corner, a headlight beam at a barrier | `sh4der_softfade.h`; `test/softfade_test.c` |
 | pool | Fading fan decals on a plane: a disc or a wedge of triangles whose vertex alpha fades to nothing | light pool, fake light, blob shadow, projected decal | a street lamp's pool, a headlight beam, a car's shadow | `sh4der_pool.h`; `test/pool_test.c` |

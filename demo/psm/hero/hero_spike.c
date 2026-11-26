@@ -64,8 +64,8 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define PG_PREFIX "hero1"
 #define PG_LINES_MAX 120u
 #define PG_TOP 1u
-#include "../psm_page.h"
-#include "../psm_effects.h"
+#include "../../../include/sh4der_page.h"
+#include "../../../include/sh4der_fxlabel.h"
 #include "hero_fx.h"
 #define say pg_say
 static sh4der_fault_crumbs_t crumbs;

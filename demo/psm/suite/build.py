@@ -222,7 +222,7 @@ def main():
     else:
         print("== 3 credits: NOT CHECKED against the licences (no third_party/sh4zam checkout); psm_credits.h is used as it is", flush=True)
     switches = sorted(set("-D" + CREDITS[t["credits"]] for t in tests if t.get("credits")))
-    run("3 menu", kos_cc + ["-O2", "-Wall", "-Wextra", "-I" + out] + switches + [os.path.join(HERE, "suite_menu.c"), "-o", menu_elf])
+    run("3 menu", kos_cc + ["-O2", "-Wall", "-Wextra", "-I" + out, "-I" + os.path.join(ROOT, "include")] + switches + [os.path.join(HERE, "suite_menu.c"), "-o", menu_elf])
     to_bin(objcopy, menu_elf, menu_bin)
     menu = check_binary("menu", menu_elf, menu_bin)
     if not menu["returns"]:

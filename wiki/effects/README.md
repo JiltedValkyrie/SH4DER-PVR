@@ -48,6 +48,9 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [pl4nar](pl4nar.md) | Planar reflection through a small render target | v0.10 | **yes**: the lookups, pl4m c5 (PVR-160), one console, one run, 2026-11-25; its PVR columns are ESTIMATE (PVR-162) |
 | [pool](pool.md) | Light pools and blob shadows as fading fans | v0.10 | no |
 | [softfade](softfade.md) | Soft edges for light: a glow, a pool or a beam fades at a wall the SH-4 knows | v0.10 | no |
+| [page](page.md) | Result pages for the console tests: text with a CRC line, graphs, drawn after the PVR is shut down | ALPHA v0.5 | yes: VID-015 and VID-016 (one run each, one console) |
+| [fxlabel](fxlabel.md) | The effect label line: each effect by its name, who does the work and when | ALPHA v0.4 / v0.5 | yes: VID-016 (eight programs, three discs) |
+| [qrpage](qrpage.md) | The QR test set on result pages, read back from a photograph | ALPHA v0.5 | yes: VID-014 (one run, one phone photograph set) |
 | [ramp](ramp.md) | A linear 0..1 ramp between two distances (a helper) | v0.10 | no |
 | [fault](fault.md) | A report on the screen for an exception or a hang: registers, calls, breadcrumbs | PROTOTYPE v0.1 | no: no run has shown it catching a fault (PVR-183, PVR-208 froze with no HANG screen) |
 | [split](split.md) | A movable divider for a left and a right half (tile columns, held triggers) | ALPHA v0.2 | **yes**: the middle position (PVR-144, PVR-161), one console; moving it OPEN |

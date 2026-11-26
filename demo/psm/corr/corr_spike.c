@@ -58,8 +58,8 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #define PG_PREFIX "corr"
 #define PG_LINES_MAX 160u
 #define PG_TOP 2u
-#include "../psm_page.h"
-#include "../psm_effects.h"
+#include "../../../include/sh4der_page.h"
+#include "../../../include/sh4der_fxlabel.h"
 #include "sh4der_split.h"
 #include "corr_modes.h"
 #define say pg_say

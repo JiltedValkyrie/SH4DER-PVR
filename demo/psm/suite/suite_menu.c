@@ -36,7 +36,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "suite"
 #define PG_LINES_MAX 400u                   /* the credits' lines, with the room their page breaks take */
-#include "../psm_page.h"
+#include "../../../include/sh4der_page.h"
 
 #include "suite_nav.h"                      /* suite_entry_t, the screens */
 #include "suite_skin.h"                     /* ui_skin, and suite_ui.h: the panels */

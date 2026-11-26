@@ -87,7 +87,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 /* ---- the result pages ----------------------------------------------------------- */
 
 #define PG_PREFIX "c4"
-#include "../psm_page.h"
+#include "../../../include/sh4der_page.h"
 #define say pg_say
 static sh4der_fault_crumbs_t crumbs;
 

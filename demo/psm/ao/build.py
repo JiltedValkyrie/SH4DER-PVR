@@ -112,7 +112,8 @@ def main():
         run("1 host test %s (run)" % name, [test])
     if a.spike in ("lamp", "d1"):           # the divider's maths and the label lines
         for name, src, inc in (("split_test", os.path.join(ROOT, "test", "split_test.c"), os.path.join(ROOT, "include")),
-                               ("psm_effects_test", os.path.join(HERE, "..", "test", "psm_effects_test.c"), os.path.join(HERE, ".."))):
+                               ("fxlabel_test", os.path.join(ROOT, "test", "fxlabel_test.c"), os.path.join(ROOT, "include")),
+                               ("fx_tables_test", os.path.join(HERE, "..", "test", "fx_tables_test.c"), os.path.join(ROOT, "include"))):
             test = os.path.join(out, name + exe)
             run("1 host test %s (compile)" % name, [a.host_cc, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I" + inc, src, "-o", test])
             run("1 host test %s (run)" % name, [test])

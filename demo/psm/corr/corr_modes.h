@@ -92,7 +92,7 @@ static inline int corr_filter_ok(unsigned fmt, int filtered) {
 
 /* ---- the effect labels (../psm_effects.h; include it first) -------------------------------------------------------- */
 
-#ifdef PSM_EFFECTS_H
+#ifdef SH4DER_FXLABEL_H
 #define CORR_FX_MAX 5u
 
 /* The live view's labels of one mode (bias: by slope or fixed) into out. The count. */

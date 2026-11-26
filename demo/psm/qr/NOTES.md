@@ -88,7 +88,7 @@ One photo a page is enough: 7 photos, plus the 2 text pages if wanted.
 
 ## What a reader session does with it
 
-- Strings from the phone: `python demo/psm/tools/qr_check.py read.txt` prints which of the 16 codes were read right, by version and module size.
+- Strings from the phone: `python tools/qr_check.py read.txt` prints which of the 16 codes were read right, by version and module size.
 - Photos: `qr_check.py --photos <folder>` does the same with OpenCV (it needs the `cv2` module). A code OpenCV misses in a photo may still read on a phone, so the ledger says which reader gave each result.
 
 ## What the result decides

@@ -1,9 +1,9 @@
 /* SH4DER-PVR: the result pages' host test (layout and arithmetic; not the console's font)
 
-   demo/psm/compare/test/psm_page_test.c
-   Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
+   test/page_test.c
+   Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-   ../../psm_page.h on the host, with stand-ins for the three KallistiOS names it uses (the frame buffer, vid_clear,
+   include/sh4der_page.h on the host, with stand-ins for the three KallistiOS names it uses (the frame buffer, vid_clear,
    bfont_draw). The BIOS font is not on the host: the stand-in draws digits as 5 x 7 cells made 2 x 3 larger and every
    other character as a small box, which is enough to check the layout and the reduction to 8 x 16, and NOT enough to
    judge how the real font photographs. Checks: the number and tick arithmetic, the wrap, the page count, that nothing
@@ -11,8 +11,8 @@
    Writes a text page and two graph pages as PNG files (stored, no compression) to look at.
 
    Build (from the repository's root):
-     gcc -std=c99 -O2 -Wall -Wextra demo/psm/compare/test/psm_page_test.c -o build/psm_page_test
-     build/psm_page_test <folder for the PNG files>
+     gcc -std=c99 -O2 -Wall -Wextra test/page_test.c -o build/page_test
+     build/page_test [folder for the PNG files]   (make test runs it with no folder: no PNG files)
 */
 
 #include <stdbool.h>
@@ -47,7 +47,7 @@ static size_t bfont_draw(void *buffer, uint32_t bufwidth, bool opaque, uint32_t 
 }
 
 #define PG_PREFIX "test"
-#include "../../psm_page.h"
+#include "../include/sh4der_page.h"
 
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
@@ -197,6 +197,6 @@ int main(int argc, char **argv) {
     CHECK(p->n[0] == PG_POINTS);
     bounds("after the overflow");
 
-    if (fails) printf("psm_page_test: %d FAILED\n", fails); else printf("psm_page_test: ok (%u x %u characters a page)\n", PG_COLS, PG_ROWS);
+    if (fails) printf("page_test: %d FAILED\n", fails); else printf("page_test: ok (%u x %u characters a page)\n", PG_COLS, PG_ROWS);
     return fails != 0;
 }

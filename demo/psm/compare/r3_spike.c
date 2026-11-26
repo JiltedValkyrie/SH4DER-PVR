@@ -48,7 +48,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "r3"
 #define PG_LINES_MAX 200u
-#include "../psm_page.h"
+#include "../../../include/sh4der_page.h"
 #define say pg_say
 #define page_break pg_break
 static sh4der_fault_crumbs_t crumbs;

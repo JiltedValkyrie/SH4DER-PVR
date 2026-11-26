@@ -12,7 +12,7 @@ Nothing else is fetched, and no file is touched outside --out (default build/psm
 fails:
 
   0 fetch      ../tools/fetch.py (sha256 checked)
-  1 host test  test/qr_test.c with the host compiler, then ../tools/qr_check.py --self-test and --matrices on its dump:
+  1 host test  test/qrpage_test.c with the host compiler, then tools/qr_check.py --self-test and --matrices on its dump:
                every code decoded again by a decoder that shares no code with the encoder
   2 elf        kos-cc qr_spike.c and the encoder -> <out>/psm-qr-<tag>.elf
   3 image      mkdcdisc -> <cdi-dir>/psm-qr-<tag>.cdi. An image that is there is never overwritten: pick a new --tag
@@ -68,18 +68,18 @@ def main():
     run("0 fetch", [sys.executable, os.path.join(TOOLS, "fetch.py")])
     enc = os.path.join(DL, "qrcodegen.c")
     exe = ".exe" if os.name == "nt" else ""
-    test = os.path.join(out, "qr_test" + exe)
-    run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", "-I" + DL, os.path.join(HERE, "test", "qr_test.c"), enc, "-o", test])
+    test = os.path.join(out, "qrpage_test" + exe)
+    run("1 host test (compile)", [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", "-I" + DL, os.path.join(ROOT, "test", "qrpage_test.c"), enc, "-o", test])
     run("1 host test (run)", [test, out])
-    run("1 decoder self-test", [sys.executable, os.path.join(TOOLS, "qr_check.py"), "--self-test"])
-    run("1 decode every code", [sys.executable, os.path.join(TOOLS, "qr_check.py"), "--matrices", os.path.join(out, "qr_matrices.txt")])
+    run("1 decoder self-test", [sys.executable, os.path.join(ROOT, "tools", "qr_check.py"), "--self-test"])
+    run("1 decode every code", [sys.executable, os.path.join(ROOT, "tools", "qr_check.py"), "--matrices", os.path.join(out, "qr_matrices.txt")])
     if a.host_only:
         return 0
 
     kos_cc = find_kos_cc()
     if not os.environ.get("KOS_BASE") or not kos_cc:
         raise SystemExit("kos-cc is not on the PATH or KOS_BASE is not set: source the KallistiOS environment first")
-    run("2 elf", kos_cc + ["-O2", "-Wall", "-Wextra", "-I" + DL, "-DQR_TAG=%s" % a.tag, os.path.join(HERE, "qr_spike.c"), enc, "-o", elf])
+    run("2 elf", kos_cc + ["-O2", "-Wall", "-Wextra", "-I" + DL, "-I" + os.path.join(ROOT, "include"), "-DQR_TAG=%s" % a.tag, os.path.join(HERE, "qr_spike.c"), enc, "-o", elf])
     if a.elf_only:
         print("ELF: %s" % elf)
         return 0

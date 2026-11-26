@@ -45,8 +45,8 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "pvr-dma"
 #define PG_LINES_MAX 60u
-#include "../psm_page.h"
-#include "../psm_effects.h"
+#include "../../../include/sh4der_page.h"
+#include "../../../include/sh4der_fxlabel.h"
 #include "ao_fx.h"
 #define say pg_say
 static sh4der_fault_crumbs_t crumbs;

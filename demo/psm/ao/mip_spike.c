@@ -56,7 +56,7 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #define PG_PREFIX "mip"
 #define PG_LINES_MAX 160u
-#include "../psm_page.h"
+#include "../../../include/sh4der_page.h"
 
 #define say pg_say
 static sh4der_fault_crumbs_t crumbs;

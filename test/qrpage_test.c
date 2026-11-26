@@ -1,20 +1,21 @@
-/* SH4DER-PVR: the QR test set's host test
+/* SH4DER-PVR: the QR test set's host test (include/sh4der_qrpage.h)
 
-   demo/psm/qr/test/qr_test.c
-   Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
+   test/qrpage_test.c
+   Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-   ../qr_page.h on the host, with stand-ins for the three KallistiOS names ../../psm_page.h uses (the frame buffer,
-   vid_clear, bfont_draw; the stand-in font is boxes, as in ../../compare/test/psm_page_test.c). Checks: every payload
+   include/sh4der_qrpage.h on the host, with stand-ins for the three KallistiOS names include/sh4der_page.h uses (the frame
+   buffer, vid_clear, bfont_draw; the stand-in font is boxes, as in test/page_test.c). Checks: every payload
    has its version's full length, its prefix and its own CRC; the encoder takes each at the fixed version; a drawn
    page has every module's pixels as the encoder's module says, the quiet zone clear, and nothing outside the
    title-safe area. Writes, into the folder given:
-     qr_matrices.txt   every code as its payload and its modules, for ../../tools/qr_check.py --matrices (a decoder
+     qr_matrices.txt   every code as its payload and its modules, for tools/qr_check.py --matrices (a decoder
                        that shares no code with the encoder)
      qr_p<n>.png       the pages of codes, for an image decoder and to look at
 
-   Build (from the repository's root; the encoder is fetched by demo/psm/tools/fetch.py, see ../build.py):
-     gcc -std=c99 -O2 -Wall -Wextra -Idemo/psm/assets/_dl demo/psm/qr/test/qr_test.c demo/psm/assets/_dl/qrcodegen.c -o build/qr_test
-     build/qr_test <folder>
+   Build (from the repository's root; the encoder is fetched by demo/psm/tools/fetch.py, see demo/psm/qr/build.py):
+     gcc -std=c99 -O2 -Wall -Wextra -Idemo/psm/assets/_dl test/qrpage_test.c demo/psm/assets/_dl/qrcodegen.c -o build/qrpage_test
+     build/qrpage_test <folder>
+   make test-demo runs it when demo/psm/assets/_dl/qrcodegen.c is there, and says NOT RUN when it is not.
 */
 
 #include <stdbool.h>
@@ -41,8 +42,8 @@ static size_t bfont_draw(void *buffer, uint32_t bufwidth, bool opaque, uint32_t 
 }
 
 #define PG_PREFIX "test"
-#include "../../psm_page.h"
-#include "../qr_page.h"
+#include "../include/sh4der_page.h"
+#include "../include/sh4der_qrpage.h"
 
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
@@ -166,6 +167,6 @@ int main(int argc, char **argv) {
     fclose(mf);
     CHECK(codes == 16u);
     printf("  wrote %s (%u codes)\n", path, codes);
-    printf("qr_test: %s\n", fails ? "FAILED" : "ok");
+    printf("qrpage_test: %s\n", fails ? "FAILED" : "ok");
     return fails ? 1 : 0;
 }
