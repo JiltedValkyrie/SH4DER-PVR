@@ -111,6 +111,7 @@ def build(kos, sh4zam):
     art += [""] + wrap("The car, the street's props and structures, the map, the sky and the code of that demo are SH4DER-PVR's own work.")
     square = [PAGE, "WALLED SQUARE"]
     square += wrap("Fantasy Town Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0.")
+    square += wrap("Sky: Kloofendal 48d Partly Cloudy (Pure Sky) by Greg Zaal (original) and Jarod Guest (sky edits), Poly Haven (polyhaven.com), CC0 1.0.")
     return t, art, square
 
 

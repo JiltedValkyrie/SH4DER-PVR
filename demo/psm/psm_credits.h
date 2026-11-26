@@ -141,6 +141,9 @@ static const char *const psm_credits_text[] = {
     "\f",
     "WALLED SQUARE",
     "Fantasy Town Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0.",
+    "Sky: Kloofendal 48d Partly Cloudy (Pure Sky) by Greg Zaal",
+    "(original) and Jarod Guest (sky edits), Poly Haven",
+    "(polyhaven.com), CC0 1.0.",
 #endif
 };
 #define PSM_CREDITS_N ((unsigned)(sizeof psm_credits_text / sizeof psm_credits_text[0]))
