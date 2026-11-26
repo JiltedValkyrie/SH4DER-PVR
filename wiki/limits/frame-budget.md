@@ -167,7 +167,7 @@ Still camera at the boot view, mean ms, one console, one run each (TOWN-119; TOW
 
 ## 6. The car demo: practices so far
 
-From the street demo's runs (c5 to tech-hills) and the code in suite 13 (staging 2a2b3e7; suite 12 was superseded before it ran). The pool, the grit and the heat have **not run on a console**: their costs are ESTIMATEs, and the s13 stage that would measure each is named. What to read on each s13 page: [suite 13](../methods/suite-13.md).
+From the street demo's runs (c5 to Car on hills) and the code in suite 13 (staging 2a2b3e7; suite 12 was superseded before it ran). The pool, the grit and the heat have **not run on a console**: their costs are ESTIMATEs, and the s13 stage that would measure each is named. What to read on each s13 page: [suite 13](../methods/suite-13.md).
 
 | Practice | Why (number) | Status | What to measure on your own console | Our test that measures it |
 |---|---|---|---|---|

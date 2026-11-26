@@ -66,6 +66,9 @@ test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade $(BU
 	$(PYTHON) tools/page_crc.py --self-test
 	$(PYTHON) tools/qr_check.py --self-test
 	$(PYTHON) tools/make_credits.py --self-test
+	$(PYTHON) tools/grit_gen.py --self-test
+	$(PYTHON) tools/check_coupe.py --self-test
+	$(PYTHON) tools/check_credits.py --root demo/pl4nar
 	$(BUILD)/page_test
 	$(BUILD)/fxlabel_test
 	$(BUILD)/blade_test
@@ -231,8 +234,6 @@ HERO_STRIP_ZIP ?= demo/pl4nar/assets/_dl/spacekit_2.0.zip
 HERO_STRIP_TEST = $(if $(wildcard $(HERO_STRIP_ZIP)),$(DEMO_T)/hero_strip_test)
 QRPAGE_TEST     = $(if $(wildcard demo/psm/assets/_dl/qrcodegen.c),$(DEMO_T)/qrpage_test)
 test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS) $(CONTROLS_TESTS)) $(HERO_STRIP_TEST) $(SNAP_TEST) $(QRPAGE_TEST)
-	$(PYTHON) demo/pl4nar/tools/grit_gen.py --self-test
-	$(PYTHON) demo/pl4nar/tools/check_coupe.py --self-test
 	$(PYTHON) demo/psm/hero/tools/bake_strip.py --self-test
 	$(DEMO_T)/heat_test
 	$(DEMO_T)/heat_hex_test

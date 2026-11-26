@@ -51,7 +51,7 @@ The PSM spreads the map's texels much more evenly with distance.
 
 The TA line of the same photos is explained in [VID-011](../hardware/ledger-video.md).
 
-**Earlier figure, MEASURED by relay (photo name OPEN):** build a3, another view (camera x −1.7, z −11.8, heading 337°), route A, map 256: 28,699 TA vertices, SH-4 22.6 ms, PVR 16.0 ms, 25 fps (`demo/psm/TOWN_NOTES.md` TOWN-001; `THESIS_SH4_SHADOWS.md:45-65`). The owner's HUD photo was relayed without a file name (errata O5).
+**Earlier figure, MEASURED by relay (photo name OPEN):** build a3 (Town HUD, another view) (camera x −1.7, z −11.8, heading 337°), route A, map 256: 28,699 TA vertices, SH-4 22.6 ms, PVR 16.0 ms, 25 fps (`demo/psm/TOWN_NOTES.md` TOWN-001; `THESIS_SH4_SHADOWS.md:45-65`). The owner's HUD photo was relayed without a file name (errata O5).
 
 
 **Band counts for c4 on the town (ESTIMATE, host; `demo/psm/TOWN_NOTES.md` TOWN-051 to TOWN-055).** No console has run c4 on the town. A host counter says the whole static town would need 44,577 / 26,969 / 18,097 band vertices at bands 1 / 2 / 4 codes wide, the boot view 11,146 / 7,090 / 5,174, and only the movers' ground patches 864 / 460 / 260, against 2,464 / 1,288 / 692 in c4's measured scene (PVR-100). Scaled by c4's measured mask passes, the visible static bands alone would take 12 to 33 ms (TOWN-053, ESTIMATE). The notes' recommendation: bake static on static, and run c4 for the movers only (TOWN-055; the [T4 idea](../shadows/bump-compare-chain.md#idea-a-cached-static-map-plus-small-mover-maps-t4-estimate--open)).

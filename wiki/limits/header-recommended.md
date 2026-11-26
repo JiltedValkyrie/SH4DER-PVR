@@ -47,7 +47,7 @@ Wording follows the ledger's rules: no game or engine names; "we know of no earl
 
 - **After every console run**, the re-rank of [maturity](../status/maturity.md) also checks the RECOMMENDED block of each header it moves: the cost line, the status and the maturity line.
 - **The tuning tables.** `tools/check_tuning.py` checks README's tuning tables against the headers' numeric `SH4DER_*` macros (DIFFERS, MISSING, STALE, UNREADABLE, each with file:line). `make test` runs it with `--strict` (Makefile:43-44): every numeric macro must be in a table or on its exempt list, or the suite fails. It strips comments before it reads the macros, so it does not read the RECOMMENDED block: the block's values are kept equal to the macros by hand. No `#define` text in a block, for readers and for any future parser.
-- **The pilot.** The six pilot blocks (pl4nar, pool, spark, glow, `demo/psm/fakeaf.h`, `demo/psm/ao/tile_cut.h`, moved to `include/sh4der_tilecut.h` on 2026-11-26 (`tile_cut_*` is now `sh4der_tilecut_*`, the test `test/tilecut_test.c`)) are in their headers, as comment-only edits, with the two STATUS lines brought up to date.
+- **The pilot.** The six pilot blocks (pl4nar, pool, spark, glow, `demo/psm/fakeaf.h` (now `include/sh4der_fakeaf.h`, 2026-11-26), `demo/psm/ao/tile_cut.h`, moved to `include/sh4der_tilecut.h` on 2026-11-26 (`tile_cut_*` is now `sh4der_tilecut_*`, the test `test/tilecut_test.c`)) are in their headers, as comment-only edits, with the two STATUS lines brought up to date.
 - **A header's own STATUS line** must agree with the block. Where a console run has since measured something the STATUS line calls unrun, the STATUS line is updated in the same edit.
 
 ## Example

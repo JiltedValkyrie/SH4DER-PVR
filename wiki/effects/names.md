@@ -41,6 +41,8 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | psm_pvr | Shadow map drawn by the PVR | The shadow map drawn by the graphics chip from the casters' shapes | Shadows |
 | ao | Corner darkening | Darkens creases and corners: for a bake, and a cue from the picture (ambient occlusion) | Shadows |
 | aobake | Baked corner shading | Corner shading baked into vertex colour at load, against exact shapes | Shadows |
+| fakeaf | Sharper floors at an angle | A floor or road seen at a grazing angle kept sharp across the view, by a mip bias per polygon from its slope | Surfaces and materials |
+| ground | Paving slab texture | A tiling texture of stone slabs made from a seed at load, so a floor needs no file | Surfaces and materials |
 | aomesh | Mesh corner shading | Corner shading baked at load against a whole triangle mesh (walls, buildings), with a byte grid for the ground | Shadows |
 | aosky | Sky shading | Darkens flat ground under props, drawn into the sun's shadow target | Shadows |
 | sh4dow-dc | Soft character shadows | Soft shadows on characters from limb columns (a separate library) | Shadows |
@@ -123,6 +125,8 @@ The "What it actually is" column is also the proposed text for a "What it is" co
 | psm_pvr | A shadow map drawn by the PVR: the SH-4 clips the casters for a render target and gives the ground its lookup coordinates; no depth compare | PVR shadow map, silhouette map, projected shadow texture | ground shadows from casters, no self-shadowing | `sh4der_psm_pvr.h`; `test/psm_pvr_test.c` |
 | ao | Small-scale occlusion: crease darkening from the angle between faces, for a bake, and a screen cavity cue from a small map | ambient occlusion, AO, cavity, crease shading | corners, folds, contact darkening | `sh4der_ao.h`; `test/ao_test.c` |
 | aobake | A baked AO byte a vertex, cast against exact spheres, boxes and a plane, at load | baked ambient occlusion, contact shadow bake, AO bake | static scenery's vertex colour | `sh4der_aobake.h`; `test/aobake_test.c` |
+| fakeaf | Fake anisotropic filtering: a mip D adjust a polygon from its slope, and distance ranges with copies of the texture squashed along the view | anisotropic filtering, mip bias, texture LOD bias, floor blur | a long floor, corridor or road at a grazing angle | `sh4der_fakeaf.h`; `test/fakeaf_test.c` |
+| ground | A 64 x 64 RGB565 paving slab texture from an integer hash of a seed, tiling both ways | procedural texture, paving, floor tiles, slabs | a square's or a street's ground without a texture file | `sh4der_ground.h`; `test/ground_test.c` |
 | aomesh | A baked AO byte a vertex, cast against a triangle mesh through a cell grid (12 rays), with a byte grid over the ground, at load | baked occlusion over a mesh, mesh AO bake, ground AO grid | static scenery built from triangles, a walled street | `sh4der_aomesh.h`; `test/aomesh_test.c` |
 | aosky | The sky's occlusion drawn as K slid shadows into the sun's shadow target | sky occlusion, sky AO, shadow-target AO | flat ground under props | `sh4der_aosky.h`; `test/aosky_test.c` |
 | ao-bake | Baked ambient occlusion over any triangle list, on the host at build time: one byte a vertex from 64 cosine rays | baked AO, occlusion bake, lightmap bake | a room's and a road's vertex bytes | `tools/ao_bake_core.h`; `test/ao_bake_test.c` |
@@ -130,7 +134,7 @@ The "What it actually is" column is also the proposed text for a "What it is" co
 | shafts | Screen-space dark rays: the frame's dark shapes cast away from a light, from the frame read | shadow shafts, occlusion rays, volumetric shadows | trees against a low sun, a window | `sh4der_shafts.h`, `src/sh4der_shafts.c`; `test/shafts_test.c` |
 | core | The shared parts: the feather, the tube and blocker shapes, the breath tracker, the glint, the colour ramp, the SH4ZAM switch | — | every module | `sh4der_core.h`, `src/sh4der_core.c`; `test/core_test.c` |
 
-Two helpers in `demo/psm` are named by technique already: `fakeaf.h` (fake anisotropic filtering: distance ranges and a mip bias by slope) and `ao/tile_cut.h` (a render target pass through a tile table cut to its own tiles). `fakeaf.h` is not a library module; the tile cut moved to `include/sh4der_tilecut.h` on 2026-11-26 (`tile_cut_*` is now `sh4der_tilecut_*`, the test `test/tilecut_test.c`).
+Two helpers that were in `demo/psm` are named by technique already: `fakeaf.h` (fake anisotropic filtering: distance ranges and a mip bias by slope) and `ao/tile_cut.h` (a render target pass through a tile table cut to its own tiles). `fakeaf.h` moved to `include/sh4der_fakeaf.h` on 2026-11-26 (`faf_*` kept, the test `test/fakeaf_test.c`; `demo/psm/fakeaf.h` is a forward); the tile cut moved to `include/sh4der_tilecut.h` on 2026-11-26 (`tile_cut_*` is now `sh4der_tilecut_*`, the test `test/tilecut_test.c`).
 
 ### Demo programs
 

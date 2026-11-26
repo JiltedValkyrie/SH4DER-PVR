@@ -11,7 +11,7 @@ R=$(cd "$(dirname "$0")/../../.." && pwd)
 PY=("${PYTHON:-python}")
 if [ -e "$B" ]; then echo "build folder taken: $B"; exit 1; fi
 mkdir -p "$B"
-"${PY[@]}" "$R/demo/pl4nar/tools/check_credits.py" --root "$R/demo/psm/corr"
+"${PY[@]}" "$R/tools/check_credits.py" --root "$R/demo/psm/corr"
 "${PY[@]}" "$R/demo/psm/corr/tools/corr_bake.py" --out "$B/gen"
 . "${KOS_ENV:?KOS_ENV= the KallistiOS environ.sh}"
 Z=${SH4ZAM:?SH4ZAM= the SH4ZAM tree}
