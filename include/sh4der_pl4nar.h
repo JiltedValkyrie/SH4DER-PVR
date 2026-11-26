@@ -15,7 +15,7 @@
    Do:         look up only the reflecting body (the per-vertex cost is DERIVED); cut the mirror pass to its
                own tiles (it costs about 3.2 ms whatever its size; the cut is ADVISED here, Q97)
    Do not:     allocate the target every frame; draw the layer before the opaque surface or write depth from it
-   Maturity:   ALPHA v0.5 (by the written client rule; v0.4 if the owner counts only outside clients)
+   Maturity:   ALPHA v0.5
 */
 
 /** \file    sh4der_pl4nar.h

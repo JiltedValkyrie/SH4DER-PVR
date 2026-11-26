@@ -30,7 +30,7 @@ SH4DOW  ?= sh4dow-dc
 DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4DOW)/include -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
 TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test psm_fault_test bolt_test motes_test deform_test mist_test rise_test film_test cloudvolume_test matchlight_scene_test
 
-.PHONY: test test-shz dc test-dc demo clean pl4nar-demo psm-demo check-sh4zam check-tuning
+.PHONY: test test-shz dc test-dc demo clean pl4nar-demo psm-demo check-sh4zam check-tuning test-demo
 
 # Fails, with the git clone line, when SH4ZAM is missing or older than 0.10; also runs the script's own self-test.
 check-sh4zam:
@@ -61,7 +61,7 @@ $(BUILD)/psm_demo: demo/psm/psm_demo.c include/sh4der_psm.h
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include $< src/sh4der_core.c -lm -o $@
 
-test: check-tuning $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
+test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade
 	$(BUILD)/core_test
 	$(BUILD)/blade_test
 	$(BUILD)/holo_test
@@ -176,6 +176,50 @@ $(PSM_SKY_H): demo/psm/tools/bake_sky.py $(wildcard $(PSM_SKY_HDR))
 $(BUILD)/psm_town_test: test/psm_town_test.c $(PSM_TOWN_DEPS) $(SRC) $(HDR)
 	@mkdir -p $(BUILD)
 	$(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM $(PSM_TOWN_INC) -Iinclude -I$(SH4DOW)/include $(filter %.c,$^) -lm -o $@
+
+# The demos' own host tests (their headers and build tools, not the library's): `make test` runs them through test-demo.
+# Plain C, and python's standard library only (no Pillow, no Blender, no KallistiOS). The two town tests use the town's
+# mesh and sky as psm_town_test does (stand-ins when nothing was fetched). The hero street's replay needs its set, baked
+# from the Space Kit zip (CC0, a download by hand, sha256 checked by demo/psm/hero/tools/bake_strip.py): with no zip at
+# HERO_STRIP_ZIP it is not run and the last line says so. Not wired, it needs Pillow: demo/psm/tools/suite_skin.py.
+DEMO_T          = $(BUILD)/demo_test
+DEMO_CC         = $(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -Iinclude -I$(SH4DOW)/include
+DEMO_TESTS      = heat_test psm_ground_test suite_ui_test tile_cut_test psm_colour_test psm_plan_test
+HERO_STRIP_ZIP ?= demo/pl4nar/assets/_dl/spacekit_2.0.zip
+HERO_STRIP_TEST = $(if $(wildcard $(HERO_STRIP_ZIP)),$(DEMO_T)/hero_strip_test)
+test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS)) $(HERO_STRIP_TEST)
+	$(PYTHON) demo/pl4nar/tools/grit_gen.py --self-test
+	$(PYTHON) demo/pl4nar/tools/check_coupe.py --self-test
+	$(PYTHON) demo/psm/hero/tools/bake_strip.py --self-test
+	$(DEMO_T)/heat_test
+	$(DEMO_T)/psm_ground_test
+	$(DEMO_T)/suite_ui_test
+	$(DEMO_T)/tile_cut_test
+	$(DEMO_T)/psm_colour_test
+	$(DEMO_T)/psm_plan_test
+	$(if $(HERO_STRIP_TEST),$(HERO_STRIP_TEST),@echo "hero_strip_test: NOT RUN, no $(HERO_STRIP_ZIP)")
+
+$(DEMO_T)/heat_test: demo/pl4nar/host/heat_test.c demo/pl4nar/src/heat.h include/sh4der_core.h
+$(DEMO_T)/psm_ground_test: demo/psm/test/psm_ground_test.c demo/psm/psm_ground.h
+$(DEMO_T)/suite_ui_test: demo/psm/suite/test/suite_ui_test.c demo/psm/suite/suite_ui.h demo/psm/suite/suite_skin.h demo/psm/suite/suite_nav.h demo/psm/psm_credits.h
+$(DEMO_T)/tile_cut_test: demo/psm/ao/test/tile_cut_test.c demo/psm/ao/tile_cut.h
+$(DEMO_T)/heat_test $(DEMO_T)/psm_ground_test $(DEMO_T)/suite_ui_test $(DEMO_T)/tile_cut_test:
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/psm_colour_test: demo/psm/test/psm_colour_test.c
+$(DEMO_T)/psm_plan_test: demo/psm/test/psm_plan_test.c
+$(DEMO_T)/psm_colour_test $(DEMO_T)/psm_plan_test: src/sh4der_core.c $(PSM_TOWN_DEPS) include/sh4der_core.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) $(PSM_TOWN_INC) $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/hero/hero_strip_data.h: demo/psm/hero/tools/bake_strip.py $(wildcard $(HERO_STRIP_ZIP))
+	@mkdir -p $(DEMO_T)/hero
+	$(PYTHON) -I demo/psm/hero/tools/bake_strip.py $(DEMO_T)/hero --zip $(HERO_STRIP_ZIP)
+$(DEMO_T)/hero/hero_hens.h: demo/psm/hero/tools/hero_hens.py $(PSM_TOWN_H)
+	@mkdir -p $(DEMO_T)/hero
+	$(PYTHON) -I demo/psm/hero/tools/hero_hens.py $(PSM_TOWN_H) $(DEMO_T)/hero
+$(DEMO_T)/hero_strip_test: demo/psm/hero/test/hero_strip_test.c demo/psm/hero/hero_strip.h demo/psm/hero/hero_view.h demo/psm/hero/hero_model.h $(DEMO_T)/hero/hero_strip_data.h $(DEMO_T)/hero/hero_hens.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) -Idemo/psm/hero -I$(DEMO_T)/hero $(filter %.c,$^) -lm -o $@
 $(BUILD)/bolt_test: test/bolt_test.c
 $(BUILD)/motes_test: test/motes_test.c
 $(BUILD)/deform_test: test/deform_test.c
