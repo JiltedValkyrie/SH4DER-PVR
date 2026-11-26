@@ -32,7 +32,7 @@
     The effect: puts a soft halo of light round a bright blade, so it seems to
       light the air about it. It does not read the frame: a few feathered
       polygons are added over the picture, 24 triangles.
-    Developed for: the glow round the energy sword in Halo: Dreamcast Evolved.
+    Developed for: the glow round an energy sword in a first-person shooter.
     Use it for: a cheap glow round one bright thing: a blade, a laser bolt, a
       lamp, a muzzle flash, a pick-up.
 

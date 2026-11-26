@@ -40,8 +40,7 @@
     The effect: bends the finished picture. A ring ripples outward, air
       shimmers with heat, water wobbles, a blur streams from the centre, the
       picture breaks into big square pixels.
-    Developed for: explosions, heat, water and speed in Halo: Dreamcast
-      Evolved.
+    Developed for: explosions, heat, water and speed in a first-person shooter.
     Use it for: an explosion's shockwave, haze over a fire or an exhaust,
       underwater levels, a boost blur in a racing game, a retro pixel wipe
       between scenes.

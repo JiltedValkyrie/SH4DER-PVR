@@ -40,7 +40,7 @@
     The effect: smooths jagged edges over time. The picture is shifted a
       fraction of a pixel each frame and each frame is blended with the ones
       before, so an edge averages out.
-    Developed for: softer edges at 640 x 480 in Halo: Dreamcast Evolved.
+    Developed for: softer edges at 640 x 480 in a first-person shooter.
     Use it for: smoother edges where the camera rests: cutscenes, menus with a
       3D backdrop, a photo mode, strategy and puzzle games.
 

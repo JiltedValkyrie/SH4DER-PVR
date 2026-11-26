@@ -4,7 +4,7 @@
    Version: v0.10
    The effect: shows the world as through a device: green night vision, amber,
      or a heat picture, with grain and scanlines, fading in and out.
-   Developed for: Halo: Dreamcast Evolved.
+   Developed for: a first-person shooter.
    Use it for: night-vision goggles, a thermal scope, a security-camera or
      old-monitor look, a robot's point of view.
 

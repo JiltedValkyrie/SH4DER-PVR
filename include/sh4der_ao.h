@@ -29,7 +29,7 @@
     Version: v0.10
     The effect: darkens the creases where surfaces meet and the places where
       things touch, so shapes read as solid instead of flat.
-    Developed for: Halo: Dreamcast Evolved.
+    Developed for: a first-person shooter's levels.
     Use it for: baking corner shading into a level's vertex colours at build
       time, grounding objects where they meet a floor.
 

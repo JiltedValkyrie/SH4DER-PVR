@@ -37,8 +37,8 @@
     The effect: makes the whole picture behave like an eye or a camera. It
       darkens after a moment in bright light and opens up in the dark, and it
       can tint, lift or fade the frame, as a few full-screen layers.
-    Developed for: eye adaptation and colour grading in Halo: Dreamcast
-      Evolved: walking out of a dark corridor into sunlight and back.
+    Developed for: eye adaptation and colour grading in a first-person
+      shooter: walking out of a dark corridor into sunlight and back.
     Use it for: automatic exposure, a day / night or underwater tint, a fade
       to black or white, a red flash when hurt, a sepia flashback.
 

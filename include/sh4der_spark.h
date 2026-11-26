@@ -5,7 +5,7 @@
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
    The flash and tracer rules (one additive quad for a flash; a line from the muzzle
    to the hit whose muzzle end retreats, with a least width in pixels) follow
-   Halo: Dreamcast Evolved's src/fx.c and src/bullet_tracer.h, same author.
+   src/fx.c and src/bullet_tracer.h of the same author's first-person shooter.
 
    RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
    Start with: SH4DER_SPARK_MAX = 24 (96 vertices a frame at most), SH4DER_SPARK_MIN_PX = 0.8,

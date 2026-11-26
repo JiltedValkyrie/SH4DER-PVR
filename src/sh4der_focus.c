@@ -5,7 +5,7 @@
    The effect: keeps one part of the picture sharp and lets the rest go soft,
      as a camera focused on a face does. The soft part is a small blurred copy
      of the frame.
-   Developed for: close-ups in Halo: Dreamcast Evolved's cinematics.
+   Developed for: close-ups in a first-person shooter's cinematics.
    Use it for: dialogue close-ups, a blurred game behind a pause menu, the
      soft rim of a sniper scope, a tilt-shift toy look.
 

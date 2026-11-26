@@ -40,8 +40,8 @@
     The effect: smears the picture along the camera's motion, so a fast turn
       blurs. The frame before is laid over this one, moved by how far the camera
       turned.
-    Developed for: motion blur and the temporal blend in Halo: Dreamcast
-      Evolved, on the screen's own front buffer, with no frame texture.
+    Developed for: motion blur and the temporal blend in a first-person
+      shooter, on the screen's own front buffer, with no frame texture.
     Use it for: a speed blur while boosting, stunned or drunken vision, ghost
       trails behind fast things.
 

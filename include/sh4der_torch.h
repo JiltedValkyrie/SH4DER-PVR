@@ -49,7 +49,7 @@
     The effect: a flashlight with no light source to pay for. A round lit
       patch with a hot centre lies ahead of the player, the dark stays dark
       round it, and the beam fades with distance.
-    Developed for: the flashlight in Halo: Dreamcast Evolved: dark corridors,
+    Developed for: the flashlight in a first-person shooter: dark corridors,
       and daylight where it must darken nothing.
     Use it for: a flashlight, a miner's lamp, a vehicle's head lamps, a
       searchlight in a stealth or horror game.

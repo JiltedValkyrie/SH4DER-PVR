@@ -32,7 +32,7 @@
     The effect: makes a translucent body look lit from inside. A soft light in
       the chest brightens as the body breathes in and dims as it breathes out,
       read from the body's own animation.
-    Developed for: a hologram character in Halo: Dreamcast Evolved.
+    Developed for: a hologram character in a first-person shooter.
     Use it for: holograms, ghosts, jellyfish, a reactor core seen through a
       translucent shell: any inner light that should follow a body's motion.
 

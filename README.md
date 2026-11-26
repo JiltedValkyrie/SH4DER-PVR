@@ -1807,7 +1807,7 @@ The models are made by `demo/tools/make_models.py` (boxes and wedges, no outside
 
 | Name | Default | Meaning |
 | --- | --- | --- |
-| SH4DER_BUMP_STRENGTH | 0.65 | The strength of the highlight at full light (Halo's value; the torch walk scales it by this) |
+| SH4DER_BUMP_STRENGTH | 0.65 | The strength of the highlight at full light (the value of the game it was first made for; the torch walk scales it by this) |
 | SH4DER_BUMP_TWO_PI | 6.28318530718 | 2 pi, for the texel's angle |
 | SH4DER_BUMP_HALF_PI | 1.57079632679 | pi / 2, the slope's range |
 | SH4DER_BUMP_MAX_FAN | 12 | Most corners a polygon sent by `sh4der_bump_send_fan` may have |
@@ -1949,6 +1949,8 @@ Plain meanings of the terms the sections above use.
 ## Credits and license
 
 SH4DER-PVR is by Jilted Valkyrie, 2026. GitHub: [JiltedValkyrie](https://github.com/JiltedValkyrie). The copyright line to show in a client's credits: `SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie`.
+
+History: many of the effects here were first written for Halo: Dreamcast Evolved, by the same author; the library's own text names no game.
 
 SH4DOW-DC, by the same author, is included in the `sh4dow-dc` folder under its own license ([sh4dow-dc/LICENSE](sh4dow-dc/LICENSE)).
 

@@ -64,7 +64,7 @@ extern "C" {
 
 /** \name Default tuning
     @{ */
-#define SH4DER_BUMP_STRENGTH 0.65f   /**< \brief The strength of the effect at full light (Halo's value; the torch walk scales the highlight by it). */
+#define SH4DER_BUMP_STRENGTH 0.65f   /**< \brief The strength of the effect at full light (the value of the game it was first made for; the torch walk scales the highlight by it). */
 #define SH4DER_BUMP_TWO_PI   6.28318530718f
 #define SH4DER_BUMP_HALF_PI  1.57079632679f
 #define SH4DER_BUMP_MAX_FAN  12      /**< \brief Most vertices a fan sent by sh4der_bump_send_fan may have. */

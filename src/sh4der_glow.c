@@ -5,7 +5,7 @@
    The effect: makes bright things spill light. Lamps and the sun bleed a soft
      glow over what is round them, and the sun throws streaks of light across
      the screen (god rays).
-   Developed for: the sun and the lamps in Halo: Dreamcast Evolved, proven on
+   Developed for: the sun and the lamps in a first-person shooter, proven on
      the demo disc.
    Use it for: sun rays through a window or between trees, glowing lamps, neon
      signs, lava, head lamps at night, a white-hot explosion.

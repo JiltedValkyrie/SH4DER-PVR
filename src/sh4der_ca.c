@@ -6,8 +6,7 @@
      cheap lens does: red, green and blue fringes in the corners, none in the
      middle. To do it the game is first drawn into a texture, which this module
      also provides.
-   Developed for: the SH4DER demo disc, then handed to Halo: Dreamcast
-     Evolved.
+   Developed for: the SH4DER demo disc, then handed to a first-person shooter.
    Use it for: a camera or scope's colour fringe, a hit or glitch distortion,
      a dream or VHS look. The frame texture alone renders a game at 320 x 240
      for speed, or feeds a screen transition.
