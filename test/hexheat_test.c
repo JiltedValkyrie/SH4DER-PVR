@@ -223,8 +223,34 @@ int main(void) {
         }
         { const float behind[3] = { 2.0f, 3.3f, -20.0f }; float sx = 0.0f, sy = 0.0f; CHECK(!sh4der_hexheat_world_to_screen(&v, behind, &sx, &sy)); }
     }
-    /* the ground: refusals (the eye under it, a view straight down, the two distances out of order), then the real one */
-    CHECK(!sh4der_hexheat_view_ground(&v, nrm, 5.0f, sheet, near_cut) && !v.ok);
+    /* a hill: the plane through the sheet's foot is over the eye (a climb toward a crest). The view holds, no ray lands,
+       every cell is on the sheet and the haze stays on: as many hexagons as with the eye just over the plane, none past
+       the limit, and no jump in the count where the eye crosses the plane */
+    {
+        static sh4der_hexheat_vtx_t mh[SH4DER_HEXHEAT_CELLS_MAX * 6u];
+        static const float lift[5] = { 3.28f, 3.3f, 3.32f, 5.0f, 9.0f };          /* the plane's height: the eye is at 3.3 */
+        sh4der_hexheat_t still;
+        sh4der_hexheat_hit_t hit;
+        unsigned cnt[5];
+        float p3[3] = { 7.0f, 7.0f, 7.0f }, dist = 7.0f, bx = 0.0f, by = 0.0f, fx = 0.0f, fy = 0.0f, pk = 0.0f;
+        sh4der_hexheat_reset(&still);
+        for (i = 0; i < 5u; i++) {
+            const float foot[3] = { 2.0f, lift[i], 63.0f };
+            CHECK(sh4der_hexheat_view_ground(&v, nrm, lift[i], sheet, near_cut) && v.ok && fabsf(v.e - (3.3f - lift[i])) < 1e-5f);
+            CHECK(sh4der_hexheat_world_to_screen(&v, foot, &fx, &fy) && sh4der_hexheat_band(fx, fy, &bx, &by));
+            cnt[i] = sh4der_hexheat_mesh(&still, &v, 0.5f, 1.0f, bx, by, mh, SH4DER_HEXHEAT_CELLS_MAX, &pk);
+            CHECK(cnt[i] > 40u && pk > 0.5f && pk <= SH4DER_HEXHEAT_OFFSET_MAX * s);
+            if (!(v.e > 0.0f)) {
+                CHECK(!sh4der_hexheat_screen_to_ground(&v, 320.0f, 470.0f, p3, &dist) && p3[0] == 7.0f && dist == 7.0f);   /* no ray lands; nothing written */
+                CHECK(sh4der_hexheat_screen_to_haze(&v, fx, fy - 20.0f, &hit) && hit.ground == 0 && hit.h > 0.0f);      /* over the foot: on the sheet */
+                CHECK(!sh4der_hexheat_screen_to_haze(&v, fx, fy + 20.0f, &hit));                                       /* under it: no point */
+            }
+        }
+        CHECK(cnt[0] > cnt[2] ? cnt[0] - cnt[2] <= 2u : cnt[2] - cnt[0] <= 2u);       /* 2 cm over the plane and 2 cm under it */
+        printf("a hill, the plane 0.02 m under the eye, level, 0.02 m, 1.7 m and 5.7 m over it: %u, %u, %u, %u, %u hexagons (the haze never drops out)\n", cnt[0], cnt[1], cnt[2], cnt[3], cnt[4]);
+        v.ok = 0;
+    }
+    /* the ground: refusals (a view straight down, the two distances out of order), then the real one */
     CHECK(!sh4der_hexheat_view_ground(&v, nrm, 0.0f, near_cut, sheet) && !sh4der_hexheat_view_ground(&v, nrm, 0.0f, sheet, 0.0f) && !sh4der_hexheat_view_ground(&v, nrm, 0.0f, NAN, near_cut));
     {
         const float lowt[3] = { 2.0f, 0.0f, -7.0f + 1e-5f };

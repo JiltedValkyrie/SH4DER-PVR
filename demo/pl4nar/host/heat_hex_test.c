@@ -58,9 +58,14 @@ int main(void) {
         CHECK(cyy > sy && cyy + SH4DER_HEXHEAT_S + 1.0f <= y0 + (float)SH4DER_HEXHEAT_BAND_H);
         printf("the low camera:  the 70 m line at y %.1f, the 64 m line %.1f px under it; the band's top left (%.0f, %.0f)\n", (double)sy, (double)(cyy - sy), (double)x0, (double)y0);
     }
-    /* the hills: the road's height at the anchor is the ground's; an eye under the road: no view */
+    /* the hills: the road's height at the anchor is the ground's; on a climb that road is over the eye: the view holds
+       (the haze must not drop out on a hill), and no ray lands */
     CHECK(hexh_camera(&v2, eye, at, fov, 640.0f, 480.0f, 1.25f) && fabsf(v2.e - (3.3f - 1.25f)) < 1e-5f);
-    CHECK(!hexh_camera(&v2, eye, at, fov, 640.0f, 480.0f, 4.0f) && !v2.ok);
+    {
+        float p[3], d;
+        CHECK(hexh_camera(&v2, eye, at, fov, 640.0f, 480.0f, 4.0f) && v2.ok && v2.e < 0.0f);
+        CHECK(!sh4der_hexheat_screen_to_ground(&v2, 320.0f, 400.0f, p, &d));
+    }
 
     /* the scroll: nothing on the first view, nothing while the camera is still */
     hexh_reset(&x);

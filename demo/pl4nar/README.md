@@ -203,7 +203,8 @@ Two things to know before you judge it. First, the wave is stripes along one dia
 
 | What | Where | Value |
 |---|---|---|
-| `PL4NAR_HEAT_HEX` | build flag (`EXTRA=-DPL4NAR_HEAT_HEX`) | starts with the hexagons in place of the layer (not the wet build) |
+| `PL4NAR_HEAT_HEX` | build flag (`EXTRA=-DPL4NAR_HEAT_HEX`) | starts with the hexagons in place of the layer (not the wet build): X steps them OFF (the start), LIGHT, STRONG, and they obey the still-camera gate. The hills build then starts at the 256 x 128 target, the one size there with room for the band. The HUD has their own line under the clock while they are on: the level, the hexagons drawn and the largest move in pixels, or why nothing is drawn |
+| `PL4NAR_HEAT_HEX_FREE` | build flag, with `PL4NAR_HEAT_HEX` | the heat's own show program (the standalone disc): the still-camera gate does not hold the hexagons, so they show while the car drives; the heat starts on STRONG (X still steps OFF, LIGHT, STRONG) and the hour starts held at DAY; the HUD's heat line is always on screen. Not run on a console |
 | `PL4NAR_HEAT_HEX_POINT` | build flag | the band point sampled, not filtered: the picture under a hexagon moves by whole pixels and the hexagons' edges show. To compare with; host pictures only |
 | `HEXH_NEAR_BACK` | `src/heat_hex.h` | 6 m: the band holds what is farther than the anchor less this |
 | `demo_auto_hex(on, gate_free)` | `src/demo.h` | the switch: on resizes the target for the band; `gate_free` draws them under a moving camera too (the still gate off; `heat_shown()` is unchanged) |

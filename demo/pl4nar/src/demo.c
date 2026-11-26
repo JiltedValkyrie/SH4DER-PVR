@@ -73,7 +73,19 @@ static int s_hex = 1;
 #else
 static int s_hex;
 #endif
-static int s_hex_free;                             /* the hexagons drawn under a moving camera too (the still gate off) */
+/* -DPL4NAR_HEAT_HEX_FREE (with -DPL4NAR_HEAT_HEX; not the wet build): the heat's own show program (the standalone
+   disc). The still-camera gate does not hold the hexagons, so they show while the car drives; the heat starts on
+   STRONG and the hour starts held at DAY (the heat is day only); the HUD's heat line is always on screen. */
+#if defined(PL4NAR_HEAT_HEX_FREE) && !defined(PL4NAR_HEAT_HEX)
+#error "PL4NAR_HEAT_HEX_FREE is the hexagons' own: build it with PL4NAR_HEAT_HEX"
+#endif
+#if defined(PL4NAR_HEAT_HEX_FREE) && !defined(PL4NAR_WET)
+#define HEX_SHOW 1
+#else
+#define HEX_SHOW 0
+#endif
+static int s_hex_free = HEX_SHOW;                  /* the hexagons drawn under a moving camera too (the still gate off) */
+static int hex_hud_line(char *t, size_t max);      /* the HUD's line for the hexagons (the heat's hexagons, below) */
 static int s_hex_band;                             /* this frame's band is drawn (the hills' tile cut keeps its tiles) */
 static inline unsigned hex_pow2(unsigned n) { unsigned p = 8u; while (p < n) p <<= 1; return p; }
 
@@ -175,7 +187,7 @@ static float pool_dim(void) {
 #else
 static float pool_dim(void) { return 1.0f; }
 static float    s_tod = 0.10f;                    /* the clock */
-static unsigned s_tod_mode;                       /* 0 AUTO, 1 DAY, 2 NIGHT, 3 PAUSE */
+static unsigned s_tod_mode = HEX_SHOW ? 1u : 0u;  /* 0 AUTO, 1 DAY, 2 NIGHT, 3 PAUSE; the heat's show program: DAY held from the start */
 #endif
 /* The sun's sweep (B + D-pad right): FIXED is the old sun (azimuth 34.8 degrees, its two scales below); SWEEP takes the
    azimuth from one diagonal (45) to the other (225) and back, SUN_SWEEP_S a whole loop, at the hour's elevation; HOLD
@@ -270,8 +282,9 @@ static float s_aoy[MAP_AOG_ROWS][MAP_AOG_COLS];    /* the road's occlusion patch
 #define MODEL_Y 0.0f
 #define CAR_Y   0.0f
 #endif
-static unsigned s_heat_lvl = 0u;                   /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (X); OFF at the start everywhere
-                                                      (the owner: it swims like a texture with no depth test) until it is clean */
+static unsigned s_heat_lvl = HEX_SHOW ? 2u : 0u;   /* the heat shimmer: 0 OFF, 1 LIGHT, 2 STRONG (X); OFF at the start everywhere
+                                                      (the owner: it swims like a texture with no depth test) until it is clean;
+                                                      the heat's show program (the hexagons, HEX_SHOW) starts on STRONG */
 /* The heat's gate (heat.h: 0 in rain, gone by night 0.25) x the key's level. */
 static inline float heat_level(void) {
 #ifdef PL4NAR_WET
@@ -560,7 +573,11 @@ void demo_init(void) {
         for (r = 0; r < MAP_AOG_ROWS; r++)
             for (c = 0; c < MAP_AOG_COLS; c++) s_aoy[r][c] = hills_y_xz(map_aog[r][c][0], map_aog[r][c][1]);
     }
+#ifdef PL4NAR_HEAT_HEX
+    s_size = 0u;                                   /* 256 x 128: the one size here with room for the hexagons' band (hex_band_at) */
+#else
     s_size = 1u;                                   /* 128 x 64 from c9 on (the owner's choice); B+A still cycles */
+#endif
     {
         unsigned i;
         for (i = 0; i < MAP_LAMPS; i++) s_lamp_s[i] = hills_s_of(map_lamp[i][0], map_lamp[i][1]);
@@ -2297,10 +2314,11 @@ static void overlay(const demo_stats_t *st) {
         hud_text(64.0f, 404.0f, 1.0f, 0xffffdc00u, t);
     }
 #endif
+    if (hex_hud_line(t, sizeof t)) hud_text(24.0f, 76.0f, 1.0f, 0xffffdc00u, t);   /* the hexagons: their own line, under the clock and the laps */
 #ifdef _arch_dreamcast
-    if (s_heat_lvl && heat_level() > 0.0f && !s_hs.on && !s_cine.on)   /* X is on but the camera moves: nothing is drawn, say why */
+    if (!s_hex && s_heat_lvl && heat_level() > 0.0f && !s_hs.on && !s_cine.on)   /* X is on but the camera moves: nothing is drawn, say why */
         hud_text(64.0f, 350.0f, 1.0f, 0xffffdc00u, "heat: waiting for a still camera");
-    if (!s_fx_hidden && s_heat_lvl && heat_shown() > 0.0f) {   /* the heat's label, over the effect labels */
+    if (!s_hex && !s_fx_hidden && s_heat_lvl && heat_shown() > 0.0f) {   /* the layer's label, over the effect labels */
         if (s_heat.short_kb) snprintf(t, sizeof t, "Heat Haze %s (no video memory)", s_heat_lvl == 1u ? "LIGHT" : "STRONG");
         else snprintf(t, sizeof t, "Heat Haze %s copy %u.%02u ms (%lu)", s_heat_lvl == 1u ? "LIGHT" : "STRONG",   /* the read's time: the one cost not measured */
                       (unsigned)(s_heat.copy_us / 1000u), (unsigned)(s_heat.copy_us % 1000u / 10u), (unsigned long)s_heat.copies);
@@ -2436,6 +2454,22 @@ void demo_auto_hex(int on, int gate_free) {
 unsigned demo_hex_band_tris(void) { return s_tris_band; }
 unsigned demo_hex_cells(void) { return s_hex_n; }
 float demo_hex_peak(void) { return s_hex_peak; }
+/* The HUD's line for the hexagons: the heat's level, then what was drawn in this frame or why nothing was. The heat's
+   show program (HEX_SHOW) has the line always; any other build with the hexagons has it while the level is on and the
+   effect labels are shown. 0: no line. Called after hex_draw. */
+static int hex_hud_line(char *t, size_t max) {
+    static const char *const name[3] = { "OFF", "LIGHT", "STRONG" };
+    const unsigned lvl = s_cine.on && s_heat_lvl < CINE_HEAT ? CINE_HEAT : s_heat_lvl;   /* the fly-by: on, as heat_level has it */
+    const unsigned p10 = (unsigned)(s_hex_peak * 10.0f + 0.5f);
+    float ox, oy;
+    if (!s_hex || !(HEX_SHOW || (lvl && !s_fx_hidden))) return 0;
+    if (!lvl) snprintf(t, max, "HEAT HEXAGONS: OFF");
+    else if (!(heat_level() > 0.0f)) snprintf(t, max, "HEAT HEXAGONS: %s, by day and dry only", name[lvl]);
+    else if (!s_reflect || !hex_band_at(&ox, &oy)) snprintf(t, max, "HEAT HEXAGONS: %s, no room at this target size", name[lvl]);
+    else if (!(hex_gate() > 0.0f) && !s_cine.on) snprintf(t, max, "HEAT HEXAGONS: %s, waiting for a still camera", name[lvl]);
+    else snprintf(t, max, "HEAT HEXAGONS: %s  %u drawn, moved %u.%u px at most", name[lvl], s_hex_n, p10 / 10u, p10 % 10u);
+    return 1;
+}
 /* The frame's band, before the mirror's pass: the anchor on the screen, the band round it, the rows moved to it. */
 static void hex_prepare(const float eye3[3], const float at3[3], const float up3[3]) {
     float hp[3], ox, oy, x0, y0;

@@ -52,6 +52,8 @@ A real-time strategy game does the same sum to find the spot on the ground under
 
 Most cells of a far view lie above the road's far line. They look at far houses and sky, so their rays land very far away or never. For those cells the point is taken where the ray crosses an upright sheet that stands across the road at the haze's distance, and h is the ray's height over the ground there (`sh4der_hexheat_screen_to_haze`). In the street scene all 131 drawn cells are on the sheet: from a camera 3.3 m up, the road between the 64 m cut and the sheet at 70 m is about 2 pixels high (host count, test/hexheat_test.c).
 
+On hills the ground is not one plane. Give the plane through the foot of the sheet (the road's height out there). On a climb the eye can be under that plane: then no ray lands, every cell is on the sheet, and the haze stays on. (An earlier build switched the whole haze off there: on the host, 1,242 of 10,800 driven frames on the hills had no hexagon, in runs up to 113 frames. Now none: host count, 2026-11-26.)
+
 On the host the pick gives a known road point back within 0.00013 m at 20 to 150 m, and screen to world to screen comes back within 0.00002 pixels (test/hexheat_test.c, the plain C path).
 
 ### The wave (the owner's formulas)

@@ -213,9 +213,11 @@ static inline int sh4der_hexheat_view_look(sh4der_hexheat_view_t *v, const float
     return 1;
 }
 
-/* The ground and the haze's place, after sh4der_hexheat_view_look: the ground is dot(n, p) = d (n unit, toward the
-   eye's side); the haze sheet stands across the ground `sheet` metres ahead of the eye, and nothing nearer than
-   near_cut is touched. 0 (ok stays 0): the eye is not over the ground, the view looks straight down or up, or the two
+/* The ground and the haze's place, after sh4der_hexheat_view_look: the ground is dot(n, p) = d (n unit, up); the haze
+   sheet stands across the ground `sheet` metres ahead of the eye, and nothing nearer than near_cut is touched. On
+   ground that is not flat, give the plane through the sheet's foot (the road's height there). The eye may then be
+   level with that plane or under it (a climb toward a crest): no ray lands, every cell takes its point on the sheet,
+   and the haze stays on (it never pops off on a hill). 0 (ok stays 0): the view looks straight down or up, or the two
    distances are not 0 < near_cut < sheet. */
 static inline int sh4der_hexheat_view_ground(sh4der_hexheat_view_t *v, const float n[3], float d, float sheet, float near_cut) {
     float nf;
@@ -224,7 +226,7 @@ static inline int sh4der_hexheat_view_ground(sh4der_hexheat_view_t *v, const flo
     v->ok = 0;
     v->e = sh4der_dot3_(n, v->eye) - d;
     if (!sh4der_finite_(v->e) || !sh4der_finite_(sheet) || !sh4der_finite_(near_cut)) return 0;   /* the bit test: -ffast-math folds a NaN compare away */
-    if (!(v->e > 0.01f) || !(v->e < 1.0e5f) || !(near_cut > 0.0f) || !(sheet > near_cut) || !(sheet < 1.0e5f)) return 0;
+    if (!(v->e > -1.0e5f) || !(v->e < 1.0e5f) || !(near_cut > 0.0f) || !(sheet > near_cut) || !(sheet < 1.0e5f)) return 0;
     nf = sh4der_dot3_(n, v->fwd);
     for (k = 0; k < 3u; k++) { v->n[k] = n[k]; v->g[k] = v->fwd[k] - n[k] * nf; }
     if (!(sh4der_len3_(v->g[0], v->g[1], v->g[2]) > 1e-6f)) return 0;
@@ -276,7 +278,7 @@ static inline int sh4der_hexheat_screen_to_ground(const sh4der_hexheat_view_t *v
     float t;
     unsigned k;
 
-    if (!v->ok || !(fall > 1.0e-6f)) return 0;
+    if (!v->ok || !(v->e > 0.0f) || !(fall > 1.0e-6f)) return 0;   /* an eye level with the plane or under it: no ray lands */
     t = v->e * sh4der_recip_pos_(fall);                         /* the depth where it lands */
     for (k = 0; k < 3u; k++) p[k] = v->eye[k] + t * (v->fwd[k] + a * v->right[k] + b * v->down[k]);
     if (dist) *dist = t * sh4der_sqrt_(1.0f + a * a + b * b);
@@ -295,6 +297,7 @@ static inline int sh4der_hexheat_ray_(const sh4der_hexheat_view_t *v, float sx, 
     o->hs = v->e + t * climb;
     if (o->hs >= 0.0f) { o->ground = 0; o->h = o->hs; o->up = o->hs; }
     else {                                                      /* it lands first: the ground pick */
+        if (!(v->e > 0.0f)) return 0;                           /* the eye under the plane: the ray runs under the sheet's foot, no point */
         t = v->e * sh4der_recip_pos_(-climb);
         o->ground = 1; o->h = 0.0f; o->up = t * along - v->sheet;
     }
