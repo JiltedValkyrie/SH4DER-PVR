@@ -50,6 +50,31 @@ KallistiOS's `timer_ns_gettime64` steps 2,502,400 ns ahead once every reload of 
 - Whether 8 × 16 text reads in a phone photo of a television is OPEN. `PG_BIG` is the fallback.
 - Whether a page can also carry its numbers as a QR code is OPEN: `qr/NOTES.md` is the test.
 
+## Options a stage can switch
+
+**The colours' options** (`psm_scene.h`, `psm_frame_t.colour_opt`; 0 is every model vertex's colour worked out every frame, as it always was). The view cost stages carry them in their option bits (`psm_viewcost.h`: 16 and 32). Their cost is not measured.
+
+| Macro | Value | What it is |
+|---|---|---|
+| `PSM_COLOUR_TABLE` | 1 | a model vertex's colour is read from a table (a row a palette entry, a column a sun share), made again only when the light or the palette changes: 64 KB of RAM in `psm_frame_t` |
+| `PSM_COLOUR_SEEN` | 2 | only the vertices `psm_place_geo` marked as sent get a colour; call `psm_place_geo` before `psm_colour` |
+
+**The tile cut's tables** (`ao/tile_cut.h`). `tile_cut_t.need` is the number of tile tables a cut wants found before `tile_cut_begin` or `tile_cut_begin_cols` will write: `TILE_CUT_TABLES` (2) from `tile_cut_init`; a program that knows it has one table sets it to 1 after the init. A cut with one table of two cut cost the street demo 3.05 ms (PVR-200, MEASURED, one console). The refusal itself is host tested (`ao/test/tile_cut_test.c`) and has not run on a console.
+
 ## One disc for every test: the suite
 
 New test programs go on the suite disc, not on a disc each. A test takes three lines from `psm_suite.h` (after `psm_fault.h`): `suite_init();` first in main, and `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }` in the loop that shows its result pages. The same ELF still works on a disc of its own. `suite/NOTES.md` has the disc, what a start through the menu clears and does not clear, and how to add a test.
+
+## The walled square (`SQUARE=square`)
+
+The shadow program (`psm_dc.c`, `make psm-dc`) boots into a town. `SQUARE=square` puts the walled square in the town's place: stone walls with merlons, gate towers, a colonnade, a dais, a keep, with a fountain, an obelisk, four stalls, the hen pen and the ladder where the cast and the hens expect them. It uses the same header and the same movers, so the walks, hens, presets and sun are unchanged.
+
+```sh
+make psm-dc SQUARE=square BUILD=build/<new folder> PSM_DC_CDI=build/<new folder>/<new name>.cdi SH4ZAM=...
+```
+
+- **Bake:** `tools/bake_square.py` writes `psm_town_mesh.h` into `$(BUILD)/psm_square`, and the default town's `tools/bake_town.py` into `$(BUILD)/psm_town`, so the two never share a folder. The walls are quads baked from numbers. The pieces (pillars, the fountain's basin, awnings, banners, lanterns, fences, the dais's stairs, trees) come from the zip, cut by `third_party/dc-forerunner/tools/lod/qem_decimate.py`. With no zip each piece is a box (`PSM_TOWN_KIT 0`). The ground's paving slabs are `psm_ground.h` (64 x 64 RGB565, 8 KB, host test `test/psm_ground_test.c`).
+- **The zip:** `kenney_fantasy-town-kit_2.0.zip` in `assets/_dl/`, downloaded by hand from the page in `fetch_table.json` (it has no stable link). `PSM_SQUARE_ZIP=` points at a copy elsewhere. Nothing from it is in the repository.
+- **Flags:** the square's build also starts the program with the lazy shed plan and all three placement options: `-DPSM_PLAN_LAZY=1 -DPSM_PLACE_DEFAULT=7u` (`PSM_SQUARE_FLAGS` in the Makefile; the reasons are in `psm_dc.c`). `PSM_DC_EXTRA=` adds flags of your own. The town build has neither.
+- **Credits:** `CREDITS.md` has the kit's row (Kenney, CC0 1.0) and says which parts of the square are our own. On the suite disc, a table entry with `"credits": "square"` sets `PSM_CREDITS_SQUARE`, which puts the WALLED SQUARE page into the menu's credits (`tools/make_credits.py`: the kit and the sky). A build that carries the square must keep both.
+- **Status:** it is on suite disc 12 as `square` (the live program, no result pages; `build/sq_a4`, built before `PSM_SQUARE_FLAGS` was in the Makefile). Nothing about it is MEASURED in the ledger yet.
