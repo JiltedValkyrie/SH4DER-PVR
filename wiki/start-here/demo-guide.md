@@ -55,7 +55,7 @@ These programs are not in the suite 13 list. Their names and descriptions are fr
 
 - Street car demo: ran on a console in its c5 and c7 builds (PVR-160, PVR-161, PVR-174 and PVR-175 in the [PVR ledger](../hardware/ledger-pvr.md)).
 - Heat haze on a hot road (standalone-25): FINAL demo, approved by the owner (2026-11-26). Run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet); built on disc standalone-25. Its keys: X steps the heat OFF, LIGHT, STRONG (it starts on STRONG); A puts the car back at the start when the overlay is closed; B + X is the fly-by. Do not press A+B+X+Y: there is no menu on this disc.
-- Match Light: released in the public Match Light film, recorded from a live console and pushed as a YouTube video (the owner's statement; no date or link is recorded in the wiki). Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). The wiki has no ledger row for it yet.
+- Match Light: released in the public Match Light film, recorded from a live console and pushed as a YouTube video (the owner's statement; no date or link is recorded in the wiki). Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). Its ledger row is OBS-001 (observed by the owner, no figures; in the PVR ledger).
 - Sunset sea: its page reports that it runs on a Dreamcast (REPORTED, no ledger row; `demo/OCEAN.md`).
 - Torch walk: run on a console by the owner in Torch walk (her test; no measured numbers recorded yet). No tests by design, and no ledger row in the wiki yet.
 - Demo disc: the effect pages say these rows run on the demo disc (v0.50); there is no ledger row for them.
