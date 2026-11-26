@@ -73,20 +73,7 @@ The block for `demo/psm/ao/tile_cut.h`:
 
 Header text is Cortana's to change; these are proposals, from section 6 of [frame budget](frame-budget.md).
 
-**`demo/pl4nar/src/heat.h`, a new block** (it has the costs as ESTIMATE in its head already):
-
-```
-   RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
-   Start with: a 128 x 64 texture (16 KB video memory), the band HEAT_DIST = 30.0 m ahead, HEAT_ALPHA = 0.6;
-               by day on a dry road only (heat_gate)
-   Cost:       not measured. ESTIMATE (this header): SH-4 0.4 to 0.8 ms for 8,192 uncached reads of the frame,
-               about 0.1 ms through the store queue; TA 6.4 KB; PVR a layer of 24,576 pixels, about 0.25 ms
-               scaled from a full-screen layer's 3.1 ms (PVR-002). Off: 0
-   Status:     ADVISED; to prove: car-tech stage 11 against stage 1 (suite 12) and its "last copy" line
-   Do:         gate it off at night and in rain (a gate of 0 copies and sends nothing); copy before any scene opens
-   Do not:     keep the texture across a pvr_init (heat_reset); trust a near object's edge in the band (OPEN)
-   Maturity:   PROTOTYPE v0.1 (demo code)
-```
+**`demo/pl4nar/src/heat.h`:** its block landed in 4cb117d (every number an ESTIMATE, PROTOTYPE v0.1). Two additions proposed: the PVR layer's cost as a number, about 0.25 ms (24,576 of 640 x 480 pixels, 8 %, scaled from a full-screen layer's 3.1 ms, PVR-002; ESTIMATE), and the test that would prove it on the Status line: car-tech stage 11 against stage 1 (suite 12) and its "last copy" line.
 
 **`include/sh4der_pl4nar.h`, one line:** its Maturity line reads "ALPHA v0.5 (by the written client rule; v0.4 if the owner counts only outside clients)". With D2 decided it becomes "ALPHA v0.5".
 

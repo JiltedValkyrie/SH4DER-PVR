@@ -17,6 +17,7 @@ The disc is `sh4der-pvr-suite12` (staging 7d40338). **Nothing on it has run on a
 - **Do not press keys during an autorun.** A key press marks the stage TOUCHED, and a touched stage is not compared. B with the stick changes nothing.
 - A page that says **"THE RUN DID NOT FINISH"** is still worth filming: the lines above it are of the stages that ran.
 - To go back to the menu from the result pages: hold A + B + X + Y.
+- **RUN ALL waits in the square: press A + B + X + Y to go on.** The square is live, with no pages, and leaves only on those four keys (suite 13 takes it out of RUN ALL).
 - If the serial cable is on, keep the log: the menu writes its redraw times there and nowhere else.
 
 ## The programs
@@ -28,7 +29,7 @@ The disc is `sh4der-pvr-suite12` (staging 7d40338). **Nothing on it has run on a
 | **Car on a wet night road** (car-wet) | rain, wet road, light pools, reflection, grit | Let it run (6 stages, about 44 s), film every page; one still of the road in the wet stage | The `look` column: "wet 128x64" against "dry 128x64" is the pool and the grit's SH-4 time. "off (no layer)" against "wet 128x64": the whole wet layer. From the still: does the pool fade to nothing with no water line, and does the grit show through the wet? | PVR-215 (the pool), PVR-216 (the grit and the rain levels) |
 | **Drive a car in a city / on hills / a wet night road** (drive-map, drv-hills, drv-wet) | you drive | Drive; a short clip of each is enough | No pages: the look only. The heat haze (X steps OFF, LIGHT, STRONG, by day) has a label with its copy time: a photo of that label is a number | PVR-219 (the look, and the heat label if seen) |
 | **Space soldier on a street** (hero1) | running figure, his shadow, hangars, long street | Let it run (5 stages, about 45 s), film every page | The stage table (fr, SH4, PVR, TA). Stage 2's parts (anim, skin, sends, the set). The lines "set: N triangles sent, N cut at the near plane, N of N objects left out". In the video: he and his shadow are never hidden | PVR-217 |
-| **Walled town square** (square) | built from kit pieces, sun shadows, hens | Walk it; photograph the stalls, the fountain, the gate banners; a few photos of the HUD (written every 20 frames) | No pages. The HUD's TA line (est, used, max against the 1,536 KB buffer), SH-4, PVR, TA vertices, FPS. Any freeze: the video time of the last new picture | PVR-218 |
+| **Walled town square** (square) | built from kit pieces, sun shadows, hens | Walk it; photograph the stalls, the fountain, the gate banners; a few photos of the HUD (written every 20 frames). In RUN ALL it waits here: A + B + X + Y goes on | No pages. The HUD's TA line (est, used, max against the 1,536 KB buffer), SH-4, PVR, TA vertices, FPS. Any freeze: the video time of the last new picture | PVR-218 |
 | **Room shading, four ways** (ao4) | corner shading: none, baked, ground, texture | Let it run (110 s), film every page | As before (PVR-176, PVR-205): a repeat | the next free PVR row |
 | **Lamp with a lit shade** (ao-lamp) | light through a thin shade, glow halo | Let it run; film the pages | As before (PVR-158): a repeat | the next free PVR row |
 | **Glow that meets a wall** (d1) | a glow that fades where it meets a wall | Film it all, the pages after | As before (PVR-204, PVR-205): a repeat | the next free PVR row |
