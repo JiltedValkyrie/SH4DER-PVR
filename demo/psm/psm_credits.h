@@ -8,7 +8,8 @@
    psm_credits_text   the CREDITS screen's lines, 64 columns; "\f" alone starts a new page
    PSM_CREDITS_PL4NAR defined: the disc carries the street demo, and its art's page is in.
    PSM_CREDITS_SQUARE defined: the disc carries the walled square, and its art's page is in.
-   PSM_CREDITS_UI defined: the menu is drawn with the UI panels, and their page is in. */
+   PSM_CREDITS_UI defined: the menu is drawn with the UI panels, and their page is in.
+   PSM_CREDITS_SPACE defined: the disc carries the space street (hero1), and its art's page is in. */
 
 #ifndef PSM_CREDITS_H
 #define PSM_CREDITS_H
@@ -150,6 +151,11 @@ static const char *const psm_credits_text[] = {
     "\f",
     "MENU",
     "UI panels: UI Pack (2.0) by Kenney (www.kenney.nl), CC0 1.0.",
+#endif
+#ifdef PSM_CREDITS_SPACE
+    "\f",
+    "SPACE STREET",
+    "Space Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0.",
 #endif
 };
 #define PSM_CREDITS_N ((unsigned)(sizeof psm_credits_text / sizeof psm_credits_text[0]))

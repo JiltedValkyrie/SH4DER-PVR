@@ -55,7 +55,7 @@ LOAD = 0x8C010000
 RAM_END = 0x8D000000
 STACK_ROOM = 1 << 20                        # kept free under the top of RAM for the stack and the exec's copy loop
 GROUPS = {"tools": 0, "demos": 1}           # suite_nav.h: NAV_TOOLS, NAV_DEMOS
-CREDITS = {"pl4nar": "PSM_CREDITS_PL4NAR", "square": "PSM_CREDITS_SQUARE"}  # a table's "credits" key -> the switch of ../psm_credits.h
+CREDITS = {"pl4nar": "PSM_CREDITS_PL4NAR", "square": "PSM_CREDITS_SQUARE", "space": "PSM_CREDITS_SPACE"}  # a table's "credits" key -> the switch of ../psm_credits.h
 
 
 def run(step, argv):

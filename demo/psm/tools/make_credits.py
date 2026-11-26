@@ -114,15 +114,17 @@ def build(kos, sh4zam):
     square += wrap("Sky: Kloofendal 48d Partly Cloudy (Pure Sky) by Greg Zaal (original) and Jarod Guest (sky edits), Poly Haven (polyhaven.com), CC0 1.0.")
     ui = [PAGE, "MENU"]
     ui += wrap("UI panels: UI Pack (2.0) by Kenney (www.kenney.nl), CC0 1.0.")
-    return t, art, square, ui
+    space = [PAGE, "SPACE STREET"]
+    space += wrap("Space Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0.")
+    return t, art, square, ui, space
 
 
 def c_str(s):
     return '"%s"' % s.replace("\\", "\\\\").replace('"', '\\"').replace("\f", "\\f")
 
 
-def render(t, art, square, ui):
-    for ln in FOOT + t + art + square + ui:
+def render(t, art, square, ui, space):
+    for ln in FOOT + t + art + square + ui + space:
         if len(ln) > COLS:
             raise SystemExit("over %u columns: %r" % (COLS, ln))
         if any(ord(c) < 32 and c != PAGE or ord(c) > 126 for c in ln):
@@ -137,7 +139,8 @@ def render(t, art, square, ui):
          "   psm_credits_text   the CREDITS screen's lines, 64 columns; \"\\f\" alone starts a new page",
          "   PSM_CREDITS_PL4NAR defined: the disc carries the street demo, and its art's page is in.",
          "   PSM_CREDITS_SQUARE defined: the disc carries the walled square, and its art's page is in.",
-         "   PSM_CREDITS_UI defined: the menu is drawn with the UI panels, and their page is in. */",
+         "   PSM_CREDITS_UI defined: the menu is drawn with the UI panels, and their page is in.",
+         "   PSM_CREDITS_SPACE defined: the disc carries the space street (hero1), and its art's page is in. */",
          "",
          "#ifndef PSM_CREDITS_H",
          "#define PSM_CREDITS_H",
@@ -152,6 +155,8 @@ def render(t, art, square, ui):
     o += ["    %s," % c_str(ln) for ln in square]
     o += ["#endif", "#ifdef PSM_CREDITS_UI"]
     o += ["    %s," % c_str(ln) for ln in ui]
+    o += ["#endif", "#ifdef PSM_CREDITS_SPACE"]
+    o += ["    %s," % c_str(ln) for ln in space]
     o += ["#endif", "};", "#define PSM_CREDITS_N ((unsigned)(sizeof psm_credits_text / sizeof psm_credits_text[0]))", "", "#endif /* PSM_CREDITS_H */", ""]
     return "\n".join(o)
 

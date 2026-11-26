@@ -1,0 +1,130 @@
+{
+  "note": "sh4der-pvr-suite12: s11 plus heat haze, grit mixed with the road texture, the soft reflection pool round the car, the space soldier on a street. NOT RUN on a console.",
+  "tests": [
+    {
+      "name": "ao4",
+      "file": "AO4.BIN",
+      "elf": "build/psm_ao/psm-ao4-j.elf",
+      "order": 1,
+      "what": "AO side by side; clip guard; tile cut last. 110 s",
+      "read": "photo ALL 4 pages+graph; stages 16, 17 (GUARD label)",
+      "group": "demos"
+    },
+    {
+      "name": "ao-lamp",
+      "file": "AOLAMP.BIN",
+      "elf": "build/psm_ao/psm-lamp-d.elf",
+      "order": 2,
+      "what": "lamp: sss shade, halo; slots in stage 3. ~35 s",
+      "read": "photo pages+graph; live: X compare, A near, dn inside",
+      "group": "demos"
+    },
+    {
+      "name": "hero1",
+      "file": "HERO1.BIN",
+      "elf": "build/hero_senior/h2a/sh4der-psm-hero1-h2a.elf",
+      "order": 3,
+      "what": "Space soldier on a street. ~45 s",
+      "read": "he and his shadow stay on screen; photo every page",
+      "group": "demos",
+      "credits": "space"
+    },
+    {
+      "name": "d1",
+      "file": "D1.BIN",
+      "elf": "build/psm_ao/psm-d1-d.elf",
+      "order": 1,
+      "what": "depth fade: glow cut by walls, soft right. ~70 s",
+      "read": "film it all; pages after. Left half steady from stage 3?",
+      "group": "tools"
+    },
+    {
+      "name": "hens-eyes",
+      "file": "HENEYES.BIN",
+      "elf": "build/psm_ao/psm-hen-e.elf",
+      "order": 2,
+      "what": "hens: rays vs collision sweep, cycles. ~50 s",
+      "read": "photo every page + graph; START = live: X mode, Y hens",
+      "group": "tools"
+    },
+    {
+      "name": "pvr-dma",
+      "file": "PVRDMA.BIN",
+      "elf": "build/psm_ao/psm-pd-d.elf",
+      "order": 3,
+      "what": "PVR-DMA download proof: VRAM to RAM. ~2 s",
+      "read": "PVR-DMA download proof: photo the page and the graph",
+      "group": "tools"
+    },
+    {
+      "name": "car-tech",
+      "file": "CARTECH.BIN",
+      "elf": "demo/pl4nar/build/pl4m_tech-map-8/sh4der-pl4m-tech-map-8.elf",
+      "order": 5,
+      "what": "car map autorun: reflect, shadow, heat. ~79 s",
+      "read": "photo every page; 10 stages",
+      "group": "demos",
+      "credits": "pl4nar"
+    },
+    {
+      "name": "car-hills",
+      "file": "CARHILL.BIN",
+      "elf": "demo/pl4nar/build/pl4m_tech-hills-9/sh4der-pl4m-tech-hills-9.elf",
+      "order": 6,
+      "what": "car hills autorun: shadow on mesh, cut. ~79 s",
+      "read": "photo every page; 11 stages",
+      "group": "demos",
+      "credits": "pl4nar"
+    },
+    {
+      "name": "car-wet",
+      "file": "CARWET.BIN",
+      "elf": "demo/pl4nar/build/pl4m_wet-10/sh4der-pl4m-wet-10.elf",
+      "order": 7,
+      "what": "wet night road autorun. ~44 s + pages",
+      "read": "photo every page; reflection pool, grit, rain",
+      "group": "demos",
+      "credits": "pl4nar"
+    },
+    {
+      "name": "drive-map",
+      "file": "DRVMAP.BIN",
+      "elf": "demo/pl4nar/build/pl4m_drive-map-11/sh4der-pl4m-drive-map-11.elf",
+      "order": 0,
+      "what": "DRIVE the car: map. Live, you play",
+      "read": "RT go, LT brake; START overlay; ABXY = menu",
+      "group": "demos",
+      "credits": "pl4nar"
+    },
+    {
+      "name": "drv-hills",
+      "file": "DRVHILL.BIN",
+      "elf": "demo/pl4nar/build/pl4m_drive-hills-12/sh4der-pl4m-drive-hills-12.elf",
+      "order": 0,
+      "what": "DRIVE the car: hills. Live",
+      "read": "lights stay on the car on slopes; ABXY = menu",
+      "group": "demos",
+      "credits": "pl4nar"
+    },
+    {
+      "name": "drv-wet",
+      "file": "DRVWET.BIN",
+      "elf": "demo/pl4nar/build/pl4m_live-wet-13/sh4der-pl4m-live-wet-13.elf",
+      "order": 0,
+      "what": "DRIVE the wet night road. Live",
+      "read": "Y rain; lights and pools; ABXY = menu",
+      "group": "demos",
+      "credits": "pl4nar"
+    },
+    {
+      "name": "square",
+      "file": "SQUARE.BIN",
+      "elf": "build/sq_a4/sh4der-square-a4.elf",
+      "order": 4,
+      "what": "walled square: kit pieces, cast, hens, sun. live",
+      "read": "walk it; photo stalls, fountain, gate banners; ABXY menu",
+      "group": "demos",
+      "credits": "square"
+    }
+  ]
+}

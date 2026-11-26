@@ -11,10 +11,10 @@
                         sends the strips with fixed texture coordinates.
      Sphere Map         SH-4/PVR, Realtime: VISOR, the SH-4 makes the visor's coordinates each frame from the camera in
                         bone space (hero_sphere_uv), the PVR samples the sphere map texture, added (h_visor).
-     Projected Shadow   SH-4/PVR, Realtime: SHADOW, the hero (and the hens) slid along the sun into the 256 x 256 target,
-                        the ground reads it as a texture. No depth compare.
-     Ambient Occlusion  SH-4, Baked: the room's byte a vertex (room_ao_v, baked at build), multiplied into the ambient
-                        once at load (set_light). The clay set has none.
+     Projected Shadow   SH-4/PVR, Realtime: SHADOW, the hero slid along the sun into the 256 x 256 target, whose
+                        window follows him; the ground reads it as a texture. No depth compare.
+     Ambient Occlusion  SH-4, Baked: a set with a baked byte a vertex (the room had one). The space street has none:
+                        the program passes room = 0 and the label is not on its pages.
    Not labelled: the vertex light (ambient + sun a vertex, the base shading) and the skinning (the program's subject, in
    its title; with it the four effects do not fit two lines). The order below is the order that fits two lines. */
 
@@ -39,8 +39,7 @@ static const fx_entry_t hero_fx_page[] = {
     { "Detail Map", FX_PVR, FX_TEXTURE, NULL },
     { "Projected Shadow", FX_BOTH, FX_REALTIME, NULL },
     { "Sphere Map", FX_BOTH, FX_REALTIME, NULL },
-    { "Ambient Occlusion", FX_SH4, FX_BAKED, NULL },
 };
-#define HERO_FX_PAGE_N 4u
+#define HERO_FX_PAGE_N 3u
 
 #endif /* HERO_FX_H */
