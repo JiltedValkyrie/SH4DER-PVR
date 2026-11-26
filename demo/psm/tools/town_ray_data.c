@@ -8,7 +8,7 @@
    with their sizes, start places, bounds and shadow runs at 14:00 and 16:00. It changes nothing in the town.
 
    build (from the repo root, after the town's mesh header is made by make):
-     cc -O2 -std=gnu11 -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -Idemo/psm -Iinclude -Ish4dow-dc/include \
+     cc -O2 -std=gnu11 -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -Idemo/psm -Iinclude \
         -I<BUILD>/psm_town -I<BUILD>/psm_sky demo/psm/tools/town_ray_data.c src/sh4der_core.c -lm -o town_ray_data
      ./town_ray_data > demo/psm/town_ray_data.h
 

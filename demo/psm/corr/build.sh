@@ -16,7 +16,7 @@ mkdir -p "$B"
 . "${KOS_ENV:?KOS_ENV= the KallistiOS environ.sh}"
 Z=${SH4ZAM:?SH4ZAM= the SH4ZAM tree}
 LIB=""; [ -f "$Z/build/libsh4zam.a" ] && LIB="$Z/build/libsh4zam.a"
-kos-cc -O3 -Wall -Wextra -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno -I"$R/include" -I"$R/sh4dow-dc/include" \
+kos-cc -O3 -Wall -Wextra -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno -I"$R/include" \
   -I"$Z/include" -I"$R/third_party/sh4zam-dce/include" -I"$B/gen" -DCORR_TAG=$TAG \
   "$R/demo/psm/corr/corr_spike.c" $LIB -o "$B/sh4der-corr-$TAG.elf" > "$B/elf.log" 2>&1 || { cat "$B/elf.log"; exit 1; }
 echo "warnings: $(grep -c 'warning:' "$B/elf.log" || true)"

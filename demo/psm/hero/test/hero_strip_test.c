@@ -1,7 +1,7 @@
 /* SH4DER-PVR: hero1's space stretch, host test: the autorun replayed; it fails if the hero or his shadow is ever hidden.
    Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
 
-   cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include -Idemo/psm/hero -I<dir of hero_strip_data.h> -I<dir of hero_hens.h> \
+   cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Idemo/psm/hero -I<dir of hero_strip_data.h> -I<dir of hero_hens.h> \
       demo/psm/hero/test/hero_strip_test.c -lm -o hero_strip_test && ./hero_strip_test
 
    Every stage of the autorun (hero_strip.h's table and camera), 30 frames a second. In every frame:

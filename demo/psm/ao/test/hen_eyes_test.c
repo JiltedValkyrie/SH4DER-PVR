@@ -4,7 +4,7 @@
    Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
 
    Build (from the repository's root), plain C:
-     cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include -Idemo/psm/ao
+     cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Idemo/psm/ao
         demo/psm/ao/test/hen_eyes_test.c -lm -o hen_eyes_test
    SH4ZAM's host path: drop -DSH4DER_CORE_NO_SH4ZAM and add -Ithird_party/sh4zam/include.
    With -DHEN_TEST_ROOM -I<dir of room_mesh.h> the room is room_data.h's in place of the scripted one.

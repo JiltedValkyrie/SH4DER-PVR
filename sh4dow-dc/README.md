@@ -6,7 +6,7 @@ And the floor half, **foot cones**: two small shadows per character, one under e
 
 Three files, C99. Made for the Sega Dreamcast (SH-4) with [SH4ZAM](https://github.com/gyrovorbis/sh4zam) 0.10; builds in plain C anywhere else.
 
-Originally developed for Halo: Dreamcast Evolved.
+Originally developed for a game.
 
 ## Contents
 
@@ -157,7 +157,7 @@ Distances are in your vertex units. The `_scale` values multiply the limb's radi
 
 `sh4dow_params_default` fills these. Pass `NULL` to `sh4dow_prepare` for the same. The header's macros are the source of truth; the test suite checks this table against them.
 
-Budgets the library leaves to you: how many limbs cast (the original game spends 14 on a character: the head, neck, torso and both arms, then the largest joint spheres), how many characters a frame (the original: the six nearest), and any fade with distance.
+Budgets the library leaves to you: how many limbs cast (a first client spends 14 on a character: the head, neck, torso and both arms, then the largest joint spheres), how many characters a frame (a first client: the six nearest), and any fade with distance.
 
 Symptoms: the shade falls toward the light, flip `direction`. The whole character darkens, `outer_scale` times your radii is bigger than the body. Nothing darkens, the direction is flipped, the radii are in another unit than the vertices, or joints and vertices are in different spaces.
 
@@ -208,7 +208,7 @@ What you pass in and what you draw:
 - **More lights.** Up to `SH4DOW_FOOT_LAYERS` (4) further cones per foot, one for each further light that reaches the character, each from the same heel with that light's own `away` (`sh4dow_foot_cone` again). `sh4dow_foot_layer_weight` is the darkness of such an extra cone against the main one's 1: it falls with the light's own falloff, `1 - distance^2 / reach^2`, from 0.6 at the character to 0 at the light's reach, so the farther the light, the fainter and less obvious its shadow, as in life; a distant light with no position (the sun, a room's own light) takes 0.35. `sh4dow_foot_layer_distinct` says whether two lights give visibly different cones (their directions across the floor more than 15 degrees apart), so two lamps in the same direction cast one. Where cones overlap the floor is darker, as under two lamps. Which lights, how many characters get extras and how far from the camera are yours: they cost four vertices each.
 - **Draw.** A multiply: the floor keeps `1 - texel * strength` of its light. Draw the quad over the floor, a little above it (the cone is already lifted 0.012), with the picture as the texture and a vertex colour of grey `strength` (your darkness times the cone's fade times the distance fade), blended `dst * (1 - src)` (zero / inverse source colour). No depth write.
 
-Units. The distances are in the original game's world units: 1 unit is 3.048 m and a standing character is about 0.7 tall. If yours differ, carry them over once: `sh4dow_foot_params_default(&p); sh4dow_foot_params_scale(&p, 3.048f);` for metres. The radii, slopes and the picture are ratios and do not change. Z up or Y up does not matter: you pass `up`.
+Units. The distances are in the reference units: 1 unit is 3.048 m and a standing character is about 0.7 tall. If yours differ, carry them over once: `sh4dow_foot_params_default(&p); sh4dow_foot_params_scale(&p, 3.048f);` for metres. The radii, slopes and the picture are ratios and do not change. Z up or Y up does not matter: you pass `up`.
 
 | Function | When | What |
 | --- | --- | --- |
@@ -271,9 +271,9 @@ Cost: a cone is a few dozen multiplies, a handful of dot products and three reci
 
 ## Cost
 
-**Measured on the Dreamcast** by the original game (one cutscene, six characters, 84 columns, 5406 vertices, 33 ms frame): **14.70 ms** for the shade, with the every-column loop before it was sorted. That is 2.72 us, or 544 SH-4 cycles, per vertex.
+**Measured on the Dreamcast** by a first client (one cutscene, six characters, 84 columns, 5406 vertices, 33 ms frame): **14.70 ms** for the shade, with the every-column loop before it was sorted. That is 2.72 us, or 544 SH-4 cycles, per vertex.
 
-**Measured on a PC**, over the 1,063,664 skinned vertices of that game's shipped character models in the bind pose, under two lights (a census program in the game's source tree): columns visited per vertex, every column 13.3; the sorted loop 5.2; the column lists 2.6. Four vertices in a hundred belong to a bone no column reaches. The list loop and the every-column loop agree within 0.000063 of strength, which moves a packed 8-bit colour by one step on about one vertex in 75,000.
+**Measured on a PC**, over the 1,063,664 skinned vertices of a client's shipped character models in the bind pose, under two lights (a census program in the client's source tree): columns visited per vertex, every column 13.3; the sorted loop 5.2; the column lists 2.6. Four vertices in a hundred belong to a bone no column reaches. The list loop and the every-column loop agree within 0.000063 of strength, which moves a packed 8-bit colour by one step on about one vertex in 75,000.
 
 **Measured again on the Dreamcast after the column lists and the one-FTRV-per-vertex loop**, the same scene, the same six characters, 84 columns and 5406 vertices: **4.5 ms**, down from 14.70 ms. That is 3.3 times faster: about 0.83 us, or roughly 166 SH-4 cycles at 200 MHz, per vertex (544 before).
 
@@ -281,7 +281,7 @@ Cost: a cone is a few dozen multiplies, a handful of dot products and three reci
 | --- | --- | --- | --- | --- |
 | six characters, 33 ms frame  | 84      | 5406     | 14.70 ms | 4.5 ms |
 
-The 4.5 ms is one hardware run of that scene as the game's author timed it, not a benchmark suite. It includes everything the sorting, the column lists and the SH4ZAM routines changed together, not one trick alone.
+The 4.5 ms is one hardware run of that scene as the client's author timed it, not a benchmark suite. It includes everything the sorting, the column lists and the SH4ZAM routines changed together, not one trick alone.
 
 **Packed lists, not yet measured on hardware.** `make bench` builds `build/bench.elf`: six figures, 84 columns, 5376 vertices, timing the every-column loop, the list loop and the packed loop with the SH-4 performance counter, and printing each fast loop's largest difference from the every-column loop on screen and to dcload. On the SH-4 code GCC emits, a listed column the vertex misses costs about 15 instructions in the packed loop against about 29 in the list loop (no index byte, shift and large frame offset per column), and in that scene 12 of the 84 bones skip their vertices (6 empty, 6 solid).
 
@@ -318,20 +318,20 @@ The Dreamcast build wants SH4ZAM's include path and the flags its fast paths exp
 
 ## Credits and license
 
-SH4DOW-DC is by Emerald May, 2026. GitHub: [JiltedValkyrie](https://github.com/JiltedValkyrie). The line the game shows: `SH4DOW-DC (c) 2026 Jilted Valkyrie`.
+SH4DOW-DC is by Emerald May, 2026. GitHub: [JiltedValkyrie](https://github.com/JiltedValkyrie). The line a client shows: `SH4DOW-DC (c) 2026 Jilted Valkyrie`.
 
 Dreamcast math: [SH4ZAM](https://github.com/gyrovorbis/sh4zam), Copyright (c) 2025, 2026 Falco Girgis, MIT. Keep that notice with the library.
 
 A credits line you can copy:
 
-> Soft self-shadow: SH4DOW-DC by Emerald May (JiltedValkyrie), from Halo: Dreamcast Evolved. Dreamcast math: SH4ZAM by Falco Girgis.
+> Soft self-shadow: SH4DOW-DC by Emerald May (JiltedValkyrie). Dreamcast math: SH4ZAM by Falco Girgis.
 
 The license, the same text as [LICENSE](LICENSE):
 
 SH4DOW-DC
 Copyright (c) 2026 Emerald May
 
-Originally developed for Halo: Dreamcast Evolved
+Originally developed for a game
 
 Permission is granted, free of charge, to use, modify, and incorporate SH4DOW-DC into personal and commercial software, including games, engines, and applications.
 

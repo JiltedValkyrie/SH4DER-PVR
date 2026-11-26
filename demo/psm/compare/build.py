@@ -73,7 +73,7 @@ def main():
     exe = ".exe" if os.name == "nt" else ""
     src = os.path.join(HERE, "test", "%s_model_test.c" % a.spike)
     test = os.path.join(out, "%s_model_test%s" % (a.spike, exe))
-    lib_inc = ["-I" + os.path.join(ROOT, "include"), "-I" + os.path.join(ROOT, "sh4dow-dc", "include")]
+    lib_inc = ["-I" + os.path.join(ROOT, "include")]
     shz_inc = ["-I" + os.path.join(a.sh4zam, "include"), "-I" + os.path.join(ROOT, "third_party", "sh4zam-dce", "include")]
     if a.spike == "c4":
         if not os.path.isfile(os.path.join(a.sh4zam, "include", "sh4zam", "shz_sh4zam.h")):

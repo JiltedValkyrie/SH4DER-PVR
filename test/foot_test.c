@@ -46,7 +46,7 @@ static sh4dow_foot_t foot_at(float x, float y, float z, float ax, float ay, floa
 static void test_shipped_numbers(void) {
     sh4dow_foot_params_t p;
 
-    /* The numbers the original game ships; the game's own tests pin its copies of them. */
+    /* The shipped numbers; a client's own tests may pin its copies of them. */
     NEAR(SH4DOW_FOOT_MIN_LEN, 3.0f, 0, "min len");
     NEAR(SH4DOW_FOOT_GAIN, 3.0f, 0, "gain");
     NEAR(SH4DOW_FOOT_MAX_SLOPE, 2.0f, 0, "max slope");

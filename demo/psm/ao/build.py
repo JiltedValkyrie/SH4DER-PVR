@@ -90,7 +90,7 @@ def main():
         raise SystemExit("refuse existing image: %s (pick a new --tag)" % image)
 
     exe = ".exe" if os.name == "nt" else ""
-    lib_inc = ["-I" + os.path.join(ROOT, "include"), "-I" + os.path.join(ROOT, "sh4dow-dc", "include")]
+    lib_inc = ["-I" + os.path.join(ROOT, "include")]
     shz_inc = ["-I" + os.path.join(a.sh4zam, "include"), "-I" + os.path.join(ROOT, "third_party", "sh4zam-dce", "include")]
     host = [a.host_cc, "-O2", "-std=c99", "-Wall", "-Wextra", "-Werror", "-DSH4DER_CORE_NO_SH4ZAM"] + lib_inc
     room_inc = []

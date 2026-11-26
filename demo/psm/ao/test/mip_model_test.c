@@ -3,7 +3,7 @@
    demo/psm/ao/test/mip_model_test.c
    Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
 
-   Compile: cc -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include
+   Compile: cc -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude
             demo/psm/ao/test/mip_model_test.c -lm */
 
 #include <math.h>

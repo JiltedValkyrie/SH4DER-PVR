@@ -26,7 +26,7 @@
        at tessellations 8 x 6, 16 x 12 and 32 x 24.
 
    Build (from the repository's root):
-     gcc -std=c99 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include demo/psm/depthtricks/dt_model_test.c -lm -o build/dt_model_test
+     gcc -std=c99 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude demo/psm/depthtricks/dt_model_test.c -lm -o build/dt_model_test
 */
 
 #include <math.h>

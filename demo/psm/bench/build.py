@@ -54,7 +54,7 @@ def build_h2(kos_cc, a, out, elf):
     """bench_h2.c: the warp twice (pvr_prim a vertex; a strip a store-queue run), then the program with SH4ZAM."""
     if not os.path.isfile(os.path.join(a.sh4zam, "include", "sh4zam", "shz_sh4zam.h")):
         raise SystemExit("no SH4ZAM at %s (see AGENTS.md for the clone line, or give --sh4zam)" % a.sh4zam)
-    inc = ["-I" + os.path.join(ROOT, "include"), "-I" + os.path.join(ROOT, "sh4dow-dc", "include"),
+    inc = ["-I" + os.path.join(ROOT, "include"),
            "-I" + os.path.join(a.sh4zam, "include"), "-I" + os.path.join(ROOT, "third_party", "sh4zam-dce", "include")]
     objs = []
     for prim, way in ((1, "prim"), (0, "sq")):

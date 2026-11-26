@@ -3,7 +3,7 @@
    demo/psm/corr/test/corr_test.c
    Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
 
-   cc -DSH4DER_CORE_NO_SH4ZAM -I include -I sh4dow-dc/include demo/psm/corr/test/corr_test.c -lm */
+   cc -DSH4DER_CORE_NO_SH4ZAM -I include demo/psm/corr/test/corr_test.c -lm */
 
 #include <stdio.h>
 #include <stdlib.h>

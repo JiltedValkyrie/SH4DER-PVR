@@ -19,7 +19,7 @@
    Runs on the plain C path (-DSH4DER_CORE_NO_SH4ZAM) and on the SH4ZAM software path (make test-shz). The demo's
    psm_ao2_send and its town test stay in demo/psm/ao/test/ao_layer_test.c.
 
-   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include
+   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude
           test/aosky_test.c -lm */
 
 #include <math.h>

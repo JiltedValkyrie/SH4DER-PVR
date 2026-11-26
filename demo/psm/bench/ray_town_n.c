@@ -15,7 +15,7 @@
 
    Build (from the repository's root; the town mesh header from tools/bake_town.py in <BUILD>/psm_town, the sky in
    <BUILD>/psm_sky, as town_bake.c):
-     cc -O2 -std=gnu11 -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -Idemo/psm -Iinclude -Ish4dow-dc/include
+     cc -O2 -std=gnu11 -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -Idemo/psm -Iinclude
         -Ithird_party/sh4zam/include -I<BUILD>/psm_town -I<BUILD>/psm_sky demo/psm/bench/ray_town_n.c src/sh4der_core.c
         -lm -o ray_town_n
    Run: ray_town_n [normal offset m, 0.05] [sun offset m, 0] [ground side, 192] [C_setup, 72] [C_step, 22.1]

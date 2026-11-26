@@ -3,7 +3,7 @@
    test/fakeaf_test.c
    Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-   Compile: cc -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include
+   Compile: cc -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude
             test/fakeaf_test.c -lm (make test; make test-shz builds the same with SH4ZAM) */
 
 #include <math.h>

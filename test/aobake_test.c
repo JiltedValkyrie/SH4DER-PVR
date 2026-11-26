@@ -9,7 +9,7 @@
    with tools/ao_bake_core.h's (the host tool's set, built with libc) to AGREE_TOL.
 
    Runs on the plain C path (-DSH4DER_CORE_NO_SH4ZAM) and on the SH4ZAM software path (make test-shz).
-   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include
+   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude
           test/aobake_test.c -lm */
 
 #include <math.h>

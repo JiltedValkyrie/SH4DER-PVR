@@ -17,7 +17,7 @@
    counts the work each route does, and prices it from the ledger. Every price is an ESTIMATE built from the rows
    named next to it; MEASURED rows are one console, one run, 2026-11-25. Prints PASS and FAIL counts.
 
-   Build (plain C):  gcc -O2 -std=c99 -DSH4DER_CORE_NO_SH4ZAM -I../../../include -I../../../sh4dow-dc/include depthmap_model.c -lm
+   Build (plain C):  gcc -O2 -std=c99 -DSH4DER_CORE_NO_SH4ZAM -I../../../include depthmap_model.c -lm
    SH4ZAM path: as the Makefile's test-shz line.
 */
 

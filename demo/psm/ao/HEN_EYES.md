@@ -169,7 +169,7 @@ hen_agents_separate(pos, HENS, cfg.radius, &stats);
 ## Test
 
 ```
-gcc -O2 -std=gnu11 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include -Idemo/psm/ao \
+gcc -O2 -std=gnu11 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Idemo/psm/ao \
     demo/psm/ao/test/hen_eyes_test.c -lm -o build/hen_eyes/hen_eyes_test
 build/hen_eyes/hen_eyes_test --report
 ```

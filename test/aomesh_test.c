@@ -11,7 +11,7 @@
    grid, stats, scratch) left as it was.
 
    Runs on the plain C path (-DSH4DER_CORE_NO_SH4ZAM) and on the SH4ZAM software path (make test-shz).
-   Build: cc -O2 -std=c99 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include test/aomesh_test.c -lm */
+   Build: cc -O2 -std=c99 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude test/aomesh_test.c -lm */
 
 #include <math.h>
 #include <stdint.h>

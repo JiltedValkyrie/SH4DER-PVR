@@ -78,7 +78,7 @@ It needs [KallistiOS](https://github.com/KallistiOS/KallistiOS) (the Dreamcast's
 
 Repository: [github.com/JiltedValkyrie/SH4DER-PVR](https://github.com/JiltedValkyrie/SH4DER-PVR). In code the names keep the library's first name: the `sh4der_` prefix, `sh4der_core.h`, `SH4DER_CORE_NO_SH4ZAM`, `libsh4der_core.a`.
 
-**[SH4DOW-DC](sh4dow-dc) is included**, in the `sh4dow-dc` folder: the soft self-shadow library, whole, with its own README, tests and license. Use its shadows next to these effects; one download holds both. The soft edge of every effect here is SH4DOW-DC's own column feather (`sh4dow_feather_in_`), called from `sh4dow_dc.h`, not copied. Put `sh4dow-dc/include` on the include path next to `include`. `SH4DER_CORE_NO_SH4ZAM` also sets `SH4DOW_DC_NO_SH4ZAM`, so both take the same path.
+**SH4DOW-DC is part of this library**: the soft self-shadow (`include/sh4dow_dc.h`, `src/sh4dow_dc.c`), the foot cones (`src/sh4dow_foot.c`) and the heightfield sun (`include/sh4dow_heightfield.h`); see [The sh4dow effect](#the-sh4dow-effect-soft-character-shadows). Use its shadows next to these effects. The soft edge of every effect here is SH4DOW-DC's own column feather (`sh4dow_feather_in_`), called from `sh4dow_dc.h`, not copied. Put `include` on the include path, where `sh4dow_dc.h` lives. `SH4DER_CORE_NO_SH4ZAM` also sets `SH4DOW_DC_NO_SH4ZAM`, so both take the same path.
 
 ## Add it to a project
 
@@ -86,12 +86,12 @@ What you need:
 
 - **KallistiOS** for the Dreamcast build. Only the drawing files (the `.c` files that call the PVR) use it; the headers do not.
 - **SH4ZAM 0.10 or later** for the Dreamcast build. The effects use its square root, sine and cosine instructions (FSRRA and FSCA).
-- **SH4DOW-DC**, already in the `sh4dow-dc` folder. The effect headers include its header, so its `include` folder must be on your include path.
+- **SH4DOW-DC**, in this library (`include/sh4dow_dc.h`). The effect headers include its header, so `include` must be on your include path.
 
 Two ways in:
 
-1. **Use the built library.** Run `make dc SH4ZAM=/path/to/sh4zam` with the KallistiOS environment set up. It writes `build/libsh4der_core.a`. Put `include` and `sh4dow-dc/include` on your include path, with SH4ZAM's `include` folder too, then link `build/libsh4der_core.a`. The `make dc` rule uses SH4ZAM's include path only; link SH4ZAM in your own build, as SH4ZAM's own documentation describes.
-2. **Compile the sources in your own makefile.** Take `src/sh4der_core.c` and the `.c` files of the effects you use from `src`, and compile them with the flags the Makefile uses for the Dreamcast build (its `DC_FLAGS`): `-O3 -Wall -Wextra -Iinclude -I<sh4dow-dc>/include -I<sh4zam>/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno`, with `kos-cc` as the compiler.
+1. **Use the built library.** Run `make dc SH4ZAM=/path/to/sh4zam` with the KallistiOS environment set up. It writes `build/libsh4der_core.a`. Put `include` on your include path, with SH4ZAM's `include` folder too, then link `build/libsh4der_core.a`. The `make dc` rule uses SH4ZAM's include path only; link SH4ZAM in your own build, as SH4ZAM's own documentation describes.
+2. **Compile the sources in your own makefile.** Take `src/sh4der_core.c` and the `.c` files of the effects you use from `src`, and compile them with the flags the Makefile uses for the Dreamcast build (its `DC_FLAGS`): `-O3 -Wall -Wextra -Iinclude -I<sh4zam>/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno`, with `kos-cc` as the compiler.
 
 For a host tool, or a game without SH4ZAM, compile with `-DSH4DER_CORE_NO_SH4ZAM`. This runs the same steps as plain C, and it also sets `SH4DOW_DC_NO_SH4ZAM`. The PVR drawing code in the `.c` files sits inside `_arch_dreamcast` guards, so a host build compiles it to nothing.
 
@@ -118,6 +118,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | aobake | `sh4der_aobake.h` | Baked ambient occlusion against exact shapes (spheres, boxes, a ground plane): one byte a vertex from cosine rays, at load. The ao4 scenes' bake, 252 to 254 ms for scene A's 2,142 vertices and 391 to 393 ms for scene B's 2,544 on a console (SH4-076, SH4-082) | One byte a vertex, multiplied into the ambient light | v0.50 |
 | aomesh | `sh4der_aomesh.h` | Baked ambient occlusion over a triangle mesh (a cell grid, 12 golden-ratio rays, a reach of 1.6 m, a byte grid over the ground), at load. The walled square's bake (`demo/psm/psm_ao.h` is an adapter over it). Not run on a console: the bake's time is NOT MEASURED | One byte a vertex and a ground grid, multiplied into the ambient light | v0.10 |
 | aosky | `sh4der_aosky.h` | Occlusion of the sky drawn into the sun's shadow target: K directions slid onto the ground as a faint black, one side, plain blending (AO method 2). The ao4 scenes ran it (PVR-138 to PVR-186); about 451 us of PVR a direction for scene A (DERIVED from PVR-140); the depth union failed on the PVR (PVR-127) | The sun's shadow target and its ground layer; no new target | v0.10 |
+| sh4dow | `sh4dow_dc.h` | Soft self-shadow for skinned characters, per vertex on the CPU: a limb casts a soft column that darkens what lies in it; foot cones under each foot; a heightfield sun (experimental) | a multiply in place on the vertex colour; a quad per foot cone | - |
 | ca | `sh4der_ca.h` | The frame texture (the world drawn into a 640 x 480 or 320 x 240 render target, then put on screen) and chromatic aberration through it: red, green and blue copies at slightly different scales about the centre, none in the middle, most in the corners | a stride texture (a texture the PVR reads row by row at a set stride), 640 KB or 160 KB; three small meshes | v0.50 |
 | shafts | `sh4der_shafts.h` | Shadow shafts: the frame's dark shapes cast a darker copy pushed away from a light, only near the light and only as the camera turns to it | a 128 x 64 RGB565 map, one multiply mesh | v0.50 |
 | water | `sh4der_water.h` | Directional waves, filtered ripple normals, Fresnel; crest transmission through sss; sunset client uses SH4DOW heightfield sun visibility | textured mesh + offset RGB; optional framebuffer bloom | v0.50 |
@@ -1568,7 +1569,9 @@ view (6.7 pixels a metre at the sheet) and 30 frames a second that hold starts a
 Order, a frame:
 
 1. `sh4der_hexheat_view_look` (eye, target, up, the field of view, the screen), then `sh4der_hexheat_view_ground` (the
-   ground's plane, the haze sheet's distance, the near cut).
+   ground's plane, the haze sheet's distance, the near cut). On hills give the plane through the sheet's foot (the road's
+   height there). The eye may be under that plane on a climb: then no ray lands, every cell is on the sheet, and the haze
+   stays on.
 2. `sh4der_hexheat_follow` with the `g` and `eye` of the frame before's view (not on the first frame).
 3. `sh4der_hexheat_band(ax, ay, &x0, &y0)` with the sheet's foot on the screen. In a render pass that already runs, draw the
    far world as this frame's camera sees it into a 256 x 128 region of the target, a texel a screen pixel, cut to that
@@ -1735,7 +1738,83 @@ float sh4der_frame_hot(float facing);
 
 - **Calls.** `sh4der_ramp_colours` (EDGE and CORE colours from a texture's average colour, once at load), `sh4der_breath_raw` / `sh4der_breath_reset` / `sh4der_breath_push` (the breath tracker: a pose's own breathing turned into 0 (out) .. 1 (in), pushed once a frame per instance), `sh4der_glint` (a flare quad's brightness by camera depth), and the inline helpers (`sh4der_sat_`, `sh4der_lerp_`, `sh4der_fma_`, `sh4der_dot3_`, `sh4der_norm3_`, `sh4der_sincos_`, `sh4der_feather_`, `sh4der_ramp_` and others). Each helper is one SH4ZAM call on the console and a plain C mirror under `SH4DER_CORE_NO_SH4ZAM`.
 - **Cost.** RAM: the breath tracker is a small struct the caller owns; everything else is stateless. VRAM: 0. AICA: 0. CPU: a helper is one SH4ZAM instruction or call.
-- **Limits.** The feather is SH4DOW-DC's (`sh4dow_feather_in_`), so `sh4dow-dc/include` must be on the include path. Non-finite inputs read as "no effect this frame".
+- **Limits.** The feather is SH4DOW-DC's (`sh4dow_feather_in_`), so `include` must be on the include path. Non-finite inputs read as "no effect this frame".
+
+## The sh4dow effect (soft character shadows)
+
+`include/sh4dow_dc.h` (the API), `src/sh4dow_dc.c` (the limb columns), `src/sh4dow_foot.c` (the foot cones) and `include/sh4dow_heightfield.h` (the sun over a heightfield, experimental). Soft self-shadow for skinned characters, computed per vertex on the CPU. Each limb casts a soft column away from the light; a vertex inside a column gets darker. No shadow map, no second mesh, no extra draw, no video memory.
+
+The floor half is the **foot cones**: two small shadows per character, one under each foot, each a cone that starts at the heel and stretches away from the light. The library works out the quad, its picture and its fade; you draw the quad.
+
+The soft edge every effect here uses is this library's column feather (`sh4dow_feather_in_`, in `sh4dow_dc.h`): see [The core](#the-core-shared-parts).
+
+- **Calls.** Pose the skeleton and light the vertices (the shade only dims a colour that exists). Fill one `sh4dow_limb_t` per limb that casts. `sh4dow_prepare` once per character per frame with `direction` (the way the shadow falls, away from the light). `sh4dow_shade` on the vertices about to be drawn, after lighting and before packing. Or, in your own loop, `sh4dow_axes` once and `sh4dow_strength` per vertex. Fastest: `sh4dow_load_xmtrx`, `sh4dow_project`, `sh4dow_ball_pack`, then `sh4dow_strength_packed_n` per bone (it loads XMTRX on the Dreamcast: load your own matrix again afterwards). Flag a head `SH4DOW_LIMB_HEAD` and its neck `SH4DOW_LIMB_NECK` for the chin rule; `bone` is the vertex's first bone, and `SH4DOW_BONE_NONE` skips nobody.
+- **Foot cones.** `sh4dow_pick_feet` once per model, from its bind-pose node spheres. Per foot, per frame: `sh4dow_foot_place` from the posed foot sphere, set `foot.away` to the light's travel at the foot, then `sh4dow_foot_cone` on the floor plane under the foot. A return of 0 means no quad. Draw the quad (TL, TR, BL, BR) with `sh4dow_foot_texture565` (or `sh4dow_foot_texture`), blended `ZERO / INVDESTCOLOR` (the floor keeps `1 - texel x strength`), at a grey strength of your darkness x the cone's fade x `sh4dow_foot_range_fade`. Extra lights: `sh4dow_foot_layer_weight` and `sh4dow_foot_layer_distinct`.
+- **Units.** The soft shadow takes your vertex units. The foot cones' distances are in reference units (1 unit = 3.048 m, a standing character about 0.7 tall): `sh4dow_foot_params_scale` carries them to yours. Radii and slopes are ratios.
+- **Pitfalls.** A shade that points at the light: flip `direction`. A column of the wrong size: the radius is not in vertex space. The whole character darkens: `outer_scale` times your radii is bigger than the body. A cone that points at the light: `away` is the wrong way. Cones vanish: the normal and `up` disagree (a wall), or the heel is more than `fade_height` above the plane.
+- **Limits.** Up to `SH4DOW_COLUMN_MAX` (32) columns a frame, a budget that is not part of the maths. The first client spends 14 on at most six characters (REPORTED, see Cost). How many limbs cast, how many characters a frame, and any fade with distance are the client's choice. The heightfield sun has no overhangs and no off-grid occluders.
+
+### sh4dow cost
+
+- **The shade on the Dreamcast, before and after (REPORTED).** The library's README gives 14.70 ms for the shade before the column lists and the one-FTRV-per-vertex loop, and 4.5 ms after, for one cutscene of six characters: 84 columns, 5,406 vertices, 33 ms frame. That is about 0.83 us, roughly 166 SH-4 cycles, a vertex (544 before). Source: the library's author, one run, written in the library's own README before the fold; not in the ledger, so there is no ledger row. Status REPORTED until a row is written.
+- **Columns visited, a PC census (counted, exact, host).** Over 1,063,664 skinned vertices of a client's bind-pose characters under two lights: 13.3 columns a vertex every column, 5.2 the sorted loop, 2.6 the column lists. These are counts, not time.
+- **Packed lists.** Not measured on hardware. The bench (`bench/bench.c`, `make bench SH4ZAM=...`) times the three loops on the console; the emulator's cycle numbers in the library's README are an emulator's model, not evidence.
+- **Foot cones.** Not measured on hardware: a few dozen multiplies, a handful of dot products and three reciprocals per foot per frame (ESTIMATE from the code).
+- **RAM and VRAM.** `sh4dow_frame_t` about 3 KB, one per character drawn (or one reused). The 32 x 32 RGB565 foot picture is 2 KB of texture RAM. VRAM 0.
+
+### Sh4dow tuning
+
+The limb columns (the header's macros are the source; these are its shipped values):
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DOW_INNER | 1.25 | Solid core radius, in limb radii. Raise: fatter shade. Lower: thinner |
+| SH4DOW_OUTER | 1.35 | Radius where the shade reaches zero, in limb radii. Raise: wider, softer edge. Keep it above SH4DOW_INNER |
+| SH4DOW_LENGTH | 1.8 | How far the column runs along the light. Raise: shade reaches farther down the body |
+| SH4DOW_HOLD | 0.8 | Fraction of the length at full strength. Raise: the end stays dark longer |
+| SH4DOW_DARK | 0.65 | Colour lost at full strength (1.0 leaves black, 0 leaves the colour alone) |
+| SH4DOW_COLLAR | 0.8 | Neck radii past the neck where a head column starts. Raise: starts lower, misses more of the jaw. Lower: can stain the chin |
+| SH4DOW_FADE_IN | 0.1 | Limb radii past the start before full strength. Raise: softer start, less flicker |
+
+The foot cones (lengths and widths in foot radii; distances in the reference units above):
+
+| Name | Default | Unit | Meaning |
+| --- | --- | --- | --- |
+| SH4DOW_FOOT_MIN_LEN | 3.0 | radii | Cone length with the light overhead |
+| SH4DOW_FOOT_GAIN | 3.0 | radii per slope | Extra length per unit of the light's slope |
+| SH4DOW_FOOT_MAX_SLOPE | 2.0 | slope | Where the length stops growing (9 radii) |
+| SH4DOW_FOOT_MIN_FACING | 0.25 | normal . up | The floor must point up more than this (a wall gets no cone) |
+| SH4DOW_FOOT_HEEL_BACK | 0.7 | sphere radii | The heel's distance behind the foot sphere's centre |
+| SH4DOW_FOOT_WIDTH | 0.8 | sphere radii | Half width at the heel |
+| SH4DOW_FOOT_WIDTH_MIN | 0.03 | distance | Smallest half width |
+| SH4DOW_FOOT_WIDTH_MAX | 0.12 | distance | Largest half width |
+| SH4DOW_FOOT_FADE_HEIGHT | 0.35 | distance | Heel height above the floor where the cone is gone |
+| SH4DOW_FOOT_LIFT | 0.012 | distance | The quad's offset off the floor |
+| SH4DOW_FOOT_RANGE | 20.0 | distance | Camera distance where the cone is gone |
+| SH4DOW_FOOT_RANGE_FADE | 2.0 | distance | The fade out spans this much before the range |
+| SH4DOW_FOOT_APEX | 0.25 | fraction of the cone | Where the picture's round heel sits |
+| SH4DOW_FOOT_ZONE | 0.25 | fraction of the height | Feet lie in this lowest part of the model |
+| SH4DOW_FOOT_LAYER_GAIN | 0.6 | share | An extra light's shadow at distance 0, against the main cone's 1 |
+| SH4DOW_FOOT_LAYER_FAR | 0.35 | share | The share of a light with no position |
+| SH4DOW_FOOT_LAYER_COS | 0.9659 | cosine | Two lights within this (15 degrees across the floor) cast one cone |
+
+`SH4DOW_FOOT_LAYERS` (4) is the count of extra cones per foot, and `SH4DOW_COLUMN_MAX` (32) the column budget; both are caps, not tuning. `sh4dow_params_default` and `sh4dow_foot_params_default` fill the tables; `NULL` means the same. The tuning rows are checked by hand against the header, not by `tools/check_tuning.py`, which scans only `SH4DER_*` names (see Build and test).
+
+### Heightfield sun (experimental)
+
+`include/sh4dow_heightfield.h`, header only: directional sun visibility for a regular heightfield (water, terrain, any single-valued surface). It sweeps along the sun's dominant horizontal axis, propagates the highest sunward blocker height and feathers the visibility with the library's smooth step. Pass the heights, the grid size, the cell size, the direction toward the sun (it must point above the horizon), a vertical bias, a feather width, an output grid and a scratch buffer of `2 * max(width, height)` floats. Output: 0 lit, 1 blocked. Cost O(width x height), no GPU memory; the caller holds the height and shadow fields. Boundaries are open; overhangs, off-grid blockers and the exact solar-disc penumbra are absent. `test/water_test.c` checks flat fields and ridge shadows on both axes and both maths paths. Not run on a console; the ocean demo uses it.
+
+### Sh4dow call order
+
+See `AGENTS.md` "Call order: sh4dow" for the step list. Tests: `test/shade_test.c` and `test/foot_test.c` (both maths paths), `example/example.c`, `example/quickstart.c` and `example/feet.c` (the examples; their output is checked against the text here). `bench/bench.c` is the Dreamcast timing program; `bench/pipeline.sh` runs it in an emulator, which is not evidence.
+
+### Credit line
+
+A client that ships the soft shadows prints this line, as the library's author asks:
+
+> Soft self-shadow: SH4DOW-DC by Emerald May (JiltedValkyrie). Dreamcast math: SH4ZAM by Falco Girgis.
+
+SH4DOW-DC's origin is in the "Credits and license" section below.
 
 ## The uvwarp effect (per-vertex texture offset)
 
@@ -1825,7 +1904,7 @@ The numbers the author's own game and demo disc use, found by eye. Each header r
 | Chromatic aberration (`sh4der_ca.h`) | strength 1.00 = 3 pixels in the corner; range 0.25 .. 4.00; 640 x 480; off by default, silent when memory is short | 12 pixels is a damaged lens |
 | Temporal blend (`sh4der_taa.h`) | dynamic: old frame 0.675 with the camera still, 0.30 moving, mixed by turning and walking speed, never over 0.9, history kept; only with the 320 x 240 frame texture | still pictures smooth, moving pictures do not ghost; 320 KB instead of 1,280 KB |
 | Flashlight (`sh4der_torch.h`) | near light radius 6.0 world units, strength 0.85, tint 0.94 / 0.82; edge about 22 degrees; reach 5.0; carve full under luminance 0.30, none from 0.80 | a warm lamp that darkens nothing in daylight |
-| Soft shadows (`sh4dow-dc`) | self-shadow on the 4 characters nearest the camera; foot cones under every two-legged character | the cost stays flat as a crowd grows |
+| Soft shadows (`sh4dow_dc.h`) | self-shadow on the 4 characters nearest the camera; foot cones under every two-legged character | the cost stays flat as a crowd grows |
 
 The temporal blend's weight, as the demo computes it each frame:
 
@@ -1878,8 +1957,9 @@ make dc SH4ZAM=/path/to/sh4zam   # Dreamcast: build/libsh4der_core.a (KallistiOS
 make test-dc SH4ZAM=/path/to/sh4zam  # Dreamcast: build/*_test.elf
 ```
 
-Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-dc`). The Dreamcast build wants SH4ZAM's include path and these flags: `-ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno`, and defines neither `SH4DER_CORE_NO_SH4ZAM` nor `SH4DOW_DC_NO_SH4ZAM`. The library needs no KallistiOS header. Use SH4ZAM as a library, 0.10 or later.
+There is no `SH4DOW=` variable: SH4DOW-DC is built from this folder's `src` and `include`. The Dreamcast build wants SH4ZAM's include path and these flags: `-ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno`, and defines neither `SH4DER_CORE_NO_SH4ZAM` nor `SH4DOW_DC_NO_SH4ZAM`. The library needs no KallistiOS header. Use SH4ZAM as a library, 0.10 or later.
 
+- `test/shade_test.c` and `test/foot_test.c`: the sh4dow columns, lists and packs, and the foot cones, on both maths paths (see The sh4dow effect).
 - `test/core_test.c`: the feather equals SH4DOW-DC's over a grid, the core before the root (a vertex on a tube's line, a zero core), the SH4ZAM steps and their mirror, the breath tracker's and glint's refusals.
 - `test/blade_test.c`: the default numbers at fixed ticks and points; every early-out against a plain formula over 200,000 random vertices, ticks and fades; the period closing with no seam; the fade; bad params; the shade and packed-colour loops.
 - `test/bloom_test.c`: the default levels and positions for the default and MAX WHITE presets; the colour ramp; MAX WHITE keeping its structure; the counts (24 triangles, every vertex used); the ribbon and the disc facing three eyes; the feathered edges and more at the top; bad params.
@@ -1943,7 +2023,7 @@ Plain meanings of the terms the sections above use.
 - **XMTRX.** The SH-4's second bank of four-by-four matrix registers. Load a matrix into it once, then each vertex is one FTRV. Nothing else that uses XMTRX may run in between.
 - **FTRV.** The SH-4 instruction that multiplies a four-element vector by the matrix in XMTRX in one go: a whole vertex transform.
 - **FSRRA.** The SH-4 instruction for a fast reciprocal square root (1 / sqrt(x)). It makes a vector normalise cheap; SH4ZAM wraps it.
-- **SH4DOW-DC.** The shadow and soft-edge helper library shipped in the `sh4dow-dc` folder. The effects use its column feather (a soft edge: full inside, fading to nothing outside).
+- **SH4DOW-DC.** The shadow and soft-edge helper library, part of this library (`include/sh4dow_dc.h`). The effects use its column feather (a soft edge: full inside, fading to nothing outside).
 - **`hand:` in a comment.** Marks a line of arithmetic written by hand because SH4ZAM has no equivalent op for that exact step (a scalar product, a constant scale, a compare). The comment says why. Every other maths step goes through SH4ZAM.
 
 ## Credits and license
@@ -1952,7 +2032,7 @@ SH4DER-PVR is by Jilted Valkyrie, 2026. GitHub: [JiltedValkyrie](https://github.
 
 History: many of the effects here were first written for Halo: Dreamcast Evolved, by the same author; the library's own text names no game.
 
-SH4DOW-DC, by the same author, is included in the `sh4dow-dc` folder under its own license ([sh4dow-dc/LICENSE](sh4dow-dc/LICENSE)).
+SH4DOW-DC, by the same author, is folded into this library. Origin: began as SH4DOW-DC, its own library. The licence is one, the terms of this file; the text SH4DOW-DC came with stays at [sh4dow-dc/LICENSE](sh4dow-dc/LICENSE), unchanged.
 
 Dreamcast math: [SH4ZAM](https://github.com/gyrovorbis/sh4zam), Copyright (c) 2025, 2026 Falco Girgis, MIT. Keep that notice with the library.
 
@@ -1964,7 +2044,7 @@ Drawing: [KallistiOS](https://github.com/KallistiOS/KallistiOS), under its own l
 
 The effects' maths, the PVR paths and the tests were written with Cortana (Claude, an AI by Anthropic), the project's graphics engineer.
 
-The license is in [LICENSE](LICENSE). It uses the same terms as SH4DOW-DC.
+The license is in [LICENSE](LICENSE). SH4DOW-DC is under the same terms, one licence now; [sh4dow-dc/LICENSE](sh4dow-dc/LICENSE) keeps its text as it was.
 
 ## Sunset ocean research demo
 

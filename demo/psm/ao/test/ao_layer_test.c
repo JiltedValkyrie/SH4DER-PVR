@@ -14,7 +14,7 @@
    With -DAO_TEST_TOWN (and the town's include paths) it also runs psm_ao2_send over a small scene through a counting
    sink.
 
-   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include
+   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude
           demo/psm/ao/test/ao_layer_test.c -lm */
 
 #include <math.h>

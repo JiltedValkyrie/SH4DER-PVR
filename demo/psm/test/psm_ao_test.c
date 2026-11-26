@@ -1,7 +1,7 @@
 /* Host test of the baked occlusion (demo/psm/psm_ao.h over include/sh4der_aomesh.h), its colours (psm_colour in psm_scene.h), the AO row and the
    one-press hide (psm_input, psm_send_hud). Plain C, on the town or the square's mesh:
 
-   cc -std=c11 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -I<mesh dir> -I<sky dir> -Iinclude -Ish4dow-dc/include \
+   cc -std=c11 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -I<mesh dir> -I<sky dir> -Iinclude \
       demo/psm/test/psm_ao_test.c -lm -o psm_ao_test */
 
 #include <math.h>

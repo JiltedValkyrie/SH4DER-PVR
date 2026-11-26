@@ -3,7 +3,7 @@
    Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
 
    Build (the town mesh header from tools/bake_town.py in <BUILD>/psm_town, the sky in <BUILD>/psm_sky):
-     cc -O2 -std=gnu11 -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -Idemo/psm -Iinclude -Ish4dow-dc/include
+     cc -O2 -std=gnu11 -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -Idemo/psm -Iinclude
         -I<BUILD>/psm_town -I<BUILD>/psm_sky demo/psm/tools/town_bake.c src/sh4der_core.c -lm -o town_bake
    Run: town_bake [map side, 256] [out dir, .] [normal offset m, 0.05] [sun offset m, 0] [1: the screen mesh occludes]
    It writes town_lightmap_<hour>_<side>.pgm and never overwrites one.

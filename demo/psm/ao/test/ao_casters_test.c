@@ -20,7 +20,7 @@
    (exit 1) only on its own faults; open casters are a finding, not a failure, unless AO_CASTERS_STRICT is defined.
 
    Build: gcc -O2 -std=c99 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -DPSM_HAVE_TOWN -I<town mesh dir> -I<sky dir> -I<cow dir>
-          -Iinclude -Ish4dow-dc/include demo/psm/ao/test/ao_casters_test.c -lm */
+          -Iinclude demo/psm/ao/test/ao_casters_test.c -lm */
 
 #include <math.h>
 #include <stdio.h>

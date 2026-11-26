@@ -7,7 +7,7 @@
    trilinear or mip choice, so no picture from it stands for a filter mode. It shows where the corridor, the cells,
    the gate, the pillars, the torches, the light, the fog and the split's divider land.
 
-   cc -DSH4DER_CORE_NO_SH4ZAM -I include -I sh4dow-dc/include -I <bake folder> demo/psm/corr/tools/corr_preview.c -lm
+   cc -DSH4DER_CORE_NO_SH4ZAM -I include -I <bake folder> demo/psm/corr/tools/corr_preview.c -lm
    ./a.out out.ppm s x yaw split_d (split_d 0: no divider) */
 
 #include <stdio.h>

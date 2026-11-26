@@ -28,7 +28,7 @@ checked with 12.3) for the two tools that draw type.
 
 Host test (from the library folder):
 
-    gcc -O2 -std=gnu11 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include test/matchlight_scene_test.c -lm -o matchlight_scene_test && ./matchlight_scene_test
+    gcc -O2 -std=gnu11 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude test/matchlight_scene_test.c -lm -o matchlight_scene_test && ./matchlight_scene_test
 
 Disc files (nothing these tools read or write is in the repository; all write into `build/matchlight/disc/`):
 

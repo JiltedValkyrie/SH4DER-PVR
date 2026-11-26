@@ -1,6 +1,6 @@
 /* SH4DER-PVR: hero1's model, clips and file, host test.  Copyright (c) 2026 Jilted Valkyrie. See ../../../../LICENSE.
 
-   cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include -Idemo/psm/hero \
+   cc -O2 -std=gnu11 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Idemo/psm/hero \
       demo/psm/hero/test/hero_model_test.c -lm -o hero_model_test && ./hero_model_test [out.bin]
 
    Checks the built hero (counts in budget, indices, weights, unit normals, the clips loop), that the bind pose skins to

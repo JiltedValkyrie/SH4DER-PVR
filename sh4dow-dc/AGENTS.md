@@ -12,7 +12,7 @@ SH4DOW-DC is licensed work (see `LICENSE`), not a free sample. Anything that rea
 
 This section is a summary. The `LICENSE` file is the terms.
 
-This folder is the whole library. It stands alone: no game header, no game data. Halo: Dreamcast Evolved is one client (it calls `sh4dow_prepare` and `sh4dow_strength` from its own vertex loop); tune the game in the game, and change the math here, once.
+This folder is the whole library. It stands alone: no game header, no game data. A client calls `sh4dow_prepare` and `sh4dow_strength` from its own vertex loop; tune the client in the client, and change the math here, once.
 
 ## Files
 
@@ -28,7 +28,7 @@ There is no `.s` file. The one piece of SH-4 assembly is inline in the header an
 
 `SH4DOW_DC_NO_SH4ZAM` compiles the same steps as plain C for a host tool or a game that does not ship SH4ZAM. That path does not need the SH4ZAM credit.
 
-Units. The soft shadow takes your vertex units. The foot cones' distances are in the original game's world units (1 unit = 3.048 m): `sh4dow_foot_params_scale` carries them to yours. Radii and slopes are ratios.
+Units. The soft shadow takes your vertex units. The foot cones' distances are in the reference units (1 unit = 3.048 m): `sh4dow_foot_params_scale` carries them to yours. Radii and slopes are ratios.
 
 ## Call order
 
@@ -50,7 +50,7 @@ Flag the head with `SH4DOW_LIMB_HEAD` and the neck with `SH4DOW_LIMB_NECK` when 
 
 `bone` is the vertex's first bone, not its second. A column skips vertices whose first bone equals `bone`. Other columns still shade those vertices, so the limb still goes dark. `SH4DOW_BONE_NONE` (`255`) skips nobody.
 
-The Halo hero skeleton uses first-bone 12 for the head, 9 for the neck, 6 for the torso, 13 and 14 for the arms. Those numbers belong to that skeleton. Other characters in that game do not use the chin rule: leave the flags off and the columns start at the joints.
+An example skeleton uses first-bone 12 for the head, 9 for the neck, 6 for the torso, 13 and 14 for the arms. Those numbers belong to that skeleton. Other characters in a client do not use the chin rule: leave the flags off and the columns start at the joints.
 
 ## Leave out
 

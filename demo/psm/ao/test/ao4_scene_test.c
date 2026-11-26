@@ -10,7 +10,7 @@
    Dreamcast program is meant to show, split left | right. A PICTURE FROM THE HOST: it shows the look, it is not the
    PVR's picture and no cost.
 
-   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include
+   Build: gcc -O2 -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude
           demo/psm/ao/test/ao4_scene_test.c -lm */
 
 #include <math.h>

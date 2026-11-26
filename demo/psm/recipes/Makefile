@@ -10,8 +10,7 @@ CC     ?= cc
 CFLAGS ?= -O2
 BUILD   = $(ROOT)/build/recipes
 SH4ZAM ?= $(ROOT)/third_party/sh4zam
-SH4DOW ?= $(ROOT)/sh4dow-dc
-INC     = -I. -I$(ROOT)/include -I$(SH4DOW)/include
+INC     = -I. -I$(ROOT)/include
 TESTS   = recipe_cel_test recipe_dither_test recipe_fogpulse_test recipe_softplane_test
 
 .PHONY: test test-shz clean

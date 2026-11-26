@@ -2,7 +2,7 @@
 
 Senior's notes, 2026-11-25, overnight item 3. Nothing here ran on a console. Every cost is built from MEASURED ledger rows (named) and is itself an ESTIMATE; a number from the host model is marked HOST. Reading list: `demo/psm/GPU_GEMS_NOTES.md`, `wiki/research/depth-shading-ideas.md` (D, C, M items), `wiki/research/depth-fog-ideas.md` (F items).
 
-Model test: `demo/psm/depthtricks/dt_model_test.c`. Build from the root with `gcc -std=c99 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include demo/psm/depthtricks/dt_model_test.c -lm`. It passes at `-O2` and at `-O3 -ffast-math`. Log: `D:\tmp\psmbuild\logs\dt_model_20261125.log`.
+Model test: `demo/psm/depthtricks/dt_model_test.c`. Build from the root with `gcc -std=c99 -O2 -Wall -Wextra -DSH4DER_CORE_NO_SH4ZAM -Iinclude demo/psm/depthtricks/dt_model_test.c -lm`. It passes at `-O2` and at `-O3 -ffast-math`. Log: `D:\tmp\psmbuild\logs\dt_model_20261125.log`.
 
 ## The four tools, what each one gives
 
