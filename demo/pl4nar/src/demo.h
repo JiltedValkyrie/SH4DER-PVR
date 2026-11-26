@@ -10,6 +10,10 @@
  * Do:         call demo_draw every frame (the gate reads the frame's eye); keep the heat off while the camera moves
  * Do not:     move the camera in a fly-by while its heat is up; snap the car between autorun stages (demo_auto_place
  *             once, at the start)
+ *             The headlights' fade by distance (demo_auto_beam, demo_auto_cine_far; the street's stages 11, 12):
+ *             the lamps' reach, LAMP_NEAR 60 m and LAMP_FADE_W 10 m; the far shot CINE_FAR_Y 6 m up. Cost: a
+ *             beam is 10 vertices and 10 triangles a headlight against 4 and 2 (exact); time NOT MEASURED.
+ *             NOT RUN; host tested (host/snap_test.c: the far shot's camera still, no car snap)
  * Maturity:   demo code (not a library part) */
 #ifndef DEMO_H
 #define DEMO_H

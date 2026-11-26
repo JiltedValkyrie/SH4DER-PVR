@@ -222,6 +222,9 @@ static struct { float x, z, h, v, cam_h, orbit, clock, wx, wz, wh, wcam; } s_car
 #define CINE_TOTAL  (CINE_HOLD + CINE_BLEND)
 #define CINE_LAT    7.0f                          /* m from the centre line: past the lanes (5.2), inside the kerb (8) */
 #define CINE_EYE_Y  0.7f                          /* m over the road: low */
+#define CINE_FAR_Y  6.0f                          /* m over the road: the far shot (demo_auto_cine_far), looking down on the road so a
+                                                     light on it 50 to 60 m off is more than a line of pixels */
+static float s_cine_y = CINE_EYE_Y;               /* the eye's height in the shot now: the fly-by's, or the far shot's */
 #define CINE_LOOK   60.0f                         /* m on down the road: where the camera looks */
 #define CINE_AT_LAT 0.35f                         /* x the car's lane: the slight angle toward it */
 #define CINE_HEAT   2u                            /* STRONG */
@@ -378,7 +381,8 @@ static void tile_cut_size(unsigned *cw, unsigned *ch) {
 #endif
 void demo_auto_heat(unsigned level) { s_heat_lvl = level % 3u; }
 static void cine_start(void);
-void demo_auto_cine(void) { cine_start(); }
+void demo_auto_cine(void) { s_cine_y = CINE_EYE_Y; cine_start(); }
+void demo_auto_cine_far(void) { s_cine_y = CINE_FAR_Y; cine_start(); }   /* the same shot from CINE_FAR_Y up */
 int demo_cine_on(void) { return s_cine.on; }
 void demo_heat_copy(uint32_t *us, uint32_t *copies) {
 #ifdef _arch_dreamcast
@@ -602,7 +606,7 @@ void demo_update(const demo_input_t *in, float dt) {
 #endif
     if (in->pressed & DEMO_BTN_FX) s_fx_hidden = !s_fx_hidden;
     if (in->pressed & DEMO_BTN_HEAT) s_heat_lvl = (s_heat_lvl + 1u) % 3u;
-    if (in->pressed & DEMO_BTN_CINE) cine_start();
+    if (in->pressed & DEMO_BTN_CINE) { s_cine_y = CINE_EYE_Y; cine_start(); }
     if (s_cine.on) { s_cine.t += dt; if (s_cine.t >= CINE_TOTAL) s_cine.on = 0; }
 #ifdef PL4NAR_MAP
 #ifdef PL4NAR_HILLS
@@ -686,7 +690,7 @@ static shz_vec3_t cine_pt(float s, float lat, float up) {
 }
 static void cine_start(void) {
     const float s = s_car.z + shz_fmaxf(s_car.v, 8.0f) * CINE_LEAD, side = s_car.x < 0.0f ? -1.0f : 1.0f;
-    s_cine.eye = cine_pt(s, side * CINE_LAT, CINE_EYE_Y);
+    s_cine.eye = cine_pt(s, side * CINE_LAT, s_cine_y);
     s_cine.at = cine_pt(s + CINE_LOOK, s_car.x * CINE_AT_LAT, 1.0f);
     s_cine.t = 0.0f; s_cine.on = 1;
 }

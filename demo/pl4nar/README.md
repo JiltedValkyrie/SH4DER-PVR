@@ -215,10 +215,14 @@ In the hills build the road drape (`fan_drape`) takes only a fan, so both wedges
 | What | Where | Value |
 |---|---|---|
 | `PL4NAR_HEAD_BEAM` | build flag (`EXTRA=-DPL4NAR_HEAD_BEAM`) | starts with the beam on |
-| `demo_auto_beam(on)` | `src/demo.h` | the switch: 0 the two wedges, 1 the beam. No autorun stage yet |
+| `demo_auto_beam(on)` | `src/demo.h` | the switch: 0 the two wedges, 1 the beam |
+| `demo_auto_cine_far()`, `CINE_FAR_Y` | `src/demo.h`, `src/demo.c` | the fly-by's shot from 6 m up (the same place, hold and dolly): a still camera that looks down on the road, so a light 50 to 60 m off is more than a line of pixels. NOT RUN on a console |
+| stages 11 and 12, "headlight fade" and "headlight plain" | `src/main.c`, the street's autorun only | Headlights fade with distance: night, the far shot, the car driving away (50 m off at 4.6 s, 60 m at 5.3 s); first with the fade, then the same shot without it. Appended, so stages 1 to 10 make the calls they made before. 12 stages, 84 s. NOT RUN on a console |
 | `LAMP_NEAR`, `LAMP_FADE_W` | `src/demo.c` | 60 m, 10 m: the reach and the fade over its last part |
 
-Host count (the street build, `snap_test`'s night fly-by twice, 210 frames each): beam off 251,468 triangles, on 252,022, about 2.6 more a frame. A beam is 10 vertices and 10 triangles a headlight, against the wedge's 4 and 2. The map and hills builds are not counted. NOT RUN on a console.
+What "plain" means: the two wedges have no reach at all, so in stage 12 the light stays on the road however far the car is. The pair shows the light dying away between 50 and 60 m against the light staying; it is not a fade against a hard cut.
+
+Host count (the street build, `snap_test` replaying the two stages, 210 frames each, the far shot): with the fade 264,908 triangles sent (most in a frame 1,351), without 254,020 (most 1,335); the two stages are not the same stretch of street, so the difference is not the beam's cost alone. In the fly-by's low shot run twice over one stretch (the count before the far shot existed): beam off 251,468, on 252,022, about 2.6 more a frame. A beam is 10 vertices and 10 triangles a headlight, against the wedge's 4 and 2. `snap_test` also holds the far shot's camera still through its hold and the car to its speed. The map and hills builds are not counted. NOT RUN on a console.
 
 ## Camera and thumbnail
 

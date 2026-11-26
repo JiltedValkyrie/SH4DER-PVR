@@ -114,27 +114,56 @@ int main(int argc, char **argv) {
     }
 #endif
 #ifndef PL4NAR_WET
-    {   /* the headlights' fade by distance (demo_auto_beam): the same night fly-by twice, the beam off and on. The
-           triangles sent are counted (every frame's, summed); with the beam on the run must send no fewer in the
-           frames near the car and must never fail to draw. Not a picture test. */
+    {   /* the autorun's two headlight stages (main.c, the street: "headlight fade", "headlight plain"): night, the far
+           shot (demo_auto_cine_far) with the beam on, then the same shot with it off, the car driving on between
+           them (no demo_auto_place after the first, as main.c). Through each shot's hold the eye must not move at
+           all, and the car must never step more than its speed allows. The triangles sent are counted. Not a
+           picture test. */
         unsigned long sent[2] = { 0ul, 0ul };
-        unsigned most[2] = { 0u, 0u }, pass;
+        unsigned most[2] = { 0u, 0u }, pass, moved = 0u;
+        float cx, cz, ch;
+        (void)demo_auto_set(1, 0, 2, 0);
+        demo_auto_place(argc > 1 ? (float)atof(argv[1]) : 60.0f, -2.0f, 14.0f);
+        demo_host_car(&cx, &cz, &ch);
         for (pass = 0; pass < 2u; pass++) {
-            demo_auto_beam((int)pass);
+            float hx = 0.0f, hz = 0.0f;
             (void)demo_auto_set(1, 0, 2, 0);
-            demo_auto_place(argc > 1 ? (float)atof(argv[1]) : 60.0f, -2.0f, 14.0f);
-            demo_auto_cine();
-            in.gas = 1.0f;
+            demo_auto_cine_far();
+            demo_auto_beam(pass == 0u);
             for (f = 0; f < 7u * 30u; f++) {
-                const unsigned n = (demo_update(&in, dt), demo_draw(&st), gfx_tris_sent());
+                float nx, nz, x, z, h, d, lim;
+                const float v = demo_speed();
+                unsigned n;
+                in.gas = v < 14.0f ? 1.0f : 0.0f;
+                demo_update(&in, dt); demo_draw(&st);
+                n = gfx_tris_sent();
                 sent[pass] += n;
                 if (n > most[pass]) most[pass] = n;
+                demo_host_eye(&nx, &nz);
+                if (f >= 1u && f < 175u && (nx != hx || nz != hz)) { if (moved++ < 4u) printf("headlight stage %u frame %u: the still camera moved\n", pass + 1u, f); }
+                hx = nx; hz = nz;
+                demo_host_car(&x, &z, &h);
+#ifndef PL4NAR_MAP
+                {
+                    demo_counts_t c;
+                    float per;
+                    demo_counts(&c);
+                    per = (float)(c.draw_back + c.draw_fwd);
+                    if (z - cz > 0.5f * per) cz += per;
+                    if (cz - z > 0.5f * per) cz -= per;
+                }
+#endif
+                d = sqrtf((x - cx) * (x - cx) + (z - cz) * (z - cz));
+                lim = (v > demo_speed() ? v : demo_speed()) * dt + 0.05f;
+                if (d > lim) { if (bad++ < 8u) printf("headlight stage %u frame %u: the car moved %.2f m (speed allows %.2f)\n", pass + 1u, f, (double)d, (double)lim); }
+                cx = x; cz = z;
             }
         }
         demo_auto_beam(0);
-        printf("headlight beam (rows %u), night fly-by, 210 frames: triangles sent off %lu (most a frame %u), on %lu (most %u)\n",
+        bad += moved;
+        printf("headlight stages (beam rows %u), night, the far shot, 210 frames each: triangles sent with the fade %lu (most a frame %u), without %lu (most %u)\n",
                (unsigned)SH4DER_POOL_BEAM_ROWS, sent[0], most[0], sent[1], most[1]);
-        if (!sent[0] || !sent[1]) { printf("the beam run drew nothing\n"); bad++; }
+        if (!sent[0] || !sent[1]) { printf("a headlight stage drew nothing\n"); bad++; }
     }
 #endif
     printf(bad ? "SNAP_TEST FAIL (%u)\n" : "SNAP_TEST_OK %u frames, %u stages, no jump\n", bad ? bad : frames, (unsigned)(sizeof seq / sizeof seq[0]));

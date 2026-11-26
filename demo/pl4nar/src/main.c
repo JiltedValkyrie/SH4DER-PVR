@@ -119,6 +119,8 @@ typedef struct stage { const char *name; int reflect; unsigned size, tod; int or
 #define XS_STOP  8u                                /* the car stands: traffic crosses the tiles' fade band */
 #define XS_HEAT  16u                               /* (the map) the heat shimmer on STRONG; every other stage has it OFF */
 #define XS_CINE  32u                               /* the fly-by shot from the stage's start (demo_auto_cine: the heat on in it, 7 s) */
+#define XS_FAR   128u                              /* (the street) the far shot from the stage's start (demo_auto_cine_far): a still camera up over the kerb */
+#define XS_BEAM  256u                              /* (the street) the headlights' fade by distance on (demo_auto_beam); every other stage has it off */
 #define XS_HEX   64u                               /* the heat as hexagons on STRONG, the still gate off (driving): their band in the target */
 #define AUTO_V(k) ((stages[k].xs & XS_STOP) ? 0.0f : AUTO_SPEED)   /* blobs: no shadow tiles (the hills: 2 the flat quad); noao: no baked occlusion; split: the layer on the left half; lod: buildings boxed past this (m), 0 the default; sun: 1 the sweep (the hills) */
 #if defined(PL4NAR_HILLS)
@@ -162,8 +164,14 @@ static const stage_t stages[] = {                  /* size 0 256x128, 1 128x64, 
     { "on 256x128 night", 1, 0, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 128x64 night",  1, 1, 2, 0, 0, 0, 0, 0.0f, 0, 0 },
     { "on 512x256 night", 1, 2, 2, 0, 0, 0, 0, 0.0f, 0, 0 }, { "on 256 day orbit", 1, 0, 1, 1, 0, 0, 0, 0.0f, 0, 0 },
     { "on 256 nite orbit", 1, 0, 2, 1, 0, 0, 0, 0.0f, 0, 0 },
-    { "on 256 day hexes", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_HEX }
-};                                                 /* 10 stages, 70 s, the reflection on in every one */
+    { "on 256 day hexes", 1, 0, 1, 0, 0, 0, 0, 0.0f, 0, XS_HEX },
+    /* Headlights fade with distance: the car drives away from a still camera up over the kerb, at night. It is 50 m
+       off 4.6 s into the stage and 60 m at 5.3 s (the lamps' reach, LAMP_NEAR and LAMP_FADE_W). First with the fade,
+       then the same shot without it: the two wedges have no reach, so there the light stays. Last, so stages 1 to 10
+       are what they were. */
+    { "headlight fade",   1, 0, 2, 0, 0, 0, 0, 0.0f, 0, XS_FAR | XS_BEAM },
+    { "headlight plain",  1, 0, 2, 0, 0, 0, 0, 0.0f, 0, XS_FAR }
+};                                                 /* 12 stages, 84 s, the reflection on in every one */
 #endif
 _Static_assert(sizeof stages / sizeof stages[0] * (AUTO_SETTLE_S + AUTO_COUNT_S) <= 84u, "an autorun over 84 s of stages: the suite's limit is 90 s with the boot");
 #define STAGES (sizeof stages / sizeof stages[0])
@@ -212,6 +220,8 @@ static void report(void) {
 #else
     pg_say("pl4m %s: the street demo as it is, each stage's cost.", STR(PL4M_TAG));
     pg_say("stage 2: the fly-by (a fixed camera at the kerb, heat on)");
+    pg_say("stages 11, 12: Headlights fade with distance");
+    pg_say("  (the fade on, then off; a still camera up the kerb)");
 #endif
 #endif
     pg_say("%s. settle %u s, count %u s a stage, 1 frame in %u sampled", rev, AUTO_SETTLE_S, AUTO_COUNT_S, AUTO_SAMPLE);
@@ -343,6 +353,8 @@ int main(int argc, char **argv) {
 #endif
 #ifndef PL4NAR_WET
     if (stages[0].xs & XS_CINE) demo_auto_cine();
+    if (stages[0].xs & XS_FAR) demo_auto_cine_far();
+    demo_auto_beam(!!(stages[0].xs & XS_BEAM));
 #endif
     stage_heat(0u);
     sh4der_fault_stage(&crumbs, stages[0].name);
@@ -455,6 +467,8 @@ int main(int argc, char **argv) {
 #endif
 #ifndef PL4NAR_WET
             if (stages[stage].xs & XS_CINE) demo_auto_cine();   /* the shot from where the car is: no jump */
+            if (stages[stage].xs & XS_FAR) demo_auto_cine_far();
+            demo_auto_beam(!!(stages[stage].xs & XS_BEAM));
 #endif
             stage_heat(stage);
             sh4der_fault_stage(&crumbs, stages[stage].name);
