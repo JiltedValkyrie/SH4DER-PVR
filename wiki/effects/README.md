@@ -55,6 +55,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [mist](mist.md) | A fog bank with a shape, as upright translucent sheets | v0.10 | no |
 | [rise](rise.md) | Lights that lift off, drift up and become stars | v0.10 | no |
 | [film](film.md) | Old projector wear: flicker, scratches, dust, gate weave | v0.1 | no |
+| [timebase](timebase.md) | A video tape's bent picture: one sideways shift a row, drawn as bands of the frame texture | v0.1 | no |
 | [cloudvolume](cloudvolume.md) | A ray-marched cloud deck you fly through | v0.50 | no |
 
 The last five are in `README.md`'s effect table and in `include/`, but not yet in `AGENTS.md`'s file list.

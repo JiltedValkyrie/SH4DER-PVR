@@ -52,5 +52,6 @@ There is no README table. The macros are at ca.h:75-78. The meaning of strength 
 
 ## Related
 
+- [timebase](timebase.md): the frame texture drawn as bands, each row moved sideways (`sh4der_ca_channel_rows`)
 - [warp](warp.md), [taa](taa.md), [trail](trail.md)
 - [Video ledger](../hardware/ledger-video.md)

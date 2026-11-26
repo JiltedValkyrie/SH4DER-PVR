@@ -182,4 +182,75 @@ void sh4der_ca_channel(const sh4der_ca_gpu_t *g, unsigned i, int chan, float str
     }
 }
 
+/* Draws one colour channel of frame texture i as bands between the client's rows, every row moved sideways by its
+   shift. One strip a column of cells, running down the screen: SH4DER_CA_ROWS_MESH_X strips of two vertices a row, cut
+   where two rows share a height (a break). Every triangle has area: a strip only spans rows whose heights rise, and a
+   cell is (w + 2 x overscan) / SH4DER_CA_ROWS_MESH_X wide, above 0; a shift slants a band, it cannot flatten one. The
+   table is checked whole before the first vertex is sent. KOS direct render, the same rule as sh4der_ca_quad. */
+unsigned sh4der_ca_channel_rows(const sh4der_ca_gpu_t *g, unsigned i, int chan, float strength, float w, float h, float z,
+                                const float *row_y, const float *row_shift, unsigned n, float overscan) {
+    pvr_poly_hdr_t hdr;
+    const int add = chan != SH4DER_CA_GREEN;
+    float k, inv_diag2, wide, inv_h;
+    unsigned r, tris = 0;
+    int gx, e;
+
+    if (!g || i >= g->n || !g->tex[i] || !row_y || !row_shift || n < 2u || !(w > 0.0f) || !(h > 0.0f)) {
+        return 0;
+    }
+    if (!sh4der_finite_(w) || !sh4der_finite_(h) || !sh4der_finite_(z) || !sh4der_finite_(strength) || !sh4der_finite_(overscan) || overscan < 0.0f) {
+        return 0;
+    }
+    for (r = 0; r < n; r++) {
+        if (!sh4der_finite_(row_y[r]) || !sh4der_finite_(row_shift[r]) || (r > 0 && row_y[r] < row_y[r - 1u])) {
+            return 0;   /* a number that is not one, or a row above the one before: nothing is sent */
+        }
+    }
+    ca_header(g, i, &hdr, add ? PVR_LIST_TR_POLY : PVR_LIST_OP_POLY, PVR_FILTER_BILINEAR, PVR_TXRENV_MODULATE, PVR_BLEND_ONE, PVR_BLEND_ONE);
+    if (!ca_header_ok(&hdr)) {
+        return 0;
+    }
+    k = sh4der_ca_push(chan, strength, w, h);
+    inv_diag2 = sh4der_div_(4.0f, w * w + h * h);
+    wide = sh4der_fma_(2.0f, overscan, w);              /* the drawn picture's width, pixels */
+    inv_h = sh4der_div_(1.0f, h);
+    for (gx = 0; gx < SH4DER_CA_ROWS_MESH_X; gx++) {
+        r = 0;
+        while (r + 1u < n) {
+            unsigned last = r + 1u;                     /* the last row of the strip that starts at row r */
+            unsigned q;
+
+            if (!(row_y[last] > row_y[r])) {
+                r++;                                    /* a break, or a band of no height: no strip across it */
+                continue;
+            }
+            while (last + 1u < n && row_y[last + 1u] > row_y[last]) {
+                last++;
+            }
+            pvr_prim(&hdr, sizeof(hdr));
+            for (q = r; q <= last; q++) {
+                for (e = 0; e < 2; e++) {
+                    const float cu = (float)(gx + e) * (1.0f / (float)SH4DER_CA_ROWS_MESH_X);
+                    const float cv = row_y[q] * inv_h;
+                    float pu, pv;
+                    pvr_vertex_t *v = pvr_dr_target();
+
+                    sh4der_ca_sample(k, sh4der_ca_r2(cu, cv, w, h, inv_diag2), cu, cv, &pu, &pv);
+                    v->flags = q == last && e == 1 ? PVR_CMD_VERTEX_EOL : PVR_CMD_VERTEX;
+                    v->x = sh4der_fma_(cu, wide, row_shift[q] - overscan);
+                    v->y = row_y[q];
+                    v->z = z;
+                    sh4der_ca_uv(&g->size, pu, pv, &v->u, &v->v);
+                    v->argb = sh4der_ca_argb(chan);
+                    v->oargb = 0;
+                    pvr_dr_commit(v);
+                }
+            }
+            tris += 2u * (last - r);
+            r = last;                                   /* the next strip can start at the row after a break */
+        }
+    }
+    return tris;
+}
+
 #endif /* _arch_dreamcast */

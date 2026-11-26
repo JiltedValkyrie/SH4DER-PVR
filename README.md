@@ -38,6 +38,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | mist | A fog bank with a shape: upright translucent sheets one behind the other, each with drifting noise and a top edge that fades out. | Ground fog in a street, a mist bank on water, steam, low cloud: fog that things walk into. | RAM 68 B; VRAM 8 KB for a 64 x 64 noise texture (the caller's); 4 triangles a slice, 48 at the default 12; fill is the cost (not measured) | `sh4der_mist.h` | [section](#the-mist-effect-a-bank-of-slices) |
 | rise | Points of light that sit still, lift off one after another, drift up with a sway, shrink and cool, and come to rest as stars that twinkle. Nothing stored per light. | Candles becoming stars, lanterns released, fireflies leaving a bush, sparks that turn into a night sky. | RAM 84 B parameter block, 0 a light; VRAM 0 of its own; about 50 multiplies and one sine-cosine pair a light a frame; at most N quads on the translucent list, additive (counts, not measured) | `sh4der_rise.h` | header comment |
 | film | The wear of old film in a projector: a brightness that swings a few per cent (never a strobe: at most 8 % peak to peak and 3 hertz), thin scratches that come and go, dust specks, and a gate weave of a pixel. Nothing stored: every value is computed from the time and a seed. | Old newsreel, silent film, flashback, found footage; with the lens vignette and grain for the whole look. | RAM 92 B parameter block; VRAM 0 of its own; one multiply rectangle, up to 3 lines and 12 small squares a frame on the translucent list; two sines a frame (counts, not measured) | `sh4der_film.h` | header comment |
+| timebase | A video tape deck's line timing errors as a television shows them: for one field, how far each row of the picture sits sideways (the head switching step on the bottom rows, the drum's flutter, the top hook of a tape under the wrong tension, all seen through the set's horizontal lock loop). A port to C of the time-base model of NTSCRT by Finn McKenty (MIT; the notice is in the header). Draw the frame texture as bands with `sh4der_ca_channel_rows` and move each band by its row's shift. | A tape look for a cutscene, a security monitor, a flashback, a broken broadcast. | RAM 40 B parameter block and 4 B state; about 4.2 KB of stack during a call; VRAM 0; two sines a line and, with the line noise on, a logarithm and six hashes a line (counts, not measured) | `sh4der_timebase.h` | header comment |
 | cloudvolume | A cloud deck you fly through: a software ray march through a cloud slab (cover map, tiling noise erosion, sun light with Beer and forward scatter) into a small 8-bit buffer that the PVR draws as one filtered quad over its own sky; real fly-through, so whiteout falls out of the march. Dreamcast demo with a sea under the clouds (three options) and on-screen controls. | A flight over and through cumulus, 1970s and 1980s cinema sky fly-through, any scene that needs a lit cloud layer. | RAM about 143 KB; VRAM 32 KB for the cloud texture at the default, 128 KB at the top resolution; one blended full-screen quad; CPU 14 to 22 ms a frame at the default (ESTIMATE, not measured on a console) | `sh4der_cloudvolume.h` | header comment, `demo/cloudvolume.c` |
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); 0.92 to 0.97 ms for the player car's 320 looked-up vertices on a console (street demo, one run, PVR-160); 0.43 ms for 1,623 vertices on an emulator, earlier version | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
 | pool | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing (also a dark blob shadow). | Street lamp pools and headlight beams on ground polygons too big to light per vertex. | RAM 16 B a vertex (176 B for a 10 triangle disc); VRAM 0 | `sh4der_pool.h` (header only) | [section](#the-pool-effect-light-pools-on-a-plane) |
@@ -756,6 +757,7 @@ if (sh4der_ca_begin(&ca, 0) == 0) {        /* in place of pvr_scene_begin() */
 | SH4DER_CA_SPLIT_PX | 3.0 | Strength 1: red and blue this many screen pixels apart in the corner |
 | SH4DER_CA_MESH_X | 8 | Cells across a channel's mesh |
 | SH4DER_CA_MESH_Y | 6 | Cells down a channel's mesh |
+| SH4DER_CA_ROWS_MESH_X | 2 | Cells across the banded mesh (`sh4der_ca_channel_rows`): the rows are the client's |
 | SH4DER_CA_TEXTURES | 2 | Most frame textures held (two: a history for a temporal blend) |
 
 ## The shadow shafts
@@ -1216,6 +1218,41 @@ unsigned sh4der_motes_draw_flat(const sh4der_motes_draw_t *d, unsigned n, const 
 | --- | --- | --- |
 | SH4DER_FILM_SCRATCH_SLOTS | 3 | Scratches that can be alive at once (one a slot) |
 | SH4DER_FILM_SPECKS_MAX | 12 | Most specks one tick can have |
+
+## The timebase effect (a video tape's bent picture)
+
+`include/sh4der_timebase.h`, header only; the effect table above says what it does. `test/timebase_test.c` is its test: the
+module against a second, double precision transcription of the model's formulas, at the start of play and five hours in.
+
+The model is a port to C of parts of NTSCRT by Finn McKenty (MIT License, Copyright (c) 2026 Finn McKenty; the notice is in
+the header and stays with it). A program that uses this module credits NTSCRT and its author beside SH4DER-PVR.
+
+Order, a displayed frame: `sh4der_timebase_field(&deck, &state, field, shift_px)` gives one sideways shift in pixels for every
+row of the picture. Pick the mesh rows you want (every sixth picture row is enough for a smooth hook), put their screen heights
+and shifts in two tables, and draw the frame texture with `sh4der_ca_channel_rows` (`sh4der_ca.h`) in place of
+`sh4der_ca_channel`. Two table rows at the same height are a break: a step in the picture, as the head switch makes. Give it
+an overscan as large as the largest shift, so the bend uncovers nothing at the picture's edge.
+
+Nothing of it is measured on a console: the costs are counts. `sh4der_timebase_field` keeps about 4.2 KB on the stack.
+
+### Timebase tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_TIMEBASE_LINE_US | 63.556 | Length of one line, microseconds |
+| SH4DER_TIMEBASE_ACTIVE_US | 52.656 | The part of a line that carries picture, microseconds: the picture's width in time |
+| SH4DER_TIMEBASE_FIELD_RATE_N | 60000 | Fields a second as a fraction: 60000 / 1001 (59.94) |
+| SH4DER_TIMEBASE_FIELD_RATE_D | 1001 | And its divisor |
+| SH4DER_TIMEBASE_LINES_NTSC | 262.5 | Lines of one field of the real signal |
+| SH4DER_TIMEBASE_ROWS_MAX | 480 | Most rows (active lines) the module simulates |
+| SH4DER_TIMEBASE_VBI_MIN | 12 | Fewest blanking lines above the picture a small raster gets |
+| SH4DER_TIMEBASE_LINES_MAX | 520 | Most lines a field then has (rows and blanking): SH4DER_TIMEBASE_ROWS_MAX + 40 |
+| SH4DER_TIMEBASE_HEAD_SWITCH_MAX_US | 8.0 | Largest head switching step, microseconds (the model's control range) |
+| SH4DER_TIMEBASE_FLUTTER_MAX | 5.0 | Largest flutter amount (1 is a worn deck at its realistic worst) |
+| SH4DER_TIMEBASE_STRAIN | 8.0e-4 | Tape stretch at tension 1: a 13 microsecond jump at the head switch |
+| SH4DER_TIMEBASE_SEED_LO | 0x53435254 | The model's default seed, low word |
+| SH4DER_TIMEBASE_SEED_HI | 0x00004e54 | And its high word |
+| SH4DER_TIMEBASE_TAU | 6.2831853 | 2 pi |
 
 ## The cloudvolume effect (a cloud deck you fly through)
 

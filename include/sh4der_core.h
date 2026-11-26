@@ -194,6 +194,9 @@ static inline float sh4der_len2_(float a, float b) { return shz_vec2_magnitude_s
 static inline float sh4der_len3_(float a, float b, float c) { return shz_mag_sqr3f(a, b, c); }
 static inline float sh4der_min1_(float x) { return shz_fminf(x, 1.0f); }
 static inline float sh4der_abs_(float x) { return shz_fabsf(x); }   /* |x| */
+static inline float sh4der_ln_(float x) { return shz_logf(x); }   /* natural logarithm, x > 0 */
+static inline float sh4der_exp_(float x) { return shz_expf(x); }   /* e to the x */
+static inline float sh4der_floor_(float x) { return shz_floorf(x); }   /* the whole number at or below x */
 static inline float sh4der_clamp_(float x, float lo, float hi) { return shz_clampf(x, lo, hi); }   /* x held between lo and hi (lo <= hi; x finite) */
 static inline __attribute__((always_inline)) float sh4der_sat_(float x) { return shz_saturatef(x); }
 static inline __attribute__((always_inline)) float sh4der_frac_(float x) { return shz_fractf(x); }   /* x - floor(x): 0..1, negatives too */
@@ -230,6 +233,9 @@ static inline float sh4der_len2_(float a, float b) { return a * a + b * b; }
 static inline float sh4der_len3_(float a, float b, float c) { return a * a + b * b + c * c; }
 static inline float sh4der_min1_(float x) { return x > 1.0f ? 1.0f : x; }
 static inline float sh4der_abs_(float x) { return x < 0.0f ? -x : x; }
+static inline float sh4der_ln_(float x) { return logf(x); }
+static inline float sh4der_exp_(float x) { return expf(x); }
+static inline float sh4der_floor_(float x) { return floorf(x); }
 static inline float sh4der_clamp_(float x, float lo, float hi) { return x < lo ? lo : x > hi ? hi : x; }
 static inline __attribute__((always_inline)) float sh4der_sat_(float x) { return x < 0.0f ? 0.0f : x > 1.0f ? 1.0f : x; }
 static inline __attribute__((always_inline)) float sh4der_frac_(float x) { return x - floorf(x); }

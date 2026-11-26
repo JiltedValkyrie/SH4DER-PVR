@@ -75,6 +75,9 @@ extern "C" {
 #define SH4DER_CA_SPLIT_PX  3.0f    /**< \brief Strength 1: red and blue this many screen pixels apart in the corner. */
 #define SH4DER_CA_MESH_X    8       /**< \brief Cells across a channel's mesh. */
 #define SH4DER_CA_MESH_Y    6       /**< \brief Cells down a channel's mesh. */
+#define SH4DER_CA_ROWS_MESH_X 2     /**< \brief Cells across the banded mesh (sh4der_ca_channel_rows): the rows are the client's. Two keep the
+                                         vertex count low (4 a row); the aberration, exact at the three columns, is up to about a quarter of
+                                         its corner size out between them. */
 #define SH4DER_CA_TEXTURES  2       /**< \brief Most frame textures held (two: a history for a temporal blend). */
 /** @} */
 
@@ -187,6 +190,19 @@ void sh4der_ca_quad(const sh4der_ca_gpu_t *g, unsigned i, float alpha, float dx,
 /** \brief One colour channel of texture `i` over a w x h screen at `strength`. SH4DER_CA_GREEN goes in the opaque list
     (the base); SH4DER_CA_RED and SH4DER_CA_BLUE in the translucent list (added). The vertices by KOS direct render. */
 void sh4der_ca_channel(const sh4der_ca_gpu_t *g, unsigned i, int chan, float strength, float w, float h, float z);
+
+/** \brief One colour channel of texture `i` as horizontal bands, each row of the mesh moved sideways by its own amount: the
+    way to bend, weave or tear the finished picture line by line (a tape's time-base error from sh4der_timebase.h, heat
+    haze, a broken broadcast). `row_y[0 .. n - 1]` are the mesh rows' screen heights in pixels, never falling;
+    `row_shift` their shifts in pixels (positive: to the right). Two rows that follow each other at the same height are a
+    break: the band above ends with the first one's shift and the band below starts with the second's (a step in the
+    picture, no slanted band between them). `overscan` pixels of the picture hang over the screen's left and right edge
+    (the picture is drawn that much wider), so a shift up to that size uncovers nothing; past it the uncovered corner
+    shows what is behind (black over a cleared screen). The aberration is as sh4der_ca_channel's, on
+    SH4DER_CA_ROWS_MESH_X cells across. Lists as sh4der_ca_channel. Returns the triangles sent: 0 for a texture not held,
+    fewer than two rows, a missing table, a number that is not finite, or a row above the one before it. */
+unsigned sh4der_ca_channel_rows(const sh4der_ca_gpu_t *g, unsigned i, int chan, float strength, float w, float h, float z,
+                                const float *row_y, const float *row_shift, unsigned n, float overscan);
 
 #endif /* _arch_dreamcast */
 

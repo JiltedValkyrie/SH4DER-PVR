@@ -50,6 +50,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [effects/spark.md](effects/spark.md) | spark (pooled additive quads) | effect, spark, particles | 2026-11-25 | how the fixed pool of 24 sparks works, what it costs, and how it protects the quads that matter.
 - [effects/sss.md](effects/sss.md) | sss (back-lit transmission) | effect, sss | 2026-11-25 | what the sss call gives you, what it does not, and where its starting values come from.
 - [effects/taa.md](effects/taa.md) | taa (temporal AA maths) | effect, taa, post | 2026-11-25 | what the TAA header computes, where the history comes from, and how far to push its weight.
+- [effects/timebase.md](effects/timebase.md) | timebase (a video tape's bent picture) | effect, timebase, tape, frame-texture | 2026-11-26 | what the timebase effect works out, how the picture is bent with it, and what it costs.
 - [effects/torch.md](effects/torch.md) | torch (flashlight) | effect, torch, post | 2026-11-25 | how the torch fakes a flashlight with no light source, and the trap with AA 2X.
 - [effects/trail.md](effects/trail.md) | trail | effect, trail, post | 2026-11-25 | how motion blur and the TAA blend draw the frame before over this one, and what that needs from the screen setup.
 - [effects/uvwarp.md](effects/uvwarp.md) | uvwarp (per-vertex texture offset) | effect, uvwarp | 2026-11-25 | how a small table pushes each vertex's texture coordinate, and how to keep it precise over time.

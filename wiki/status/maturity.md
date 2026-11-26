@@ -69,6 +69,7 @@ Every header and source in `AGENTS.md`'s Files list. Where one header holds part
 | mist | A fog bank as upright translucent sheets | PROTOTYPE | v0.1 | Host tests; in matchlight (host). Fill not measured (AGENTS.md). | A console row | Fill cost of 12 sheets |
 | rise | Lights that lift off and become stars | PROTOTYPE | v0.1 | Host tests; in matchlight (host). | A console row | Count against frame time |
 | film | Old film wear: flicker, scratches, dust, weave | PROTOTYPE | v0.1 | Host tests; in matchlight (host). | A console row | The overlay's fill |
+| timebase | A video tape's bent picture: a sideways shift a row, drawn as bands of the frame texture (`sh4der_ca_channel_rows`) | PROTOTYPE | v0.1 | Host test (against a double precision transcription of the model). No row. | A console row | The field's SH-4 time; the banded pass's PVR time |
 | cloudvolume | A ray-marched cloud deck into a small buffer | PROTOTYPE | v0.1 | Host tests; CPU numbers ESTIMATE (AGENTS.md). | A console row | The march's SH-4 ms |
 | pl4nar | Planar reflection through a small render target | ALPHA | v0.5 | **pl4m c7, s8, a second run: lookups 0.59 to 0.65 ms; the mirror pass's PVR 3.2 to 3.3 ms, now MEASURED (the sampling fixed); the targets and video memory repeat c5's exactly (PVR-174, PVR-175).** pl4m c5, s7: lookups 0.92 to 0.97 ms; targets 128 × 64 to 512 × 256 (1,024 wide) with no NOVRAM; the split at the middle (PVR-160, PVR-161, MEASURED, 1 run). Its PVR columns are ESTIMATE, our bug (PVR-162). A 128 × 128 target renders right (PVR-020, s2). OPEN: the moving divider; the missing "largest scene" line again (Q93); the mirror pass's PVR the same at every target size (Q97). | Q97 and Q93 closed; a run with no key pressed | The mirror pass cut to its tiles |
 | pool | Light pools and blob shadows as fading fans | ALPHA | v0.2 | pl4m c5's blob stage 114.71 ms against tiles 110.17 (PVR-160); its own cost not isolated. 1 run. | Its cost alone | Fill of one disc and one wedge |
@@ -281,6 +282,7 @@ These version numbers predate this scale and await the owner. They are not used 
 | v0.14 | bump | `README.md:112`; `include/sh4der_bump.h:43` |
 | v0.10 | warp, trail, lens, focus, visor, ao, guard, uvwarp, spark, pl4nar, pool, psm, psm_raster, psm_pvr, bolt, motes, deform, mist, rise | `README.md:100-117`; each header |
 | v0.1 | film | `include/sh4der_film.h:49` |
+| v0.1 | timebase | `include/sh4der_timebase.h:99` |
 | v0.05 (until the pvrx-check suite entry) | pvrx | `include/sh4der_pvrx.h:22, 44`; `AGENTS.md` Files |
 
 ## Out-of-date lines found while ranking
