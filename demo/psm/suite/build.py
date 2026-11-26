@@ -188,6 +188,8 @@ def main():
         t.setdefault("group", "tools")
         if t["group"] not in GROUPS or t.get("credits", "pl4nar") not in CREDITS:
             raise SystemExit("%s: group must be one of %s, credits (when given) one of %s" % (t["name"], sorted(GROUPS), sorted(CREDITS)))
+        if len(t.get("title", "")) > 25 or len(t.get("shows", "")) > 49:
+            raise SystemExit("%s: title over 25 or shows over 49 characters" % t["name"])
         if len(t["name"]) > 10 or len(t["what"]) > 49 or len(t["read"]) > 59:
             raise SystemExit("%s: name over 10, what over 49 or read over 59 characters" % t["name"])
         elf = t["elf"] if os.path.isabs(t["elf"]) else os.path.join(ROOT, t["elf"])
@@ -211,8 +213,8 @@ def main():
         f.write("#define SUITE_TAG %s\n#define SUITE_TITLE %s\n#define SUITE_N %uu\n" % (c_str(a.tag), c_str(a.title), len(tests)))
         f.write("static const suite_entry_t suite_list[SUITE_N] = {\n")
         for t in tests:
-            f.write("    { %s, %s, %s, %s, %uu, %uu, %uu, %uu },\n" % (c_str(t["file"]), c_str(t["name"]), c_str(t["what"]), c_str(t["read"]), t["order"], int(t["returns"]), t["bytes"],
-                                                                 GROUPS[t["group"]]))
+            f.write("    { %s, %s, %s, %s, %uu, %uu, %uu, %uu, %s, %s },\n" % (c_str(t["file"]), c_str(t["name"]), c_str(t["what"]), c_str(t["read"]), t["order"], int(t["returns"]), t["bytes"],
+                                                                 GROUPS[t["group"]], c_str(t["title"]) if t.get("title") else "0", c_str(t["shows"]) if t.get("shows") else "0"))
         f.write("};\n")
     menu_elf, menu_bin = os.path.join(out, "%s-%s.elf" % (a.prefix, a.tag)), os.path.join(disc, "MENU.BIN")
     if os.path.isfile(os.path.join(ROOT, "third_party", "sh4zam", "LICENSE")):

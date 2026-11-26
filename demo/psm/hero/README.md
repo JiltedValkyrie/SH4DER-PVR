@@ -1,9 +1,11 @@
-# hero1: a skinned hero on a clay set, the cost of each pass
+# hero1: a skinned hero running a street between space hangars, the cost of each part
 
-`hero_spike.c` draws one skinned figure in a clay set and times each of its passes on a real console. It answers one question: what does a main character with an opaque pass, a detail overlay, a visor pass and a shadow cost here?
+`hero_spike.c` draws one skinned figure running a street and times each of its parts on a real console. It answers one question: what does a main character with an opaque pass, a detail overlay, a visor pass and a shadow cost here?
 
 - **The hero.** With no file, it is the original figure built in `hero_model.h`: a diver's suit, a round helmet with a slit visor, 33 bones, 1,465 vertices, 1,660 triangles, two clips of its own.
-- **The set.** One light-grey diffuse: a ground and two walls. The room (`ao/room_data.h`, made by `ao/build.py --room-only`) is the second set.
+- **The set.** The space stretch: a straight road between hangars, 2,671 triangles in 21 objects, vertex colours with the light baked. `tools/bake_strip.py` makes it from Space Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0. The kit is read from its zip as downloaded (sha256 checked); nothing of it is kept in this tree, and the header is a build product.
+- **The run.** He runs the road end to end and back and turns about at each end. The camera stays in the street and follows him. The shadow target's window is centred on him every frame.
+- **Nothing goes missing.** No stage turns the hero or his shadow off. A set triangle that crosses the near plane is cut there, not dropped. `test/hero_strip_test.c` replays the autorun on the host and fails if he or his shadow is ever hidden.
 
 ## Files
 
@@ -12,6 +14,9 @@
 | `hero_model.h` | the original hero (mesh, clips, textures) and a frame's steps: pose, palette, skin, light, the visor's lookup |
 | `hero_file.h` | HERO.BIN: write and read (the format below) |
 | `hero_spike.c` | the Dreamcast program: passes, controls, costs, the autorun and its pages |
+| `hero_strip.h` | the street: the run, his place, the shadow window, which objects are in view, the near clip, the autorun's stages and camera |
+| `tools/bake_strip.py` | bakes the street from the kit's zip to `hero_strip_data.h` (`--self-test` checks the tool) |
+| `test/hero_strip_test.c` | host test: the autorun replayed; fails if the hero or his shadow is ever hidden |
 | `test/hero_model_test.c` | host test: budget, indices, weights, clips loop, skin against a direct blend, file round trip |
 | `tools/hero_check.py` | checks a HERO.BIN by itself (`--self-test` checks the checker) |
 
@@ -73,27 +78,30 @@ Little-endian. Every block is padded with zeros to a multiple of 4 bytes.
 | D-pad left | the detail pass |
 | B | the visor pass |
 | A | the shadow |
-| Y | the clip: IDLE or RUN+AIM |
-| D-pad up | the set: clay, or the room |
+| Y | he runs, or he stands at the street's start |
+| D-pad up | the view from the other end of the street |
+| D-pad right | the effect labels, hidden or shown |
 | L trigger | zoom out |
 | R trigger | zoom in |
-| stick | orbit the camera |
+| stick | orbit the camera (kept in the street) |
 | START | the result pages |
 
 On the pages, START goes back to the live view. A+B+X+Y goes back to the suite menu.
 
 ## The autorun
 
-The program runs by itself first. It holds each stage for `HERO_AUTO_S` seconds while the camera orbits on a script, then writes the result pages and a graph. The stages, in order:
+The program runs by itself first, then writes the result pages and a graph. The stages are the table in `hero_strip.h`. The opaque pass and the shadow are on in every one:
 
-1. Everything on, IDLE.
-2. Everything on, RUN+AIM.
-3. Opaque only.
-4. Opaque and detail.
-5. Opaque and visor.
-6. Opaque and shadow.
-7. No hero (the set alone).
-8. Everything on, in the room.
-9. Everything on, at twice the distance.
+1. Everything on, he stands (4 s).
+2. Everything on, he runs a whole lap (26 s).
+3. He runs, no detail (5 s).
+4. He runs, no visor (5 s).
+5. He runs, the camera farther off (5 s).
 
-**What each pass adds** is a stage less stage 3. The hero's own cost is stage 3 less stage 7. Every number comes from the run that prints it, and only a run on a real console is evidence.
+Each stage starts the run and the camera's swing again, so stages 3 to 5 see what the first 5 s of stage 2 saw.
+
+- **By its own timer** (stage 2): the hero's SH-4 time, the set's, the shadow's, and the shadow target's PVR render.
+- **Derived**: detail and visor are stage 2's first 5 s less the stage without the pass.
+- **Not given**: the hero's and the set's share of the screen's PVR render, which is not apart.
+
+Every number comes from the run that prints it, and only a run on a real console is evidence.

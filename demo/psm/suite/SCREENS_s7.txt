@@ -2,12 +2,12 @@
 --- TOP, cold start
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|                                                                |
+|SHOWS    the library's effects, and the tests behind them.      |
+|LOOK AT  each row: what it is, and the features it shows.       |
 |                                                                |
 |> TECH DEMOS                                                    | [2x]
 |                                                                |
 |    4 on this disc: the effects, to look at and compare         | grey
-|                                                                |
 |                                                                |
 |  DEVELOPER TOOLS                                               | [2x]
 |                                                                |
@@ -15,14 +15,14 @@
 |                                                                |
 |                                                                |
 |                                                                |
-|up/down pick  A open  Y credits                                 |
+|                                                                |
 |                                                                |
 |                                                                |
 |In a test: hold A+B+X+Y on its result pages for this menu.      | grey
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |                                                                |
-|                                                                |
+|up/down pick  A open  Y credits                                 |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -30,12 +30,12 @@
 --- TOP, DEVELOPER TOOLS picked
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|                                                                |
+|SHOWS    the library's effects, and the tests behind them.      |
+|LOOK AT  each row: what it is, and the features it shows.       |
 |                                                                |
 |  TECH DEMOS                                                    | [2x]
 |                                                                |
 |    4 on this disc: the effects, to look at and compare         | grey
-|                                                                |
 |                                                                |
 |> DEVELOPER TOOLS                                               | [2x]
 |                                                                |
@@ -43,14 +43,14 @@
 |                                                                |
 |                                                                |
 |                                                                |
-|up/down pick  A open  Y credits                                 |
+|                                                                |
 |                                                                |
 |                                                                |
 |In a test: hold A+B+X+Y on its result pages for this menu.      | grey
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |                                                                |
-|                                                                |
+|up/down pick  A open  Y credits                                 |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -58,7 +58,7 @@
 --- LIST of TECH DEMOS, RUN ALL picked
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|TECH DEMOS  up/down pick  A start  B/START back  Y credits      |
+|TECH DEMOS                                                      | [2x]
 |                                                                |
 |> RUN ALL: the numbered demos, round and round; B stops         | yellow
 | 1 ao4        AO side by side; clip guard; tile cut last. 110 s |
@@ -78,7 +78,7 @@
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |                                                                |
-|                                                                |
+|up/down pick  A start  B/START back  Y credits                  |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -86,7 +86,7 @@
 --- LIST of TECH DEMOS, the last picked
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|TECH DEMOS  up/down pick  A start  B/START back  Y credits      |
+|TECH DEMOS                                                      | [2x]
 |                                                                |
 |  RUN ALL: the numbered demos, round and round; B stops         |
 | 1 ao4        AO side by side; clip guard; tile cut last. 110 s |
@@ -106,7 +106,7 @@
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |                                                                |
-|                                                                |
+|up/down pick  A start  B/START back  Y credits                  |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -114,7 +114,7 @@
 --- LIST of DEVELOPER TOOLS, a NO RETURN entry picked, with news
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS  up/down pick  A start  B/START back  Y credits |
+|DEVELOPER TOOLS                                                 | [2x]
 |                                                                |
 |  RUN ALL: the numbered tests in order, 20 s a page             |
 | 1 d1         depth-fade spike                                  |
@@ -134,7 +134,7 @@
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |last: pvr-dma ended                                             | yellow
-|                                                                |
+|up/down pick  A start  B/START back  Y credits                  |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -142,7 +142,7 @@
 --- a one-group disc of 20: the list is the menu
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS  up/down pick  A start  Y credits               |
+|DEVELOPER TOOLS                                                 | [2x]
 |                                                                |
 |> RUN ALL: the numbered tests in order, 20 s a page             | yellow
 | 1 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
@@ -153,8 +153,8 @@
 | 6 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
 | 7 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
 | 8 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
-| 9 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
-|     ... 11 more below                                          | grey
+|     ... 12 more below                                          | grey
+|                                                                |
 |                                                                |
 |                                                                |
 |                                                                |
@@ -162,7 +162,7 @@
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |                                                                |
-|                                                                |
+|up/down pick  A start  Y credits                                |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -170,11 +170,10 @@
 --- the same, the 12th picked: scrolled
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS  up/down pick  A start  Y credits               |
+|DEVELOPER TOOLS                                                 | [2x]
 |                                                                |
 |  RUN ALL: the numbered tests in order, 20 s a page             |
-|     ... 3 more above                                           | grey
-| 4 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
+|     ... 4 more above                                           | grey
 | 5 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
 | 6 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
 | 7 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
@@ -186,11 +185,12 @@
 |     photo every page + graph; START = live: X mode, Y hens     | grey
 |     ... 8 more below                                           | grey
 |                                                                |
+|                                                                |
 |In a test: hold A+B+X+Y on its result pages for this menu.      | grey
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |                                                                |
-|                                                                |
+|up/down pick  A start  Y credits                                |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -198,11 +198,10 @@
 --- the same, the last picked
 +----------------------------------------------------------------+
 |PSM TEST SUITE s7                                               |
-|DEVELOPER TOOLS  up/down pick  A start  Y credits               |
+|DEVELOPER TOOLS                                                 | [2x]
 |                                                                |
 |  RUN ALL: the numbered tests in order, 20 s a page             |
-|     ... 11 more above                                          | grey
-| 2 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
+|     ... 12 more above                                          | grey
 | 3 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
 | 4 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
 | 5 hens-eyes  hens: rays vs collision sweep, cycles. ~50 s      |
@@ -214,11 +213,12 @@
 |     photo every page + graph; START = live: X mode, Y hens     | grey
 |                                                                |
 |                                                                |
+|                                                                |
 |In a test: hold A+B+X+Y on its result pages for this menu.      | grey
 |A fault page tries the menu after 60 s; if it stays, power off. | grey
 |No reset button is needed. Every test starts from a full restart| grey
 |RUN ALL is done (last: hens-eyes)                               | yellow
-|                                                                |
+|up/down pick  A start  Y credits                                |
 |SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
 |Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
 +----------------------------------------------------------------+
@@ -229,4 +229,32 @@ keys, CREDITS from a LIST: A next  B last  Y/START back
 keys, CREDITS from TOP: A next  B last  Y/START back
 keys, LIST, one-group disc (no TOP): up/down pick  A start  Y credits
 keys, CREDITS, one-group disc: A next  B last  Y/START back
+
+--- 20 titled NO RETURN entries, the 10th picked
++----------------------------------------------------------------+
+|PSM TEST SUITE s7                                               |
+|DEVELOPER TOOLS                                                 | [2x]
+|                                                                |
+|  RUN ALL: the numbered tests in order, 20 s a page             |
+|     ... 2 more above                                           | grey
+|   Twenty-four letters long                                     |
+|   Twenty-four letters long                                     |
+|   Twenty-four letters long                                     |
+|   Twenty-four letters long                                     |
+|   Twenty-four letters long                                     |
+|   Twenty-four letters long                                     |
+|   Twenty-four letters long                                     |
+|>  Twenty-four letters long                                     | yellow
+|     shows: a shows line of the longest length, 49 letters..    |
+|     photo the bottom two lines; ABXY or START 3 s leaves       | grey
+|     NO RETURN: switch the console off after this test          | yellow
+|     ... 10 more below                                          | grey
+|In a test: hold A+B+X+Y on its result pages for this menu.      | grey
+|A fault page tries the menu after 60 s; if it stays, power off. | grey
+|No reset button is needed. Every test starts from a full restart| grey
+|                                                                |
+|up/down pick  A start  Y credits                                |
+|SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie                   | grey
+|Uses SH4ZAM (MIT) and KallistiOS (KOS License). Y: CREDITS      | grey
++----------------------------------------------------------------+
 suite_nav_test: ok

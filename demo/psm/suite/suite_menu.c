@@ -18,8 +18,11 @@
    without ../psm_suite.h: the console is switched off after it.
    Every menu screen ends with the copyright foot (../psm_credits.h).
 
-   The PVR is not started here: the SH-4 draws into the frame buffer with ../psm_page.h's text, inside the title-safe
-   area. Nothing is written but the frame buffer and RAM. The fault catcher (../psm_fault.h) is in. The waits: 20 ms
+   The PVR is not started here: the SH-4 draws into the frame buffer. suite_ui.h draws the TOP and LIST screens (the
+   panels of the UI Pack by Kenney, CC0, through suite_skin.h, then ../psm_page.h's glyphs over them, inside the
+   title-safe area); the CREDITS pages are the page kit's own. Video memory: the frame buffer only. RAM: the skin's
+   9-slices (suite_skin.h says how many bytes). Drawn after a key press only: no cost a frame. Nothing is written but
+   the frame buffer and RAM. The fault catcher (../psm_fault.h) is in. The waits: 20 ms
    between two reads of the pad, and the disc read of a program (KallistiOS's own, a few seconds).
 */
 
@@ -36,12 +39,26 @@ KOS_INIT_FLAGS(INIT_DEFAULT);
 #include "../psm_page.h"
 
 #include "suite_nav.h"                      /* suite_entry_t, the screens */
+#include "suite_skin.h"                     /* ui_skin, and suite_ui.h: the panels */
 #include "suite_list.h"                     /* SUITE_TAG, SUITE_TITLE, suite_list[], SUITE_N: written by build.py */
 #include "../psm_suite.h"
+#ifndef PSM_CREDITS_UI
+#define PSM_CREDITS_UI                      /* the menu is drawn with the UI Pack's panels: their credit page is always in */
+#endif
 #include "../psm_credits.h"
 
 #define PG_YELLOW PG_RGB(255, 220, 0)
 #define ROW_Y(r) (PG_Y0 + PG_CH * (r))
+
+typedef char suite_ui_grid_[PG_CW == UI_CW && PG_CH == UI_CH && PG_X0 == UI_X0 && PG_Y0 == UI_Y0 ? 1 : -1];   /* the page kit's grid is suite_ui.h's */
+static const ui_font_t font = { &pg_glyph[0][0][0], PG_CW, PG_CH };
+static uint16_t frame[640u * 480u] __attribute__((aligned(32)));   /* the screen in RAM: drawn here, copied by store queue */
+static int frame_ok;                        /* 0: the frame buffer is not this copy (start, credits, a load): copy all */
+
+/* Lines y0 .. y1 of the RAM copy to the frame buffer: 1280 bytes a line, a multiple of 32, by store queue. */
+static void show(int y0, int y1) {
+    sq_cpy(vram_s + y0 * 640, frame + y0 * 640, (size_t)(y1 - y0 + 1) * 1280u);
+}
 
 static psm_fault_crumbs_t crumbs;
 static char note[PG_COLS + 1u];
@@ -54,45 +71,35 @@ static void line(unsigned row, uint16_t col, const char *fmt, ...) {
     va_start(ap, fmt);
     vsnprintf(s, sizeof s, fmt, ap);
     va_end(ap);
-    pg_text(PG_X0, ROW_Y(row), col, s);
+    ui_text(frame, &font, 1u, PG_X0, ROW_Y(row), col, s, PG_COLS);
 }
 
-/* A string twice the size (16 x 32 a character, 32 to a line): each pixel of the small glyph as four. */
-static void big_text(unsigned x, unsigned y, uint16_t col, const char *s) {
-    const unsigned r = col >> 11, g = (col >> 5) & 63u, b = col & 31u;
-    unsigned i, j;
-
-    for (; *s && x + 2u * PG_CW <= 640u - PG_X0; s++, x += 2u * PG_CW) {
-        const unsigned c = (unsigned char)*s;
-        const uint8_t (*gl)[PG_CW] = pg_glyph[c >= 32u && c < 127u ? c - 32u : 0u];
-
-        if (y + 2u * PG_CH > 480u) return;
-        for (j = 0; j < 2u * PG_CH; j++)
-            for (i = 0; i < 2u * PG_CW; i++) {
-                const unsigned a = gl[j / 2u][i / 2u];
-
-                if (a) vram_s[(y + j) * 640u + x + i] = (uint16_t)(((r * a / 255u) << 11) | ((g * a / 255u) << 5) | (b * a / 255u));
-            }
-    }
-}
-
-/* The TOP or the LIST screen: suite_nav.h says what is on it. */
+/* The TOP or the LIST screen: suite_nav.h says what is on it, suite_ui.h draws it. Only the lines that changed are
+   drawn and copied (all of them after a start, the credits or a load); the time it took goes to the serial line. */
 static void draw(void) {
-    static const uint16_t colour[3] = { PG_WHITE, PG_GREY, PG_YELLOW };
-    static nav_grid_t g;
+    static nav_grid_t g[2];
+    static unsigned cur;
+    const uint64_t t0 = timer_us_gettime64();
     char rev[32];
-    unsigned row;
+    int y0 = 0, y1 = 479;
 
-    nav_grid(&g, &nav, suite_list, SUITE_N, SUITE_TITLE " " SUITE_TAG, note, psm_credits_foot);
-    vid_clear(0, 0, 0);
-    for (row = 0; row < NAV_ROWS; row++) {
-        if (!g.text[row][0]) continue;
-        if (g.big[row]) big_text(PG_X0, ROW_Y(row), colour[g.colour[row]], g.text[row]);
-        else pg_text(PG_X0, ROW_Y(row), colour[g.colour[row]], g.text[row]);
-    }
+    cur ^= 1u;
+    nav_grid(&g[cur], &nav, suite_list, SUITE_N, SUITE_TITLE " " SUITE_TAG, note, psm_credits_foot);
+    if (frame_ok && !ui_dirty(&g[cur ^ 1u], &g[cur], &y0, &y1)) return;
+    if (!frame_ok) { y0 = 0; y1 = 479; }
+    ui_clip(y0, y1);
+    ui_screen(frame, ui_skin, &font, &g[cur], &nav);
     suite_rev_text(rev, sizeof rev);        /* two register reads: which console this is, on every photo of the menu */
-    pg_text(PG_X0 + (PG_COLS - 22u) * PG_CW, ROW_Y(0u), PG_GREY, rev);
+    ui_text(frame, &font, 1u, PG_X0 + (PG_COLS - 22u) * PG_CW, ROW_Y(0u), ui_txt[UI_TXT_GREY], rev, 22u);
+    ui_clip(0, 479);
+    show(y0, y1);
+    frame_ok = 1;
+    printf("suite: redraw lines %d .. %d, %u us\n", y0, y1, (unsigned)(timer_us_gettime64() - t0));
 }
+
+/* A screen of lines (a load, RUN ALL's wait): the frame and its bands, the lines, then all of it to the screen. */
+static void plain_begin(void) { ui_clip(0, 479); ui_frame(frame, ui_skin); frame_ok = 0; }
+static void plain_show(void) { show(0, 479); }
 
 /* The credits into the page kit's lines, once: its pages and its CRC line then come with pg_draw. */
 static void credits_fill(void) {
@@ -134,11 +141,12 @@ static void launch(unsigned i, unsigned chain) {
     void *image;
 
     psm_fault_stage(&crumbs, "load");
-    vid_clear(0, 0, 0);
+    plain_begin();
     line(0, PG_WHITE, "%s %s", SUITE_TITLE, SUITE_TAG);
-    line(2, PG_WHITE, "loading %s (%u KB) ...", e->name, (e->bytes + 1023u) / 1024u);
+    line(2, PG_WHITE, "loading %s (%u KB) ...", e->title ? e->title : e->name, (e->bytes + 1023u) / 1024u);
     line(3, PG_GREY, "%.63s", e->what);
     line(4, PG_GREY, "%.63s", e->read);
+    plain_show();
     snprintf(path, sizeof path, "/cd/%s", e->file);
     psm_fault_beat(&crumbs);
     loading = 1;
@@ -160,13 +168,14 @@ static int countdown(unsigned i) {
 
     for (t = 0; t < 250u; t++) {
         if (t % 50u == 0u) {
-            vid_clear(0, 0, 0);
+            plain_begin();
             line(0, PG_WHITE, "%s %s   RUN ALL, %s", SUITE_TITLE, SUITE_TAG, nav_group_name[suite_list[i].group]);
-            line(2, PG_WHITE, "next: %u %s in %u s.   B stops the run.", suite_list[i].order, suite_list[i].name, 5u - t / 50u);
+            line(2, PG_WHITE, "next: %u %s in %u s.   B stops the run.", suite_list[i].order, suite_list[i].title ? suite_list[i].title : suite_list[i].name, 5u - t / 50u);
             line(3, PG_GREY, "%.63s", suite_list[i].what);
             line(4, PG_GREY, "%.63s", suite_list[i].read);
             if (note[0]) line(6, PG_YELLOW, "%s", note);
             line(NAV_FOOT_ROW, PG_GREY, "%s", psm_credits_foot[0]);
+            plain_show();
         }
         psm_fault_beat(&crumbs);
         if (pad() & CONT_B) return 0;
@@ -181,7 +190,7 @@ int main(void) {
     unsigned held = ~0u;
     int redraw = 1;
 
-    (void)pg_say; (void)pg_plot; (void)pg_series; (void)pg_point; (void)suite_init; (void)suite_tick; (void)suite_keys_text; (void)suite_exit;
+    (void)pg_say; (void)pg_text; (void)pg_plot; (void)pg_series; (void)pg_point; (void)suite_init; (void)suite_tick; (void)suite_keys_text; (void)suite_exit;
     vid_set_mode(DM_640x480, PM_RGB565);
     if (psm_fault_init(&crumbs) < 0) snprintf(note, sizeof note, "fault catcher: a hook was refused");
     pg_init();
@@ -220,6 +229,7 @@ int main(void) {
 
                 nav_legend(keys, sizeof keys, NAV_CREDITS, nav.has_top);
                 pg_draw(nav.page % pg_pages(), "CREDITS", keys);
+                frame_ok = 0;                   /* the page kit drew on the frame buffer itself */
             } else draw();
             redraw = 0;
         }

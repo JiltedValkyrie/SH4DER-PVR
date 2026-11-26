@@ -9,6 +9,9 @@
    64 columns of plain ASCII with the owner's first line word for word. The keys: on every screen, with and without
    the TOP screen, each button acts exactly when the screen's legend names it (read from the legend's text, not from
    the table), the whole legend is on the screen, and two buttons in one pass do what they did before the table.
+   The rows' kinds (what suite_ui.h draws under them): the title, the legend and the foot where they belong, one row
+   picked, every line that belongs to an option under one; the chips' spans are the legend's keys; an entry with a
+   plain title shows it alone, and its shows line and its read when picked; the fullest list still fits.
 
    Build (from the repository's root):
      gcc -std=c99 -O2 -Wall -Wextra -Werror demo/psm/suite/test/suite_nav_test.c -o build/psm_suite/suite_nav_test
@@ -24,15 +27,15 @@ static int fails, verbose;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
 
 static const suite_entry_t s7[] = {
-    { "AO4.BIN", "ao4", "AO side by side; clip guard; tile cut last. 110 s", "photo pages+graph; photo stages 16, 17 (CLIP GUARD label)", 1u, 1u, 600000u, NAV_DEMOS },
-    { "AOLAMP.BIN", "ao-lamp", "lamp look, movable split", "LT/RT move the split", 2u, 1u, 600000u, NAV_DEMOS },
-    { "HERO1.BIN", "hero1", "skinned hero, pass costs, room + hens. ~50 s", "photo every page; START = live (keys on the last page)", 3u, 1u, 600000u, NAV_DEMOS },
-    { "PL4NAR.BIN", "pl4nar", "street demo, new map", "photo the pages", 4u, 1u, 900000u, NAV_DEMOS },
-    { "D1.BIN", "d1", "depth-fade spike", "photo both passes", 1u, 1u, 500000u, NAV_TOOLS },
-    { "HENEYES.BIN", "hens-eyes", "hens: rays vs collision sweep, cycles. ~50 s", "photo every page + graph; START = live: X mode, Y hens", 2u, 1u, 500000u, NAV_TOOLS },
-    { "PVRDMA.BIN", "pvr-dma", "PVR-DMA download proof: VRAM to RAM. ~2 s", "PVR-DMA download proof: photo the page and the graph", 3u, 1u, 400000u, NAV_TOOLS },
-    { "AO1CLIVE.BIN", "ao1c-live", "TEST, no label: town walk, X AO OFF/1/2, Y CLAY", "photo pairs at one spot: CLAY, AO OFF/1/2; then TEXTURED", 0u, 1u, 900000u, NAV_TOOLS },
-    { "HUD1C2.BIN", "hud1c-2", "TEST, no label: hud1b, no DIAG box in opaque", "photo the bottom two lines; ABXY or START 3 s leaves", 0u, 0u, 900000u, NAV_TOOLS },
+    { "AO4.BIN", "ao4", "AO side by side; clip guard; tile cut last. 110 s", "photo pages+graph; photo stages 16, 17 (CLIP GUARD label)", 1u, 1u, 600000u, NAV_DEMOS, 0, 0 },
+    { "AOLAMP.BIN", "ao-lamp", "lamp look, movable split", "LT/RT move the split", 2u, 1u, 600000u, NAV_DEMOS, 0, 0 },
+    { "HERO1.BIN", "hero1", "skinned hero, pass costs, room + hens. ~50 s", "photo every page; START = live (keys on the last page)", 3u, 1u, 600000u, NAV_DEMOS, 0, 0 },
+    { "PL4NAR.BIN", "pl4nar", "street demo, new map", "photo the pages", 4u, 1u, 900000u, NAV_DEMOS, 0, 0 },
+    { "D1.BIN", "d1", "depth-fade spike", "photo both passes", 1u, 1u, 500000u, NAV_TOOLS, 0, 0 },
+    { "HENEYES.BIN", "hens-eyes", "hens: rays vs collision sweep, cycles. ~50 s", "photo every page + graph; START = live: X mode, Y hens", 2u, 1u, 500000u, NAV_TOOLS, 0, 0 },
+    { "PVRDMA.BIN", "pvr-dma", "PVR-DMA download proof: VRAM to RAM. ~2 s", "PVR-DMA download proof: photo the page and the graph", 3u, 1u, 400000u, NAV_TOOLS, 0, 0 },
+    { "AO1CLIVE.BIN", "ao1c-live", "TEST, no label: town walk, X AO OFF/1/2, Y CLAY", "photo pairs at one spot: CLAY, AO OFF/1/2; then TEXTURED", 0u, 1u, 900000u, NAV_TOOLS, 0, 0 },
+    { "HUD1C2.BIN", "hud1c-2", "TEST, no label: hud1b, no DIAG box in opaque", "photo the bottom two lines; ABXY or START 3 s leaves", 0u, 0u, 900000u, NAV_TOOLS, 0, 0 },
 };
 #define N7 ((unsigned)(sizeof s7 / sizeof s7[0]))
 
@@ -46,7 +49,37 @@ static void show(const char *what, const nav_t *v, const suite_entry_t *list, un
 
     nav_grid(&g, v, list, n, "PSM TEST SUITE s7", note, psm_credits_foot);
     nav_legend(keys, sizeof keys, v->screen, v->has_top);
-    CHECK(keys[0] && strstr(g.text[v->screen == NAV_TOP ? 14u : 1u], keys));   /* the whole legend, not cut */
+    CHECK(keys[0] && !strcmp(g.text[NAV_KEYS_ROW], keys) && g.kind[NAV_KEYS_ROW] == NAV_K_KEYS);   /* the whole legend, not cut */
+    CHECK(g.kind[0] == NAV_K_HEAD && g.kind[NAV_FOOT_ROW] == NAV_K_FOOT && g.kind[NAV_FOOT_ROW + 1u] == NAV_K_FOOT);
+    {
+        unsigned picks = 0, owner = 0;
+
+        for (row = 0; row < NAV_ROWS; row++) {
+            const unsigned k = g.kind[row];
+
+            CHECK(k < NAV_KINDS && (g.text[row][0] || !k));
+            picks += k == NAV_K_PICK;
+            if (k == NAV_K_ITEM || k == NAV_K_PICK) owner = k;
+            else if (k == NAV_K_ITEM_MORE) CHECK(owner == NAV_K_ITEM);
+            else if (k == NAV_K_PICK_MORE || k == NAV_K_FLAG) CHECK(owner == NAV_K_PICK);
+            else if (g.text[row][0]) owner = 0;
+            CHECK((k == NAV_K_PICK) == (g.text[row][0] == '>'));            /* the cursor and the picked panel agree */
+        }
+        CHECK(picks == 1u);
+    }
+    {
+        nav_span_t span[8];
+        const unsigned n = nav_legend_spans(span, 8u, v->screen, v->has_top, NAV_COLS);
+        unsigned i, j = 0;
+
+        CHECK(n >= 3u);
+        for (i = 0; i < n; i++) {
+            while (j < NAV_KEYS_N && (nav_keys[j].screen != v->screen || !nav_keys[j].keys || (nav_keys[j].need_top && !v->has_top))) j++;
+            CHECK(j < NAV_KEYS_N && !strncmp(keys + span[i].col, nav_keys[j].keys, span[i].len) && strlen(nav_keys[j].keys) == span[i].len);
+            CHECK(span[i].buttons == nav_keys[j].buttons && (span[i].col == 0u || keys[span[i].col - 1u] == ' '));
+            j++;
+        }
+    }
     for (row = 0; row < NAV_ROWS; row++) {
         CHECK(strlen(g.text[row]) <= NAV_COLS);
         if (g.big[row]) { CHECK(strlen(g.text[row]) <= NAV_COLS / 2u); CHECK(row + 1u < NAV_ROWS && !g.text[row + 1u][0]); }
@@ -178,18 +211,18 @@ int main(int argc, char **argv) {
     CHECK(nav_key(&v, many, 20u, NAV_B, 7u, &index) == NAV_NONE && v.screen == NAV_LIST);
     show("a one-group disc of 20: the list is the menu", &v, many, 20u, "");
     for (i = 0; i < 12u; i++) nav_key(&v, many, 20u, NAV_DOWN, 7u, &index);
-    CHECK(v.cursor == 12u && v.first == 3u);
+    CHECK(v.cursor == 12u && v.first == 12u - NAV_WINDOW);
     show("the same, the 12th picked: scrolled", &v, many, 20u, "");
     for (i = 0; i < 8u; i++) nav_key(&v, many, 20u, NAV_DOWN, 7u, &index);
-    CHECK(v.cursor == 20u && v.first == 11u);
+    CHECK(v.cursor == 20u && v.first == 20u - NAV_WINDOW);
     show("the same, the last picked", &v, many, 20u, "RUN ALL is done (last: hens-eyes)");
     nav_key(&v, many, 20u, NAV_DOWN, 7u, &index);
     CHECK(v.cursor == 0u && v.first == 0u);
     nav_key(&v, many, 20u, NAV_UP, 7u, &index);
-    CHECK(v.cursor == 20u && v.first == 11u);
+    CHECK(v.cursor == 20u && v.first == 20u - NAV_WINDOW);
     for (i = 0; i < 20u; i++) many[i].group = NAV_DEMOS;
     nav_init(&v, many, 20u, 19u);
-    CHECK(v.screen == NAV_LIST && v.group == NAV_DEMOS && v.cursor == 20u && v.first == 11u && !v.has_top);
+    CHECK(v.screen == NAV_LIST && v.group == NAV_DEMOS && v.cursor == 20u && v.first == 20u - NAV_WINDOW && !v.has_top);
 
     /* the keys: shown = acts, on every screen, with and without TOP; the legend reads as the owner sees it */
     CHECK(named("up/down pick  A start  B/START back", NAV_START) && named("up/down pick", NAV_DOWN) && !named("Y credits", NAV_A));
@@ -240,6 +273,41 @@ int main(int argc, char **argv) {
         nav_key(&w, s7, N7, NAV_Y, 7u, &index);
         CHECK(nav_key(&w, s7, N7, NAV_A | NAV_START, 7u, &index) == NAV_REDRAW && w.screen == NAV_LIST);  /* leave before a page */
     }
+    {
+        nav_span_t span[8];
+
+        CHECK(nav_legend_spans(span, 8u, NAV_LIST, 1, 20u) == 2u);                         /* a key past the columns is not counted */
+        CHECK(nav_legend_spans(span, 1u, NAV_LIST, 1, NAV_COLS) == 1u);
+    }
+
+    /* a plain title and a shows line (the JSON's "title" and "shows"): the title alone, shows and read when picked */
+    {
+        static nav_grid_t g;
+        suite_entry_t t[2];
+
+        t[0] = s7[0]; t[1] = s7[4];
+        t[0].title = "Room shading, four ways"; t[0].shows = "corner shading: none, baked, ground, texture";
+        nav_init(&v, t, 2u, 0xffffffffu);
+        nav_key(&v, t, 2u, NAV_A, 7u, &index);
+        nav_grid(&g, &v, t, 2u, "SH4DER-PVR SUITE s12", "", psm_credits_foot);
+        CHECK(!strcmp(g.text[4], " 1 Room shading, four ways") && !strstr(g.text[4], "ao4"));
+        nav_key(&v, t, 2u, NAV_DOWN, 7u, &index);
+        nav_grid(&g, &v, t, 2u, "SH4DER-PVR SUITE s12", "", psm_credits_foot);
+        CHECK(!strcmp(g.text[4], ">1 Room shading, four ways") && !strcmp(g.text[5], "     shows: corner shading: none, baked, ground, texture"));
+        CHECK(!strncmp(g.text[6], "     photo", 10u) && g.kind[4] == NAV_K_PICK && g.kind[5] == NAV_K_PICK_MORE && g.kind[6] == NAV_K_PICK_MORE);
+        t[0].shows = "a line of features that runs on and on past what the field allows";
+        nav_grid(&g, &v, t, 2u, "SH4DER-PVR SUITE s12", "", psm_credits_foot);
+        CHECK(strlen(g.text[5]) <= NAV_COLS);
+        nav_init(&v, t, 2u, 0xffffffffu);
+        nav_grid(&g, &v, t, 2u, "SH4DER-PVR SUITE s12", "", psm_credits_foot);
+        CHECK(g.kind[1] == NAV_K_INTRO && g.kind[2] == NAV_K_INTRO && !strncmp(g.text[1], "SHOWS", 5u) && !strncmp(g.text[2], "LOOK AT", 7u));
+        CHECK(g.text[1][NAV_INTRO_LABEL - 1u] == ' ' && g.text[1][NAV_INTRO_LABEL] != ' ' && g.text[2][NAV_INTRO_LABEL] != ' ');
+    }
+    /* the fullest list: 20 entries with title, shows and NO RETURN, picked in the middle: the rows still fit */
+    for (i = 0; i < 20u; i++) { many[i] = s7[8]; many[i].title = "Twenty-four letters long"; many[i].shows = "a shows line of the longest length, 49 letters.."; }
+    nav_init(&v, many, 20u, 0xffffffffu);
+    for (i = 0; i < 10u; i++) nav_key(&v, many, 20u, NAV_DOWN, 7u, &index);
+    show("20 titled NO RETURN entries, the 10th picked", &v, many, 20u, "");
 
     /* the credits text: the owner's first line, 64 columns, plain ASCII, a page break alone on its line */
     CHECK(!strcmp(psm_credits_foot[0], "SH4DER-PVR Copyright (c) 2026 Jilted Valkyrie"));

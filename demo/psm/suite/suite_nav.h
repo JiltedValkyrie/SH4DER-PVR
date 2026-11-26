@@ -7,7 +7,8 @@
    runs it and prints every screen as the text the console shows.
 
    THE SCREENS
-     TOP      two options in large letters: TECH DEMOS and DEVELOPER TOOLS. up / down pick, A opens, Y the credits.
+     TOP      two lines on what the disc shows and what to look at, then two options in large letters: TECH DEMOS
+              and DEVELOPER TOOLS. up / down pick, A opens, Y the credits.
               A disc whose entries are all of one group has no TOP screen: its one list is the menu, as before.
      LIST     one group's entries under its own RUN ALL. up / down pick, A starts, B or START goes back to TOP,
               Y the credits. More entries than NAV_WINDOW scroll, with a line that says how many are off screen.
@@ -17,7 +18,9 @@
    a loop, the first again after the last, until B is pressed in the 5 s between two.
 
    A screen is NAV_ROWS rows of 64 characters (the page kit's small font over the title-safe area); a row marked big
-   is drawn twice the size and takes two rows. The last two rows are the copyright foot. */
+   is drawn twice the size and takes two rows. Every screen: the title on row 0, the legend on NAV_KEYS_ROW, the
+   copyright foot on the last two rows. Each row has a kind (NAV_K_), which is all suite_ui.h needs to draw the panels
+   under the text. */
 
 #ifndef SUITE_NAV_H
 #define SUITE_NAV_H
@@ -31,12 +34,20 @@ typedef struct suite_entry {
     unsigned returns;                       /* 1: built with psm_suite.h (the build found its mail) */
     unsigned bytes;
     unsigned group;                         /* NAV_TOOLS or NAV_DEMOS */
+    const char *title;                      /* what it is, in plain words, up to 24 (the JSON's "title"), or 0: name and what */
+    const char *shows;                      /* the features it shows, up to 49 (the JSON's "shows"), or 0 */
 } suite_entry_t;
 
 enum { NAV_TOOLS = 0, NAV_DEMOS = 1, NAV_GROUPS = 2 };
 enum { NAV_TOP = 0, NAV_LIST = 1, NAV_CREDITS = 2 };
 enum { NAV_NONE = 0, NAV_REDRAW = 1, NAV_LAUNCH = 2, NAV_RUN_ALL = 3 };   /* what a button asks of suite_menu.c */
 enum { NAV_WHITE = 0, NAV_GREY = 1, NAV_YELLOW = 2 };
+
+/* What a row is, for the panels under it (suite_ui.h). ITEM / PICK: an option, not picked / picked (a TOP group, RUN
+   ALL, an entry); ITEM_MORE / PICK_MORE: a line that belongs to the option above it; FLAG: the NO RETURN line of the
+   picked entry; MORE: "... more above / below"; INTRO: the TOP screen's two lines, a label then the text. */
+enum { NAV_K_TEXT = 0, NAV_K_HEAD, NAV_K_INTRO, NAV_K_ITEM, NAV_K_ITEM_MORE, NAV_K_PICK, NAV_K_PICK_MORE, NAV_K_FLAG,
+       NAV_K_MORE, NAV_K_HELP, NAV_K_NOTE, NAV_K_KEYS, NAV_K_FOOT, NAV_KINDS };
 
 #define NAV_UP    1u                        /* the buttons, as suite_menu.c hands them over (pressed this pass) */
 #define NAV_DOWN  2u
@@ -77,9 +88,11 @@ static const nav_keydef_t nav_keys[] = {
 
 #define NAV_ROWS 24u
 #define NAV_COLS 64u
-#define NAV_WINDOW 9u                       /* entries of a list on screen at once: rows 4 .. 16 hold them, two detail lines and the two "more" lines */
+#define NAV_WINDOW 8u                       /* entries of a list on screen at once: rows 4 .. 16 hold them, three detail lines and the two "more" lines */
 #define NAV_NOTE_ROW 20u
+#define NAV_KEYS_ROW 21u
 #define NAV_FOOT_ROW 22u
+#define NAV_INTRO_LABEL 9u                  /* the INTRO rows: the label's columns, then the text */
 
 static const char *const nav_group_name[NAV_GROUPS] = { "DEVELOPER TOOLS", "TECH DEMOS" };
 
@@ -95,8 +108,14 @@ typedef struct nav {
 
 typedef struct nav_grid {
     char text[NAV_ROWS][NAV_COLS + 1u];
-    unsigned char colour[NAV_ROWS], big[NAV_ROWS];
+    unsigned char colour[NAV_ROWS], big[NAV_ROWS], kind[NAV_ROWS];
 } nav_grid_t;
+
+/* One key of a legend as it sits in the legend's text: its first column, its length, its buttons (a chip's colour). */
+typedef struct nav_span {
+    unsigned char col, len;
+    unsigned buttons;
+} nav_span_t;
 
 static inline unsigned nav_count(const suite_entry_t *list, unsigned n, unsigned group) {
     unsigned i, c = 0;
@@ -187,6 +206,28 @@ static inline void nav_legend(char *out, size_t size, unsigned screen, int has_t
     }
 }
 
+/* Where each key of nav_legend's text is, for the chips: the spans in the legend's order, their count. A key past
+   `cols` is not counted (the legend is cut there). */
+static inline unsigned nav_legend_spans(nav_span_t *out, unsigned max, unsigned screen, int has_top, unsigned cols) {
+    unsigned i, col = 0, n = 0;
+
+    for (i = 0; i < NAV_KEYS_N && n < max; i++) {
+        const nav_keydef_t *k = &nav_keys[i];
+        size_t len;
+
+        if (k->screen != screen || !k->keys || (k->need_top && !has_top)) continue;
+        if (col) col += 2u;
+        len = strlen(k->keys);
+        if (col + len > cols) break;
+        out[n].col = (unsigned char)col;
+        out[n].len = (unsigned char)len;
+        out[n].buttons = k->buttons;
+        n++;
+        col += (unsigned)(len + 1u + strlen(k->word));
+    }
+    return n;
+}
+
 /* A button. hit: the NAV_ buttons that went down this pass; pages: the credits' pages. For NAV_LAUNCH *index is the
    entry to start; for NAV_RUN_ALL it is the run's first entry, or -1 when no entry of the group can come back. */
 static inline int nav_key(nav_t *v, const suite_entry_t *list, unsigned n, unsigned hit, unsigned pages, int *index) {
@@ -213,7 +254,7 @@ static inline int nav_key(nav_t *v, const suite_entry_t *list, unsigned n, unsig
     }
 }
 
-static inline void nav_put_(nav_grid_t *g, unsigned row, unsigned colour, const char *s) {
+static inline void nav_put_(nav_grid_t *g, unsigned row, unsigned colour, unsigned kind, const char *s) {
     size_t len = strlen(s);
 
     if (row >= NAV_ROWS) return;
@@ -221,59 +262,67 @@ static inline void nav_put_(nav_grid_t *g, unsigned row, unsigned colour, const 
     memcpy(g->text[row], s, len);
     g->text[row][len] = 0;
     g->colour[row] = (unsigned char)colour;
+    g->kind[row] = (unsigned char)kind;
 }
 
-/* The TOP or the LIST screen as text. title: the disc's ("PSM TEST SUITE s7"); note: the menu's one line of news;
-   foot: the two copyright lines. The CREDITS screen is not made here (it is result pages). */
+/* The TOP or the LIST screen as text. title: the disc's ("SH4DER-PVR SUITE s12"); note: the menu's one line of news;
+   foot: the two copyright lines. The CREDITS screen is not made here (it is result pages). An entry with a title
+   shows it in place of its name and what, and when picked its shows line above its read. */
 static inline void nav_grid(nav_grid_t *g, const nav_t *v, const suite_entry_t *list, unsigned n, const char *title, const char *note, const char *const foot[2]) {
     char s[160], keys[96];
     unsigned row, k;
 
     memset(g, 0, sizeof *g);
     nav_legend(keys, sizeof keys, v->screen, v->has_top);
-    nav_put_(g, 0u, NAV_WHITE, title);
+    nav_put_(g, 0u, NAV_WHITE, NAV_K_HEAD, title);
     if (v->screen == NAV_TOP) {
+        nav_put_(g, 1u, NAV_WHITE, NAV_K_INTRO, "SHOWS    the library's effects, and the tests behind them.");
+        nav_put_(g, 2u, NAV_WHITE, NAV_K_INTRO, "LOOK AT  each row: what it is, and the features it shows.");
         for (k = 0; k < 2u; k++) {
             const unsigned group = k == 0u ? NAV_DEMOS : NAV_TOOLS, count = nav_count(list, n, group), on = v->top_cursor == k;
 
             snprintf(s, sizeof s, "%c %s", on ? '>' : ' ', nav_group_name[group]);
-            nav_put_(g, 3u + 5u * k, on ? NAV_YELLOW : NAV_WHITE, s); g->big[3u + 5u * k] = 1;
+            nav_put_(g, 4u + 4u * k, on ? NAV_YELLOW : NAV_WHITE, on ? NAV_K_PICK : NAV_K_ITEM, s); g->big[4u + 4u * k] = 1;
             snprintf(s, sizeof s, "    %u on this disc: %s", count, group == NAV_DEMOS ? "the effects, to look at and compare" : "tests, proofs and debug views");
-            nav_put_(g, 5u + 5u * k, NAV_GREY, s);
+            nav_put_(g, 6u + 4u * k, NAV_GREY, on ? NAV_K_PICK_MORE : NAV_K_ITEM_MORE, s);
         }
-        nav_put_(g, 14u, NAV_WHITE, keys);
     } else {
         const unsigned count = nav_count(list, n, v->group);
 
-        snprintf(s, sizeof s, "%s  %s", nav_group_name[v->group], keys);
-        nav_put_(g, 1u, NAV_WHITE, s);
+        nav_put_(g, 1u, NAV_WHITE, NAV_K_TEXT, nav_group_name[v->group]); g->big[1] = 1;
         snprintf(s, sizeof s, "%c RUN ALL: %s", v->cursor == 0u ? '>' : ' ',
                  v->group == NAV_DEMOS ? "the numbered demos, round and round; B stops" : "the numbered tests in order, 20 s a page");
-        nav_put_(g, 3u, v->cursor == 0u ? NAV_YELLOW : NAV_WHITE, s);
+        nav_put_(g, 3u, v->cursor == 0u ? NAV_YELLOW : NAV_WHITE, v->cursor == 0u ? NAV_K_PICK : NAV_K_ITEM, s);
         row = 4u;
-        if (v->first) { snprintf(s, sizeof s, "     ... %u more above", v->first); nav_put_(g, row++, NAV_GREY, s); }
+        if (v->first) { snprintf(s, sizeof s, "     ... %u more above", v->first); nav_put_(g, row++, NAV_GREY, NAV_K_MORE, s); }
         for (k = v->first; k < count && k < v->first + NAV_WINDOW; k++) {
             const suite_entry_t *e = &list[nav_entry(list, n, v->group, k)];
             const unsigned on = v->cursor == k + 1u;
             char ord[4] = " ";
 
             if (e->order && e->returns) snprintf(ord, sizeof ord, "%u", e->order % 10u);
-            snprintf(s, sizeof s, "%c%s %-10.10s %.49s", on ? '>' : ' ', ord, e->name, e->what);
-            nav_put_(g, row++, on ? NAV_YELLOW : NAV_WHITE, s);
+            if (e->title && e->title[0]) snprintf(s, sizeof s, "%c%s %.60s", on ? '>' : ' ', ord, e->title);
+            else snprintf(s, sizeof s, "%c%s %-10.10s %.49s", on ? '>' : ' ', ord, e->name, e->what);
+            nav_put_(g, row++, on ? NAV_YELLOW : NAV_WHITE, on ? NAV_K_PICK : NAV_K_ITEM, s);
             if (on) {
+                if (e->shows && e->shows[0]) {
+                    snprintf(s, sizeof s, "     shows: %.52s", e->shows);
+                    nav_put_(g, row++, NAV_WHITE, NAV_K_PICK_MORE, s);
+                }
                 snprintf(s, sizeof s, "     %.59s", e->read);
-                nav_put_(g, row++, NAV_GREY, s);
-                if (!e->returns) nav_put_(g, row++, NAV_YELLOW, "     NO RETURN: switch the console off after this test");
+                nav_put_(g, row++, NAV_GREY, NAV_K_PICK_MORE, s);
+                if (!e->returns) nav_put_(g, row++, NAV_YELLOW, NAV_K_FLAG, "     NO RETURN: switch the console off after this test");
             }
         }
-        if (v->first + NAV_WINDOW < count) { snprintf(s, sizeof s, "     ... %u more below", count - v->first - NAV_WINDOW); nav_put_(g, row++, NAV_GREY, s); }
+        if (v->first + NAV_WINDOW < count) { snprintf(s, sizeof s, "     ... %u more below", count - v->first - NAV_WINDOW); nav_put_(g, row++, NAV_GREY, NAV_K_MORE, s); }
     }
-    nav_put_(g, 17u, NAV_GREY, "In a test: hold A+B+X+Y on its result pages for this menu.");
-    nav_put_(g, 18u, NAV_GREY, "A fault page tries the menu after 60 s; if it stays, power off.");
-    nav_put_(g, 19u, NAV_GREY, "No reset button is needed. Every test starts from a full restart.");
-    if (note && note[0]) nav_put_(g, NAV_NOTE_ROW, NAV_YELLOW, note);
-    nav_put_(g, NAV_FOOT_ROW, NAV_GREY, foot[0]);
-    nav_put_(g, NAV_FOOT_ROW + 1u, NAV_GREY, foot[1]);
+    nav_put_(g, 17u, NAV_GREY, NAV_K_HELP, "In a test: hold A+B+X+Y on its result pages for this menu.");
+    nav_put_(g, 18u, NAV_GREY, NAV_K_HELP, "A fault page tries the menu after 60 s; if it stays, power off.");
+    nav_put_(g, 19u, NAV_GREY, NAV_K_HELP, "No reset button is needed. Every test starts from a full restart.");
+    if (note && note[0]) nav_put_(g, NAV_NOTE_ROW, NAV_YELLOW, NAV_K_NOTE, note);
+    nav_put_(g, NAV_KEYS_ROW, NAV_WHITE, NAV_K_KEYS, keys);
+    nav_put_(g, NAV_FOOT_ROW, NAV_GREY, NAV_K_FOOT, foot[0]);
+    nav_put_(g, NAV_FOOT_ROW + 1u, NAV_GREY, NAV_K_FOOT, foot[1]);
 }
 
 #endif /* SUITE_NAV_H */

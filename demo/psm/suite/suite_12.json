@@ -8,7 +8,9 @@
       "order": 1,
       "what": "AO side by side; clip guard; tile cut last. 110 s",
       "read": "photo ALL 4 pages+graph; stages 16, 17 (GUARD label)",
-      "group": "demos"
+      "group": "demos",
+      "title": "Room shading, four ways",
+      "shows": "corner shading: none, baked, ground, texture"
     },
     {
       "name": "ao-lamp",
@@ -17,17 +19,21 @@
       "order": 2,
       "what": "lamp: sss shade, halo; slots in stage 3. ~35 s",
       "read": "photo pages+graph; live: X compare, A near, dn inside",
-      "group": "demos"
+      "group": "demos",
+      "title": "Lamp with a lit shade",
+      "shows": "light through a thin shade, glow halo"
     },
     {
       "name": "hero1",
       "file": "HERO1.BIN",
-      "elf": "build/hero_senior/h2a/sh4der-psm-hero1-h2a.elf",
+      "elf": "build/hero_senior/h2b/sh4der-psm-hero1-h2b.elf",
       "order": 3,
       "what": "Space soldier on a street. ~45 s",
       "read": "he and his shadow stay on screen; photo every page",
       "group": "demos",
-      "credits": "space"
+      "credits": "space",
+      "title": "Space soldier on a street",
+      "shows": "running figure, his shadow, hangars, long street"
     },
     {
       "name": "d1",
@@ -36,7 +42,9 @@
       "order": 1,
       "what": "depth fade: glow cut by walls, soft right. ~70 s",
       "read": "film it all; pages after. Left half steady from stage 3?",
-      "group": "tools"
+      "group": "tools",
+      "title": "Glow that meets a wall",
+      "shows": "a glow that fades where it meets a wall"
     },
     {
       "name": "hens-eyes",
@@ -45,7 +53,9 @@
       "order": 2,
       "what": "hens: rays vs collision sweep, cycles. ~50 s",
       "read": "photo every page + graph; START = live: X mode, Y hens",
-      "group": "tools"
+      "group": "tools",
+      "title": "Hens that see the room",
+      "shows": "two ways to steer hens, and what each costs"
     },
     {
       "name": "pvr-dma",
@@ -54,7 +64,9 @@
       "order": 3,
       "what": "PVR-DMA download proof: VRAM to RAM. ~2 s",
       "read": "PVR-DMA download proof: photo the page and the graph",
-      "group": "tools"
+      "group": "tools",
+      "title": "Copy video memory to RAM",
+      "shows": "a fast copy by the graphics chip, checked"
     },
     {
       "name": "car-tech",
@@ -64,7 +76,9 @@
       "what": "car map autorun: reflect, shadow, heat. ~79 s",
       "read": "photo every page; 10 stages",
       "group": "demos",
-      "credits": "pl4nar"
+      "credits": "pl4nar",
+      "title": "Car in a city by day",
+      "shows": "reflection, car shadow, corner shading, heat haze"
     },
     {
       "name": "car-hills",
@@ -74,7 +88,9 @@
       "what": "car hills autorun: shadow on mesh, cut. ~79 s",
       "read": "photo every page; 11 stages",
       "group": "demos",
-      "credits": "pl4nar"
+      "credits": "pl4nar",
+      "title": "Car on hills",
+      "shows": "car shadow on sloped ground, reflection"
     },
     {
       "name": "car-wet",
@@ -84,7 +100,9 @@
       "what": "wet night road autorun. ~44 s + pages",
       "read": "photo every page; reflection pool, grit, rain",
       "group": "demos",
-      "credits": "pl4nar"
+      "credits": "pl4nar",
+      "title": "Car on a wet night road",
+      "shows": "rain, wet road, light pools, reflection, grit"
     },
     {
       "name": "drive-map",
@@ -94,7 +112,9 @@
       "what": "DRIVE the car: map. Live, you play",
       "read": "RT go, LT brake; START overlay; ABXY = menu",
       "group": "demos",
-      "credits": "pl4nar"
+      "credits": "pl4nar",
+      "title": "Drive a car in a city",
+      "shows": "you drive: reflection, shadow, low camera"
     },
     {
       "name": "drv-hills",
@@ -104,7 +124,9 @@
       "what": "DRIVE the car: hills. Live",
       "read": "lights stay on the car on slopes; ABXY = menu",
       "group": "demos",
-      "credits": "pl4nar"
+      "credits": "pl4nar",
+      "title": "Drive a car on hills",
+      "shows": "you drive: slopes, lights that stay on the car"
     },
     {
       "name": "drv-wet",
@@ -114,7 +136,9 @@
       "what": "DRIVE the wet night road. Live",
       "read": "Y rain; lights and pools; ABXY = menu",
       "group": "demos",
-      "credits": "pl4nar"
+      "credits": "pl4nar",
+      "title": "Drive a wet night road",
+      "shows": "you drive: rain, light pools, wet road"
     },
     {
       "name": "square",
@@ -124,7 +148,9 @@
       "what": "walled square: kit pieces, cast, hens, sun. live",
       "read": "walk it; photo stalls, fountain, gate banners; ABXY menu",
       "group": "demos",
-      "credits": "square"
+      "credits": "square",
+      "title": "Walled town square",
+      "shows": "built from kit pieces, sun shadows, hens"
     }
   ]
 }
