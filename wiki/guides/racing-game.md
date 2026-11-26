@@ -289,19 +289,19 @@ The demo's lamp line at `demo.c:1681` is the same arithmetic as `sh4der_pool_rea
 
 ### The order of one frame
 
-This is `demo_draw` in [demo.c](../../demo/pl4nar/src/demo.c), lines 2512 to 2654, map build.
+This is `demo_draw` in [demo.c](../../demo/pl4nar/src/demo.c), lines 2546 to 2688, map build.
 
-1. Copy the heat window (`heat_copy`, 2545) before any scene opens.
-2. Draw the mirror pass into a [render target](../glossary.md) (2572 to 2599): the street, upside down. It goes first: the screen's reflection layer reads the target, which must be finished before the screen scene starts (2606).
-3. Draw the opaque street and the car body (2608 to 2613).
-4. Compute each paint and glass vertex's place in the target (1447 to 1482).
-5. Open the translucent list (2614). It blends with what is already drawn, so it comes after the solid world.
-6. Draw the shadow tiles and road occlusion (2622; the tiles and the road occlusion are map build only, and the blob discs need `-DPL4NAR_BLOBS`).
-7. Draw the light pools and headlight beams (2624 to 2625).
-8. Draw the reflection layer: paint added, then glass blended (2626).
-9. Draw the halos (2629 to 2630).
-10. Draw the heat haze if on (2639 to 2646; a shimmer of hot air over the road's far end; off at start, line 273), then the hexagon heat if its band is on (2650; on only in a build with `PL4NAR_HEAT_HEX`, `demo.c:71-72`).
-11. Draw the HUD and end the frame (2652 to 2653).
+1. Copy the heat window (`heat_copy`, 2579) before any scene opens.
+2. Draw the mirror pass into a [render target](../glossary.md) (2606 to 2633): the street, upside down. It goes first: the screen's reflection layer reads the target, which must be finished before the screen scene starts (2640).
+3. Draw the opaque street and the car body (2642 to 2647).
+4. Compute each paint and glass vertex's place in the target (1455 to 1505).
+5. Open the translucent list (2648). It blends with what is already drawn, so it comes after the solid world.
+6. Draw the shadow tiles and road occlusion (2656; the tiles and the road occlusion are map build only, and the blob discs need `-DPL4NAR_BLOBS`).
+7. Draw the light pools and headlight beams (2658 to 2659).
+8. Draw the reflection layer: paint added, then glass blended (2660).
+9. Draw the halos (2663 to 2664).
+10. Draw the heat haze if on (2673 to 2680; a shimmer of hot air over the road's far end; off at start in the default build, line 285; on from the start with PL4NAR_HEAT_HEX_FREE), then the hexagon heat if its band is on (2684; on only in a build with `PL4NAR_HEAT_HEX`, `demo.c:71-72`).
+11. Draw the HUD and end the frame (2686 to 2687).
 
 ### What it costs
 
@@ -354,11 +354,11 @@ Use `MAP=1`, which sets `-DPL4NAR_MAP` (`demo/pl4nar/Makefile:34`). Without it, 
 1. **Set up.** Use a current KallistiOS and the SH4ZAM maths library it carries. Include `sh4der_pl4nar.h`, `sh4der_pool.h` and `sh4der_spark.h`. You should see the road and car, nothing new.
 2. **Plane and normals.** Set the plane `n = (0, 1, 0)`, `d = 0` (demo.c:314). Bake normals for the reflective parts with `tools/pl4nar_normals.py` ([AGENTS](../../AGENTS.md)).
 3. **At load.** Call `sh4der_pl4nar_target_init(&target, 256, 128)`. A 0 means no video memory, so draw no layer. Then the paint and glass presets, and one layer header each: additive (1) for paint, blended (0) for glass (`demo/pl4nar/src/gfx_pvr.c:229` to 230). Check that `pvr_mem_available()` drops by the target's bytes.
-4. **Each frame, before the screen.** Call `sh4der_pl4nar_view_build` with the plane, eye, target, field of view `0.96 × 1.55` and a fade of a quarter of the reach (demo.c:2557). A 0 means draw no layer.
-5. **Mirror pass.** Open the target with culling reversed (`GFX_CULL_MIRROR`, demo.c:2580). Draw sky, buildings and props at low detail, and skip the car. The demo wraps its pass in its own `gfx_reflect_begin` and `gfx_reflect_end` (2572, 2599); `sh4der_pl4nar_pass` is the library's version. You should see the street upside down, horizon at the top. Upright means the mirror is missing; empty means the cull is the wrong way ([AGENTS](../../AGENTS.md)).
-6. **Shadow casters.** Draw the cars' casters into the target's right half (`draw_tiles`, demo.c:2585). Day only (demo.c:2012).
-7. **Screen.** Draw sky, road, buildings and props, then the car body opaque (demo.c:2608 to 2613, 1431).
-8. **Lookups.** Call `sh4der_pl4nar_begin`, then `sh4der_pl4nar_shade` and `sh4der_pl4nar_argb` per paint and glass vertex. The map build's u is `gfx_reflect_u_scale()` halved, because the mirror is the left half (demo.c:1446 to 1470). Reload your own rows before any other transform (2620).
+4. **Each frame, before the screen.** Call `sh4der_pl4nar_view_build` with the plane, eye, target, field of view `0.96 × 1.55` and a fade of a quarter of the reach (demo.c:2591). A 0 means draw no layer.
+5. **Mirror pass.** Open the target with culling reversed (`GFX_CULL_MIRROR`, demo.c:2614). Draw sky, buildings and props at low detail, and skip the car. The demo wraps its pass in its own `gfx_reflect_begin` and `gfx_reflect_end` (2606, 2633); `sh4der_pl4nar_pass` is the library's version. You should see the street upside down, horizon at the top. Upright means the mirror is missing; empty means the cull is the wrong way ([AGENTS](../../AGENTS.md)).
+6. **Shadow casters.** Draw the cars' casters into the target's right half (`draw_tiles`, demo.c:2619). Day only (demo.c:2012).
+7. **Screen.** Draw sky, road, buildings and props, then the car body opaque (demo.c:2642 to 2647, 1431).
+8. **Lookups.** Call `sh4der_pl4nar_begin`, then `sh4der_pl4nar_shade` and `sh4der_pl4nar_argb` per paint and glass vertex. The map build's u is `gfx_reflect_u_scale()` halved, because the mirror is the left half (demo.c:1455 to 1474). Reload your own rows before any other transform (2654).
 9. **Translucent list.** Open it (2557), then shadows (2565), pools and beams (2567 to 2568; [pool](../effects/pool.md)), the layer (2569), and halos (2572 to 2573; [spark](../effects/spark.md)). You should see a dark shadow under the car, the street in the paint, and lamp glow at night.
 10. **Finish.** Draw the HUD, then `gfx_frame_end` (2595 to 2596).
 11. **Check the frame runs.** The mirror is upside down, the car has a shadow, and you time the frame on your own console. The c7 build ran at 25.25 ms (PVR-174); yours will differ.
