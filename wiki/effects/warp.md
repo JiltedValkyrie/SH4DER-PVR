@@ -47,7 +47,7 @@ As-stated, not timed:
 
 - The strip block is one grid row, 2.6 KB, 32-byte aligned, sent in one store-queue run (warp.c:50-53).
 - The sideways waves cost one sine per source per row; only the ring is per vertex (warp.h:~28).
-- VRAM: the frame texture, 160 KB at 320 × 240 or 640 KB at 640 × 480 (README effect table).
+- VRAM: the frame texture, 512 × 256 RGB565 (`include/sh4der_warp.h:13-14`, `SH4DER_WARP_TEX_W` 512 at line 69): 256 KB by arithmetic (ESTIMATE, width × height × 2 bytes). The README effect table gives 160 KB and 640 KB; that conflicts with the header, and this page follows the header.
 
 **How the source follows these numbers.** `src/sh4der_warp.c:50-71` picks the send per pass from h2 test 7:
 

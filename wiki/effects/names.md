@@ -41,6 +41,7 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | psm_pvr | Shadow map drawn by the PVR | The shadow map drawn by the graphics chip from the casters' shapes | Shadows |
 | ao | Corner darkening | Darkens creases and corners: for a bake, and a cue from the picture (ambient occlusion) | Shadows |
 | aobake | Baked corner shading | Corner shading baked into vertex colour at load, against exact shapes | Shadows |
+| aomesh | Mesh corner shading | Corner shading baked at load against a whole triangle mesh (walls, buildings), with a byte grid for the ground | Shadows |
 | aosky | Sky shading | Darkens flat ground under props, drawn into the sun's shadow target | Shadows |
 | sh4dow-dc | Soft character shadows | Soft shadows on characters from limb columns (a separate library) | Shadows |
 | bump | Normal map | Lit surface bumps with no bump unit: blend passes | Surfaces and materials |

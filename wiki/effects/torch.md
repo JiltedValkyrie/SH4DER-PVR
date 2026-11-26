@@ -34,7 +34,7 @@ As-stated. None of it is measured on a console.
 
 | Item | Cost | Source |
 |---|---|---|
-| Two meshes | 9 strips of 34 vertices: 306 vertices, 288 triangles a frame | README:630; torch.h:113 |
+| Two meshes | 9 strips of 34 vertices: 306 vertices, 288 triangles a frame | README:651; torch.h:113 |
 | Vertex buffer | `TORCH_VERTS` × 16 B (4.9 KB) | torch.h:113 |
 | Texture, VRAM | none | |
 
@@ -51,7 +51,7 @@ See `README.md` "Torch tuning" (README:660-687).
 ## Pitfalls
 
 - **AA 2X.** With AA 2X on, the PVR renders 1,280 wide. Scale x exactly once: in `cx`, the x scale given to `sh4der_torch_radii`, and the width given to `sh4der_torch_umax`. Scale it twice and the spot sits on the right edge as an oval (README:632; torch.h:~40-46).
-- Gate the torch from baked luminance, not from the frame read, or the carve feeds back (README:628).
+- Gate the torch from baked luminance, not from the frame read, or the carve feeds back (README:649).
 - The boost mesh's first band is made of zero-area triangles (torch.c:39). The [Send checks](guard.md) should drop them. A real console draws zero-area triangles as bright lines (README:1304).
 - Distances are scaled for one world unit being about 3 m in the author's game (torch.h:~66). Scale them for your own units.
 

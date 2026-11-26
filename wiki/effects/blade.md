@@ -47,8 +47,8 @@ See `README.md` "Blade tuning" (README:215-255), with the WHITE preset (README:2
 
 ## Pitfalls
 
-- Bad parameters give a dark frame: intensity 0 and light 0. `prepare` returns 0 (README:209).
-- Give each object its own phase (57 × the object's index), so a group of them does not pulse together (README:209).
+- Bad parameters give a dark frame: intensity 0 and light 0. `prepare` returns 0 and leaves the frame dark (`include/sh4der_blade.h:144`, the comment on `sh4der_blade_prepare`).
+- Give each object its own phase (57 × the object's index), so a group of them does not pulse together (README:229).
 - Strides are in bytes and must be a multiple of 4 (README:1316). An unaligned 4-byte write stops a real console.
 
 ## Related

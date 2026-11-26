@@ -55,7 +55,7 @@ See `README.md` "Look tuning" (README:412-429) and "Recommended settings" (READM
 
 ## Pitfalls
 
-- The log and exp are short series on both paths. SH4ZAM's fast forms read log(1) as 0.040 and exp(-0.012) as 0.963, which gives a grey cast and a drift (README:394).
+- The log and exp are short series on both paths. SH4ZAM's fast forms read log(1) as 0.040 and exp(-0.012) as 0.963, which gives a grey cast and a drift (README:415).
 - Hold the eye while a flashlight is lit (look.h:45-58).
 - Hand the step a read with the gain taken off, or the eye chases itself (look.h:45-58). [Frame read](frame.md) takes it off.
 - Draw the layers under the HUD, depth always, no depth write (README:410).

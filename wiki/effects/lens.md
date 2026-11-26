@@ -32,7 +32,7 @@ The init and draw functions are at lens.h:~407-417. `AGENTS.md` has no section o
 |---|---|---|
 | Grain tile | 64 × 64 × 2 B = 8 KB, the only VRAM the lens uses | as-stated (lens.h:44; lens.c:16; README:546) |
 | Vignette quality | worst Gouraud error 9.1/255 at 16 spokes, 4.0 at 24, 2.3 at 32 | ESTIMATE, a host sweep, not hardware (README:541; lens.h:68) |
-| Vignette vertex count | spokes × rings; the count is not stated | |
+| Vignette vertex count | 594 vertices and 288 triangles for the whole overlay set, from spokes × rings (`src/sh4der_lens.c:17`) | |
 
 ## Recommended limits
 

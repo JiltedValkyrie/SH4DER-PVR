@@ -51,11 +51,11 @@ As-stated counts (README:816; spark.h:55-57). There are no times.
 
 ## Tuning
 
-See `README.md` "Spark tuning" (README:839-846).
+See `README.md` "Spark tuning" (README:933).
 
 ## Pitfalls
 
-- The screen record must set both depth fields, or be made with `_make` (README:835).
+- The screen record must set both depth fields, or be made with `_make` (README:929).
 - Draw inside the translucent list, after the world.
 - Use both [guards](guard.md). A client with its own vertex path calls `sh4der_spark_quad` and tests both triangles with `sh4der_tri_area_ok`.
 

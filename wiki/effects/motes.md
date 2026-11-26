@@ -19,11 +19,11 @@ Version: v0.10, passes its maths tests (motes.h:37).
 
 ## Call order
 
-See README:1046-1073 and the per-frame order at motes.h:29-31. `AGENTS.md` has no section of its own.
+See the README section 'The motes effect' and the per-frame order at motes.h:29-31. `AGENTS.md` has no section of its own.
 
 ## Cost
 
-As-stated counts for the default look: 3 emitters, 2 in range (README:1054; motes.h:33-35; motes.c:17). There are no times.
+As-stated counts for the default look: 3 emitters, 2 in range (README 'The motes effect', cost line at README:1245; motes.h:33-35; motes.c:17). There are no times.
 
 | Item | Cost |
 |---|---|
@@ -36,9 +36,9 @@ As-stated counts for the default look: 3 emitters, 2 in range (README:1054; mote
 
 ## Recommended limits
 
-- `max_draw` from 1 to 128; the default is 96 (README:1052; `SH4DER_MOTES_DRAW_MAX` 128).
+- `max_draw` from 1 to 128; the default is 96 (the cost line at README:1245 uses 96; `SH4DER_MOTES_DRAW_MAX` 128, README:1271).
 - Slots per emitter at most 256 (motes.h:60).
-- On the default look, 40 % of the quads are culled (`cull_k`, README:~1051).
+- On the default look, 40 % of the quads are culled (`cull_k`, README 'The motes effect').
 
 ## Tuning
 
