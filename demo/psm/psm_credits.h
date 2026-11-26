@@ -7,7 +7,8 @@
    psm_credits_foot   two lines for the foot of every menu screen
    psm_credits_text   the CREDITS screen's lines, 64 columns; "\f" alone starts a new page
    PSM_CREDITS_PL4NAR defined: the disc carries the street demo, and its art's page is in.
-   PSM_CREDITS_SQUARE defined: the disc carries the walled square, and its art's page is in. */
+   PSM_CREDITS_SQUARE defined: the disc carries the walled square, and its art's page is in.
+   PSM_CREDITS_UI defined: the menu is drawn with the UI panels, and their page is in. */
 
 #ifndef PSM_CREDITS_H
 #define PSM_CREDITS_H
@@ -144,6 +145,11 @@ static const char *const psm_credits_text[] = {
     "Sky: Kloofendal 48d Partly Cloudy (Pure Sky) by Greg Zaal",
     "(original) and Jarod Guest (sky edits), Poly Haven",
     "(polyhaven.com), CC0 1.0.",
+#endif
+#ifdef PSM_CREDITS_UI
+    "\f",
+    "MENU",
+    "UI panels: UI Pack (2.0) by Kenney (www.kenney.nl), CC0 1.0.",
 #endif
 };
 #define PSM_CREDITS_N ((unsigned)(sizeof psm_credits_text / sizeof psm_credits_text[0]))
