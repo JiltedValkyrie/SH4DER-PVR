@@ -584,11 +584,11 @@ static inline unsigned psm_repeat_step(psm_repeat_t *r, int held, float dt) {
    left / right (and A) change it. */
 enum {
     PSM_ROW_ROUTE, PSM_ROW_MAP, PSM_ROW_HOLD, PSM_ROW_CASTERS, PSM_ROW_DIST, PSM_ROW_SIZE, PSM_ROW_FILTER_A, PSM_ROW_PCF, PSM_ROW_BIAS_A, PSM_ROW_BIAS_B, PSM_ROW_WARP_NEAR, PSM_ROW_AZIMUTH,
-    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROW_FREEZE, PSM_ROW_SEND, PSM_ROWS
+    PSM_ROW_ELEVATION, PSM_ROW_INSET, PSM_ROW_READOUT, PSM_ROW_PRESET, PSM_ROW_INVY, PSM_ROW_SCENE, PSM_ROW_TIME, PSM_ROW_TSPEED, PSM_ROW_FREEZE, PSM_ROW_SEND, PSM_ROW_AO, PSM_ROWS
 };
 static const char *const psm_row_name[PSM_ROWS] = {
     "ROUTE", "MAP", "MAP HOLD", "CASTERS", "DRAW DISTANCE", "MAP SIZE", "A FILTER", "B FILTER", "BIAS CONST", "BIAS SLOPE", "WARP NEAR", "SUN AZIMUTH", "SUN ELEVATION", "INSET", "READOUT", "PRESETS", "INVERT Y",
-    "SCENE", "TIME", "TIME SPEED", "FREEZE", "TA SEND"
+    "SCENE", "TIME", "TIME SPEED", "FREEZE", "TA SEND", "AO"
 };
 
 /* The rows as data, for a panel that draws the table: the group (a tab), the kind, and for a slider its range and step in
@@ -624,6 +624,7 @@ static const psm_row_def_t psm_row_def[PSM_ROWS] = {
     { PSM_GRP_SUN,    PSM_RK_CHOICE, 0, 1, 0.0f, 0.0f, 0.0f },        /* TIME SPEED */
     { PSM_GRP_SUN,    PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* FREEZE */
     { PSM_GRP_VIEW,   PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* TA SEND */
+    { PSM_GRP_VIEW,   PSM_RK_TOGGLE, 0, 1, 0.0f, 0.0f, 0.0f },        /* AO */
 };
 #define PSM_ROUTES 3                  /* A, B, AB (demo/psm/psm_mapsrc.h: PSM_ROUTE_AB 2) */
 
@@ -675,6 +676,11 @@ typedef struct psm_state {
     unsigned tpreset;    /* the town's last preset */
     int atmos;           /* 1: the sky band, the hills and the quadratic fog (demo/psm/psm_sky.h, TOWN_LOOK.md section 3); the town's
                             default, and the slot the LOOK row will set (LAUNCH 0, LATE 1) */
+    int hide;            /* 1: nothing of the program's own is drawn over the picture (the readout, the panel, the inset, the
+                            heartbeat): Y + A together, panel closed, turns it on and off; opening the panel shows all again */
+    int ao;              /* AO: 1 the baked occlusion (psm_ao.h) darkens the ambient light; the default */
+    unsigned ao_ms;      /* what the bake took at load, ms (the program's clock; 0: not timed, a host) */
+    int ao_none;         /* 1: the bake did not run (no memory, or a scene with nothing static) */
 } psm_state_t;
 
 /* What the program reads from the controller: the PSM_BTN_ bits held, the stick -1 .. 1 (y down positive), the triggers 0 .. 1. */
@@ -693,6 +699,7 @@ static inline void psm_state_default(psm_state_t *st) {
     st->filter_a = 1;
     st->hold = 1;
     st->send_runs = 1;
+    st->ao = 1;
     st->invert_y = 1;
     st->size_i = 2u;                                   /* 256 (512 is a choice for route B and AB) */
     st->az = psm_preset_sun[0][0]; st->el = psm_preset_sun[0][1];
@@ -812,6 +819,7 @@ static inline void psm_row_change(psm_state_t *st, int row, int d) {
         case PSM_ROW_TSPEED: st->tspeed = (st->tspeed + (d > 0 ? 1u : PSM_TIME_SPEEDS - 1u)) % PSM_TIME_SPEEDS; break;
         case PSM_ROW_FREEZE: st->freeze = !st->freeze; break;
         case PSM_ROW_SEND: st->send_runs = !st->send_runs; break;
+        case PSM_ROW_AO: st->ao = !st->ao; break;
         default: break;
     }
     st->split = st->readout == 2;
@@ -856,6 +864,11 @@ static inline const char *psm_row_value(const psm_state_t *st, int row, char *bu
             return buf;
         case PSM_ROW_FREEZE: return st->freeze ? "on: people and hens stand" : "off";
         case PSM_ROW_SEND: return st->send_runs ? "SQ RUNS  8 KB a run" : "PVR_DR  a vertex a write";
+        case PSM_ROW_AO:
+            if (!st->ao) return "off";
+            if (st->ao_none) return "ON  (not baked: all open)";
+            if (!st->ao_ms) return "ON  baked a vertex (SH-4)";
+            snprintf(buf, cap, "ON  SH-4 bake %u.%u s at load", st->ao_ms / 1000u, st->ao_ms % 1000u / 100u); return buf;
         default: return "?";
     }
 }
@@ -885,6 +898,7 @@ static inline int32_t psm_row_int(const psm_state_t *st, int row) {
         case PSM_ROW_TSPEED: return (int32_t)st->tspeed;
         case PSM_ROW_FREEZE: return st->freeze;
         case PSM_ROW_SEND: return st->send_runs;
+        case PSM_ROW_AO: return st->ao;
         default: return 0;
     }
 }
@@ -931,7 +945,9 @@ static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, cons
         if (down & (PSM_BTN_B | PSM_BTN_START)) st->menu = 0;
         lt = rt = 0.0f;                                         /* the triggers pick the tab here, not the sun */
     } else {
-        if (down & PSM_BTN_START) { st->menu = 1; if (psm_row_def[st->row].group != st->grp) st->grp = psm_row_def[st->row].group; }
+        if (down & PSM_BTN_START) { st->menu = 1; st->hide = 0; if (psm_row_def[st->row].group != st->grp) st->grp = psm_row_def[st->row].group; }
+        if ((held & (PSM_BTN_Y | PSM_BTN_A)) == (PSM_BTN_Y | PSM_BTN_A) && (st->last & (PSM_BTN_Y | PSM_BTN_A)) != (PSM_BTN_Y | PSM_BTN_A))
+            st->hide = !st->hide;                               /* Y + A (forward and back: no step): a clean picture, and back */
         if (down & PSM_BTN_UP) psm_row_change(st, PSM_ROW_ROUTE, 1);
         if (down & PSM_BTN_DOWN) st->warp = !st->warp;
         for (k = 0; k < nr; k++) { if (st->scene) psm_clock_step_(st, PSM_CLOCK_STEP); else st->az = psm_wrap_360_(st->az + 5.0f); }
@@ -1036,6 +1052,14 @@ typedef struct psm_frame {
     float mlut_key[6];          /* the light it was made for: amb, sunc */
     float mlut_pal[PSM_PAL_MAX][3];        /* and the palette */
     uint32_t mlut[PSM_PAL_MAX][256];       /* PSM_COLOUR_TABLE: a model vertex's colour by its palette entry and its sun share */
+    /* the baked occlusion (psm_ao.h's psm_ao_frame sets these). mao NULL and gao_on 0: the colours as they always were */
+    const uint8_t *mao;         /* a byte a model vertex, 255 open .. 0 closed; it multiplies the ambient light */
+    int gao_on;                 /* gao holds this frame's ground vertices' bytes */
+    unsigned gao_gen, gao_n;    /* gpos_gen and gvn they were read for */
+    uint8_t gao[PSM_GV_MAX];
+    uint32_t glut_a[256], glut_s[256];     /* the ground's ambient part by its byte, its sun part by its shadow level */
+    uint32_t mlut_a[PSM_PAL_MAX][256];     /* PSM_COLOUR_TABLE with mao: a model vertex's ambient part by its palette entry and its byte */
+    uint32_t mlut_s[PSM_PAL_MAX][256];     /* and its sun part by its palette entry and its sun share */
 } psm_frame_t;
 
 static const float psm_probe_m[4] = { 4.0f, 10.0f, 25.0f, 60.0f };
@@ -1561,6 +1585,8 @@ static inline void psm_colour_table_(psm_frame_t *f, const psm_scene_t *s) {
             const float d = (float)r * (1.0f / 255.0f);
 
             f->mlut[k][r] = psm_pack_rgb(alb[0] * psm_light_c(s, 0u, d), alb[1] * psm_light_c(s, 1u, d), alb[2] * psm_light_c(s, 2u, d));
+            f->mlut_a[k][r] = psm_pack_rgb(alb[0] * s->amb[0] * d, alb[1] * s->amb[1] * d, alb[2] * s->amb[2] * d);
+            f->mlut_s[k][r] = psm_pack_rgb(alb[0] * s->sunc[0] * d, alb[1] * s->sunc[1] * d, alb[2] * s->sunc[2] * d);
         }
     }
     memcpy(f->mlut_key, s->amb, sizeof s->amb); memcpy(f->mlut_key + 3, s->sunc, sizeof s->sunc);
@@ -1568,8 +1594,19 @@ static inline void psm_colour_table_(psm_frame_t *f, const psm_scene_t *s) {
     f->mlut_n = n; f->mlut_ok = 1;
 }
 
+/* Two packed colours added a channel, each stopping at 255. For the occlusion's table form: colour = the ambient part
+   by the byte + the sun part by the sun's share. */
+static inline uint32_t psm_rgb_add_(uint32_t a, uint32_t b) {
+    uint32_t rb = (a & 0x00ff00ffu) + (b & 0x00ff00ffu), g = (a & 0x0000ff00u) + (b & 0x0000ff00u);
+
+    rb |= ((rb >> 8) & 0x00010001u) * 0xffu;
+    g |= ((g >> 8) & 0x00000100u) * 0xffu;
+    return 0xff000000u | (rb & 0x00ff00ffu) | (g & 0x0000ff00u);
+}
+
 /* This frame's colours: they follow the sun and the shadows, so they are made every frame, the ground's from a 256 level
-   table. The light by channel (the field's is grey). */
+   table. The light by channel (the field's is grey). With the baked occlusion (f->mao, f->gao_on: psm_ao.h) the ambient
+   part is multiplied by the vertex's byte: colour = albedo x (ambient x ao + sun x direct). */
 static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
     const int seen = (f->colour_opt & PSM_COLOUR_SEEN) && f->vis_ok;
     unsigned i, r;
@@ -1579,12 +1616,40 @@ static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
 
         f->glut[r] = psm_pack_rgb(psm_light_c(s, 0u, d), psm_light_c(s, 1u, d), psm_light_c(s, 2u, d));
     }
-    for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut[f->glit[i]];
+    if (f->gao_on) {
+        for (r = 0; r < 256u; r++) {
+            const float a = (float)r * (1.0f / 255.0f), d = f->sun[1] * a;
+
+            f->glut_a[r] = psm_pack_rgb(s->amb[0] * a, s->amb[1] * a, s->amb[2] * a);
+            f->glut_s[r] = psm_pack_rgb(s->sunc[0] * d, s->sunc[1] * d, s->sunc[2] * d);
+        }
+        for (i = 0; i < f->gvn; i++) f->gcol[i] = psm_rgb_add_(f->glut_a[f->gao[i]], f->glut_s[f->glit[i]]);
+    } else
+        for (i = 0; i < f->gvn; i++) f->gcol[i] = f->glut[f->glit[i]];
     if (f->colour_opt & PSM_COLOUR_TABLE) {
         psm_colour_table_(f, s);
+        if (f->mao) {
+            for (i = 0; i < s->mvn; i++) {
+                const unsigned k = s->mkind[i] < s->paln ? s->mkind[i] : 0u;
+
+                if (seen && !f->mvis[i]) continue;
+                f->mcol[i] = psm_rgb_add_(f->mlut_a[k][f->mao[i]], f->mlut_s[k][f->mlit[i]]);
+            }
+            return;
+        }
         for (i = 0; i < s->mvn; i++) {
             if (seen && !f->mvis[i]) continue;
             f->mcol[i] = f->mlut[s->mkind[i] < s->paln ? s->mkind[i] : 0u][f->mlit[i]];
+        }
+        return;
+    }
+    if (f->mao) {
+        for (i = 0; i < s->mvn; i++) {
+            const float d = (float)f->mlit[i] * (1.0f / 255.0f), a = (float)f->mao[i] * (1.0f / 255.0f);
+            const float *alb = s->pal[s->mkind[i] < s->paln ? s->mkind[i] : 0u];
+
+            if (seen && !f->mvis[i]) continue;
+            f->mcol[i] = psm_pack_rgb(alb[0] * (s->amb[0] * a + s->sunc[0] * d), alb[1] * (s->amb[1] * a + s->sunc[1] * d), alb[2] * (s->amb[2] * a + s->sunc[2] * d));
         }
         return;
     }
@@ -1785,8 +1850,8 @@ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const ps
     else PSM_LINE_(10, "DIST %u m: cut, fog from %u m   map casters: all distances", (unsigned)psm_dist_m[st->dist_i],
                    (unsigned)(psm_dist_m[st->dist_i] * psm_fog_start(st) + 0.5f));
     PSM_LINE_(9, "%s", st->menu ? "L/R TAB  UP/DN ROW  </> A ADJUST  B CLOSE"
-                                : st->scene ? "stick look YAXB walk  Up route  Dn map  START menu  L/R time"
-                                : "stick look YAXB walk  Up route  Dn map  START menu  L/R sun");
+                                : st->scene ? "stick look YAXB walk Up route Dn map START menu L/R time Y+A HUD"
+                                : "stick look YAXB walk Up route Dn map START menu L/R sun Y+A HUD");
 }
 
 #undef PSM_LINE_

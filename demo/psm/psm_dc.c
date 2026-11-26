@@ -55,6 +55,7 @@
 #include "psm_mapsrc.h"
 #include "psm_sky.h"
 #include "psm_ground.h"
+#include "psm_ao.h"
 #define PSM_FAULT_IMPL
 #include "psm_fault.h"
 #ifdef PSM_VIEWCOST                 /* the view cost test (psm_viewcost.h): a script for the pad and a timer between the frame's steps */
@@ -347,6 +348,19 @@ static void look_apply(void) {
     look_pending = 0;
 }
 
+/* The baked occlusion (psm_ao.h): once a scene, at load, on the SH-4; timed for the AO row. The beat keeps the fault
+   catcher's watchdog quiet over the seconds it takes. */
+static psm_ao_t ao;
+static void ao_tick(void) { psm_fault_beat(&fault_crumbs); }
+static void ao_bake(void) {
+    const uint64_t t0 = timer_us_gettime64();
+    const int ok = psm_ao_bake(&ao, &scene, ao_tick);
+
+    state.ao_ms = (unsigned)((timer_us_gettime64() - t0) / 1000u);
+    state.ao_none = !ok;
+    printf("psm: AO bake %s, %u ms, %u rays, %u ray-triangle tests, ground grid %u x %u\n", ok ? "ran" : "DID NOT RUN", state.ao_ms, (unsigned)ao.rays, (unsigned)ao.tests, ao.gw, ao.gh);
+}
+
 /* The SCENE row changed: the other scene, its walk, its ground; the frame's cached positions and placement are old. */
 static void scene_switch(void) {
     pvr_wait_ready();
@@ -355,6 +369,7 @@ static void scene_switch(void) {
     else psm_scene_init(&scene);
     psm_scene_limits(&scene, &walk_lim);
     frame.gpos_ok = 0; frame.place_ok = 0;
+    ao_bake();
     ground_texture();
     psm_mapsrc_reset(&mapsrc);
     fog_dist = 0.0f;
@@ -376,6 +391,7 @@ static int load(void) {
     psm_scene_init_town(&scene);                            /* the image boots into the town, 14:00, the first view */
     psm_scene_limits(&scene, &walk_lim);
     psm_state_town(&state);
+    ao_bake();
     frame.place_opt = PSM_PLACE_DEFAULT;                    /* the placement's options (psm_scene.h, PSM_PLACE_*): the square's build 7 */
     ground_texture();
     ab_stub.f = &frame; ab_stub.s = &scene;
@@ -771,6 +787,7 @@ int main(void) {
             win_us[1] += t3 - t2; win_us[2] += timer_us_gettime64() - t3;
         }
         VC_T(VC_M_PARTS);
+        psm_ao_frame(&frame, state.ao ? &ao : NULL);   /* AO: the bytes for the colours, or none (the row) */
         psm_colour(&frame, &scene);          /* the colours: this frame's, after the lit and the lookup */
         VC_T(VC_M_COLOUR);
         look_update();

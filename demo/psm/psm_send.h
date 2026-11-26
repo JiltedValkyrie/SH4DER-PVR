@@ -329,6 +329,7 @@ static inline void psm_send_hud(psm_sink_t *k, const psm_state_t *st, int a_draw
     const float base = 420.0f;
     unsigned i;
 
+    if (st->hide) return;                                                      /* Y + A: a clean picture, nothing of ours over it */
     psm_send_text_line(k, 0u, 16.0f, 24.0f);
     psm_send_text_line(k, 11u, 16.0f, 42.0f);                                  /* the frame, the vertex buffer, SHED */
     if (st->menu) psm_send_panel(k, st);                                       /* open: the panel has lines 1 .. 9, 12, 13 */
