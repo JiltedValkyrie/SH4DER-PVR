@@ -44,6 +44,7 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | fakeaf | Sharper floors at an angle | A floor or road seen at a grazing angle kept sharp across the view, by a mip bias per polygon from its slope | Surfaces and materials |
 | ground | Paving slab texture | A tiling texture of stone slabs made from a seed at load, so a floor needs no file | Surfaces and materials |
 | aomesh | Mesh corner shading | Corner shading baked at load against a whole triangle mesh (walls, buildings), with a byte grid for the ground | Shadows |
+| raytri | A ray against a triangle | One ray-triangle test shared by the mesh bake and the ray bench; no divide where none is needed | Tools and safety |
 | aosky | Sky shading | Darkens flat ground under props, drawn into the sun's shadow target | Shadows |
 | sh4dow | Soft character shadows | Soft shadows on characters from limb columns, foot cones and a heightfield sun (folded into this library; it began as SH4DOW-DC) | Shadows |
 | bump | Normal map | Lit surface bumps with no bump unit: blend passes | Surfaces and materials |

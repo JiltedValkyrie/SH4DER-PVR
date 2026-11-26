@@ -57,6 +57,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "sh4der_core.h"
+#include "sh4der_raytri.h"
 
 /* Start values, not limits (README "Aomesh tuning"). The town's bytes are pinned for these values. */
 #define SH4DER_AOMESH_RAYS   12         /* rays a vertex: a golden-ratio spiral over the hemisphere, cosine weighted */
@@ -186,21 +187,10 @@ static inline int sh4der_aomesh_need(const sh4der_aomesh_tris_t *m, const sh4der
 static inline float sh4der_aomesh_tri_(const float o[3], const float d[3], const float a[3], const float b[3], const float c[3], float reach,
                                        uint32_t *recips) {
     const float e1[3] = { b[0] - a[0], b[1] - a[1], b[2] - a[2] }, e2[3] = { c[0] - a[0], c[1] - a[1], c[2] - a[2] };
-    float h[3], s[3], q[3], det, inv, un, vn, t;
+    sh4der_raytri_num_t n;
 
-    sh4der_cross_(d, e2, h);
-    det = sh4der_dot3_(e1, h);
-    if (det > -1e-9f && det < 1e-9f) return -1.0f;
-    s[0] = o[0] - a[0]; s[1] = o[1] - a[1]; s[2] = o[2] - a[2];
-    un = sh4der_dot3_(s, h);
-    if (det > 0.0f ? (un < 0.0f || un > det) : (un > 0.0f || un < det)) return -1.0f;
-    sh4der_cross_(s, e1, q);
-    vn = sh4der_dot3_(d, q);
-    if (det > 0.0f ? (vn < 0.0f || un + vn > det) : (vn > 0.0f || un + vn < det)) return -1.0f;
-    inv = det > 0.0f ? sh4der_recip_pos_(det) : -sh4der_recip_pos_(-det);
-    (*recips)++;
-    t = sh4der_dot3_(e2, q) * inv;
-    return t > 1e-4f && t < reach ? t : -1.0f;
+    if (!sh4der_raytri_num(o, d, a, e1, e2, &n)) return -1.0f;          /* the band, u, u + v (sh4der_raytri.h) */
+    return sh4der_raytri_t(&n, reach, recips);                           /* the reciprocal, t, the counter */
 }
 
 /* The bake's state: the mesh, its boxes and cells, the counts. */

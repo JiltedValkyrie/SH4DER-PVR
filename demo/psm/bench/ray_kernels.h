@@ -22,6 +22,7 @@
 
 #include "sh4zam/shz_sh4zam.h"
 #include "../town_ray_data.h"
+#include "../../../include/sh4der_raytri.h"   /* the ray-triangle kernel the library's bakes use too (ray_tri, ray_tri_sun wrap it) */
 
 #define RAY_N 64
 #define RAY_INV_C (1.0f / TOWN_RAY_CELL)
@@ -327,7 +328,7 @@ static RAY_NOINLINE void ray_proxy_pass_ref(const ray_proxy_t *c, unsigned np, c
         }
 }
 
-/* ---- a ray against a triangle (ray2; the town notes' TOWN-063 assumes 50 cycles a test) ---- */
+/* ---- a ray against a triangle (ray2; the town notes' TOWN-063 assumes 50 cycles a test, NOT RE-MEASURED since the kernel moved to sh4der_raytri.h) ---- */
 
 /* A triangle as a corner and two edges, 48 bytes. The last three floats are the caller's. */
 typedef struct {
@@ -336,12 +337,9 @@ typedef struct {
 
 /* The same triangle prepared for one sun (every shadow ray has the sun's direction d, so what depends on d and the
    triangle alone is worked out once): h = (d x e2) / det, dq = d / det, e2q = e2 / det, with det = e1 . (d x e2).
-   ok = 0 for a triangle edge-on to the sun (no test). 64 bytes: two cache lines. */
-typedef struct {
-    float a[3], e1[3], h[3], e2q[3];
-    float dq[3];                /* the sun's direction over det */
-    float ok;
-} ray_tri_sun_t;
+   ok = 0 for a triangle edge-on to the sun (no test). 64 bytes (two cache lines when 32-byte aligned). The struct is the library's
+   (sh4der_raytri.h: sh4der_raytri_dir_t, the same fields and layout). */
+typedef sh4der_raytri_dir_t ray_tri_sun_t;
 
 #define RAY_TRI_EPS 1e-4f       /* a hit nearer than this along the ray is the receiver's own surface, m */
 
@@ -358,32 +356,19 @@ static RAY_NOINLINE unsigned ray_tri_ref(const ray_tri_t *t, const float o[3], c
     return (unsigned)((det > 1e-9f) & (u >= 0.0f) & (u <= det) & (v >= 0.0f) & (u + v <= det) & (w > RAY_TRI_EPS * det));
 }
 
-/* The kernel, any direction: the same arithmetic, leaving at the first test that fails. */
+/* The kernel, any direction: the library's numerators (sh4der_raytri_num, the sign taken off once), then the bench's own
+   |det| rule (it refuses 1e-9 itself and a NaN, where the library's band does not) and the hit test with no divide. */
 static inline unsigned ray_tri(const ray_tri_t *t, const float o[3], const float d[3]) {
-    const shz_vec3_t dv = ray_v3(d), e1 = ray_v3(t->e1), e2 = ray_v3(t->e2);
-    const shz_vec3_t h = shz_vec3_cross(dv, e2), s = shz_vec3_sub(ray_v3(o), ray_v3(t->a));
-    float det = shz_vec3_dot(e1, h), u = shz_vec3_dot(s, h), v, w, sign = 1.0f;
-    shz_vec3_t q;
+    sh4der_raytri_num_t n;
 
-    if (det < 0.0f) { det = -det; u = -u; sign = -1.0f; }
-    if (!(det > 1e-9f) || u < 0.0f || u > det) return 0u;
-    q = shz_vec3_cross(s, e1);
-    v = sign * shz_vec3_dot(dv, q);
-    if (v < 0.0f || u + v > det) return 0u;
-    w = sign * shz_vec3_dot(e2, q);
-    return (unsigned)(w > RAY_TRI_EPS * det);
+    if (!sh4der_raytri_num(o, d, t->a, t->e1, t->e2, &n)) return 0u;
+    if (!(n.det > 1e-9f)) return 0u;
+    return sh4der_raytri_hit(&n, RAY_TRI_EPS);
 }
 
-/* A triangle prepared for the sun direction d. */
+/* A triangle prepared for the sun direction d (the library's prepared form: sh4der_raytri_dir_prep). */
 static inline void ray_tri_sun_init(ray_tri_sun_t *p, const ray_tri_t *t, const float d[3]) {
-    const shz_vec3_t dv = ray_v3(d), e1 = ray_v3(t->e1), e2 = ray_v3(t->e2), h = shz_vec3_cross(dv, e2);
-    const float det = shz_vec3_dot(e1, h), ad = det < 0.0f ? -det : det, inv = ad > 1e-9f ? 1.0f / det : 0.0f;
-    unsigned k;
-
-    memset(p, 0, sizeof *p);
-    for (k = 0; k < 3u; k++) { p->a[k] = t->a[k]; p->e1[k] = t->e1[k]; p->e2q[k] = t->e2[k] * inv; p->dq[k] = d[k] * inv; }
-    p->h[0] = h.x * inv; p->h[1] = h.y * inv; p->h[2] = h.z * inv;
-    p->ok = ad > 1e-9f ? 1.0f : 0.0f;
+    sh4der_raytri_dir_prep(p, t->a, t->e1, t->e2, d);
 }
 
 /* Reference for the prepared form: u, v and the distance t in their own units (u, v in 0 .. 1, t in metres). */
@@ -394,18 +379,10 @@ static RAY_NOINLINE unsigned ray_tri_sun_ref(const ray_tri_sun_t *p, const float
     return (unsigned)((p->ok != 0.0f) & (u >= 0.0f) & (u <= 1.0f) & (v >= 0.0f) & (u + v <= 1.0f) & (w > RAY_TRI_EPS));
 }
 
-/* The kernel for the prepared form: one subtraction, one cross product and three dot products at the most. */
+/* The kernel for the prepared form: the library's (sh4der_raytri_dir_hit): one subtraction, one cross product and three
+   dot products at the most. */
 static inline unsigned ray_tri_sun(const ray_tri_sun_t *p, const float o[3]) {
-    const shz_vec3_t s = shz_vec3_sub(ray_v3(o), ray_v3(p->a));
-    const float u = shz_vec3_dot(s, ray_v3(p->h));
-    shz_vec3_t q;
-    float v;
-
-    if (p->ok == 0.0f || u < 0.0f || u > 1.0f) return 0u;
-    q = shz_vec3_cross(s, ray_v3(p->e1));
-    v = shz_vec3_dot(ray_v3(p->dq), q);
-    if (v < 0.0f || u + v > 1.0f) return 0u;
-    return (unsigned)(shz_vec3_dot(ray_v3(p->e2q), q) > RAY_TRI_EPS);
+    return sh4der_raytri_dir_hit(p, o, RAY_TRI_EPS);
 }
 
 /* The bench's triangles and points: nt triangles of side about `size` m scattered in a box of 20 m, and np points under

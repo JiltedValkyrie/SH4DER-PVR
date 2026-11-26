@@ -132,6 +132,16 @@ The picture places the SH-4 work between the waits (the 2.05, 0.94 and 0.13 ms g
 | Trail and ca never at once (shared stride register). | Hard rule (one register) | VID-003 |
 | AA 2X: scale screen x exactly once (torch). | Hard rule (design) | VID-010 |
 
+### Ray-triangle kernel (raytri)
+
+| Limit | Status | The test that would prove it |
+|---|---|---|
+| raytri is not watertight: a ray through a shared edge can be missed by both triangles in principle | ADVISED | a sweep of rays across a shared edge on the console, or a host sweep with exact arithmetic; `test/raytri_test.c` samples the diagonal only |
+| `sh4der_raytri_hit` has no far limit: it answers beyond eps at any distance; a reach needs `sh4der_raytri_t` | ADVISED | by construction; `test/raytri_test.c` checks the reach of `sh4der_raytri_t` |
+| a NaN direction or origin misses (the numerators are NaN, so the comparisons are false) | ADVISED | `test/raytri_test.c` (edge cases) |
+| `sh4der_raytri_t` takes a non-NULL `recips` counter | ADVISED | by the caller's code; no test on the hot path, by design |
+| the raytri time on the SH-4 (the bench's cycle figure assumes 50 cycles a test) | NOT MEASURED | the ray bench on a console |
+
 ## Related
 
 - [Budgets](budgets.md)
