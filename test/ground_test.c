@@ -1,8 +1,8 @@
-/* psm_ground.h: the slabs are made the same each time, tile both ways, are no chequer, and keep the base's mean.
-   cc -O2 -std=gnu11 -Wall -Wextra demo/psm/test/psm_ground_test.c -o build/psm_ground_test   (a picture: argv[1] = out.ppm) */
+/* sh4der_ground.h: the slabs are made the same each time, tile both ways, are no chequer, and keep the base's mean.
+   cc -O2 -std=gnu11 -Wall -Wextra -Iinclude test/ground_test.c -o build/ground_test   (a picture: argv[1] = out.ppm) */
 #include <stdio.h>
 #include <string.h>
-#include "../psm_ground.h"
+#include "sh4der_ground.h"
 
 static int fails;
 #define CHECK(c, ...) do { if (!(c)) { printf("FAIL: " __VA_ARGS__); printf("\n"); fails++; } } while (0)
@@ -55,6 +55,6 @@ int main(int argc, char **argv) {
             fclose(f);
         }
     }
-    printf("psm_ground_test: %s (%u tones, red mean %ld)\n", fails ? "FAILED" : "ok", distinct, sum);
+    printf("ground_test: %s (%u tones, red mean %ld)\n", fails ? "FAILED" : "ok", distinct, sum);
     return fails != 0;
 }

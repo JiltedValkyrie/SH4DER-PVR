@@ -140,7 +140,10 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
     s_tex[GFX_MAT_REFLECT_ADD] = s_tex[GFX_MAT_REFLECT];
     s_tex[GFX_MAT_SHADOW] = s_tex[GFX_MAT_REFLECT];
     s_tex[GFX_MAT_WET] = s_tex[GFX_MAT_REFLECT];
-    s_tex[GFX_MAT_HEAT] = s_tex[GFX_MAT_REFLECT]; s_tex[GFX_MAT_HEAT].nearest = 1;   /* the heat's hexagons: the texel as it is */
+    s_tex[GFX_MAT_HEAT] = s_tex[GFX_MAT_REFLECT];   /* the heat's hexagons: the band's picture, filtered (a texel a pixel: exact when a hexagon is on its home) */
+#ifdef PL4NAR_HEAT_HEX_POINT
+    s_tex[GFX_MAT_HEAT].nearest = 1;                /* or point sampled: crisp, the picture moves by whole pixels */
+#endif
     return 0;
 }
 unsigned gfx_be_reflect_bytes(void) { return (unsigned)(s_rt.w * s_rt.h * 2); }

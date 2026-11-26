@@ -656,7 +656,7 @@ static void report(void) {
     say("  depth GEQUAL, no depth write, same vertices; MODULATE, table fog.");
     say("  From the hardware manual 3.4.7.2.3; KOS pvr_header.h names the");
     say("  two passes only. RESULT OPEN until read off the screen.");
-    say("BIAS: per polygon, header D adjust; slope from fakeaf.h");
+    say("BIAS: per polygon, header D adjust; slope from sh4der_fakeaf.h");
     say("  faf_bias_code(|n.v|, strength, least): strength held to 0..1,");
     say("  never over 1.00 (code 4), never under 'least' (l1 0.25, l2 0.50).");
     say("  Batched: one header a code that has polygons. OPEN.");

@@ -30,7 +30,7 @@ Steps, each refusing to go on when it fails:
                 objcopy to <out>/disc/<file>; the mail's mark counted in the binary: exactly one means the test was
                 built with psm_suite.h and comes back to the menu, none means NO RETURN, more is refused; its image
                 and .bss end below the stack's room
-  3 menu        ../tools/make_credits.py --check when an SH4ZAM checkout is there (the CREDITS text is still the
+  3 menu        tools/make_credits.py --check (the repository's tools/) when an SH4ZAM checkout is there (the CREDITS text is still the
                 licences' own words); suite_list.h written from the table and the checks; kos-cc suite_menu.c;
                 objcopy to disc/MENU.BIN; the same checks, and its mail must be there
   4 image       mkdcdisc: the menu as the boot program, disc/* as files -> <cdi-dir>/psm-suite-<tag>.cdi, never
@@ -218,7 +218,7 @@ def main():
         f.write("};\n")
     menu_elf, menu_bin = os.path.join(out, "%s-%s.elf" % (a.prefix, a.tag)), os.path.join(disc, "MENU.BIN")
     if os.path.isfile(os.path.join(ROOT, "third_party", "sh4zam", "LICENSE")):
-        run("3 credits", [sys.executable, os.path.join(HERE, "..", "tools", "make_credits.py"), "--check", "--kos", os.environ["KOS_BASE"]])
+        run("3 credits", [sys.executable, os.path.join(ROOT, "tools", "make_credits.py"), "--check", "--kos", os.environ["KOS_BASE"]])
     else:
         print("== 3 credits: NOT CHECKED against the licences (no third_party/sh4zam checkout); psm_credits.h is used as it is", flush=True)
     switches = sorted(set("-D" + CREDITS[t["credits"]] for t in tests if t.get("credits")))

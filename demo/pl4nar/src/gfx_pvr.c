@@ -249,9 +249,14 @@ int gfx_be_reflect_resize(unsigned w, unsigned h) {
         c.txr.env = PVR_TXRENV_MODULATE;
         c.txr.uv_clamp = PVR_UVCLAMP_UV;
         pvr_poly_compile(&s_hdr[GFX_MAT_WET], &c);
-        /* the heat's hexagons: the band's texel as it is (point sampled, no blend: one x zero), depth tested at the far
-           view's depth and not written, so what is nearer keeps them out */
+        /* the heat's hexagons: the band's picture as it is (no blend: one x zero; filtered, so a hexagon that moves a
+           part of a pixel moves its picture as far; -DPL4NAR_HEAT_HEX_POINT: point sampled, crisp, the picture moves by
+           whole pixels), depth tested at the band's cut and not written, so what is nearer keeps them out */
+#ifdef PL4NAR_HEAT_HEX_POINT
         pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)s_rt.pitch, (int)s_rt.h, (pvr_ptr_t)s_rt.tex, PVR_FILTER_NONE);
+#else
+        pvr_poly_cxt_txr(&c, PVR_LIST_TR_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, (int)s_rt.pitch, (int)s_rt.h, (pvr_ptr_t)s_rt.tex, PVR_FILTER_BILINEAR);
+#endif
         c.gen.culling = PVR_CULLING_NONE;
         c.txr.alpha = PVR_TXRALPHA_DISABLE;
         c.txr.env = PVR_TXRENV_REPLACE;

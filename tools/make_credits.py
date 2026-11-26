@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """SH4DER-PVR: the disc's credits text (demo/psm/psm_credits.h), written from the licences themselves.
-Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-    python demo/psm/tools/make_credits.py --kos <KallistiOS tree> [--sh4zam third_party/sh4zam] [--check]
+    python tools/make_credits.py --kos <KallistiOS tree> [--sh4zam third_party/sh4zam] [--check]
+    python tools/make_credits.py --self-test     (fixture licences in a temporary folder; writes nothing)
 
 Every third-party notice on the disc's CREDITS screen is taken from its source's own file, word for word, and only
 re-wrapped to the screen's 64 columns:
@@ -25,7 +26,7 @@ import sys
 import textwrap
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.normpath(os.path.join(HERE, "..", "..", ".."))
+ROOT = os.path.normpath(os.path.join(HERE, ".."))          # the repository root (this script lives in tools/)
 OUT = os.path.join(ROOT, "demo", "psm", "psm_credits.h")
 COLS = 64
 PAGE = "\f"                                  # a new page starts here
@@ -58,9 +59,9 @@ def read(path):
         return f.read().replace("\r\n", "\n")
 
 
-def build(kos, sh4zam):
+def build(kos, sh4zam, dce=None):
     mit = read(os.path.join(sh4zam, "LICENSE"))
-    dce = os.path.join(ROOT, "third_party", "sh4zam-dce", "LICENSE")
+    dce = dce or os.path.join(ROOT, "third_party", "sh4zam-dce", "LICENSE")
     if os.path.isfile(dce) and not " ".join(read(dce).split()).startswith(" ".join(mit.split())):   # it goes on with a note of its own
         raise SystemExit("third_party/sh4zam-dce/LICENSE does not begin with SH4ZAM's text any more: give it its own section")
     m = re.match(r"MIT License\s+(Copyright \(c\) [^\n]+)\n(.*)", mit, re.S)
@@ -161,7 +162,47 @@ def render(t, art, square, ui, space):
     return "\n".join(o)
 
 
+def self_test():
+    """Fixture licences in a temporary folder: the wrap, the escapes and the render, with the columns and the pages
+    checked. Writes nothing to the repository."""
+    import tempfile
+    fails = []
+
+    def check(cond, what):
+        if not cond:
+            fails.append(what)
+
+    check(c_str(r'a"b\c') == r'"a\"b\\c"', "c_str escapes")
+    check(all(len(ln) <= COLS for ln in wrap("word " * 40)), "wrap is 64 columns or less")
+    with tempfile.TemporaryDirectory() as d:
+        sh = os.path.join(d, "sh4zam")
+        kos = os.path.join(d, "kos")
+        os.makedirs(sh)
+        os.makedirs(os.path.join(kos, "doc", "license"))
+        with open(os.path.join(sh, "LICENSE"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("MIT License\n\nCopyright (c) 2020 Fixture Author\n\nPermission is hereby granted, free of charge.\n")
+        with open(os.path.join(kos, "doc", "license", "LICENSE.KOS"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("Intro text.\n\nAll of the documentation and software included in the KallistiOS Operating System\n"
+                    "1. Redistributions of source code must retain the notice.\n\n2. Redistributions in binary form must reproduce it.\n\n"
+                    "THIS SOFTWARE IS PROVIDED BY THE AUTHORS AS IS.\n")
+        with open(os.path.join(kos, "AUTHORS"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("Header\n\nContributors list\n-----------------\n" + "".join("Name %02d: 2001-2020\n" % i for i in range(22)))
+        no_dce = os.path.join(d, "no-dce", "LICENSE")
+        text = render(*build(kos, sh, dce=no_dce))
+        check("SH4ZAM (the SH-4 maths), MIT License" in text, "render names SH4ZAM")
+        check("Name 21" in text, "render lists the contributors")
+        check(text.count("\\f") >= 5, "page breaks present (written as the escape \\f in the C text)")
+        check(text == render(*build(kos, sh, dce=no_dce)), "render is deterministic")
+    if fails:
+        print("make_credits --self-test: FAILED: " + "; ".join(fails))
+        return 1
+    print("make_credits --self-test: ok")
+    return 0
+
+
 def main():
+    if "--self-test" in sys.argv[1:]:
+        return self_test()
     ap = argparse.ArgumentParser(description="Write or check demo/psm/psm_credits.h.")
     ap.add_argument("--kos", default=os.environ.get("KOS_BASE"))
     ap.add_argument("--sh4zam", default=os.path.join(ROOT, "third_party", "sh4zam"))
@@ -175,7 +216,7 @@ def main():
     if a.check:
         have = read(OUT) if os.path.isfile(OUT) else ""
         if have != text:
-            raise SystemExit("demo/psm/psm_credits.h is not what the licences give now: run demo/psm/tools/make_credits.py and look at the difference")
+            raise SystemExit("demo/psm/psm_credits.h is not what the licences give now: run tools/make_credits.py and look at the difference")
         print("psm_credits.h: matches the licences' files (%u lines of text)" % text.count("\n"))
         return 0
     with open(OUT, "w", encoding="utf-8", newline="\n") as f:

@@ -191,7 +191,7 @@ typedef struct acc {
     uint32_t s, ta_scr_sum, ta_scr_max, ta_mir_sum, ta_mir_max, rnd_scr_sum, rnd_mir_sum;   /* the sampled frames */
     uint32_t vram_kb, ram_kb, target_bytes, resize_fail, bad_binds, tiles_max, touched;
     uint32_t band_frames, cut_passes, cut_refused;  /* the hills: frames with a car in the fade band; cut passes, refused */
-    uint32_t hex_frames, hex_tris_max;              /* frames with the hexagons' band drawn; its triangles, the most a frame */
+    uint32_t hex_frames, hex_tris_max, hex_cells_max;   /* frames with the hexagons' band drawn; its triangles and the hexagons, the most a frame */
 } acc_t;
 static acc_t acc[STAGES];
 static unsigned auto_done;
@@ -257,7 +257,7 @@ static void report(void) {
     pg_say("PVR waits given up (200 ms each): %u", (unsigned)gfx_pvr_timeouts());
     pg_say("one drive from s %u m, lane %d m, %u m/s: no stage restarts the car", (unsigned)AUTO_Z, (int)AUTO_X, (unsigned)AUTO_SPEED);
     for (k = 0; k < STAGES; k++) if (stages[k].xs & XS_HEX)
-        pg_say("%u hexagons: band drawn %u frames, %u tris at most (sent twice)", k + 1u, (unsigned)acc[k].hex_frames, (unsigned)acc[k].hex_tris_max);
+        pg_say("%u hexagons: band %u frames, %u tris at most; %u drawn", k + 1u, (unsigned)acc[k].hex_frames, (unsigned)acc[k].hex_tris_max, (unsigned)acc[k].hex_cells_max);   /* one row of 64 */
 #ifdef PL4NAR_MAP
     {   /* the car shadow tiles: by day; night has no car shadow (no blobs) */
         char t[80];
@@ -416,8 +416,9 @@ int main(int argc, char **argv) {
             if (c.tiles > a->tiles_max) a->tiles_max = c.tiles;
             a->band_frames += c.tiles_band != 0u;
             {   /* the hexagons' band: the far world sent a second time */
-                const uint32_t hb = demo_hex_band_tris();
+                const uint32_t hb = demo_hex_band_tris(), hn = demo_hex_cells();
                 a->hex_frames += hb != 0u; if (hb > a->hex_tris_max) a->hex_tris_max = hb;
+                if (hn > a->hex_cells_max) a->hex_cells_max = hn;
             }
             if (!sampled && !drain) { a->cpu_n++; a->cpu_sum += st.cpu_us; a->lookup_sum += c.lookup_us; a->tri_main_sum += c.tris_main; a->tri_refl_sum += c.tris_refl; }
             else if (sampled) {                       /* the sampled frame alone: the drain frame's passes are not its own */

@@ -42,7 +42,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | rise | Points of light that sit still, lift off one after another, drift up with a sway, shrink and cool, and come to rest as stars that twinkle. Nothing stored per light. | Candles becoming stars, lanterns released, fireflies leaving a bush, sparks that turn into a night sky. | RAM 84 B parameter block, 0 a light; VRAM 0 of its own; about 50 multiplies and one sine-cosine pair a light a frame; at most N quads on the translucent list, additive (counts, not measured) | `sh4der_rise.h` | header comment |
 | film | The wear of old film in a projector: a brightness that swings a few per cent (never a strobe: at most 8 % peak to peak and 3 hertz), thin scratches that come and go, dust specks, and a gate weave of a pixel. Nothing stored: every value is computed from the time and a seed. | Old newsreel, silent film, flashback, found footage; with the lens vignette and grain for the whole look. | RAM 92 B parameter block; VRAM 0 of its own; one multiply rectangle, up to 3 lines and 12 small squares a frame on the translucent list; two sines a frame (counts, not measured) | `sh4der_film.h` | header comment |
 | timebase | A video tape deck's line timing errors as a television shows them: for one field, how far each row of the picture sits sideways (the head switching step on the bottom rows, the drum's flutter, the top hook of a tape under the wrong tension, all seen through the set's horizontal lock loop). A port to C of the time-base model of NTSCRT by Finn McKenty (MIT; the notice is in the header). Draw the frame texture as bands with `sh4der_ca_channel_rows` and move each band by its row's shift. | A tape look for a cutscene, a security monitor, a flashback, a broken broadcast. | RAM 40 B parameter block and 4 B state; about 4.2 KB of stack during a call; VRAM 0; two sines a line and, with the line noise on, a logarithm and six hashes a line (counts, not measured) | `sh4der_timebase.h` | header comment |
-| hexheat | Heat haze as a few floating hexagons over a hot far view, each showing the picture behind it 1 to 5 pixels from where it belongs, rolled again ten times a second; they rise, lean, live about 1.7 s and wrap with a turn. The picture is this frame's: the client draws the far world a second time into a 256 x 128 band of a render target it already fills (no copy, no frame late). | A road's or a runway's far end by day, a desert horizon, the air over a far fire. | VRAM the band, 64 KB at 16 bit, in a target already allocated; RAM 4 B state; SH-4 48 slots hashed a frame and the far world sent again into the band; TA about 17 hexagons, 104 vertices a frame (counts, not measured) | `sh4der_hexheat.h` | header comment |
+| hexheat | Heat haze as a lattice of small hexagons fixed on the screen over a hot far view. Each hexagon carries the picture behind it and is moved a little (at most a quarter of its size: 2 pixels at the defaults) by a smooth wave field that rises through the lattice, goes with the far picture in a turn and streams toward the camera as it drives: a shimmer, nothing pops and nothing is rolled at random. Each cell is judged at its world point, found by a ray from the camera through the cell to the ground (the step a strategy game uses to find where the mouse points). The picture is this frame's: the client draws the far world a second time into a 256 x 128 band of a render target it already fills (no copy, no frame late). | A road's or a runway's far end by day, a desert horizon, the air over a far fire. | VRAM the band, 64 KB at 16 bit, in a target already allocated; RAM 8 B state and a 192 B view; SH-4 about 180 cells walked a frame (a ray each), 131 of them drawn in the street demo's view (two exp, a root and 3 sine-cosine pairs each), and the far world sent again into the band; TA 131 hexagons, 786 strip vertices a frame there (counts on the host, not measured) | `sh4der_hexheat.h` | header comment |
 | cloudvolume | A cloud deck you fly through: a software ray march through a cloud slab (cover map, tiling noise erosion, sun light with Beer and forward scatter) into a small 8-bit buffer that the PVR draws as one filtered quad over its own sky; real fly-through, so whiteout falls out of the march. Dreamcast demo with a sea under the clouds (three options) and on-screen controls. | A flight over and through cumulus, 1970s and 1980s cinema sky fly-through, any scene that needs a lit cloud layer. | RAM about 143 KB; VRAM 32 KB for the cloud texture at the default, 128 KB at the top resolution; one blended full-screen quad; CPU 14 to 22 ms a frame at the default (ESTIMATE, not measured on a console) | `sh4der_cloudvolume.h` | header comment, `demo/cloudvolume.c` |
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); 0.92 to 0.97 ms for the player car's 320 looked-up vertices on a console (street demo, one run, PVR-160); 0.43 ms for 1,623 vertices on an emulator, earlier version | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
 | softfade | Soft edges for light: a glow, a pool or a beam fades out at a wall or a floor the SH-4 knows (planes and rectangles), with no depth read. | Lamp halos near walls, headlight beams and pools that run into a barrier. | CPU only: a dot and a smooth step a surface a vertex; VRAM 0; no PVR pass | `sh4der_softfade.h` (header only) | [section](#the-softfade-effect-soft-edges-for-light) |
@@ -110,7 +110,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | glow | `sh4der_glow.h` | Screen bloom from a small bright map of the frame (darks die, brights stay), a wide halo, a darken layer balanced so a neutral scene keeps its mean, god rays as scaled copies about the sun | a 128 x 64 RGB565 map, additive quads | v0.50 |
 | warp | `sh4der_warp.h` | The frame as a texture through a mesh: shockwave ring, heat haze column, underwater wobble; radial speed blur as scaled copies; pixelate and ordered dither | a screen grid mesh over the frame texture | v0.10 |
 | trail | `sh4der_trail.h` | The frame before over this one through a copy of the front buffer, the picture already on screen (a column mask in destination alpha, two passes a copy): motion blur by speed, and the temporal AA blend | full-screen layers, a 128 B mask | v0.10 |
-| lens | `sh4der_lens.h` | Overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash | vertex-colour meshes, a 64 x 64 grain tile | v0.10 |
+| lens | `sh4der_lens.h` | Overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash; a grain and a vignette of the caller's own (tile size and kind, its own texels, a rectangle, an amplitude, neutral on or off, four movements; the vignette's shape, centre and curve) | vertex-colour meshes, a 64 x 64 grain tile (a caller's: 16 to 128 a side) | v0.10 |
 | focus | `sh4der_focus.h` | Fake depth of field: a small blurred map of the frame drawn through a vertex-alpha mask that keeps a disc, band or rect sharp | a 128 x 64 map, one alpha mesh | v0.10 |
 | visor | `sh4der_visor.h` | Visor looks as number tables (night, amber, thermal): a tint through the look grade, grain, scanlines, a luma ramp for thermal, a fade in and out | the look effect's layers, small tiles | v0.10 |
 | torch | `sh4der_torch.h` | A flashlight hotspot carved on screen: a radial mesh darkens outside the circle and boosts a hot core, the fog table bends to black for reach, gated by the level's darkness with hysteresis | two radial vertex-colour meshes; the fog table | v0.50 |
@@ -129,6 +129,8 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
 | softfade | `sh4der_softfade.h` | How much of a light a point keeps near the planes and walls the caller names: a near test, a fit for a 4-vertex halo, and a per-vertex fade for a ring halo, a pool or a beam. Draws nothing | CPU only; no texture, no PVR pass | v0.10 |
 | ramp | `sh4der_ramp.h` | A linear 0 .. 1 ramp between two distances, saturated at both ends: one call, or a prepared ramp for a loop (one reciprocal, then a multiply a point). A helper: draws nothing | CPU only; no tuning macros | v0.10 |
+| fakeaf | `sh4der_fakeaf.h` | Fake anisotropic filtering: a mip bias per polygon by its slope to the eye (the one that has run on a console, PVR-180) and distance ranges with stretched copies and a ramp between them (helpers, not run) | untextured mesh; the bias adds no pass | ALPHA v0.4 |
+| ground | `sh4der_ground.h` | The square's paving slabs: a 64 x 64 RGB565 tiling texture made at load from an integer hash (8 KB, not twiddled) | a texture on the ground mesh | PROTOTYPE v0.1 |
 | pool | `sh4der_pool.h` | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing: a disc under a street lamp, a wedge ahead of a headlight, and the same disc, dark, as a blob shadow. For ground polygons too big to light per vertex | untextured vertex-alpha fans on the translucent list: additive for light, blended for shadow | v0.10 |
 | psm | `sh4der_psm.h` | A world-to-map matrix for a directional light, fitted to the receivers inside the view frustum: uniform (orthographic) or warped through the camera's post-projective space (one point L' for the parallel rays, either sign of w), with a virtual near plane for the warp, the depth key (distance along the light), a world-space bias, texel and pixel footprints for the A/B, the frustum corners and a slab clip. The map is the client's: a depth compare in software, a silhouette on the PVR (no depth compare there) | none; a map the client draws and reads | v0.10 |
 | fault | `sh4der_fault.h` | A report on the screen when the program raises an exception, hangs, asserts or exits: registers, the stack's calls, the frame's breadcrumbs. No console run has shown it catching a fault | Not drawn with the PVR (minifont over the frame buffer) | v0.10 |
@@ -554,6 +556,42 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 
 `sh4der_lens.h`, `src/sh4der_lens.c` (the KOS PVR drawing, Dreamcast only): overlays with no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash.
 
+The first forms are four calls: `sh4der_lens_init()` (the 64 x 64 tile, 8 KB of video memory, and the headers), `sh4der_lens_vignette_setup(w, h)`, then a frame `sh4der_lens_vignette_draw()` and `sh4der_lens_grain(frame, w, h)`. They draw the whole screen at the default tuning. `test/lens_test.c` pins their bytes (the tile, the default vignette mesh at two screen sizes, the frame offsets, the boost, the grain quads' colours): the variations below left them as they were.
+
+**Variations: a grain of the caller's own** (`sh4der_lens_grain_t`, 64 B; it does not need `sh4der_lens_init`):
+
+- **Whose tile.** `sh4der_lens_grain_make(&g, tile, px, seed, kind)`: the library fills, uploads and compiles. `sh4der_lens_grain_load(&g, texels, tile, px)`: the caller's own ARGB4444 texels (dust, paper, a scanned grain); the library uploads them and works out their mean a channel. `sh4der_lens_grain_use(&g, tex, tile, px, mean)`: a texture already in video memory; nothing is allocated.
+- **The tile.** A side of 16, 32, 64 or 128 texels (512 B, 2 KB, 8 KB, 32 KB); 1 or 2 screen pixels a texel; a seed; the kind: `SH4DER_LENS_GRAIN_MONO` (the first form's), `_CHROMA` (a level of its own in each of R, G, B: colour grain), `_SOFT` (the mean of two levels: on the 64 x 64 tile 63 texels at black or white against MONO's 501).
+- **Where and how strong.** `sh4der_lens_grain_draw(&g, frame, x0, y0, x1, y1, z, amp, neutral)`: a rectangle, a depth key, an amplitude a draw (0 .. `SH4DER_LENS_GRAIN_AMP_MAX`). `neutral` 1 draws the boost quad, so the mean brightness holds, a channel (a coloured tile stays neutral in each); 0 leaves it out: one layer, not two, and the picture darker by amp x (1 - the tile's mean), about 3 % at 0.06.
+- **Movement.** `sh4der_lens_grain_move(&g, move, step)`: `SH4DER_LENS_MOVE_JUMP` (a new offset every frame, the first form), `_HOLD` (every `step` frames: film at 30 or 20 a second on a 60 Hz screen), `_DRIFT` (`step` texels down a frame), `_STILL`.
+
+**Variations: a vignette of the caller's own.** Start from `sh4der_lens_vig_default`, then change `strength`, `inner`, `outer`, `tint`, `spokes`, `rings`, the shape with `sh4der_lens_vig_round` (0 the screen's own ellipse .. 1 a circle), the centre with `sh4der_lens_vig_centre` (off the middle: a scope, a torch held to one side; the mesh still covers the screen) and `curve` (`SH4DER_LENS_CURVE_SMOOTH`, `_LINEAR`, `_SQUARE`). `sh4der_lens_vignette_shape(&v)` gives it to the library's draw; `sh4der_lens_vignette_draw_at(ox, oy, z)` draws it moved and at a depth key (a picture band that does not start at the screen's corner); `sh4der_lens_vignette_mesh_draw(mesh, verts, per, ox, oy, z)` draws a mesh the caller built once with `sh4der_lens_vig_mesh`, so nothing is rebuilt a frame.
+
+**Guards.** Every lens draw checks that its polygon header was compiled and sends nothing when it was not (a draw before `sh4der_lens_init`, `sh4der_lens_init_headers` or the grain's own make): a zeroed header hangs a real console. `sh4der_lens_ready()` says whether the first form's tile is there; `sh4der_lens_init` returns 1 also when video memory was short and it is not. The new draws return the triangles they sent.
+
+**Cost.** NOT MEASURED: the lens has no console row. Exact counts: video memory 2 B a texel (above); TA a frame: grain 4 vertices and 1 header, 8 and 2 with neutral; vignette (rings + 1) x 2 x (spokes + 1) vertices, 594 at the default 32 x 8, 350 at 24 x 6. ESTIMATE: each grain layer over the whole screen is one translucent layer, about 3.1 ms of PVR at 640 x 480 (PVR-002 is the MEASURED cost of a plain layer, not of this one); a rectangle costs its share of the screen; the tile's size, kind and movement change no fill.
+
+```c
+int      sh4der_lens_init(void);                  int  sh4der_lens_ready(void);       void sh4der_lens_init_headers(void);
+int      sh4der_lens_vignette_setup(float w, float h);
+int      sh4der_lens_vignette_shape(const sh4der_lens_vig_t *shape);
+void     sh4der_lens_vignette_draw(void);
+unsigned sh4der_lens_vignette_draw_at(float ox, float oy, float z);
+unsigned sh4der_lens_vignette_mesh_draw(const sh4der_lens_vtx_t *mesh, unsigned verts, unsigned per, float ox, float oy, float z);
+void     sh4der_lens_grain(uint32_t frame, float w, float h);
+int      sh4der_lens_grain_make(sh4der_lens_grain_t *g, unsigned tile, unsigned px, uint32_t seed, unsigned kind);
+int      sh4der_lens_grain_load(sh4der_lens_grain_t *g, const uint16_t *texels, unsigned tile, unsigned px);
+int      sh4der_lens_grain_use(sh4der_lens_grain_t *g, void *tex, unsigned tile, unsigned px, const float mean[3]);
+void     sh4der_lens_grain_move(sh4der_lens_grain_t *g, unsigned move, unsigned step);
+unsigned sh4der_lens_grain_draw(const sh4der_lens_grain_t *g, uint32_t frame, float x0, float y0, float x1, float y1, float z, float amp, int neutral);
+void     sh4der_lens_grain_free(sh4der_lens_grain_t *g);     void sh4der_lens_grain_forget(sh4der_lens_grain_t *g);
+void     sh4der_lens_hits_draw(const sh4der_lens_hit_t *slots, unsigned n, float w, float h);
+void     sh4der_lens_flash_draw(const sh4der_lens_flash_t *f, const float rgb[3], int additive, float w, float h);
+void     sh4der_lens_forget(void);
+```
+
+The maths behind them is inline and host tested: `sh4der_lens_grain_fill`, `sh4der_lens_grain_tile_mean`, `sh4der_lens_grain_uv_ex`, `sh4der_lens_grain_colours`, `sh4der_lens_vig_round`, `sh4der_lens_vig_centre`.
+
 ### Lens tuning
 
 | Name | Default | Meaning |
@@ -592,6 +630,11 @@ Draw the layers untextured over the whole frame, under the HUD (the on-screen di
 | SH4DER_LENS_Z_GRAIN | 432.0 | z grain |
 | SH4DER_LENS_Z_HIT | 950.0 | z hit |
 | SH4DER_LENS_Z_FLASH | 960.0 | z flash |
+| SH4DER_LENS_GRAIN_TILE_MIN | 16 | A caller's grain tile: the least texels a side (512 B of video memory) |
+| SH4DER_LENS_GRAIN_TILE_MAX | 128 | And the most (32 KB); a power of two between the two |
+| SH4DER_LENS_GRAIN_HOLD | 2 | Frames a HOLD grain keeps one offset |
+| SH4DER_LENS_GRAIN_DRIFT | 1 | Texels a frame a DRIFT grain slides down |
+| SH4DER_LENS_GRAIN_AMP_MAX | 0.5 | The most a grain's amplitude may be: past it the boost cannot give the mean back |
 | SH4DER_LENS_SPOKES_MAX | 32 | Spokes the maths takes at most |
 | SH4DER_LENS_RINGS_MAX | 16 | Rings the maths takes at most |
 
@@ -1129,7 +1172,69 @@ The two mesh calls return the vertices that still have light (0: do not send the
 
 ## The ramp helper
 
-`include/sh4der_ramp.h`, header only; `test/ramp_test.c` tests it on the host. A linear 0 .. 1 ramp between two distances, saturated at both ends. `sh4der_ramp_in(from, len, d)` is one call (one FSRRA reciprocal through SH4ZAM); for a loop, `sh4der_ramp_make(&r, from, to)` once, then `sh4der_ramp_up` / `sh4der_ramp_down` a point (a multiply and a saturate). It has no tuning macros: the two distances are the caller's. Used by `demo/psm/fakeaf.h` and `demo/psm/psm_shtile.h` (which still includes it through the forward `demo/psm/psm_ramp.h`). No console run; costs not measured. Moved from `demo/psm/psm_ramp.h` on 2026-11-26; wiki/effects/ramp.md.
+`include/sh4der_ramp.h`, header only; `test/ramp_test.c` tests it on the host. A linear 0 .. 1 ramp between two distances, saturated at both ends. `sh4der_ramp_in(from, len, d)` is one call (one FSRRA reciprocal through SH4ZAM); for a loop, `sh4der_ramp_make(&r, from, to)` once, then `sh4der_ramp_up` / `sh4der_ramp_down` a point (a multiply and a saturate). It has no tuning macros: the two distances are the caller's. Used by `include/sh4der_fakeaf.h` and `demo/psm/psm_shtile.h` (which still includes it through the forward `demo/psm/psm_ramp.h`). No console run; costs not measured. Moved from `demo/psm/psm_ramp.h` on 2026-11-26; wiki/effects/ramp.md.
+
+## The fakeaf effect (fake anisotropic filtering)
+
+`include/sh4der_fakeaf.h`, header only; `test/fakeaf_test.c` tests it on the host. The PVR has no anisotropic filter: a floor seen at a grazing angle is blurred across the view or shimmers along it. The header has two ways to mend it: a mip bias per polygon by its slope (`faf_bias_code`), and distance ranges with stretched copies and a ramp between them (`faf_table_default`, `faf_table_from`, `faf_stretch`, `faf_piece`, `faf_alpha`, `faf_edges`, `faf_cuts`). The bias has run on a console (PVR-180). The ranges are helpers only: no console run. The old path `demo/psm/fakeaf.h` is a forward. Wiki: `wiki/effects/fakeaf.md`.
+
+### Calls
+
+1. Start with the bias, no pass and no fill: per polygon, `faf_bias_code(ndv, strength, least)`, where `ndv` is |normal . direction to the eye| (1 facing, 0 edge on). Batch the polygons by code, one header for each code (`FAF_BIAS_NONE` = 4 is 1.00; under it is sharper).
+2. The ranges, only if the bias is not enough: `faf_table_default(t)` or `faf_table_from(t, n, focal, eye_h, texels_m, share)`, checked by `faf_table_ok`. Each range k above 0 reads a stretched copy from `faf_stretch(src, w, h, shift, dst)` (box filtered, halved along the travel direction; `faf_stretch_bytes` gives its video memory). For a piece at a distance, `faf_piece` names its opaque range and its blend range, and `faf_alpha` gives the blend's vertex alpha (255 at the zone's start, 0 at its end). A mesh cut at the zone edges takes `faf_edges` and `faf_cuts`.
+
+### Fakeaf tuning
+
+`faf_table_default` (invented starting values for an eye about 1.6 m above a floor; ESTIMATE, to be tuned on the screen):
+
+| Range | From (m) | Ramp (m) | Bias code | Source shift |
+| --- | --- | --- | --- | --- |
+| 0 | 0 | 0 | 4 | 0 (the base texture) |
+| 1 | 6 | 2 | 3 | 1 (halved once) |
+| 2 | 14 | 4 | 2 | 2 |
+| 3 | 30 | 8 | 2 | 3 |
+
+`FAF_RANGES_MAX` (4) and `FAF_BIAS_NONE` (4) are not `SH4DER_*` macros, so there is no row for them in the tuning tables. `faf_bias_code`'s `strength` (0 .. 1) and `least` (1 .. 4) are the arguments; PVR-180 ran `least` 0.50 and 0.25 (the ledger's values).
+
+### Fakeaf cost
+
+| Item | Cost | Status |
+| --- | --- | --- |
+| Corridor at 640 x 480, bias by slope | PVR 7.21 and 7.20 ms (PVR-180); 7.19 and 7.24 ms (PVR-207) | MEASURED, one console a run |
+| Corridor, a fixed bias of 0.50 | 7.71 ms (PVR-180); 7.68 ms (PVR-207) | MEASURED |
+| Corridor, bilinear and trilinear | bilinear 6.17 ms (PVR-180), 6.14 ms (PVR-207); trilinear 9.44 ms (PVR-180) | MEASURED |
+| The bias's own effect (the level the PVR picks) | not read back | OPEN |
+| Ranges | not run on a console | NOT MEASURED |
+| Three stretched copies of a 256 x 256 RGB565 texture | 114,688 bytes (112 KB) | exact, by the code |
+| Fill added by the ranges (3V, 3D) | 0.068 and 0.478 of a screen (the corridor model) | ESTIMATE, a model, not a measurement |
+
+### Do and do not
+
+- Do: start with the bias; give a sharper bias only to floor polygons at a grazing slope.
+- Do: keep one range to about a doubling of distance. A stretched copy has no mip levels.
+- Do not: count the bias as a proven sharper level on the PVR until the level is read back (OPEN).
+
+## The ground texture (paving slabs)
+
+`include/sh4der_ground.h`, header only; `test/ground_test.c` tests it on the host. A 64 x 64 RGB565 texture of stone slabs laid in rows: each slab its own width and tone, a dark joint and a light edge a texel wide, tiling both ways. Made at load from an integer hash of a seed; no float maths. The square's ground in `demo/psm` uses it. Wiki: `wiki/effects/ground.md`.
+
+### Calls
+
+1. At load, a `uint16_t` array of `PSM_GROUND_N * PSM_GROUND_N` (64 * 64) texels, then `psm_ground_slabs(px, base_r, base_g, base_b, seed)` with the base colour 0 .. 255 a channel. The square uses 158, 152, 142 and seed 1 (`demo/psm/psm_dc.c`).
+2. Upload it as an RGB565 texture (not twiddled; 8 KB). The same seed gives the same texels on every machine.
+
+### Ground tuning
+
+No `SH4DER_*` macros. The base colour and the seed are the arguments. `PSM_GROUND_N` (64) is the texture's side, fixed by the layout of the rows.
+
+### Ground cost
+
+| Item | Cost | Status |
+| --- | --- | --- |
+| Texels made at load | 4,096, integer maths | exact, by the code |
+| Video memory | 8 KB (64 x 64 x 2 bytes) | exact, by the code |
+| Time at load on a console | not measured | NOT MEASURED |
+| Per frame | none: a texture read like any other | by construction |
 
 ## The page kit (result pages)
 
@@ -1418,41 +1523,87 @@ Nothing of it is measured on a console: the costs are counts. `sh4der_timebase_f
 | SH4DER_TIMEBASE_SEED_HI | 0x00004e54 | And its high word |
 | SH4DER_TIMEBASE_TAU | 6.2831853 | 2 pi |
 
-## The hexheat effect (heat haze as hexagons)
+## The hexheat effect (heat haze as a lattice of hexagons)
 
-`include/sh4der_hexheat.h`, header only, maths alone; the effect table above says what it does. `test/hexheat_test.c` is its
-test: the lives, rise and lean against the reference numbers, the shift's range and median, and every drawn hexagon and its
-piece inside the band, the piece the hexagon moved by one whole-pixel shift.
+`include/sh4der_hexheat.h`, header only, maths alone; the effect table above says what it does. The design and its formulas
+are the owner's. `test/hexheat_test.c` is its test, against a double-precision transcription of those formulas written in
+world units (the header works in pixels): the lattice's homes, the ray to the ground and back to the screen, the haze's
+point, the field against the numeric derivative, every drawn hexagon's offset, the largest offset and the change a frame.
 
-Order, a frame: in a render pass that already runs, draw the far world as this frame's camera sees it into a 256 x 128 region
-of the target, a texel a screen pixel, cut to that region and to a near distance (the street demo cuts on the SH-4 in its gfx
-layer, `gfx_window`). Then `sh4der_hexheat_slip(&h, slip_px)` with the far picture's sideways travel since the last frame,
-`sh4der_hexheat_band(ax, ay, &x0, &y0)` with the far view's point on the screen (the same place the band was drawn from),
-and `sh4der_hexheat_mesh(&h, seconds, gate, x0, y0, out)`. Draw each hexagon as a strip of its 6 vertices on the translucent
-list: no blend (one / zero), point sampled, the band's texel at (u, v) plus the band's place in the target, depth tested at
-the far view's depth and not written. Nothing of it is measured on a console: the costs are counts.
+**The lattice is the screen's.** Pointy-top hexagons of size s (centre to corner, pixels). The home of cell (q, r) is
+x = s sqrt(3) (q + r / 2), y = 1.5 s r, from the two integers alone (`sh4der_hexheat_home`), so a home cannot move. Each
+frame a hexagon is drawn at home + offset(t). Nothing is added to last frame's place and nothing is rolled at random: the
+only "random" numbers are four phases in a table.
+
+**Every number of the physics comes from the world.** A screen point knows nothing of the world, so for each cell a ray goes
+from the camera through the cell's home and is met with the ground: `sh4der_hexheat_screen_to_ground`, the same ray-to-ground
+step a strategy game uses to find where the mouse points. That gives the world point and its distance D. A ray that lands
+beyond the haze, or never lands (the cells over the road's far line), takes its point where it crosses an upright sheet
+across the ground at the haze's distance; h is the ray's height over the ground there (`sh4der_hexheat_screen_to_haze`).
+Seen from a car's camera the ground beyond a 64 m cut is a strip about 2 pixels high, so nearly every cell is on the sheet.
+
+**The field** is a sum of N waves in the world, X across the view and Y up, in metres:
+theta_i = k_i (X - U t) + m_i (Y - W t) + phi_i, each layer twice as fine and half as strong as the one before. The offset is
+minus A times the gradient of the sum: dX = -A sum a_i k_i cos(theta_i), dY = -A sum a_i m_i cos(theta_i). The envelope is
+A = A0 exp(-h / H) (1 - exp(-D / D0)): strongest at the road's far line, fading with height. A0 is tuned so that the largest
+offset is `SH4DER_HEXHEAT_PEAK` x s at the sheet's foot. A hexagon also swells and shrinks a little (the lensing scale). The
+world offset goes back to pixels as a bend of the line of sight: offset / depth x the focal length. A hexagon keeps one size
+on the screen (world-sized hexagons on homes that do not move could not tile), and no offset passes
+`SH4DER_HEXHEAT_OFFSET_MAX` x s, so neighbours never overlap.
+
+**What the doubling rule gives: stripes.** k and m double together, so every layer runs along one line, (k_1, m_1). The field
+is stripes across that line, and every hexagon slides back and forth along it: at the starting values the diagonal, up to
+the right and down to the left. `SH4DER_HEXHEAT_WAVE_HEX_UP` turns the line; it does not end the stripes. A layer with a
+direction of its own would, and that is not in the owner's formulas, so it is not in the header.
+
+**The camera.** `sh4der_hexheat_follow` puts what the camera did since the frame before into the field's scroll: a turn takes
+the pattern sideways with the far picture, and the way forward streams it toward the camera (`SH4DER_HEXHEAT_DRIVE`: 1 is the
+field standing in the world; the default is half of that). The stripes cross the view at W + U k_1 / m_1 (28 pixels a second
+at the defaults) and the stream takes `SH4DER_HEXHEAT_DRIVE` x the speed x the view's pixels a metre off that. So a slow
+camera sees them climb, a fast one sees them run down, and at one speed they stand still and every offset holds: 8.3 m/s
+(30 km/h) in the street demo's view, pinned by `test/hexheat_test.c`. A frame's step is also held at a quarter of the finest
+layer's wave, so a large step never reads as a small one the other way. Worked out, not measured: with the street demo's
+view (6.7 pixels a metre at the sheet) and 30 frames a second that hold starts at about 54 m/s (27 m/s with a drive of 1).
+
+Order, a frame:
+
+1. `sh4der_hexheat_view_look` (eye, target, up, the field of view, the screen), then `sh4der_hexheat_view_ground` (the
+   ground's plane, the haze sheet's distance, the near cut).
+2. `sh4der_hexheat_follow` with the `g` and `eye` of the frame before's view (not on the first frame).
+3. `sh4der_hexheat_band(ax, ay, &x0, &y0)` with the sheet's foot on the screen. In a render pass that already runs, draw the
+   far world as this frame's camera sees it into a 256 x 128 region of the target, a texel a screen pixel, cut to that
+   region and to the near cut (the street demo cuts on the SH-4 in its gfx layer, `gfx_window`). The ground itself is not cut
+   by depth: a hexagon over the cut's line carries the ground under it.
+4. `sh4der_hexheat_mesh(&h, &view, seconds, gate, x0, y0, out, max, &peak)`. Draw each hexagon as a strip of its 6 vertices
+   on the translucent list: no blend (one / zero), filtered (bilinear), the band's texel at (u, v) plus the band's place in
+   the target, depth tested at the near cut's depth and not written.
+
+Nothing of it is measured on a console: the costs are counts. Open on a console: whether a filtered sample at a texel a
+pixel is the picture bit for bit when a hexagon sits on its home.
 
 ### Hexheat tuning
 
 | Name | Default | Meaning |
 | --- | --- | --- |
-| SH4DER_HEXHEAT_N | 48 | Hexagon slots; about 0.35 of them are alive at a time |
-| SH4DER_HEXHEAT_HEX_W | 14.0 | A hexagon's width, pixels (points left and right) |
-| SH4DER_HEXHEAT_HEX_H | 13.0 | Its height, pixels (flat top and bottom) |
+| SH4DER_HEXHEAT_S | 8.0 | s: a hexagon's centre to corner, screen pixels (13.9 wide, 16 high) |
+| SH4DER_HEXHEAT_LAYERS | 3 | N: the stacked waves (3 or 4) |
+| SH4DER_HEXHEAT_WAVE_HEX | 7.0 | The longest wave across the view, hexagon widths (6 to 8): k_1 |
+| SH4DER_HEXHEAT_WAVE_HEX_UP | 7.0 | The longest wave upward, hexagon widths: m_1 (the owner's start: the same as across) |
+| SH4DER_HEXHEAT_RISE_HEX | 1.5 | W: the field's rise, hexagon widths a second (1 to 2) |
+| SH4DER_HEXHEAT_WIND | 0.35 | U as a share of W, sideways (0.2 to 0.5) |
+| SH4DER_HEXHEAT_LAYER_FRAC | 0.125 | H: the haze layer's thickness, a share of the screen's height seen at the sheet (0.10 to 0.15) |
+| SH4DER_HEXHEAT_D0 | 30.0 | D0: metres from the camera where the haze becomes plain |
+| SH4DER_HEXHEAT_PEAK | 0.25 | The largest offset at the sheet's foot (the road's far line), in s |
+| SH4DER_HEXHEAT_LENS | 0.1 | c: the swell and shrink (0: none) |
+| SH4DER_HEXHEAT_DRIVE | 0.5 | The camera's travel in the scroll: 1 = the field stands in the world, 0 = no streaming |
+| SH4DER_HEXHEAT_OFFSET_MAX | 0.32 | The largest offset on the screen, in s (under a third: neighbours never overlap) |
+| SH4DER_HEXHEAT_NEAR_FADE | 0.5 | In s: the offset grows from 0 at the near cut's line to whole this far above it |
+| SH4DER_HEXHEAT_EDGE | 24.0 | Pixels: the offset grows from 0 over this from the band's left, right and top |
+| SH4DER_HEXHEAT_CUT | 0.25 | Pixels: a cell whose largest offset is under this is not drawn |
+| SH4DER_HEXHEAT_CELLS_MAX | 200 | The most hexagons a frame |
 | SH4DER_HEXHEAT_BAND_W | 256 | The band's width, screen pixels = target texels |
 | SH4DER_HEXHEAT_BAND_H | 128 | Its height |
-| SH4DER_HEXHEAT_FOOT | 6.0 | Band rows under the anchor: room for the lowest hexagon's shift |
-| SH4DER_HEXHEAT_DENSE | 72.0 | Most hexagons start within this many pixels over the anchor |
-| SH4DER_HEXHEAT_TOP | 96.0 | And none higher than this |
-| SH4DER_HEXHEAT_SPARSE | 0.15 | The share that starts between DENSE and TOP |
-| SH4DER_HEXHEAT_RISE | 2.0 | Rise, pixels a second |
-| SH4DER_HEXHEAT_LEAN | 1.4 | Sideways drift, at most, pixels a second, each its own |
-| SH4DER_HEXHEAT_WOBBLE | 0.6 | Pixels about its line |
-| SH4DER_HEXHEAT_LIFE_MIN | 0.7 | Shortest life, seconds |
-| SH4DER_HEXHEAT_LIFE_SPAN | 4.0 | A life is LIFE_MIN + LIFE_SPAN x h^2 over a hash h (median about 1.7 s) |
-| SH4DER_HEXHEAT_GAP | 0.6 | Seconds a slot rests between two lives, at most |
-| SH4DER_HEXHEAT_SHIFT_MAX | 5 | A piece's shift, pixels a side (1 .. 5, median 2) |
-| SH4DER_HEXHEAT_STEP_HZ | 10.0 | Shift rolls a second |
+| SH4DER_HEXHEAT_FOOT | 12.0 | Band rows under the anchor: s, the near cut's line and a row to spare |
 
 ## The cloudvolume effect (a cloud deck you fly through)
 
@@ -1720,7 +1871,7 @@ void sh4der_ramp_colours(const float avg[3], float white, float edge[3], float c
 ## Build and test
 
 ```sh
-make test                        # host, plain C: test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/pl4nar_test, test/pool_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, example/blade
+make test                        # host, plain C: test/core_test, test/fakeaf_test, test/ground_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/pl4nar_test, test/pool_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, example/blade
 make test-demo                   # host: the demos' own tests alone (make test runs them too); a test whose fetched art is missing says NOT RUN
 make test-shz SH4ZAM=/path/to/sh4zam   # host, the SH4ZAM path on SH4ZAM's software back-end
 make dc SH4ZAM=/path/to/sh4zam   # Dreamcast: build/libsh4der_core.a (KallistiOS environment sourced)
@@ -1750,6 +1901,8 @@ Every target takes `SH4DOW=`, SH4DOW-DC's folder (default: the included `sh4dow-
 - `test/taa_test.c`: the Halton values, the jitter centred over a cycle, a known turn's shift in pixels, the weight falling with speed, a cut.
 - `test/look_test.c`: the luma bins and the log average; the eye into light (over-bright, then settled by LIGHT_S) and into dark (darker, then slow); the log and exp series against the C library; every grade layer list against clamp(A x + B) over a ramp; the layer colour; the glare.
 - `test/holo_test.c`: the default weights and table entries, the breath tracker over a breathing chest that then leans, a table that never gets darker with more weight or more breath, the fade, bad params, the glint by depth.
+- `test/fakeaf_test.c`: the default table and the table from a floor's numbers (starts a square root of two apart), the shares of the ranges adding to 1, the 3V alpha and edges and cuts, the piece's ranges, the bias code's limits and steps, the stretched copies, the ramp texels, the fill model.
+- `test/ground_test.c`: the same seed gives the same texels, another seed others, the x and y seams no harder than inside the tile, 24 tones or more, the red mean kept within 15 % of the base.
 
 ## Real hardware notes
 

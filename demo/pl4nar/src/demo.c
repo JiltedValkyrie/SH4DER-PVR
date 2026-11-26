@@ -2398,16 +2398,21 @@ float demo_host_lamp_err(void) {
 /* The band: the far end of the world as the SCREEN's camera sees it, drawn into a region of the reflection target in
    the mirror's own pass (no pass of its own), a texel a screen pixel, cut to the region and to what lies beyond
    HEXH_NEAR_BACK short of the anchor (gfx_window: the SH-4's cut, the band's triangles are in the opaque list, where
-   the user clip is not used). The hexagons then sample it on the screen (GFX_MAT_HEAT). */
+   the user clip is not used); the road alone is not cut by depth, so a hexagon over the cut's line carries the road
+   under it too. The hexagons (the library's lattice, fixed on the screen; each cell judged at its world point, a ray
+   to the road: sh4der_hexheat.h) then sample the band on the screen (GFX_MAT_HEAT), at the cut's depth: in front of
+   all the band holds, behind all it does not. */
 static hexh_t s_hx;
 static struct {
     int on;                                        /* this frame's band is to be drawn */
     int drawn;                                     /* and was: the hexagons may sample it */
     float ox, oy;                                  /* the band's top left in the target */
-    float x0, y0, z, near_w;                       /* its top left on the screen; the anchor's depth key; the cut */
+    float x0, y0, z, near_w;                       /* its top left on the screen; the hexagons' depth key (the cut's); the cut */
     shz_vec4_t row[4];                             /* the screen's rows moved to the band */
+    sh4der_hexheat_view_t view;                    /* the frame's camera and road: the screen-to-world step */
 } s_hb;
-static unsigned s_tris_band;                       /* triangles sent a second time into the band, the last frame */
+static unsigned s_tris_band, s_hex_n;              /* triangles sent a second time into the band; hexagons drawn: the last frame */
+static float s_hex_peak;                           /* the largest offset drawn, pixels: the last frame */
 static float hex_gate(void) { return s_hex_free ? heat_level() : heat_shown(); }
 /* The band's place in the target for this size; 0: none fits (the hills at 128 x 64 and 512 x 256). */
 static int hex_band_at(float *ox, float *oy) {
@@ -2429,33 +2434,34 @@ void demo_auto_hex(int on, int gate_free) {
 #endif
 }
 unsigned demo_hex_band_tris(void) { return s_tris_band; }
+unsigned demo_hex_cells(void) { return s_hex_n; }
+float demo_hex_peak(void) { return s_hex_peak; }
 /* The frame's band, before the mirror's pass: the anchor on the screen, the band round it, the rows moved to it. */
 static void hex_prepare(const float eye3[3], const float at3[3], const float up3[3]) {
-    float hp[3], f[3], ox, oy, x0, y0;
+    float hp[3], ox, oy, x0, y0;
     shz_vec4_t r[4];
     shz_vec4_t c;
-    s_hb.on = s_hb.drawn = s_hex_band = 0;
+    s_hb.on = s_hb.drawn = s_hex_band = 0; s_hex_n = 0u; s_hex_peak = 0.0f;
     if (!(hex_gate() > 0.0f) || !s_reflect || !hex_band_at(&ox, &oy)) { hexh_reset(&s_hx); return; }
     if (!heat_anchor(eye3, at3, CAR_Y, hp)) return;
 #ifdef PL4NAR_HILLS
     if (!heat_anchor(eye3, at3, hills_h(hp[0], hp[2]), hp)) return;   /* the road's own height HEAT_DIST on */
 #endif
     if (!sh4der_pl4nar_viewproj_rows(r, NULL, eye3, at3, up3, FOV_MAIN, GFX_NEAR, GFX_SCREEN_W, GFX_SCREEN_H)) return;
+    if (!hexh_camera(&s_hb.view, eye3, at3, FOV_MAIN, GFX_SCREEN_W, GFX_SCREEN_H, hp[1])) return;   /* the road at the sheet's foot */
     shz_xmtrx_load_rows_4x4(&r[0], &r[1], &r[2], &r[3]);
     c = shz_xmtrx_transform_vec4(shz_vec4_init(hp[0], hp[1], hp[2], 1.0f));
     if (!(c.w > HEXH_NEAR_BACK + GFX_NEAR)) return;
     {
         const float iw = shz_invf(c.w);
         if (!sh4der_hexheat_band(c.x * iw, c.y * iw, &x0, &y0)) return;
-        s_hb.z = iw;
     }
-    f[0] = at3[0] - eye3[0]; f[1] = at3[1] - eye3[1]; f[2] = at3[2] - eye3[2];
-    sh4der_norm3_(f);
-    hexh_view(&s_hx, f);
+    hexh_view(&s_hx, &s_hb.view);
     s_hb.row[0] = shz_vec4_sub(r[0], shz_vec4_scale(r[3], x0));   /* cx - x0 w: the band's own pixels */
     s_hb.row[1] = shz_vec4_sub(r[1], shz_vec4_scale(r[3], y0));
     s_hb.row[2] = r[2]; s_hb.row[3] = r[3];
     s_hb.ox = ox; s_hb.oy = oy; s_hb.x0 = x0; s_hb.y0 = y0; s_hb.near_w = c.w - HEXH_NEAR_BACK;
+    s_hb.z = shz_invf(s_hb.near_w);
     s_hb.on = s_hex_band = 1;
 }
 /* Inside the mirror's pass, its opaque list: the far world a second time, through the band's window. */
@@ -2471,7 +2477,9 @@ static void hex_band_pass(shz_vec3_t eye) {
     gfx_window(s_hb.ox, s_hb.oy, (float)SH4DER_HEXHEAT_BAND_W, (float)SH4DER_HEXHEAT_BAND_H, s_hb.near_w);
     draw_sky(eye);
     gfx_cull(GFX_CULL_BACK);
+    gfx_window(s_hb.ox, s_hb.oy, (float)SH4DER_HEXHEAT_BAND_W, (float)SH4DER_HEXHEAT_BAND_H, GFX_NEAR);   /* the road whole (no depth cut) */
     draw_road();
+    gfx_window(s_hb.ox, s_hb.oy, (float)SH4DER_HEXHEAT_BAND_W, (float)SH4DER_HEXHEAT_BAND_H, s_hb.near_w);
     draw_buildings(1);
     draw_props(0);
     gfx_window(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
@@ -2481,13 +2489,14 @@ static void hex_band_pass(shz_vec3_t eye) {
     s_vw = kw; s_vh = kh; s_focal = kf; s_haze_max = khz;
     VP_LOAD();
 }
-/* On the screen's translucent list, last of the world: the hexagons, each a strip of 6 from the band. */
+/* On the screen's translucent list, last of the world: the hexagons, each a strip of 6 from the band (4 triangles). */
 static void hex_draw(void) {
-    static sh4der_hexheat_vtx_t m[SH4DER_HEXHEAT_N * 6u];
+    static sh4der_hexheat_vtx_t m[SH4DER_HEXHEAT_CELLS_MAX * 6u];
     const float us = gfx_reflect_u_scale(), iw = shz_invf((float)RT_W(s_sizes[s_size][0])), ih = shz_invf((float)RT_H(s_sizes[s_size][1]));
     unsigned n, i, k;
     if (!s_hb.drawn) return;
-    n = sh4der_hexheat_mesh(&s_hx.h, s_car.clock, hex_gate(), s_hb.x0, s_hb.y0, m);
+    n = sh4der_hexheat_mesh(&s_hx.h, &s_hb.view, s_car.clock, hex_gate(), s_hb.x0, s_hb.y0, m, SH4DER_HEXHEAT_CELLS_MAX, &s_hex_peak);
+    s_hex_n = n;
     gfx_bind(GFX_MAT_HEAT);
     gfx_cull(GFX_CULL_NONE);
     for (i = 0; i < n; i++) {

@@ -1,16 +1,16 @@
-/* SH4DER-PVR: host test of the fake anisotropic filtering helper (demo/psm/fakeaf.h). Arithmetic only: no PVR.
+/* SH4DER-PVR: host test of the fake anisotropic filtering helper (include/sh4der_fakeaf.h). Arithmetic only: no PVR.
 
-   demo/psm/test/fakeaf_test.c
-   Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
+   test/fakeaf_test.c
+   Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-   Compile: cc -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include -Idemo/psm
-            demo/psm/test/fakeaf_test.c -lm */
+   Compile: cc -std=c99 -Wall -Wextra -Werror -DSH4DER_CORE_NO_SH4ZAM -Iinclude -Ish4dow-dc/include
+            test/fakeaf_test.c -lm (make test; make test-shz builds the same with SH4ZAM) */
 
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "fakeaf.h"
+#include "sh4der_fakeaf.h"
 
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)

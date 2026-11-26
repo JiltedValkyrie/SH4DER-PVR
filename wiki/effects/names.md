@@ -54,7 +54,7 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | trail | Motion blur | Blends the last frame over this one: streaks behind moving things | Camera and screen |
 | lens | Screen overlays | Vignette (dark corners), film grain, hit wedges, a flash | Camera and screen |
 | warp | Screen warp | Bends the whole picture: shockwave, heat haze, wobble, blur, mosaic | Camera and screen |
-| hexheat | Heat haze hexagons | Heat haze as small hexagons that show the far picture a few pixels off | Camera and screen |
+| hexheat | Heat haze hexagons | Heat shimmer over a far view: a honeycomb of small hexagons, each nudged a little by a smooth rising wave | Camera and screen |
 | ca | Colour fringe | Chromatic aberration: coloured edges through a render of the frame | Camera and screen |
 | film | Old film wear | Flicker, scratches, dust and gate weave of old film | Camera and screen |
 | timebase | Tape wobble | A video tape's timing wobble: each row shifted sideways | Camera and screen |
@@ -106,7 +106,7 @@ The "What it actually is" column is also the proposed text for a "What it is" co
 | rise | Stateless rising lights: points that rest, lift off in turn, drift up with sway, shrink, cool and settle as twinkling stars; every value from (light, time, seed) | floating lanterns, fireflies, sky lanterns, embers | a lantern festival, candles | `sh4der_rise.h`; `test/rise_test.c` |
 | film | Film wear over a finished picture: exposure flicker, vertical scratches, dust specks, gate weave; no frame read, no state | old film, film grain, sepia, projector look | a flashback, a title | `sh4der_film.h`; `test/film_test.c` |
 | timebase | A video tape deck's line timing errors: one sideways shift a row (top hook, flutter, head switching step), drawn as bands of the frame texture; a port of parts of NTSCRT by Finn McKenty (MIT) | tape look, VHS, time-base error, tracking, tape warp | a cutscene on tape, a security monitor | `sh4der_timebase.h`; `sh4der_ca_channel_rows` in `sh4der_ca.h`; `test/timebase_test.c` |
-| hexheat | Heat haze as a few floating hexagons, each showing the picture behind it 1 to 5 pixels off, from a band the client draws into a render target it already fills | heat haze, heat shimmer, mirage, refraction, screen distortion | a hot road's far end, a desert horizon | `sh4der_hexheat.h`; `test/hexheat_test.c` |
+| hexheat | Heat haze as a lattice of hexagons fixed on the screen: each cell is judged at its world point (a ray from the camera to the ground, the pick a strategy game does for the mouse) and moved up to a quarter of its size by the gradient of a stack of rising waves; its picture comes from a band the client draws into a render target it already fills | heat haze, heat shimmer, mirage, refraction, screen distortion, screen to world, ray to ground | a hot road's far end, a desert horizon | `sh4der_hexheat.h`; `test/hexheat_test.c` |
 | cloudvolume | A CPU ray march through a cloud slab (cover map, noise erosion, sun light) into a small 8-bit buffer drawn as one filtered quad | volumetric clouds, cloud ray marching | a flight through a cloud deck | `sh4der_cloudvolume.h`; `test/cloudvolume_test.c` |
 | pl4nar | Planar reflection: the world mirrored about a plane into a small render target, looked up per vertex, blended as one layer with Fresnel alpha | planar reflection, mirror, render-to-texture reflection, environment reflection | car paint, glass, a wet road, a floor | `sh4der_pl4nar.h`, `src/sh4der_pl4nar.c`; `test/pl4nar_test.c` |
 | fault | A report on the screen when a program raises an exception, hangs, asserts or exits: registers, the stack's calls, the last frame's breadcrumbs | crash screen, hang screen, fault page, crash dump | a test image that dies with nothing on screen | `sh4der_fault.h`; `test/fault_test.c` |
@@ -251,7 +251,7 @@ The proposed first sentence of each header's top comment, technique first, use a
 - rise: Stateless rising lights that rest, lift, drift, cool and settle as stars (for example lanterns).
 - film: Film wear over a finished picture: flicker, scratches, dust, weave.
 - timebase: A video tape's bent picture: a sideways shift for every row.
-- hexheat: Heat haze as a few hexagons that show the far picture a few pixels off.
+- hexheat: Heat haze as a lattice of hexagons fixed on the screen, each moved a little by a smooth rising wave.
 - cloudvolume: Volumetric clouds by a CPU ray march into a small buffer drawn as one quad.
 - pl4nar: Planar reflection through a small render target, looked up per vertex.
 - softfade: A per-vertex fade of a light near the planes and walls the caller names (for example a halo that dies softly at a wall).

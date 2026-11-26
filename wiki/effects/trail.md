@@ -11,6 +11,8 @@ sources: [include/sh4der_trail.h, src/sh4der_trail.c, README.md "The trail effec
 
 > **In plain words.** When the camera turns fast, the picture smears the way a fast-moving thing smears to the eye. This effect lays copies of the frame before over this one, each moved a little further along the turn, so the picture streaks, and the same copies make the blend for [smooth edges over time](taa.md). Use it for a speed boost, a stunned view or ghost trails behind fast things. It needs the screen at 640 x 480, with no 2X anti-aliasing (edge smoothing) and dithering off.
 
+> **Ghosting.** A stronger smear than TAA: copies of the last frame are drawn along the motion. It costs more (about 25 ms of PVR a frame with three copies, an estimate), so the horror and night recipe suggests two copies at most: [Ghosting with TAA](../guides/horror-night-game.md#ghosting-with-taa).
+
 ## Try this first
 
 Smear the picture along a fast camera turn, so a boost or a stunned view reads as fast.

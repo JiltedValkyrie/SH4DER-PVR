@@ -152,6 +152,8 @@ void  demo_auto_heat(unsigned level);              /* the heat shimmer: 0 OFF, 1
 void  demo_auto_hex(int on, int gate_free);        /* the heat as hexagons (heat_hex.h) in place of the layer, their band in the
                                                       target (a resize); gate_free: drawn under a moving camera too. Not wet */
 unsigned demo_hex_band_tris(void);                 /* triangles sent a second time into the band, the last frame */
+unsigned demo_hex_cells(void);                     /* hexagons drawn, the last frame (4 triangles each) */
+float demo_hex_peak(void);                         /* and the largest offset among them, pixels */
 void  demo_auto_beam(int on);                      /* the headlights' fade by distance (sh4der_pool_beam, the lamps' reach): 0 the
                                                       two wedges (the start, unless -DPL4NAR_HEAD_BEAM), 1 the beam. Shows only
                                                       where the camera is far from the car (the fly-by). NOT RUN on a console */

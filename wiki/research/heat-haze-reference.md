@@ -9,7 +9,7 @@ sources: [the owner's reference video (kept outside the repository), demo/pl4nar
 **What you will learn:** what the heat haze in the owner's reference video does, pixel by pixel: the size of its hexagons, how they move, how far they shift the picture, and where on the screen the haze sits. These are the numbers to match when reworking `demo/pl4nar/src/heat.h`.
 **For:** whoever reworks the street demo's heat haze (Senior), and the owner.
 
-> **What shipped is different.** The street demo's heat haze version 2 (`demo/pl4nar/src/heat.h`, not committed) is a smooth wobble under a pixel, not hexagons. The owner approved it as host pictures, 2026-11-25. This note stays as the reference for a hexagon version, if one is wanted later.
+> **What shipped is different.** The street demo's heat haze version 2 (`demo/pl4nar/src/heat.h`, not committed) is a smooth wobble under a pixel, not hexagons. The owner approved it as host pictures, 2026-11-25. A first hexagon effect built to this note's numbers (a few floating hexagons that pop on and off, each with a shift rolled ten times a second) was judged wrong by the owner on 2026-11-26: scattered popping tiles are not the look. The library's hexagon effect is now a lattice fixed on the screen and moved by a smooth wave, from the owner's own formulas: [Heat haze hexagons [hexheat]](../effects/hexheat.md). This note stays as the record of what the video shows.
 
 ## The source
 

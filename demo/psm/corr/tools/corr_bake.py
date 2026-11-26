@@ -25,7 +25,7 @@ ART = os.path.join(CORR, "assets", "kenney_retro-textures-fantasy")
 MIP_WORDS = [0x3, 0x4, 0x8, 0x18, 0x58, 0x158, 0x558, 0x1558, 0x5558, 0x15558]   # start of each level, 16-bit words
 
 # name in C, source file, side, turned. Every surface's v runs along the corridor (a later stretched-copy mode halves
-# along v only: ../../fakeaf.h), so a wall tile is turned a quarter: on the wall its rows then run up, its bricks level.
+# along v only: include/sh4der_fakeaf.h), so a wall tile is turned a quarter: on the wall its rows then run up, its bricks level.
 TEXTURES = [
     ("corr_tex_floor256", "floor_stone_pattern.png", 256, 0),
     ("corr_tex_wall256", "wall_brick_stone_center.png", 256, 1),

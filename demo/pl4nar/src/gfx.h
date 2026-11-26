@@ -29,8 +29,8 @@ enum {
     GFX_MAT_WET,                   /* opaque: the reflection target x vertex colour + offset colour (the wet road: one pass) */
     GFX_MAT_GRIT,                  /* translucent: the wet road's grit (tex_grit, ARGB4444, mips) x vertex colour, alpha =
                                       texel x vertex alpha, src alpha / 1 - src alpha; loaded in the wet build only */
-    GFX_MAT_HEAT,                  /* translucent list, no blend (one / zero): the reflection target's texel as it is, point
-                                      sampled, depth tested and not written: the heat's hexagons (heat_hex.h) */
+    GFX_MAT_HEAT,                  /* translucent list, no blend (one / zero): the reflection target's picture as it is,
+                                      filtered, depth tested and not written: the heat's hexagons (heat_hex.h) */
     GFX_MAT_COUNT
 };
 enum { GFX_CULL_NONE = 0, GFX_CULL_BACK = 1, GFX_CULL_MIRROR = 2 };

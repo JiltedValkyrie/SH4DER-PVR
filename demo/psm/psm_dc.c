@@ -54,7 +54,7 @@
 #include "psm_scene.h"
 #include "psm_mapsrc.h"
 #include "psm_sky.h"
-#include "psm_ground.h"
+#include "sh4der_ground.h"
 #include "psm_ao.h"
 #define SH4DER_FAULT_IMPL
 #include "sh4der_fault.h"
@@ -295,7 +295,7 @@ static void target_fit(unsigned size) {
 }
 
 /* The ground's 64 x 64 texture: the field's checker (squares of 32 texels, 1 m squares, u and v are metres / 2), or the
-   square's paving slabs (psm_ground.h; a repeat 3 m, a third of a repeat a metre). Call when the PVR is not reading it. */
+   square's paving slabs (sh4der_ground.h; a repeat 3 m, a third of a repeat a metre). Call when the PVR is not reading it. */
 static void ground_texture(void) {
     unsigned i;
 

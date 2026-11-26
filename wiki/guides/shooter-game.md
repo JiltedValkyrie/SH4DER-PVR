@@ -75,7 +75,7 @@ A 60 Hz frame has 16.7 ms; a 30 Hz frame has 33.3 ms. The SH-4 and the PVR are s
 | Sparks and tracers, 24 quads | 1,256 B RAM; 3 KB atlas | 96 vertices (exact) | under 25 us of SH-4 (ESTIMATE: 96 at 142 to 260 ns, BUS-003, BUS-001) | NOT RUN as a pool |
 | Lens flash | none | one full-screen layer | 3.1 ms of PVR while shown | MEASURED per layer (PVR-002) |
 | Lens grain | 8 KB | one full-screen textured layer | not measured | NOT RUN |
-| Lens vignette | none | 594 vertices, 288 triangles at the defaults (32 spokes x 8 rings, per frame; `src/sh4der_lens.c:17`) | not measured | NOT RUN |
+| Lens vignette | none | 594 vertices, 288 triangles at the defaults (32 spokes x 8 rings, per frame; `src/sh4der_lens.c:19`) | not measured | NOT RUN |
 | Torch | none | 306 vertices, 288 triangles (exact) | not measured (ESTIMATE: carve covers the screen, about 3.1 ms) | NOT RUN |
 | One light pool | none | 10 triangles, 176 B (exact) | not measured (ESTIMATE: area share of a full-screen layer) | NOT RUN |
 | Mist, 12 sheets | 8 KB | 48 triangles (exact) | not measured | NOT RUN |
@@ -97,7 +97,7 @@ No total. No shooter has run as a whole, so the sum is NOT RUN. The nearest meas
 - `SH4DER_SPARK_KEEP` on the flash and the tracer, and nothing else (spark.h, line 17). ADVISED.
 
 **Screen overlays**
-- `SH4DER_LENS_VIG_SPOKES` 32, `SH4DER_LENS_GRAIN_AMP` 0.06 (README, lens tuning). ADVISED. Spokes 16 give a worst error of 9.1 out of 255; 32 give 2.3 (a host sweep, ESTIMATE: `lens.h:68`, `README.md:562`).
+- `SH4DER_LENS_VIG_SPOKES` 32, `SH4DER_LENS_GRAIN_AMP` 0.06 (README, lens tuning). ADVISED. Spokes 16 give a worst error of 9.1 out of 255; 32 give 2.3 (a host sweep, ESTIMATE: `include/sh4der_lens.h:106`, README 'The lens effect').
 - `SH4DER_LENS_HIT_LIFE_S` 1.5 for a hit wedge (README, lens tuning). ADVISED. The flash's default colour is blue-white; pick your own for damage (our advice).
 
 **Screen spotlight**

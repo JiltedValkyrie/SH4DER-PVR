@@ -51,18 +51,38 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/effects/torch.
 
 **Pick one camera feel per scene.** Our advice, not tested. Two of them cost twice.
 
+## Ghosting with TAA
+
+**What the viewer sees.** A faint copy of the last frame lingers behind moving things. Falling dust or ash smears a little, and the dark room feels unsteady. The Match Light short film demo (`demo/matchlight/`) uses this look in its lens pass; its code notes that above a weight of 0.5 "the falling snow smears" (`demo/matchlight/matchlight.c:126`).
+
+**Where the ghost comes from.** Temporal anti-aliasing (TAA) draws each frame a fraction of a pixel to one side, then blends the frame before into it. The blend smooths edges, and a moving thing leaves a faint copy behind it. The trail effect ([Motion blur [trail]](../effects/trail.md)) gives a stronger smear, by drawing copies along the motion.
+
+**When to use it.** At night, in fear, in a dream, or for a hit reaction: a short smear suggests a shaky eye. Keep it off for a close-up you want sharp. The TAA header drops the history when the view turns more than about 20 degrees in one frame (`include/sh4der_taa.h`, `SH4DER_TAA_CUT_RAD`, 0.35 radians).
+
+**Settings to start with.**
+- TAA, the gentle ghost: `SH4DER_TAA_WEIGHT_HI` 0.75, the history weight while the camera is still (the header default, `include/sh4der_taa.h:84`; ADVISED). The film uses 0.45 (`LENS_TAA_WEIGHT`, `demo/matchlight/matchlight.c:126`), a lighter ghost.
+- TAA, the jitter: `SH4DER_TAA_PHASES` 8 (the default, `include/sh4der_taa.h:83`; ADVISED).
+- Trail, the stronger smear: `SH4DER_TRAIL_COPIES` 3, `SH4DER_TRAIL_WEIGHT_HI` 0.5 (the cap), `SH4DER_TRAIL_SHIFT_MAX` 8 and `SH4DER_TRAIL_SPEED_HI` 8.0 (the header defaults, `include/sh4der_trail.h:67-71`; ADVISED).
+- Status: NOT RUN on a console for either effect. The film's own figures are counted, not measured (its README: "not measured on a console").
+
+**What it costs.** It is not free.
+- TAA draws two full-screen translucent layers in a frame where the weight is above zero: one dims the frame, one adds the history (`include/sh4der_taa.h`, the blend functions). A full-screen translucent layer costs about 3.1 ms of PVR at 640 × 480 (PVR-002, MEASURED, one console). So TAA is about 6 ms of PVR a frame at 640 × 480 (ESTIMATE, two layers). That is about a third of a 60 Hz frame (16.7 ms). Its history reads the front buffer, so it needs no video memory of its own (`wiki/effects/taa.md`, as stated). Its recommended frame texture is 320 × 240, 320 KB.
+- The trail draws a keep layer, a mask layer and two layers for each copy: with three copies, eight full-screen layers, about 25 ms of PVR a frame (ESTIMATE, the same arithmetic). That does not fit a 60 Hz frame. Use two copies at most, or TAA.
+
+**The example to read.** The Match Light short film demo (`demo/matchlight/`) is a finished film. Its lens pass runs TAA with the 0.45 weight, the chromatic aberration pass, and no trail effect. In its code the word "trail" means the snow footprint patch, not the motion trail. Only the code was read here; nothing in it was run for this page.
+
 ## The order of one frame
 
 The sources give an order for exposure and light pools (`AGENTS.md`, "Call order: look" and "Call order: pool"). The other effects give their own place. No source gives one order for all of them. The list uses those places. It is our advice, not tested.
 
-1. **At load.** Look: `sh4der_look_bins`, `sh4der_look_params_default`, `sh4der_look_eye_reset`. Torch: `sh4der_torch_gate_reset`. Lens: `sh4der_lens_init`, which makes its grain tile in video memory (`src/sh4der_lens.c:54-62`).
+1. **At load.** Look: `sh4der_look_bins`, `sh4der_look_params_default`, `sh4der_look_eye_reset`. Torch: `sh4der_torch_gate_reset`. Lens: `sh4der_lens_init`, which makes its grain tile in video memory (`src/sh4der_lens.c:215`).
 2. **Each frame, before drawing.** Read the frame on screen, with its stamp (frame.md). Step the eye, except while the torch is lit (`include/sh4der_look.h:55-56`). Step the torch gate from baked light, not the read (README:649). Why: a light must not react to its own output.
 3. **Light the vertices.** Add the torch's near light to each vertex (README:644). The carve then darkens what this light has lit.
 4. **Opaque world.** Into the frame texture if the picture is bent (timebase.md, steps 1 to 3); otherwise onto the screen.
 5. **Punch-through list.** Drifting specks (motes.md).
 6. **Translucent world effects.** Mist sheets (they sort with the scene, README:1304), light pools after the ground (AGENTS.md, pool step 2), lightning quads (README:1190). Why: they need the ground and walls drawn before them.
 7. **Torch layers, then the look's layers.** The torch sits under the look's z values (`include/sh4der_torch.h:37-38`). The look's layers are full screen and under the HUD (README:431).
-8. **Film, then lens.** Film's rectangle and specks, then the lens overlays at z 430 to 960, under the HUD at 1000 (README:588-591). No source orders film against lens.
+8. **Film, then lens.** Film's rectangle and specks, then the lens overlays at z 430 to 960, under the HUD at 1000 (README, 'The lens effect'). No source orders film against lens.
 9. **HUD and text, straight.** Then the frame stamp, last (frame.md).
 
 ## What it costs
@@ -74,7 +94,7 @@ A frame is 16.7 ms at 60 Hz and 33.3 ms at 30 Hz. The SH-4 and the PVR overlap, 
 | Spotlight, both meshes | 0 | 288 triangles, 306 vertices (README:651; count) | Carve about 3.1 ms of PVR | Carve: ESTIMATE (PVR-002 model). Rest not measured |
 | Frame read | 0 | 4,800 samples (count) | 2.6 ms of SH-4: 9,600 bytes at 3.7 MB/s | ESTIMATE, on SH4-040's rate. A port's log: 1,196 us (VID-005, REPORTED) |
 | One exposure layer | 0 | 4 vertices (count) | 3.1 ms of PVR | MEASURED (PVR-002) |
-| Screen overlays, three layers | 8 KB grain tile (ESTIMATE, arithmetic; `src/sh4der_lens.c:16`) | Vignette 594 vertices (`lens.c:17`; count) | 9.3 ms of PVR | ESTIMATE: 3 x PVR-002 |
+| Screen overlays, three layers | 8 KB grain tile (ESTIMATE, arithmetic; `include/sh4der_lens.h:111`) | Vignette 594 vertices (`src/sh4der_lens.c:19`; count) | 9.3 ms of PVR | ESTIMATE: 3 x PVR-002 |
 | Old film wear | 0 | Rectangle, 3 lines, 12 specks (`film.h:73-74`; count) | 3.1 ms of PVR | ESTIMATE, one full-screen layer |
 | Tape wobble | 640 KB frame texture (FACT, VID-001; `ca.h:11-12`) | About 960 vertices (ESTIMATE count) | Not measured | NOT RUN |
 | Screen filters | Grain 2,048 B; thermal map 16 KB (ESTIMATE, arithmetic; visor.md) | Not stated | Not measured; 3.1 ms per full-screen layer (ESTIMATE) | NOT RUN |
@@ -99,8 +119,8 @@ A frame is 16.7 ms at 60 Hz and 33.3 ms at 30 Hz. The SH-4 and the PVR overlap, 
 - `SH4DER_LOOK_LIGHT_S` 2.0 and `SH4DER_LOOK_DARK_S` 6.0 (`look.h:87-88`). ADVISED.
 
 **Screen overlays**
-- `SH4DER_LENS_VIG_STRENGTH` 0.45, `_INNER` 0.60, `_OUTER` 1.10 (README:558-560). ADVISED.
-- `SH4DER_LENS_GRAIN_AMP` 0.06, about plus or minus 3 % (README:568). ADVISED.
+- `SH4DER_LENS_VIG_STRENGTH` 0.45, `_INNER` 0.60, `_OUTER` 1.10 (README, 'Lens tuning'). ADVISED.
+- `SH4DER_LENS_GRAIN_AMP` 0.06, about plus or minus 3 % (README, 'Lens tuning'). ADVISED.
 
 **Old film (one camera feel)**
 - `SH4DER_FILM_FLICKER_MAX` 0.04 (8 % peak to peak) and `SH4DER_FILM_RATE_MAX_HZ` 3.0 (`film.h:75-76`). Design limits, not tested on viewers. ADVISED.

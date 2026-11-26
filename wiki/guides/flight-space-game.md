@@ -37,7 +37,7 @@ Tags: **MEASURED** = a ledger row (ID given), one console. **ADVISED** = a heade
 | Exposure and grade [look] | The eye adjusts from sun to dark; a colour grade. | [header](../../include/sh4der_look.h), [page](../effects/look.md) | PROTOTYPE v0.1 (maturity.md); on the demo disc, no ledger row; read not timed. The sources disagree: `look.h:36` says Version v0.50 (runs on the demo disc) |
 | Screen overlays [lens] | A flash on a hit, a dark vignette. | [header](../../include/sh4der_lens.h), [page](../effects/lens.md) | PROTOTYPE v0.1 (maturity.md); no console row |
 | Screen warp [warp] | A shockwave ring, heat wobble, speed blur. | [header](../../include/sh4der_warp.h), [page](../effects/warp.md) | Send cost MEASURED (BUS-004); PVR cost not in the ledger |
-| Heat haze hexagons [hexheat] | Hexagons over a hot far horizon. | [header](../../include/sh4der_hexheat.h), [page](../effects/hexheat.md) | NOT RUN; fits when you already draw a target pass |
+| Heat haze hexagons [hexheat] | A honeycomb of hexagons that shimmers over a hot far horizon. | [header](../../include/sh4der_hexheat.h), [page](../effects/hexheat.md) | NOT RUN; fits when you already draw a target pass |
 | Motion blur [trail] | Streaks on turns and boosts. | [header](../../include/sh4der_trail.h), [page](../effects/trail.md) | NOT RUN; by ESTIMATE, 2 copies (6 layers) alone pass 16.7 ms |
 | Water waves [water] | A sea below. | [header](../../include/sh4der_water.h), [page](../effects/water.md) | REPORTED on a console; frame time OPEN |
 | Cloud deck [cloudvolume] | Clouds to fly through. | [header](../../include/sh4der_cloudvolume.h), [page](../effects/cloudvolume.md) | NOT RUN; cost is ESTIMATE |
@@ -55,7 +55,7 @@ The sources give the inside order of some passes: glow (`glow.h:47-49`), look an
 5. **Punch-through list: motes** (shapes with hard, cut-out edges), after the world, depth write on ([genre guide](../start-here/genre-water-and-weather.md), step 5).
 6. **Translucent list: mesh bloom, sparks, bolts, hexagons**, after the world. These are see-through or additive shapes (they add light to what is under them), so no depth write. Keep sprites spread out (PVR-009).
 7. **Full-screen layers**: screen bloom (its bloom, halo, then rays), look's grade layers, trail's copies, the lens flash, the warp. Each covers the screen, so count them. The sources do not rank these; test the order. The warp needs the picture as a texture (`warp.h:13-14`; [colour fringe](../effects/ca.md) shows how).
-8. **HUD last.** Look and lens layers sit under it (`lens.h:95`).
+8. **HUD last.** Look and lens layers sit under it (`include/sh4der_lens.h:133`).
 
 ## What it costs
 
@@ -73,7 +73,7 @@ A frame costs about the larger of the SH-4 and PVR when they overlap, or their s
 | Sparks | your atlas, about 3 KB at 64 × 64 (README, as stated) | 96 vertices (24 quads) | 14 to 25 us SH-4 (ESTIMATE: 96 × 142 to 260 ns, BUS-003, BUS-001) | Pool NOT RUN |
 | Lightning and motes | motes 512 B mask | bolt 240 vertices; motes 384 | bolt 34 to 62 us; motes 55 to 100 us SH-4 (ESTIMATE, same rates) | NOT RUN |
 | Screen warp | 256 KB, 512 × 256 RGB565 (`warp.h:13-14`, arithmetic); `README.md:64` gives 160 KB, so the sources disagree | mesh 2,460 vertices | 2.25 ms SH-4 for the mesh (BUS-004, MEASURED, h2) | PVR not in the ledger |
-| Heat haze hexagons | 64 KB band (arithmetic) | about 17 hexagons of 4 triangles (host count) | far world sent again: not measured | NOT RUN |
+| Heat haze hexagons | 64 KB band (arithmetic) | 131 hexagons of 4 triangles in the street scene (host count, 2026-11-26) | far world sent again, and a ray a cell: not measured | NOT RUN |
 | Motion blur | 128 B mask | 2 copies = 6 layers; 3 copies = 8 | 18.7 ms at 2 copies (112 % / 56 %); 24.9 ms at 3: ESTIMATE, layers × PVR-002 | NOT RUN |
 | Cloud deck | 16 KB (8-bit) or 32 KB (RGB565) at 128 × 128 (`cloudvolume.h:16-17`) | one quad | SH-4 14 to 22 ms (ESTIMATE, instruction counts) plus one layer, 3.1 ms PVR (ESTIMATE) | NOT RUN |
 | Water waves | none | sea mesh 2,016 to 23,040 triangles (`demo/OCEAN.md`) | not measured; a steady 33.3 ms not yet on hardware (OCEAN.md:5) | REPORTED on a console |
@@ -89,7 +89,7 @@ One ESTIMATE sum, kept apart from the MEASURED empty frame: glow's 9.3 ms plus l
 - **Motion blur:** `SH4DER_TRAIL_COPIES` 3 by default, 2 the lowest (`trail.h:67`); `SH4DER_TRAIL_SHIFT_MAX` 8 (`trail.h:72`). ADVISED, NOT RUN.
 - **Cloud deck:** `SH4DER_CLOUDVOLUME_STEPS` 16 by default, `SH4DER_CLOUDVOLUME_MAX_STEPS` 64 (`cloudvolume.h:81, 97`). ADVISED; the cost is ESTIMATE.
 - **Water waves:** `footprint` at your vertex spacing, or 0 to switch the fade off; full at 6 footprints, gone at 2 (`water.h:54-57`). ADVISED.
-- **Screen overlays:** `SH4DER_LENS_VIG_SPOKES` 32, `SH4DER_LENS_Z_VIG` 430 (`lens.h:68, 95`). ADVISED.
+- **Screen overlays:** `SH4DER_LENS_VIG_SPOKES` 32, `SH4DER_LENS_Z_VIG` 430 (`include/sh4der_lens.h:106, 133`). ADVISED.
 - **No recommended value yet** for mesh bloom (README "Bloom tuning" defaults only), lightning (`SH4DER_BOLT_STRANDS` 4, `SH4DER_BOLT_SEGS` 6, `bolt.h:64-65`) or motes (`max_draw` 96, `motes.h:125`). Time each on and off on a console.
 
 ## What to cut first
@@ -112,7 +112,7 @@ Our advice, not tested. The costs are ESTIMATES unless a row says MEASURED.
 - **Stacked translucent shapes in one tile:** 256 in one tile took 6,385 us; spread, 82 us (PVR-009, MEASURED). Spread sparks, motes and lamps.
 - **Sprites outside the translucent list or before the world,** or quads sent without the area test (`spark.h:18-19`; `sh4der_tri_area_ok`, [send checks](../effects/guard.md)).
 - **The eye chases itself** if its read still holds last frame's gain (`look.h:57-58`).
-- **Hexagons:** do not put near things in the band, and do not sample outside it (`hexheat.h:14`).
+- **Hexagons:** do not put near things in the band, and do not draw the hexagons nearer than the band's cut (`hexheat.h:20-21`).
 - **Lens grain** is skipped if there was no video memory at init, until the next PVR start ([lens page](../effects/lens.md)).
 - **Motes drawn before the world.** Their punch-through list writes depth ([motes page](../effects/motes.md)), so it goes after the world.
 - **Water:** the header does not check the wave pointer for NULL ([water page](../effects/water.md)).

@@ -11,7 +11,7 @@
                   pass B: PVR_FILTER_TRILINEAR2 in the translucent list, ONE x ONE, depth GEQUAL, no depth write,
                   the same vertices. KallistiOS's pvr_header.h names the two passes and says nothing more.
      3 BIAS       bilinear, mip mapped, each polygon's mip bias (the header's D adjust, 0.25 .. 3.75) from the
-                  selector: by its slope to the eye (../fakeaf.h's faf_bias_code) or one fixed code for all
+                  selector: by its slope to the eye (sh4der_fakeaf.h's faf_bias_code) or one fixed code for all
      4 RAMP       a hook for the ramp blend (a sharp pass, a destination-alpha ramp, the blurred copy by DESTALPHA):
                   not written (corr_ramp_draw returns 0), skipped in the cycle. Senior writes it after mip-a.
    Every statement about what the PVR does in these modes is OPEN until a console run.
@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#include "../fakeaf.h"
+#include "sh4der_fakeaf.h"
 
 enum { CORR_M_NEAREST, CORR_M_BILINEAR, CORR_M_TRILINEAR, CORR_M_BIAS, CORR_M_RAMP, CORR_MODES };
 

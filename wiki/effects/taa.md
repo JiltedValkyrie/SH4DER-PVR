@@ -11,6 +11,8 @@ sources: [include/sh4der_taa.h, README.md "The temporal AA maths", README.md "Re
 
 > **In plain words.** Edges look jagged because each pixel is either inside a shape or outside it. This effect nudges the camera by a fraction of a pixel each frame and blends each new frame with the ones before, so the edges average out into a smoother line. A moving camera would leave a ghost, a faint copy of the old picture, so the blend weakens as the camera turns faster. Use it when the camera mostly rests: a cutscene, a menu over a 3D backdrop or a photo mode.
 
+> **Ghosting.** TAA's blend leaves a faint trail of the last frame behind moving things. The horror and night recipe covers the look and its cost (about 6 ms of PVR a frame, an estimate): [Ghosting with TAA](../guides/horror-night-game.md#ghosting-with-taa). The Match Light short film demo uses it: [demo/matchlight](../../demo/matchlight/).
+
 ## Try this first
 
 Smooth the jagged edges of a still picture by blending in the frame before, and back off when the camera moves.
