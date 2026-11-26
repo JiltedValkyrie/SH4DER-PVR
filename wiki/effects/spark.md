@@ -21,7 +21,7 @@ For a few dozen short bright things at once: flashes, tracers, sparks, fireflies
 4. Mark a flash and a tracer with `SH4DER_SPARK_KEEP`, and leave plain sparks unmarked (include/sh4der_spark.h:17, 111; ADVISED).
 5. A shot: a `SH4DER_SPARK_KEEP` billboard at the muzzle for 2 frames, and a `SH4DER_SPARK_KEEP` | `SH4DER_SPARK_RETREAT` | `SH4DER_SPARK_TAIL0` streak from the muzzle to the hit for 4 frames (README:931; ADVISED).
 
-Run on a console by the owner in Street car demo and Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). The header says "Cost: not measured: no ledger row names it" (include/sh4der_spark.h:13), and its status is "ADVISED; to prove: a stage with the pool full against empty, PVR and SH-4 apart" (include/sh4der_spark.h:16).
+Run on a console by the owner in Street car demo (the halo quad) and Match Light (the pool) (her test; no measured numbers recorded yet; released in the public Match Light film). The header says "Cost: not measured: no ledger row names it" (include/sh4der_spark.h:13), and its status is "ADVISED; to prove: a stage with the pool full against empty, PVR and SH-4 apart" (include/sh4der_spark.h:16).
 
 Header: [sh4der_spark.h](../../include/sh4der_spark.h). Steps in full: [Call order](#call-order).
 
