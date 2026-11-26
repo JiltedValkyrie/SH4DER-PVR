@@ -5,12 +5,12 @@
 
    RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
    Start with: one target pass cut to its own tiles (cw x ch), timed cut and uncut; TILE_CUT_TRIES = 3
-   Cost:       PVR: 3,256 -> 344 us (ao4-h), 3,312 -> 375 us (c4), 5,111 -> 1,442 us (d1-c): MEASURED
-               (PVR-156, PVR-092, PVR-192). SH-4: tile_cut_begin +3,930 us a frame in d1-c, and the frame
-               903 us slower: MEASURED (PVR-192)
-   Status:     the PVR saving PROVEN (three passes); a frame gain ADVISED: the first form did not pay in d1-c
-               (its begin read the whole tables from video memory); this form, tables kept in RAM, has not run
-               on a console. To prove: the whole frame cut and uncut, with the begin and end timed apart
+   Cost:       PVR: 3,256 -> 344 us (ao4-h), 3,312 -> 375 us (c4), 5,075 -> 1,425 us (d1-d): MEASURED
+               (PVR-156, PVR-092, PVR-205). SH-4 a pass: begin 126 us, end 130 us; the frame 1,869 us faster
+               (d1-d): MEASURED (PVR-205). The first form's begin cost 3,930 us (d1-c, PVR-192)
+   Status:     the PVR saving PROVEN (four runs, three programs); the frame gain PROVEN in d1 alone (one run,
+               held at 60 Hz); ADVISED elsewhere: the street demo lost 3.05 ms with one table of two cut
+               (PVR-200). The need = 2 refusal has not run on a console
    Do:         wait for render done after every cut pass; cut only with every tile table found (PVR-200: one of two cut)
    Do not:     cut while the next scene fills during a render; carry on if tile_cut_end returns bad
                (shut the PVR down and pvr_init again)
@@ -29,9 +29,13 @@
    +3.9 ms of SH-4 for the begin alone, more than the 3.7 ms of PVR it saved (PVR-192). THIS form (v0.5) keeps a copy
    of each table in RAM from the moment it is taken and only WRITES video memory in a cut: 438 words a table at
    10 x 8, as many to restore, two reads a table as a light check, and a read-back of the restore on the first
-   TILE_CUT_VERIFY ends only. NOT RUN ON A CONSOLE in this form; its SH-4 cost is not measured.
+   TILE_CUT_VERIFY ends only. d1-d ran it, one console (PVR-205, MEASURED): begin 126 us, end 130 us a pass, the
+   map's PVR time 5,075 -> 1,425 us, the frame 1,869 us shorter (it came to rest on the 16.6 ms of the display, so
+   the gain may be larger).
    tile_cut_begin_cols is the cheapest cut: the first cw whole columns of the screen (cw x 15 tiles, more than the
-   target needs), ONE word written a table and one to restore. Not run on a console.
+   target needs), ONE word written a table and one to restore. d1-d, the same run (PVR-205, MEASURED): begin 5 us,
+   end 3 us, the map's PVR time 5,075 -> 2,756 us, the frame 1,904 us shorter.
+   Both ran BEFORE the rule that a cut wants every table found (need); that rule has not run on a console.
 
    THE TABLE, as KallistiOS builds it at pvr_init (pvr_buffers.c pvr_init_tile_matrix, read at commit 568c3404; the
    lines want a new check against the current master before anything is offered upstream): a first entry of six words

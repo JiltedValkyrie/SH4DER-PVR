@@ -17,14 +17,17 @@ It goes in the header's top comment, after the copyright lines and before the lo
 
 ```
    RECOMMENDED (from the wiki ledger, one console; wiki/limits/header-recommended.md)
-   Start with: <the settings to start from: macro names and values, a size, a count>
-   Cost:       SH-4 <x> ms, PVR <y> ms at <the case>: MEASURED (<ledger row>)
-               or: ESTIMATE (<what it is based on>) / not measured
-   Status:     PROVEN | ADVISED; to prove: <the test or stage that would measure it>
-   Do:         <a practice from wiki/limits/frame-budget.md, with its number>
-               <a second practice, if there is one>
-   Do not:     <one or two things that break it or cost the most>
-   Maturity:   <label and version from wiki/status/maturity.md>
+   Start with: one target pass cut to its own tiles (cw x ch), timed cut and uncut; TILE_CUT_TRIES = 3
+   Cost:       PVR: 3,256 -> 344 us (ao4-h), 3,312 -> 375 us (c4), 5,075 -> 1,425 us (d1-d): MEASURED
+               (PVR-156, PVR-092, PVR-205). SH-4 a pass: begin 126 us, end 130 us; the frame 1,869 us faster
+               (d1-d): MEASURED (PVR-205). The first form's begin cost 3,930 us (d1-c, PVR-192)
+   Status:     the PVR saving PROVEN (four runs, three programs); the frame gain PROVEN in d1 alone (one run,
+               held at 60 Hz); ADVISED elsewhere: the street demo lost 3.05 ms with one table of two cut
+               (PVR-200). The need = 2 refusal has not run on a console
+   Do:         wait for render done after every cut pass; cut only with every tile table found (PVR-200: one of two cut)
+   Do not:     cut while the next scene fills during a render; carry on if tile_cut_end returns bad
+               (shut the PVR down and pvr_init again)
+   Maturity:   ALPHA v0.5
 ```
 
 ## The rules for each line
