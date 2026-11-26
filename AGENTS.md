@@ -39,7 +39,7 @@ There is no game header and no game data here. The example client is `example/bl
 ## Wiki and the hardware ledger: standing rule for every agent
 
 - `wiki/` is the project's knowledge base for people and agents (`wiki/STRUCTURE.md` is the plan; `wiki/hardware/` is the ledger of hardware facts). A console result that is not in the ledger is not kept.
-- After every console run, the agent who owns the spike writes each finding in ledger form in its notes file: a claim, a status (MEASURED with the date and the number of consoles, FACT with the document section, REPORTED, ESTIMATE, DISPUTED or OPEN), the photo or log it came from, and the test that proves it. Measured and estimated numbers are never mixed.
+- After every console run, the agent who owns the spike writes each finding in ledger form in its notes file: a claim, a status (MEASURED with the date and the number of consoles, FACT with the document section, REPORTED, OBSERVED (seen on a console by the owner, no figures; no number and no label rests on it), ESTIMATE, DISPUTED or OPEN), the photo or log it came from, and the test that proves it. Measured and estimated numbers are never mixed.
 - Recommended limits for users go in `wiki/limits/`. A limit is called proven only when a measured number backs it; otherwise it is advised, with the test that would prove it.
 - No game or engine names in the wiki. Safe wording only: say "we know of no earlier use", never "first".
 

@@ -15,7 +15,7 @@ The ledger is the project's record of what the Dreamcast does. **A console resul
 
 | Page | Prefix | What it holds |
 |---|---|---|
-| [PVR](ledger-pvr.md) | PVR- | Fill and render time, render to texture, per-pixel compare tricks, punch-through, textures, coverage |
+| [PVR](ledger-pvr.md) | PVR- (and OBS- for owner-observed runs with no figures) | Fill and render time, render to texture, per-pixel compare tricks, punch-through, textures, coverage; the owner's observed runs |
 | [SH-4](ledger-sh4.md) | SH4- | Clock, cache, maths units, transforms, copies, reading video memory |
 | [Buses and DMA](ledger-bus-dma.md) | BUS- | The TA send, uploads, PVR-DMA, the DMAC, the G2 bus |
 | [AICA](ledger-aica.md) | AICA- | The sound chip's ARM7DI, sound RAM, G2 DMA to and from it |
@@ -27,7 +27,7 @@ The ledger is the project's record of what the Dreamcast does. **A console resul
 |---|---|
 | ID | Stable name. Never reuse a number, even when a row is withdrawn. |
 | Claim | One fact, in one or two plain sentences. |
-| Status | MEASURED, FACT, REPORTED, ESTIMATE, DISPUTED or OPEN (legend in [STRUCTURE.md](../STRUCTURE.md)). |
+| Status | MEASURED, FACT, REPORTED, OBSERVED, ESTIMATE, DISPUTED or OPEN (legend in [STRUCTURE.md](../STRUCTURE.md)). |
 | Evidence | The run, its date and the number of consoles; or the document section. |
 | Source | File and line where the number is written up. |
 | Test | The program that proves it, or the test that would. |
@@ -37,6 +37,7 @@ Three rules matter most:
 
 - **Measured and estimated numbers are never mixed in one row.** An arithmetic result from a measured number is its own ESTIMATE row.
 - **An emulator's number is never MEASURED.** It is REPORTED, "emulator, not evidence".
+- **An OBSERVED row has no figures.** The owner saw the run on a console, but no number is recorded; no limit may rest on it, and no label rises on it.
 - **A withdrawn reading stays,** marked withdrawn, with what replaced it. For example, SH4-021 keeps h1's transform figure and says why it was the buffer placing, not the routine.
 
 ## How much we have

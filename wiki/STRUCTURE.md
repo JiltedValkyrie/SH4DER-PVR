@@ -135,6 +135,7 @@ One table row a fact. The ID never changes, even when the fact moves.
 | MEASURED | Our own run on a real Dreamcast. An emulator is never evidence. | Date, console count (one console so far), photo or log, program and page line. |
 | FACT | Read in a primary document (Sega, Hitachi, Yamaha), or in source we hold, where the source *is* the behaviour (for example what KallistiOS writes to a register). | Doc and section, or file:line. |
 | REPORTED | A third party says it: KallistiOS comments, homebrew, skmp's console tests, an emulator's code (an emulator is its authors' model). | Who, and where. Cite only. |
+| OBSERVED | Seen running on a real Dreamcast by the owner, with no figures recorded. A look, not a measurement: no number may come from it, no limit may rest on it, and no label rises on it. | Who (the owner), which program, the disc build or the date (or "not recorded"), and the ledger ID. |
 | ESTIMATE | Our model, host run or arithmetic. | Which model, and what it assumed. |
 | DISPUTED | Sources disagree. | Every side, with its tag. The rule we follow until it is measured. |
 | OPEN | Not known. | The test that would settle it. Listed in `open-questions.md`. |
