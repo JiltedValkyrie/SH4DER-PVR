@@ -377,6 +377,31 @@ static inline unsigned psm_send_plan(psm_sink_t *k, const psm_frame_t *f, const 
     }
 }
 
+/* The SHED level for the NEXT frame from what this one sent, with no dry count: `bytes` is the real send's own count
+   (psm_sink_t.bytes after the frame's two lists, at level z->shed). One level up when the frame was over PSM_TA_SHARE
+   of vbuf. One down when this frame plus what the level saved when it was taken (z->gap, measured the frame after the
+   step up) would be under PSM_SHED_BACK of vbuf: a level is left only when the one under it would fit, so a still view
+   does not flip. Against psm_send_plan: a frame late and a level a frame, for none of its cost (the plan walks the whole
+   send once more every frame: 6 to 15 ms in the town, wiki PVR-195). A frame that stays under the share is sent the
+   same. Zero the state at load. */
+#define PSM_SHED_BACK 0.80f
+typedef struct psm_lazy {
+    unsigned shed;                  /* the level to send the next frame at */
+    int rose;                       /* the last call stepped up: the next one measures what that saved */
+    uint32_t over;                  /* the bytes of the frame that made it step up */
+    uint32_t gap[PSM_SHED_MAX];     /* gap[i]: bytes level i + 1 saved against level i when it was last taken */
+} psm_lazy_t;
+
+static inline unsigned psm_send_plan_next(psm_lazy_t *z, uint32_t bytes, uint32_t vbuf) {
+    const uint32_t cap = (uint32_t)((float)vbuf * PSM_TA_SHARE), back = (uint32_t)((float)vbuf * PSM_SHED_BACK);
+
+    if (z->rose) { z->gap[z->shed - 1u] = z->over > bytes ? z->over - bytes : 0u; z->rose = 0; }
+    if (bytes + PSM_TA_BKG > cap) {
+        if (z->shed < PSM_SHED_MAX) { z->over = bytes; z->rose = 1; z->shed++; }
+    } else if (z->shed && bytes + z->gap[z->shed - 1u] + PSM_TA_BKG <= back) z->shed--;
+    return z->shed;
+}
+
 /* ---- route A's map pass (its own scene, into the target) ----------------------------------------------------------- */
 
 /* The casters into the target: white first (far), each caster triangle in the shadow's colour, then a white frame one texel

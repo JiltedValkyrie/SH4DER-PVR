@@ -60,6 +60,7 @@
 #define PG_PREFIX "vc"
 #include "psm_page.h"
 #include "psm_viewcost.h"
+#include "psm_suite.h"              /* on the suite disc: back to the menu from the pages (A + B + X + Y), or after them in a chained run */
 static vc_run_t vc_run;
 static vc_frame_t vc_f;
 static uint64_t vc_w0[4];
@@ -118,6 +119,8 @@ static uint32_t vbuf_used, vbuf_max;      /* KallistiOS's vertex buffer bytes: t
 static int look_pending;                  /* the fog colour or table changed: written once the PVR is idle (look_apply) */
 static unsigned shed_now;                 /* SHED this frame (psm_send_plan): 0 everything sent */
 static uint32_t est_now;                  /* this frame's parameter bytes, estimated (psm_send.h) */
+static int plan_lazy;                     /* 1: no dry count: SHED from the frame before's own send (psm_send_plan_next). 0, the default: psm_send_plan */
+static uint32_t est_last;                 /* plan_lazy: the last frame's own bytes */
 
 /* ---- what is sent (psm_send.h walks it; the host test walks the same) ------- */
 
@@ -163,6 +166,7 @@ static const pvr_poly_hdr_t *const hdr_tab[PSM_HK_N] = {
     &hdr_sky, &hdr_skycol, &hdr_ground, &hdr_ground_fog, &hdr_layer, &hdr_model, &hdr_model_fog, &hdr_flat,
     &hdr_text, &hdr_dim, &hdr_inset_a, &hdr_inset_b
 };
+static psm_lazy_t lazy;                   /* plan_lazy: the level the last frame's send asked for */
 static psm_sink_t sink;
 
 static void send_hdr_(int kind) {
@@ -606,7 +610,7 @@ static void vc_pages(void) {
                 pg_point(p, (float)k++, (vc_mean(&vc_run.st[g][VC_RDY1]) + vc_mean(&vc_run.st[g][VC_RDY2]) + vc_mean(&vc_run.st[g][VC_FIN])) * 1.0e-3f);
     }
     turned = timer_ms_gettime64();
-    pg_draw(page, "TOWN VIEW COST", "turn");
+    pg_draw(page, "TOWN VIEW COST", suite_keys_text("A B turn"));
     for (;;) {
         maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
@@ -618,8 +622,9 @@ static void vc_pages(void) {
         pages = pg_pages();
         if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
         else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
-        else if (!st && timer_ms_gettime64() - turned >= 20000u) { page = (page + 1u) % pages; redraw = 1; }
-        if (redraw) { pg_draw(page, "TOWN VIEW COST", "turn"); turned = timer_ms_gettime64(); }
+        else if (suite_tick(now, page, pages)) { page++; redraw = 1; }      /* does not come back when it goes to the menu */
+        else if (!suite_present() && !st && timer_ms_gettime64() - turned >= 20000u) { page = (page + 1u) % pages; redraw = 1; }
+        if (redraw) { pg_draw(page, "TOWN VIEW COST", suite_keys_text("A B turn")); turned = timer_ms_gettime64(); }
         thd_sleep(20);
     }
 }
@@ -639,6 +644,7 @@ int main(void) {
        default 16-word blocks for the two lists, PSM_OPB_EXTRA times that again as the overflow pool */
     init.vertex_buf_size = PSM_TA_VBUF;
 #ifdef PSM_VIEWCOST
+    suite_init();                            /* the suite disc: the menu's binary into RAM, before anything else */
     init.vertex_buf_size = VC_VBUF;          /* this test only: room for route A's boot view, so no frame is measured short of its last vertices */
 #endif
     init.opb_overflow_count = PSM_OPB_EXTRA;
@@ -684,7 +690,8 @@ int main(void) {
             if (vc_pad_hit()) { vc_stop(&vc_run); break; }
             vc_apply(&vc_run, &v);
             state.route = v.route; state.inset = v.inset; state.pitch = v.pitch; state.yaw = vc_yaw0 + v.yaw;
-            frame.place_opt = v.opt;         /* the placement's options this stage (psm_scene.h): the placement is made again on a change */
+            frame.place_opt = v.opt & 7u;    /* the placement's options this stage (psm_scene.h): the placement is made again on a change */
+            plan_lazy = (v.opt & 8u) != 0u;  /* and the send's dry count left out */
             state.x = vc_x0; state.z = vc_z0; state.menu = 0;
             if (state.route != route_before) psm_mapsrc_reset(&mapsrc);
             dt = VC_DT;
@@ -763,8 +770,15 @@ int main(void) {
             uint8_t ok[PSM_HK_N];
 
             hdr_ok_fill(ok);
-            shed_now = psm_send_plan(&sink, &frame, &scene, &state, state.atmos && sky_mem ? &sky : NULL, a_drawn, ok, PSM_TA_VBUF);
-            est_now = sink.bytes + PSM_TA_BKG;
+            if (plan_lazy) {                 /* the level the last frame's own send asked for; its bytes on the readout */
+                shed_now = lazy.shed; est_now = est_last;
+                psm_sink_reset(&sink, 0, 0, shed_now, NULL);
+                memcpy(sink.hdr_ok, ok, sizeof ok);
+            } else {
+                shed_now = psm_send_plan(&sink, &frame, &scene, &state, state.atmos && sky_mem ? &sky : NULL, a_drawn, ok, PSM_TA_VBUF);
+                est_now = sink.bytes + PSM_TA_BKG;
+                memset(&lazy, 0, sizeof lazy); lazy.shed = shed_now; est_last = est_now;
+            }
         }
 
         VC_T(VC_M_PLAN);
@@ -807,6 +821,7 @@ int main(void) {
         psm_fault_stage(&fault_crumbs, "finish");
         pvr_scene_finish();
         VC_T(VC_M_FIN);
+        if (plan_lazy) { est_last = sink.bytes + PSM_TA_BKG; psm_send_plan_next(&lazy, sink.bytes, PSM_TA_VBUF); }
         ta_v += sink.verts;
         psm_fault_counts(&fault_crumbs, sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG] + sink.kv[PSM_HK_LAYER],
                          sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG], sink.verts - sink.kv[PSM_HK_GROUND] - sink.kv[PSM_HK_GROUND_FOG]
