@@ -4,7 +4,10 @@
  * 0.05 rad (its eased return, never a jump). Built with DEMO_HOST, any of the four builds (street, -DPL4NAR_MAP,
  * -DPL4NAR_MAP -DPL4NAR_HILLS, -DPL4NAR_WET). The street's wrap by its period is not a jump (the same picture).
  * Not the wet build: a fly-by stage (demo_auto_cine) too. Its first frame is a cut to the kerb camera on purpose; from
- * then on the drawn eye must move under 2 m a frame (60 m/s), through the hold and the ease back to the follow camera. */
+ * then on the drawn eye must move under 2 m a frame (60 m/s), through the hold and the ease back to the follow camera.
+ * The heat (the owner's rule): drawn only while the eye stands still. Every frame is drawn; a frame with heat and an
+ * eye that moved fails. The fly-by must show heat at least 5 s; then the car stopped with X on LIGHT: heat within 1 s,
+ * and gone the first frame the car (and the camera) moves off. Not checked in the wet build (rain: no heat). */
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +21,7 @@ uint64_t plat_us(void) { return (uint64_t)clock() * 1000000ull / CLOCKS_PER_SEC;
 void  demo_host_car(float *x, float *z, float *yaw);
 float demo_host_orbit(void);
 void  demo_host_eye(float *x, float *z);
+float demo_host_heat(void);
 
 static float wrap_pi(float a) { while (a > 3.14159265f) a -= 6.2831853f; while (a < -3.14159265f) a += 6.2831853f; return a; }
 
@@ -29,7 +33,7 @@ int main(int argc, char **argv) {
     const float dt = 1.0f / 30.0f;
     demo_stats_t st = { 2100u, 5200u, 900u, 600u, 11800u, 4200u };
     demo_input_t in;
-    float px, pz, ph, po, ex = 0.0f, ez = 0.0f, worst = 0.0f, eye_worst = 0.0f;
+    float px, pz, ph, po, ex = 0.0f, ez = 0.0f, worst = 0.0f, eye_worst = 0.0f, heat_s = 0.0f;
     unsigned k, f, bad = 0u, frames = 0u;
     gfx_init(); demo_init();
     memset(&in, 0, sizeof in);
@@ -51,13 +55,19 @@ int main(int argc, char **argv) {
             const float v = demo_speed();
             in.gas = v < 14.0f ? 1.0f : 0.0f;
             demo_update(&in, dt);
-            if ((f & 15u) == 0u || k == 1u) demo_draw(&st);   /* the fly-by stage: every frame, its eye is checked */
-            if (k == 1u) {
+            demo_draw(&st);                          /* every frame: the eye and the heat are checked */
+            {
                 float nx, nz, de;
+                const int cut = k == 1u && f == 0u;   /* the fly-by's cut to the kerb camera, on purpose */
                 demo_host_eye(&nx, &nz);
                 de = sqrtf((nx - ex) * (nx - ex) + (nz - ez) * (nz - ez));
-                if (f > 0u && de > eye_worst) eye_worst = de;
-                if (f > 0u && de > 2.0f) { if (bad++ < 8u) printf("fly-by frame %u: the eye jumped %.2f m\n", f, (double)de); }
+#ifndef PL4NAR_MAP
+                if (de > 100.0f) de = 0.0f;           /* the street's wrap: the same picture */
+#endif
+                if (frames && !cut && k >= 1u && k <= 2u && de > eye_worst) eye_worst = de;
+                if (frames && !cut && de > 2.0f) { if (bad++ < 8u) printf("stage %u frame %u: the eye jumped %.2f m\n", k + 1u, f, (double)de); }
+                if (demo_host_heat() > 0.0f && de > 1e-4f) { if (bad++ < 8u) printf("stage %u frame %u: heat drawn while the eye moved %.3f m\n", k + 1u, f, (double)de); }
+                if (k >= 1u && k <= 2u && demo_host_heat() > 0.0f) heat_s += dt;
                 ex = nx; ez = nz;
             }
             demo_host_car(&x, &z, &h); o = demo_host_orbit();
@@ -81,7 +91,27 @@ int main(int argc, char **argv) {
             px = x; pz = z; ph = h; po = o;
         }
     }
-    printf("fly-by: the eye's largest step %.2f m a frame\n", (double)eye_worst);
+    printf("fly-by: the eye's largest step %.2f m a frame, heat shown %.1f s\n", (double)eye_worst, (double)heat_s);
+#ifndef PL4NAR_WET
+    if (heat_s < 5.0f) { printf("the fly-by showed heat %.1f s, under 5\n", (double)heat_s); bad++; }
+    {   /* the follow camera: the car stopped, X on LIGHT; heat comes once still, goes at the first move */
+        float still_s = -1.0f;
+        demo_auto_heat(1u);
+        demo_auto_place(300.0f, -2.0f, 0.0f);
+        in.gas = 0.0f;
+        for (f = 0; f < 60u; f++) { demo_update(&in, dt); demo_draw(&st); if (still_s < 0.0f && demo_host_heat() > 0.0f) still_s = (float)f * dt; }
+        printf("stopped: heat after %.2f s\n", (double)still_s);
+        if (still_s < 0.0f || still_s > 1.0f) { printf("no heat within 1 s of a still camera\n"); bad++; }
+        in.gas = 1.0f;
+        demo_host_eye(&ex, &ez);
+        for (f = 0; f < 30u; f++) {
+            float nx, nz;
+            demo_update(&in, dt); demo_draw(&st); demo_host_eye(&nx, &nz);
+            if ((nx != ex || nz != ez) && demo_host_heat() > 0.0f) { printf("driving off: heat on frame %u with the eye moving\n", f); bad++; break; }
+            ex = nx; ez = nz;
+        }
+    }
+#endif
     printf(bad ? "SNAP_TEST FAIL (%u)\n" : "SNAP_TEST_OK %u frames, %u stages, no jump\n", bad ? bad : frames, (unsigned)(sizeof seq / sizeof seq[0]));
     return bad != 0u;
 }

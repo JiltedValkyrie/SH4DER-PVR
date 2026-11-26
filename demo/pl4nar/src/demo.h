@@ -1,4 +1,16 @@
-/* The demo: a street, a car, a chase camera, and the pl4nar reflection on the car body. Platform-free (gfx.h below it). */
+/* The demo: a street, a car, a chase camera, and the pl4nar reflection on the car body. Platform-free (gfx.h below it).
+ *
+ * RECOMMENDED (no console run: nothing below is measured; wiki/limits/header-recommended.md)
+ * Start with: the heat gate HEAT_MOVE = 0.02 m/s, HEAT_TURN = 0.005 rad/s, HEAT_STILL = 0.4 s; the fly-by
+ *             CINE_LEAD = 1.0 s, CINE_HOLD = 6.0 s, CINE_BLEND = 2.5 s, CINE_FADE = 0.3 s (src/demo.c, README
+ *             "The still-camera gate and the fly-by")
+ * Cost:       the gate: two vec3 distances and a normalize a frame (ESTIMATE: a few us); the fly-by: none of its
+ *             own beyond the heat it shows. The heat's own cost: src/heat.h (ESTIMATE)
+ * Status:     ADVISED (NOT RUN); host tested (host/snap_test.c: no heat with a moving eye, 5.2 s in the fly-by)
+ * Do:         call demo_draw every frame (the gate reads the frame's eye); keep the heat off while the camera moves
+ * Do not:     move the camera in a fly-by while its heat is up; snap the car between autorun stages (demo_auto_place
+ *             once, at the start)
+ * Maturity:   demo code (not a library part) */
 #ifndef DEMO_H
 #define DEMO_H
 #include <stdint.h>

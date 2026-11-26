@@ -48,7 +48,7 @@ static const ctl_row_t ctl_rows[] = {
 CTL_ROW(CTL_STICK | CTL_LEFT | CTL_RIGHT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "stick or D-pad left / right", "steer", NULL)
 CTL_ROW(CTL_RT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "RT", "engine", "RT gas")
 CTL_ROW(CTL_LT, CTL_AXIS, CTL_B_ALL, CTL_W_ALL, "LT", "brake, then reverse", "LT brake")
-CTL_ROW(CTL_X, DEMO_BTN_HEAT, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_ALL, "X", "heat haze over the road's far end: OFF (the start), LIGHT, STRONG; by day and dry only", "X heat")
+CTL_ROW(CTL_X, DEMO_BTN_HEAT, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_ALL, "X", "heat haze over the road's far end: OFF (the start), LIGHT, STRONG; by day and dry only, and drawn only while the camera is still (else the HUD says 'heat: waiting for a still camera')", "X heat")
 CTL_ROW(CTL_Y, DEMO_BTN_TOD, CTL_B_STREET | CTL_B_MAP | CTL_B_HILLS, CTL_W_TECH, "Y", "time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE", "Y time")
 CTL_ROW(CTL_Y, DEMO_BTN_RAIN, CTL_B_WET, CTL_W_TECH, "Y", "the rain: DRY, DAMP, WET in turn (night always)", "Y rain")
 CTL_ROW(CTL_A, DEMO_BTN_LOOK, CTL_B_ALL, CTL_W_TECH, "A", "textures: low (64 x 64, 16 colours, the start) or full", "A look")

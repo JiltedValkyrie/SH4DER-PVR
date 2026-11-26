@@ -70,7 +70,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **stick or D-pad left / right** | steer | all | always |
 | **RT** | engine | all | always |
 | **LT** | brake, then reverse | all | always |
-| **X** | heat haze over the road's far end: OFF (the start), LIGHT, STRONG; by day and dry only | street, map, hills | always |
+| **X** | heat haze over the road's far end: OFF (the start), LIGHT, STRONG; by day and dry only, and drawn only while the camera is still (else the HUD says 'heat: waiting for a still camera') | street, map, hills | always |
 | **Y** | time of day: AUTO (a 45 second day), DAY, NIGHT, PAUSE | street, map, hills | tech |
 | **Y** | the rain: DRY, DAMP, WET in turn (night always) | wet | tech |
 | **A** | textures: low (64 x 64, 16 colours, the start) or full | all | tech |
@@ -89,7 +89,7 @@ The table is `src/controls.h`, the table the pad is read through and the HUD's k
 | **B + D-pad left** | baked occlusion on / off | map, hills | tech |
 | **B + START** | the effect labels shown / hidden | map, hills | tech |
 
-No key turns the reflection or the car's shadow off, and there is no split key: in DRIVE and the live view both are always on (the projected shadow; on the hills, laid on the ground mesh). The autorun has no reflection-off, blob or flat-quad stage either (the owner's word): every stage is the reflection on with the mesh shadow, and the car drives on from stage to stage with no jump back to its start (`host/snap_test.c`). Night, the street and the wet road have no car shadow: the mesh shadow is by day on the map, and the blob discs only come back with `-DPL4NAR_BLOBS`. The heat starts OFF in every build until the owner has seen its rework.
+No key turns the reflection or the car's shadow off, and there is no split key: in DRIVE and the live view both are always on (the projected shadow; on the hills, laid on the ground mesh). The autorun has no reflection-off, blob or flat-quad stage either (the owner's word): every stage is the reflection on with the mesh shadow, and the car drives on from stage to stage with no jump back to its start (`host/snap_test.c`). Night, the street and the wet road have no car shadow: the mesh shadow is by day on the map, and the blob discs only come back with `-DPL4NAR_BLOBS`. The heat starts OFF in every build, and draws only under a still camera (below, "The still-camera gate").
 
 In the autorun (the measuring copy) the driver holds the steering, the engine and the brake; every other key acts as it does live and marks the stage TOUCHED on the result page (B + stick changes no work and marks nothing). No key ends the autorun: it runs every stage, then shows its result pages, and a key pressed during a stage only marks it. The tile cut and the small tile set have no key: they are autorun stages only, and the cut is off by default. Its cost: the PVR side of a map pass fell 5.1 -> 1.4 ms but the SH-4 side rose 3.9 ms, measured in another program (d1-c, PVR-192, one console), not yet measured here; nothing more is built on it until the cause is found.
 
@@ -123,7 +123,7 @@ Its macros, in `src/demo.c`:
 
 ## The heat haze
 
-By day on a dry road (street, map, hills), the air over the road's far end shimmers. A window of the frame on screen (256 x 32 pixels round a point of the road 70 m ahead) is copied pixel for pixel into a 256 x 32 texture and drawn back over the same place through a 32 x 4 cell mesh. The samples drift by 0.7 of a pixel at most, in two slow waves that neighbours share, and the layer is at most half of the picture there. **X** steps it: OFF, LIGHT, STRONG; the autoruns run it OFF, so no stage measures its cost yet. It is gone by night (from night level 0.25) and in rain. The overlay's label shows the last copy's time. The code is `src/heat.h`, host tested by `host/heat_test.c`.
+By day on a dry road (street, map, hills), the air over the road's far end shimmers. A window of the frame on screen (256 x 32 pixels round a point of the road 70 m ahead) is copied pixel for pixel into a 256 x 32 texture and drawn back over the same place through a 32 x 4 cell mesh. The samples drift by 0.7 of a pixel at most, in two slow waves that neighbours share, and the layer is at most half of the picture there. **X** steps it: OFF, LIGHT, STRONG; the autoruns run it OFF but for the fly-by stage, which runs it on STRONG; no stage pairs that with OFF, so its cost is not measured yet. It is gone by night (from night level 0.25) and in rain. The overlay's label shows the last copy's time. The code is `src/heat.h`, host tested by `host/heat_test.c`.
 
 This is version 2. Version 1 looked like swimming texels (seen as host pictures; no console run of the heat is in the ledger): its copy was 3.5 pixels to a texel, each mesh corner wobbled on its own by 2 pixels, and it sat 30 m ahead. What version 2 keeps to:
 
@@ -173,6 +173,26 @@ Its macros, in `src/heat.h`:
 
 Its cost is in the Cost table below.
 
+### The still-camera gate and the fly-by (`src/demo.c`)
+
+The owner's rule: the shimmer is never on screen while the camera moves (a moving camera breaks it). `heat_shown()` is what `heat_copy` and `heat_draw` get: the level above, times a gate that `heat_still_step` sets once a frame from the frame's eye and target. Any move or turn over the limits below turns it off that frame, at once; it comes back after the camera has stood still for `HEAT_STILL`. So a follow camera behind a moving car never shows it, and X on LIGHT or STRONG with the car moving shows the HUD line "heat: waiting for a still camera" in its place. The fly-by (**B + X**, and a stage of each day autorun) holds its kerb camera still, brings the heat in after the cut, fades it out, and only then starts the dolly back to the follow camera. `host/snap_test.c` fails any frame that draws heat with a moving eye. Not run on a console.
+
+| Macro | Value | What it is |
+|---|---|---|
+| `HEAT_MOVE` | 0.02 m/s | the eye moving faster than this: no heat |
+| `HEAT_TURN` | 0.005 rad/s | the view turning faster than this (the chord of its unit direction): no heat |
+| `HEAT_STILL` | 0.4 s | still this long before the heat comes back (the hysteresis; the host test reads 0.43 s at 30 Hz) |
+| `CINE_LEAD` | 1.0 s | the fly-by's camera is this much driving ahead of the car (at 8 m/s at least) |
+| `CINE_HEAT_IN` | 0.5 s | the heat starts this long after the cut, over `CINE_FADE` |
+| `CINE_FADE` | 0.3 s | the heat's fade in and out in the fly-by |
+| `CINE_HOLD` | 6.0 s | the dolly starts; the heat is out by `CINE_HOLD - CINE_FADE` (5.7 s): 5.2 s at full on the host |
+| `CINE_BLEND` | 2.5 s | the dolly back to the follow camera (smoothstep; at most 1.93 m a frame on the host) |
+| `CINE_LAT`, `CINE_EYE_Y` | 7.0 m, 0.7 m | the camera: from the centre line (past the lanes' 5.2, inside the kerb's 8), over the road |
+| `CINE_LOOK`, `CINE_AT_LAT` | 60 m, 0.35 | where it looks: this far on down the road, at this share of the car's lane offset |
+| `CINE_HEAT` | 2 (STRONG) | the heat's level in the fly-by when X is lower |
+
+A fly-by stage lasts 8.5 s (`CINE_HOLD + CINE_BLEND`), so its dolly runs into the next stage's 2 s settle, before that stage counts.
+
 ## Camera and thumbnail
 
 The values are macros in `src/demo.h` (each can be set with `-D` through `EXTRA=`).
@@ -213,7 +233,7 @@ From the library's root, `make test` runs these through its `test-demo` target (
 
 - `host/heat_test.c`: the heat haze's window, copy, slip and mesh.
 - `host/controls_test.c`: `src/controls.h` against the pad read it replaced, every pad state, in each of the seven builds (street, map, hills, wet; the first three also as DRIVE); the keys added since (X heat, B + X fly-by, B + Y hide) each on their own.
-- `host/snap_test.c`: the autorun never snaps the car or the camera: 1,890 frames through the kinds of stage change, each step within the car's speed. It is the demo itself on the host, so it needs the baked assets (`build/gen/assets_gen.c`) and SH4ZAM's software matrix file; `make test` runs the street layout when both are there and says NOT RUN when not.
+- `host/snap_test.c`: the autorun never snaps the car or the camera: 2,100 frames through the kinds of stage change (a fly-by among them), each step within the car's speed, the eye under 2 m a frame but at the fly-by's one cut; heat never drawn with a moving eye, at least 5 s of it in the fly-by, and with the car stopped it comes within 1 s and goes the first frame the car moves off. It is the demo itself on the host, so it needs the baked assets (`build/gen/assets_gen.c`) and SH4ZAM's software matrix file; `make test` runs the street layout when both are there and says NOT RUN when not.
 - `python tools/grit_gen.py --self-test`, `python tools/check_coupe.py --self-test`: the two build tools that need no Pillow.
 
 ## Host preview

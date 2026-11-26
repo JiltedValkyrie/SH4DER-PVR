@@ -1,5 +1,5 @@
 {
-  "note": "sh4der-pvr-suite13: the walled square with AO4 and Y+A HUD hide, the space soldier with hens, car demos with only pl4nar and the mesh shadow, B+Y HUD hide, no car snap, heat OFF. NOT RUN on a console.",
+  "note": "sh4der-pvr-suite13: the walled square with AO4 and Y+A HUD hide, the space soldier with hens, car demos with only pl4nar and the mesh shadow, B+Y HUD hide, no car snap, a fly-by stage (map 2, hills 4) with heat shown only while the camera stands still. NOT RUN on a console.",
   "tests": [
     {
       "name": "ao4",
@@ -71,22 +71,22 @@
     {
       "name": "car-tech",
       "file": "CARTECH.BIN",
-      "elf": "demo/pl4nar/build/pl4m_tech-map-10/sh4der-pl4m-tech-map-10.elf",
+      "elf": "demo/pl4nar/build/pl4m_tech-map-12/sh4der-pl4m-tech-map-12.elf",
       "order": 4,
-      "what": "car map autorun: reflection, mesh shadow. ~49 s",
-      "read": "photo every page; 7 stages",
+      "what": "car map autorun: shadow, heat fly-by. ~56 s",
+      "read": "photo every page; 8 stages; stage 2 fly-by",
       "group": "demos",
       "credits": "pl4nar",
       "title": "Car in a city by day",
-      "shows": "reflection, car shadow, corner shading"
+      "shows": "reflection, car shadow, corner shading, heat haze"
     },
     {
       "name": "car-hills",
       "file": "CARHILL.BIN",
-      "elf": "demo/pl4nar/build/pl4m_tech-hills-11/sh4der-pl4m-tech-hills-11.elf",
+      "elf": "demo/pl4nar/build/pl4m_tech-hills-13/sh4der-pl4m-tech-hills-13.elf",
       "order": 5,
-      "what": "car hills autorun: mesh shadow. ~56 s",
-      "read": "photo every page; 8 stages",
+      "what": "car hills autorun: shadow, heat fly-by. ~63 s",
+      "read": "photo every page; 9 stages; stage 4 fly-by",
       "group": "demos",
       "credits": "pl4nar",
       "title": "Car on hills",
@@ -95,7 +95,7 @@
     {
       "name": "car-wet",
       "file": "CARWET.BIN",
-      "elf": "demo/pl4nar/build/pl4m_wet-12/sh4der-pl4m-wet-12.elf",
+      "elf": "demo/pl4nar/build/pl4m_wet-14/sh4der-pl4m-wet-14.elf",
       "order": 6,
       "what": "wet night road autorun. ~35 s + pages",
       "read": "photo every page; reflection pool, grit, rain",
@@ -107,7 +107,7 @@
     {
       "name": "drive-map",
       "file": "DRVMAP.BIN",
-      "elf": "demo/pl4nar/build/pl4m_drive-map-13/sh4der-pl4m-drive-map-13.elf",
+      "elf": "demo/pl4nar/build/pl4m_drive-map-15/sh4der-pl4m-drive-map-15.elf",
       "order": 0,
       "what": "DRIVE the car: map. Live, you play",
       "read": "B+Y hides the HUD, START brings it back; ABXY = menu",
@@ -119,7 +119,7 @@
     {
       "name": "drv-hills",
       "file": "DRVHILL.BIN",
-      "elf": "demo/pl4nar/build/pl4m_drive-hills-14/sh4der-pl4m-drive-hills-14.elf",
+      "elf": "demo/pl4nar/build/pl4m_drive-hills-16/sh4der-pl4m-drive-hills-16.elf",
       "order": 0,
       "what": "DRIVE the car: hills. Live",
       "read": "lights stay on slopes; B+Y hides HUD; ABXY = menu",
@@ -131,7 +131,7 @@
     {
       "name": "drv-wet",
       "file": "DRVWET.BIN",
-      "elf": "demo/pl4nar/build/pl4m_live-wet-15/sh4der-pl4m-live-wet-15.elf",
+      "elf": "demo/pl4nar/build/pl4m_live-wet-17/sh4der-pl4m-live-wet-17.elf",
       "order": 0,
       "what": "DRIVE the wet night road. Live",
       "read": "Y rain; B+Y hides HUD; ABXY = menu",

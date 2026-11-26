@@ -201,11 +201,11 @@ static struct { float x, z, h, v, cam_h, orbit, clock, wx, wz, wh, wcam; } s_car
 /* The fly-by shot (B + X, an autorun stage): the camera fixed low at the kerb CINE_LEAD s of driving ahead of the car,
    looking down the road at its far end, where the heat sits; the car sweeps past close and drives away into the
    shimmer. No follow: the camera holds till CINE_HOLD s, then eases into the follow camera over CINE_BLEND s
-   (smoothstep on both points; both look forward, so it is a dolly, no turn, no snap). The heat is on (CINE_HEAT)
-   through it, by day and dry (the gate still holds). A look back at the car was tried on the host: the car left the
+   (smoothstep on both points; both look forward, so it is a dolly, no turn, no snap). The heat (CINE_HEAT) is on only
+   while the camera is still: in at CINE_HEAT_IN s, faded out before the dolly (heat_shown), by day and dry. A look back at the car was tried on the host: the car left the
    frame at 3.6 s and the way back to the follow camera was a half turn. */
 #define CINE_LEAD   1.0f                          /* s: the car reaches the camera */
-#define CINE_HOLD   4.5f                          /* s: the camera starts after it (the car about 50 m on, in the heat) */
+#define CINE_HOLD   6.0f                          /* s: the dolly starts; the heat shows 0.5 .. 5.7 s (faded out over 5.4 .. 5.7), the camera still throughout */
 #define CINE_BLEND  2.5f                          /* a dolly forward, at most about 1.6 m a frame (snap_test) */
 #define CINE_TOTAL  (CINE_HOLD + CINE_BLEND)
 #define CINE_LAT    7.0f                          /* m from the centre line: past the lanes (5.2), inside the kerb (8) */
@@ -265,6 +265,33 @@ static inline float heat_level(void) {
     const unsigned rain = 0u;                     /* no rain in this build */
 #endif
     return heat_gate(s_night, rain) * (float)(s_cine.on && s_heat_lvl < CINE_HEAT ? CINE_HEAT : s_heat_lvl) * 0.5f;   /* the fly-by: on */
+}
+
+/* The heat draws only under a still camera (the owner: a camera that moves while the shimmer is on screen breaks it).
+   heat_still_step, once a frame with the frame's eye and target: any move over HEAT_MOVE m/s or turn over HEAT_TURN
+   rad/s turns it off that frame, at once; it comes back after HEAT_STILL s with neither (the hysteresis). The fly-by
+   adds its own envelope: in after the cut has settled, out over CINE_FADE s before the dolly starts. */
+#define HEAT_MOVE   0.02f
+#define HEAT_TURN   0.005f
+#define HEAT_STILL  0.4f
+#define CINE_HEAT_IN 0.5f                         /* s into the shot: the heat starts (the cut has settled) */
+#define CINE_FADE   0.3f
+static struct { int on, seen; float t, clock; shz_vec3_t eye, dir; } s_hs;
+static void heat_still_step(shz_vec3_t eye, shz_vec3_t at) {
+    const shz_vec3_t d = shz_vec3_normalize(shz_vec3_sub(at, eye));
+    const float dt = s_car.clock - s_hs.clock;
+    if (!s_hs.seen) { s_hs.seen = 1; s_hs.on = 0; s_hs.t = 0.0f; }
+    else if (dt > 1e-5f) {
+        const float inv = shz_invf(dt);
+        if (shz_vec3_distance(eye, s_hs.eye) * inv > HEAT_MOVE || shz_vec3_distance(d, s_hs.dir) * inv > HEAT_TURN) { s_hs.on = 0; s_hs.t = 0.0f; }
+        else { s_hs.t += dt; if (s_hs.t >= HEAT_STILL) s_hs.on = 1; }
+    } else if (shz_vec3_distance_sqr(eye, s_hs.eye) > 1e-8f || shz_vec3_distance_sqr(d, s_hs.dir) > 1e-10f) { s_hs.on = 0; s_hs.t = 0.0f; }   /* moved in no time: a cut */
+    s_hs.eye = eye; s_hs.dir = d; s_hs.clock = s_car.clock;
+}
+static inline float heat_shown(void) {            /* what is drawn: the level x the still gate x the fly-by's envelope */
+    float k = s_hs.on ? heat_level() : 0.0f;
+    if (s_cine.on) k *= shz_fminf(shz_saturatef((s_cine.t - CINE_HEAT_IN) * (1.0f / CINE_FADE)), shz_saturatef((CINE_HOLD - CINE_FADE - s_cine.t) * (1.0f / CINE_FADE)));
+    return k;
 }
 static unsigned s_haze_max = (unsigned)(HAZE_MAX * 256.0f);   /* this pass: the reflection pass keeps more contrast (less haze) */
 static sh4der_pl4nar_view_t s_pv;
@@ -2203,7 +2230,9 @@ static void overlay(const demo_stats_t *st) {
     }
 #endif
 #ifdef _arch_dreamcast
-    if (!s_fx_hidden && s_heat_lvl && heat_level() > 0.0f) {   /* the heat's label, over the effect labels */
+    if (s_heat_lvl && heat_level() > 0.0f && !s_hs.on && !s_cine.on)   /* X is on but the camera moves: nothing is drawn, say why */
+        hud_text(64.0f, 350.0f, 1.0f, 0xffffdc00u, "heat: waiting for a still camera");
+    if (!s_fx_hidden && s_heat_lvl && heat_shown() > 0.0f) {   /* the heat's label, over the effect labels */
         if (s_heat.short_kb) snprintf(t, sizeof t, "Heat Haze %s (no video memory)", s_heat_lvl == 1u ? "LIGHT" : "STRONG");
         else snprintf(t, sizeof t, "Heat Haze %s copy %u.%02u ms (%lu)", s_heat_lvl == 1u ? "LIGHT" : "STRONG",   /* the read's time: the one cost not measured */
                       (unsigned)(s_heat.copy_us / 1000u), (unsigned)(s_heat.copy_us % 1000u / 10u), (unsigned long)s_heat.copies);
@@ -2273,7 +2302,8 @@ void demo_host_pose(float z, float x, float orbit, float tod, int reflect) {
 void demo_host_cam(float ex, float ey, float ez, float ax, float ay, float az) { s_host_cam = 1; s_host_eye = shz_vec3_init(ex, ey, ez); s_host_at = shz_vec3_init(ax, ay, az); }
 void demo_host_car(float *x, float *z, float *yaw) { *x = s_car.wx; *z = s_car.wz; *yaw = s_car.wh; }
 float demo_host_orbit(void) { return s_car.orbit; }
-void demo_host_eye(float *x, float *z) { *x = s_camx; *z = s_camz; }   /* the last drawn frame's eye */
+void demo_host_eye(float *x, float *z) { *x = s_camx; *z = s_camz; }
+float demo_host_heat(void) { return heat_shown(); }   /* the level the heat was drawn at, the last frame */   /* the last drawn frame's eye */
 #ifdef PL4NAR_HILLS
 float demo_host_car_y(void) { return s_cy; }
 /* The lamps' check: car_point against the body's own matrix (draw_player's XMTRX chain), the largest gap in metres over
@@ -2316,6 +2346,7 @@ void demo_draw(const demo_stats_t *st) {
 #endif
     const float eye3[3] = { eye.x, eye.y, eye.z }, at3[3] = { at.x, at.y, at.z }, up3[3] = { 0.0f, 1.0f, 0.0f };
     s_camz = eye.z; s_camx = eye.x;
+    heat_still_step(eye, at);
     s_tris_refl = 0u;
     tod_eval();
 #ifdef _arch_dreamcast
@@ -2327,7 +2358,7 @@ void demo_draw(const demo_stats_t *st) {
         if (cs.failed != failed_seen) { failed_seen = cs.failed; heat_reset(); }
     }
 #endif
-    heat_copy(heat_level());                      /* no scene open yet: the store queue through pvr_txr_load */
+    heat_copy(heat_shown());                      /* no scene open yet: the store queue through pvr_txr_load */
 #endif
     gfx_clear_colour(s_haze);
     s_pv_ok = 0;
@@ -2424,7 +2455,7 @@ void demo_draw(const demo_stats_t *st) {
 #endif
             VP_LOAD();
             gfx_xform(&hv, shz_vec3_init(hp[0], hp[1], hp[2]));
-            if (hp[1] > -1e8f && !hv.clip) heat_draw(hv.x, hv.y, hv.z, heat_level(), s_car.clock);
+            if (hp[1] > -1e8f && !hv.clip) heat_draw(hv.x, hv.y, hv.z, heat_shown(), s_car.clock);
         }
     }
 #endif

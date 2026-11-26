@@ -20,8 +20,8 @@
  * Use it for: a hot dry day: the far end of a long straight road, tarmac or a runway, a desert or salt flat's
  *             horizon, the air over an exhaust or a fire seen from far off (move the anchor there)
  * Status:     ADVISED: host tested (host/heat_test.c) and seen by the owner as host pictures (approved 2026-11-25);
- *             nothing of it has run on a console, the copy's time is not measured. To prove: no stage yet (a pair
- *             of autorun stages, the same drive with the heat OFF and on STRONG, and the page's last copy line)
+ *             nothing of it has run on a console, the copy's time is not measured. To prove: the autorun's fly-by
+ *             stage (the heat on STRONG) on a console, and the page's last copy line; no stage pairs it with OFF yet
  * Do:         heat_copy before any scene is open; heat_view and heat_draw after the world in the translucent list;
  *             heat_reset after every pvr_init; keep the gate: it is what makes the cost 0 when there is no heat
  * Do not:     run it at night or in rain; put the anchor on or in front of near things (what is nearer than the
