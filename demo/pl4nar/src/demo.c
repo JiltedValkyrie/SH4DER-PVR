@@ -800,25 +800,28 @@ static void draw_road(void) {
 /* The wet road (a one-off, the street at night in rain): a grid in the plane round the car, ahead, behind and to the
    building lines, each vertex looked up in the mirror pass's target (sh4der_pl4nar_flat) and drawn in the translucent
    list as ONE added layer (GFX_MAT_REFLECT_ADD: texel x vertex alpha) over the whole dry road, which the rain darkens.
-   The alpha is the reflection's share, faded to 0 on the grid's outer ring, so the grid has no edge on screen. A vertex
+   The grid is a soft pool centred on the car: full within WET_FULL m along the road and to the kerbs, then a smoothstep
+   to 0 at WET_AHEAD m ahead, WET_BEHIND m behind and the building lines, so there is no water line anywhere, and the orbit
+   camera looking back sees it behind the car too. A vertex
    behind the camera has no lookup: its share is 0 (sh4der_pl4nar_flat). Rain: 0 dry (no grid), 1 damp, 2 wet. The
    streak: v pulled toward the horizon's row, so a lamp's image runs toward the viewer. The speckle: a texel of jitter
    a vertex, new 15 times a second (rain on the film). */
-#define WET_COLS     7u            /* x -12 .. 12 m, 4 m apart: the building lines (alpha 0), the kerbs, the lanes */
-#define WET_BACK     16u           /* rows behind the car: 64 m */
-#define WET_FWD      30u           /* rows ahead: 362 m (DRAW_FWD 336) */
+#define WET_COLS     13u           /* x -12 .. 12 m, 2 m apart: the building lines (alpha 0), the kerbs, the lanes */
+#define WET_BACK     14u           /* rows behind the car, even: WET_BEHIND / 14 = 2.9 m */
+#define WET_FWD      20u           /* rows ahead, even: WET_AHEAD / 20 = 3.5 m */
 #define WET_ROWS     (WET_BACK + 1u + WET_FWD)
-#define WET_ROW0     1.5f          /* m: the spacing next to the car, then x WET_GROW a row each way */
-#define WET_GROW     1.12f
-#define WET_FADE     3u            /* rows at each end over which the alpha comes up from 0 */
+#define WET_BEHIND   40.0f         /* m behind the car where the pool reaches 0 */
+#define WET_AHEAD    70.0f         /* m ahead */
+#define WET_FULL     15.0f         /* m each way along the road at full strength */
+#define WET_KERB     8.0f          /* |x|: full across to the kerbs, 0 at the building lines (12) */
 #define WET_LIFT     0.01f         /* m over the road, against depth fighting (the pools are at 0.02 .. 0.03) */
 #define GRIT_LIFT    0.015f        /* the grit layer over the reflection */
 static const float s_wet_gain[3]    = { 0.0f, 1.0f, 2.2f };     /* the reflection's share x the Fresnel (WET_ROAD, f0 raised) */
 static const float s_wet_stretch[3] = { 1.0f, 1.5f, 2.6f };     /* v toward the horizon: 1 none */
 static const float s_wet_dark[3]    = { 1.0f, 0.75f, 0.5f };    /* the road's own tone kept: water darkens it */
-#define GRIT_DRY     1.00f         /* the grit layer's share (tex_grit's alpha x this): dry, on the plain road */
-#define GRIT_DAMP    0.85f         /* damp: tex_grit is mostly clear, so the reflection already shows between the specks */
-#define GRIT_WET     0.70f         /* wet: the specks a little fainter (by eye on the host) */
+#define GRIT_DRY     1.00f         /* the road layer's share (tex_grit's alpha x this): dry, on the plain road */
+#define GRIT_DAMP    0.80f         /* damp: the reflection comes through the whole layer a little more */
+#define GRIT_WET     0.55f         /* wet: more again, the road still read through it (owner's figures, by eye on the host) */
 static const float s_grit_alpha[3]  = { GRIT_DRY, GRIT_DAMP, GRIT_WET };
 static uint32_t wet_hash(uint32_t a, uint32_t b) {
     uint32_t h = a * 0x9e3779b1u ^ (b + 0x7f4a7c15u) * 0x85ebca77u;
@@ -837,16 +840,20 @@ static void wet_grid(void) {
     const uint32_t tick = (uint32_t)(s_car.clock * 15.0f);
     const uint64_t t0 = plat_us();
     const int refl = s_rain && s_pv_ok && s_reflect;  /* dry, or no target: the grit alone, no lookup */
-    float zb = s_car.z, zf = s_car.z, dz = WET_ROW0, vh = 0.0f;
+    float vh = 0.0f;
     unsigned r, c;
     mat.f0 = 0.15f;                                   /* the preset's 0.02 is water head on; wet asphalt at night wants more (tuned by eye on the host) */
-    for (r = 0; r <= WET_FWD; r++) {                  /* row WET_BACK is under the car; the spacing grows away from it both ways */
+    for (r = 0; r < WET_ROWS; r++) {                  /* row WET_BACK is under the car; even rows each way */
+        const float dz = r < WET_BACK ? -WET_BEHIND * (float)(WET_BACK - r) * (1.0f / (float)WET_BACK)
+                                      : WET_AHEAD * (float)(r - WET_BACK) * (1.0f / (float)WET_FWD);
+        const float tz = shz_saturatef((shz_fabsf(dz) - WET_FULL) * shz_invf((dz < 0.0f ? WET_BEHIND : WET_AHEAD) - WET_FULL));
         for (c = 0; c < WET_COLS; c++) {
-            const float x = -12.0f + 4.0f * (float)c;
-            pos[WET_BACK + r][c][0] = x; pos[WET_BACK + r][c][1] = 0.0f; pos[WET_BACK + r][c][2] = zf;
-            if (r <= WET_BACK) { pos[WET_BACK - r][c][0] = x; pos[WET_BACK - r][c][1] = 0.0f; pos[WET_BACK - r][c][2] = zb; }
+            const float x = -12.0f + 2.0f * (float)c;
+            const float tx = shz_saturatef((shz_fabsf(x) - WET_KERB) * (1.0f / (12.0f - WET_KERB)));
+            const float d = shz_fminf(shz_sqrtf(shz_fmaf(tz, tz, tx * tx)), 1.0f);
+            pos[r][c][0] = x; pos[r][c][1] = 0.0f; pos[r][c][2] = s_car.z + dz;
+            fade[r][c] = 1.0f - d * d * (3.0f - 2.0f * d);   /* 1 - smoothstep: the pool's soft edge */
         }
-        zf += dz; zb -= dz; dz *= WET_GROW;
     }
     if (refl) sh4der_pl4nar_begin(&s_pv);            /* XMTRX = the reflection view until VP_LOAD */
     if (refl) {   /* the horizon's row in the target: a point far down the road */
@@ -856,14 +863,11 @@ static void wet_grid(void) {
         vh = smp.v;
     }
     for (r = 0; r < WET_ROWS; r++) {
-        const unsigned re = r < WET_ROWS - 1u - r ? r : WET_ROWS - 1u - r;          /* rows from the nearer end */
-        const float row_fade = re >= WET_FADE ? 1.0f : (float)re * (1.0f / (float)WET_FADE);
         for (c = 0; c < WET_COLS; c++) {
             sh4der_pl4nar_sample_t smp;
             gfx_vert_t *o = &gv[r][c];
             const uint32_t h = wet_hash(c * 64u + (uint32_t)(int32_t)(pos[r][c][2] * 0.5f), tick)   /* rows behind z 0 are negative */;
-            const float edge = c == 0u || c == WET_COLS - 1u ? 0.0f : row_fade;      /* the outer ring: 0 */
-            fade[r][c] = edge;
+            const float edge = fade[r][c];
             if (!refl) continue;
             (void)sh4der_pl4nar_flat(&s_pv, pos[r][c], &mat, &smp);
             o->u = shz_saturatef(shz_fmaf((float)(h & 255u) - 127.5f, 0.5f * (1.0f / 128.0f) * iw, smp.u)) * us;   /* hand: a jitter of half a texel */

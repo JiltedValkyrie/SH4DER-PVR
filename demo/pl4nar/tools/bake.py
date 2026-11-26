@@ -289,94 +289,74 @@ def mip_twiddled4444(im):
     return words
 
 
-GRIT_SHARE = 0.06                                     # the grit islands' share; with the lines about 13 % covered
+GRIT_VARIANT = os.environ.get("PL4NAR_GRIT", "A")   # the alpha under review: A mid-range and smooth, B holes and the rest
+                                                      # near opaque (owner's pick pending: grit_review)
 
 
-def grit_tex(n=128, seed=4444):
-    """The wet road's grit layer, RGBA n x n, our own (an integer hash, nothing fetched): u across the road's 24 m as
-    tex_road's (sidewalk, kerb, 16 m of asphalt, kerb, sidewalk), v along 12 m (one dash period). Alpha is how much of
-    the dry surface shows over the reflection. The asphalt is tools/grit_gen.py's grey laid 12 m x 12 m (a texel here
-    the mean of two of its texels across, one along, so its speckles stay round): the layer is mostly clear (alpha 0,
-    the road and the reflection show), GRIT_SHARE of it grit islands (grit_gen's hole field and cover alpha) at alpha
-    levels 4 .. 15, the sidewalk too. Over it our own road: cracks, seams and lane paint
-    worn to half (thin lines), patches of newer asphalt darker specks, puddles clear. The vertex alpha scales it by
-    the rain."""
+def grit_tex(road, variant=None, n=128, seed=4444):
+    """The wet road's layer over the reflection, RGBA n x n, our own (an integer hash, nothing fetched): one road surface,
+    tex_road's colour (`road`, 256 x 256 over 24 m: a texel here is two of its pixels across, one along, so u across the
+    road's 24 m and v along 12 m, one dash period) lightened and darkened by tools/grit_gen.py's grey, with our cracks
+    and patches of newer asphalt. Alpha is how much of the road shows over the reflection, from grit_gen's hole field:
+    A levels 7 .. 11 of 15 by the field (about 0.6 on average), a few holes at 0; B about a fifth holes, the rest about
+    0.87. Paint, kerbs and cracks stay at 15 in both. The vertex alpha lowers the whole layer with the rain."""
+    variant = variant or GRIT_VARIANT
     rnd = random.Random(seed)
     m_u, m_v = 24.0 / n, 12.0 / n                     # metres a texel across, along
     im = Image.new("RGBA", (n, n))
     px = im.load()
+    rp = road.convert("RGB").load()
 
     def h(x, y, k):
         v = (x * 0x9E3779B1 ^ (y + 0x7F4A7C15) * 0x85EBCA77 ^ k * 0x2C1B3C6D) & 0xFFFFFFFF
         v ^= v >> 15; v = (v * 0x2C1B3C6D) & 0xFFFFFFFF; v ^= v >> 12
         return (v & 0xFFFF) / 65535.0
 
-    def vnoise(x, y, cell, k):                        # value noise in metres, tiles with the texture
-        cx, cy = int(n * m_u / cell), int(n * m_v / cell)
-        fx, fy = x * m_u / cell, y * m_v / cell
-        x0, y0 = int(fx), int(fy)
-        tx, ty = fx - x0, fy - y0
-        tx, ty = tx * tx * (3 - 2 * tx), ty * ty * (3 - 2 * ty)
-        g = lambda i, j: h(i % cx, j % cy, k)          # noqa: E731
-        return (g(x0, y0) * (1 - tx) + g(x0 + 1, y0) * tx) * (1 - ty) + (g(x0, y0 + 1) * (1 - tx) + g(x0 + 1, y0 + 1) * tx) * ty
-
-    side = lambda x: x * m_u < 4.0 or x * m_u >= 20.0   # noqa: E731
     grey = grit_gen.asphalt_grit(n)
-    gg_at = lambda x, y: (grey[y * n + (2 * x) % n] + grey[y * n + (2 * x + 1) % n]) * 0.5   # noqa: E731
-    cover = grit_gen.grit_cover_alpha(grit_gen.asphalt_grit_holes(n), cover=GRIT_SHARE, lo=64)   # Cortana's islands
-
-    def speck(x, y):                                  # her alpha at the texel's left half (no mean: a hole stays clear),
-        a = cover[y * n + (2 * x) % n]                # cut to a 4444 level (4 .. 15) x 17, 0 in a hole
-        return 17 * max(4, a >> 4) if a else 0
+    mean = sum(grey) / float(len(grey))
+    holes = grit_gen.asphalt_grit_holes(n)
+    rank = {v: i / 255.0 for i, v in enumerate(sorted(set(holes)))}   # the field's values spread 0 .. 1 (by value)
+    order = sorted(holes)
+    cut = order[int(len(order) * (0.03 if variant == "A" else 0.20))]   # under this: a hole
+    keep = set()                                      # texels that stay at 15: paint, kerbs, cracks
     for y in range(n):
         for x in range(n):
-            g = h(x, y, 1)
-            if side(x):                               # the sidewalk: concrete, slabs 2 m long, holds little water
-                c = 116 + int(g * 18)
-                a = speck(x, y)
-                if (y * m_v) % 2.0 < m_v and h(x, y, 10) > 0.5: c, a = 84, 204   # the slab joint, broken
-                px[x, y] = (c, c, c - 4, a)
+            c0, c1 = rp[2 * x, y], rp[2 * x + 1, y]
+            r, g, b = [(c0[i] + c1[i]) // 2 for i in range(3)]
+            if max(r, g, b) >= 140 or r - b > 60:      # paint and kerb stones (the asphalt and sidewalk sit under 140)
+                keep.add((x, y))
+                px[x, y] = (r, g, b, 255)
                 continue
-            gg = gg_at(x, y)                          # the asphalt: grit_gen's grey
-            c = int(gg)
-            a = speck(x, y)
-            pud = vnoise(x, y, 1.5, 2) * 0.7 + vnoise(x, y, 0.5, 3) * 0.3
-            if pud > 0.58:                            # standing water: the mirror, no grit
-                a = 0
-            px[x, y] = (c, c, c + 4, a)
-    for _k in range(3):                               # patches of newer asphalt, a sealed seam round each
+            gg = (grey[y * n + (2 * x) % n] + grey[y * n + (2 * x + 1) % n]) * 0.5   # the grit: grit_gen's grey
+            k = max(0.6, min(1.5, 1.0 + 1.2 * (gg - mean) / 255.0))
+            f = holes[y * n + (2 * x) % n]            # the left half: no mean, so a hole stays a hole
+            if f < cut:
+                lvl = 0
+            elif variant == "A":
+                lvl = int(6.5 + 5.0 * rank[f] ** 0.6)
+            else:
+                lvl = 12 + int(h(x, y, 11) * 2.999)
+            px[x, y] = (min(255, int(r * k)), min(255, int(g * k)), min(255, int(b * k)), lvl * 17)
+    for _k in range(3):                               # patches of newer asphalt, a sealed seam round each: darker
         w, hh = rnd.randint(10, 22), rnd.randint(14, 34)
         x0, y0 = rnd.randint(int(4.6 / m_u), int(19.4 / m_u) - w), rnd.randint(0, n - 1)
         for y in range(hh):
             for x in range(w):
                 yy = (y0 + y) % n
+                if (x0 + x, yy) in keep:
+                    continue
                 seam = x == 0 or y == 0 or x == w - 1 or y == hh - 1
-                c = 40 if seam else 52 + int(h(x0 + x, yy, 5) * 10)
-                px[x0 + x, yy] = (c, c, c + 3, 204 if seam else px[x0 + x, yy][3])   # the inside keeps its specks
+                r, g, b, a = px[x0 + x, yy]
+                px[x0 + x, yy] = (40, 40, 43, 255) if seam else (r * 3 // 4, g * 3 // 4, b * 3 // 4, a)
     for _k in range(7):                               # cracks: a random walk, a texel wide, dark, they hold the eye
         x, y = rnd.uniform(4.5 / m_u, 19.5 / m_u), rnd.uniform(0, n)
         ang = rnd.uniform(0, 6.283)
         for _s in range(rnd.randint(25, 70)):
             ix, iy = int(x) % n, int(y) % n
-            if not side(ix):
-                px[ix, iy] = (30, 30, 32, 235)
+            if 4.0 <= ix * m_u < 20.0 and (ix, iy) not in keep:
+                px[ix, iy] = (30, 30, 32, 255)
             ang += rnd.uniform(-0.6, 0.6)
             x += math.cos(ang) * 0.8; y += math.sin(ang) * 1.2
-    def paint(x_m, half_m, col, dash):                # lane paint where tex_road has it; worn in places
-        for y in range(n):
-            if dash and y * m_v >= 3.0:
-                continue
-            for x in range(int((x_m - half_m) / m_u), int((x_m + half_m) / m_u) + 1):
-                px[x, y] = col + (204 if h(x, y, 7) > 0.5 else 0,)   # tex_road has the paint: here it is worn, half
-    paint(12.0 - 0.18, 0.07, (196, 160, 40), False)   # the double yellow
-    paint(12.0 + 0.18, 0.07, (196, 160, 40), False)
-    paint(8.0, 0.08, (200, 200, 196), True)           # the dashed lane lines
-    paint(16.0, 0.08, (200, 200, 196), True)
-    paint(4.55, 0.06, (176, 176, 172), False)         # the solid edge lines
-    paint(19.45, 0.06, (176, 176, 172), False)
-    for x_m in (3.95, 20.05):                         # the kerb stones
-        for y in range(n):
-            px[int(x_m / m_u), y] = (150, 150, 146, 250)
     return im
 
 
@@ -569,7 +549,7 @@ def main():
             k = int(255 * min(1.0, (1.0 - r) ** 2 * 1.1 + max(0.0, 1.0 - r * 4.0) * 0.6))
             glow.append(rgb565((k, k, k)))
     emit_words(out, "tex_glow", glow)
-    grit = grit_tex()                                  # the wet road's grit layer (ARGB4444, twiddled mips: 43,696 bytes)
+    grit = grit_tex(road)                              # the wet road's layer (ARGB4444, twiddled mips: 43,696 bytes)
     emit_words(out, "tex_grit", mip_twiddled4444(grit))
     grit.resize((512, 512), Image.NEAREST).save(os.path.join(a.out, "grit_x4.png"))
     emit_words(out, "tex_font", font_words())
