@@ -236,7 +236,7 @@ static inline float sh4der_glow_darken(float frame_mean, float map_mean, float s
     return d > SH4DER_GLOW_DARKEN_MAX ? SH4DER_GLOW_DARKEN_MAX : d < 0.0f ? 0.0f : d;
 }
 
-/** \brief 3t^2 - 2t^3 on 0..1, clamped: SH4DOW-DC's sh4dow_smooth01, the one smooth step both libraries share. */
+/** \brief 3t^2 - 2t^3 on 0..1, clamped: SH4DOW-DC's sh4dow_smooth01, the one smooth step the shadows and the effects share. */
 static inline float sh4der_glow_smooth_(float t) { return sh4dow_smooth01(t); }
 
 /** \brief Copy i (1..SH4DER_GLOW_RAYS) scale about the sun: the copy samples sun + (screen - sun) x scale. */

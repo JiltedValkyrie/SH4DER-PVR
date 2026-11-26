@@ -12,16 +12,15 @@
     of its own (sh4der_blade.h, sh4der_holo.h, ...) built on this header:
 
     - The soft edge every effect uses is SH4DOW-DC's column feather
-      (sh4dow_feather_in_ in sh4dow_dc.h). SH4DOW-DC ships with this library
-      (the folder sh4dow-dc): put sh4dow-dc/include on the path next to this
-      one.
+      (sh4dow_feather_in_ in sh4dow_dc.h). SH4DOW-DC is part of this library:
+      sh4dow_dc.h is in include/ beside this header, on the same include path.
     - The shapes: a tube (a soft column of light orbiting the effect's axis)
       and a blocker (a soft ball on a helix along it).
     - A breath tracker: a pose's own breathing turned into 0 (out) .. 1 (in).
     - A glint: a soft quad's brightness by camera depth.
 
     GLOSSARY (words used across these headers; the README's PVR glossary says the same):
-    - SH4DOW-DC: the shadow library shipped beside this one (folder sh4dow-dc). It supplies the soft-edge feather
+    - SH4DOW-DC: the soft shadows, part of this library (include/sh4dow_dc.h, src/sh4dow_dc.c). It supplies the soft-edge feather
       (sh4dow_feather_in_) and the smoothstep sh4dow_smooth01 that the effects use.
     - SH4ZAM: the SH-4 math library (Falco Girgis, MIT) whose shz_* functions do the maths on the Dreamcast.
     - "hand:" in a comment marks a line written as plain C because SH4ZAM has no equivalent operation for it.
@@ -44,7 +43,7 @@
 
     The square roots, sines, cosines, distances and clamps are SH4ZAM. Define
     SH4DER_CORE_NO_SH4ZAM to build the same steps in plain C (it also sets
-    SH4DOW_DC_NO_SH4ZAM, so both libraries take the same path).
+    SH4DOW_DC_NO_SH4ZAM, so the shadows and the effects take the same path).
 
     Version: v1.00
     The effect: nothing on screen of its own. It holds what the effects share:
@@ -74,7 +73,7 @@
 #define SH4DOW_DC_NO_SH4ZAM   /* the two libraries take the same path */
 #endif
 #endif
-/* SH4DOW-DC (included, sh4dow-dc/include). The feather of every tube, blocker and core is its own (sh4dow_feather_in_): SH4DER-PVR does not build
+/* SH4DOW-DC (part of this library: include/sh4dow_dc.h). The feather of every tube, blocker and core is its own (sh4dow_feather_in_): SH4DER-PVR does not build
    without it. */
 #include "sh4dow_dc.h"
 

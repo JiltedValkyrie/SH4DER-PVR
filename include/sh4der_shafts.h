@@ -28,8 +28,8 @@
     (a luma, a distance, a smooth step); one mesh of 8 x 6 cells on the PVR.
 
     The square root is SH4ZAM's (shz_sqrtf_fsrra: the argument is never 0);
-    the smooth step is SH4DOW-DC's sh4dow_smooth01, the one both libraries
-    share.
+    the smooth step is SH4DOW-DC's sh4dow_smooth01, the one the shadows and
+    the effects share.
 
     Version: v0.50
     The effect: makes things that stand between the camera and a light seem to

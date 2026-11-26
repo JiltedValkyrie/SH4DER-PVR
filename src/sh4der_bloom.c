@@ -354,8 +354,8 @@ int sh4der_bloom_blade(sh4der_bloom_mesh_t *m, const sh4der_bloom_params_t *p, c
     /* Step 4, the lens flare disc at the tip. v becomes the unit vector from the tip to the eye (reusing v, the step 1 value is no
        longer needed). v[0] is then the cosine of the angle between the blade's +x direction and the line of sight: 1 when
        looking straight down the blade at its tip, 0 when side on. The flare grows from flare_floor (side on) to full strength
-       once that cosine passes flare_cos, through a smooth 0..1 step (sh4dow_smooth01, from the shadow library shipped beside
-       this one), so the flare is brightest when the blade points at the viewer. */
+       once that cosine passes flare_cos, through a smooth 0..1 step (sh4dow_smooth01, SH4DOW-DC's, in include/sh4dow_dc.h),
+       so the flare is brightest when the blade points at the viewer. */
     v[0] = eye[0] - centre[0];   /* the lens flare: the blade (+x) against the unit way to the eye */
     v[1] = eye[1] - centre[1];
     v[2] = eye[2] - centre[2];
