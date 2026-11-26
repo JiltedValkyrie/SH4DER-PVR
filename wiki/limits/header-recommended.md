@@ -73,7 +73,7 @@ The block for `demo/psm/ao/tile_cut.h`:
 
 Header text is Cortana's to change; these are proposals, from section 6 of [frame budget](frame-budget.md).
 
-**`demo/pl4nar/src/heat.h`:** its block landed in 4cb117d (every number an ESTIMATE, PROTOTYPE v0.1). Two additions proposed: the PVR layer's cost as a number, about 0.25 ms (24,576 of 640 x 480 pixels, 8 %, scaled from a full-screen layer's 3.1 ms, PVR-002; ESTIMATE), and the test that would prove it on the Status line: car-tech stage 11 against stage 1 (suite 12) and its "last copy" line.
+**`demo/pl4nar/src/heat.h`:** its block landed in 4cb117d (every number an ESTIMATE, PROTOTYPE v0.1). Two additions proposed: the PVR layer's cost as a number, about 0.3 to 0.5 ms (8 % of the screen, scaled from full-screen translucent bilinear layers: 565 twiddled 3,989 us, 4444 raster 6,249 to 6,428, PVR-006; the heat texture is 565 raster, which has no row of its own; ESTIMATE). Cortana put in 0.25 ms from PVR-002's flat layers; PVR-006's textured ones are the nearer kind, and the test that would prove it on the Status line: car-tech stage 11 against stage 1 (suite 12) and its "last copy" line.
 
 **`include/sh4der_pl4nar.h`, one line:** its Maturity line reads "ALPHA v0.5 (by the written client rule; v0.4 if the owner counts only outside clients)". With D2 decided it becomes "ALPHA v0.5".
 

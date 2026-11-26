@@ -4,11 +4,11 @@
  *
  * RECOMMENDED (no console run: every number an ESTIMATE; wiki/limits/header-recommended.md)
  * Cost:       video memory 16 KB, RAM 16 KB; SH-4 a frame: 8,192 uncached reads (0.4 to 0.8 ms) and 16 KB by store
- *             queue (about 0.1 ms); TA 6.4 KB; PVR one translucent layer of 384 x 64 px (about 0.25 ms: 8 % of the
- *             screen, scaled from a full-screen layer's 3.1 ms, PVR-002): all ESTIMATE. Off: 0
+ *             queue (about 0.1 ms); TA 6.4 KB; PVR one translucent layer of 384 x 64 px (about 0.3 to 0.5 ms: 8 % of
+ *             the screen, scaled from full-screen translucent bilinear layers, PVR-006): all ESTIMATE. Off: 0
  * Start with: HEAT_ALPHA = 0.6 at half strength (the demo's LIGHT), HEAT_AMP_X = 2.0, HEAT_AMP_Y = 1.0, HEAT_DIST = 30.0
- * Status:     ADVISED: host tested (host/heat_test.c); the copy's time is not measured. To prove: the map autorun's
- *             last stage (stage 1 with the heat on STRONG) against stage 1, and the page's last copy line
+ * Status:     ADVISED: host tested (host/heat_test.c); the copy's time is not measured. To prove: car-tech stage 11
+ *             (stage 1 with the heat on STRONG) against stage 1, and the page's last copy line
  * Do:         heat_copy before any scene is open; heat_draw after the world in the translucent list; heat_reset
  *             after every pvr_init
  * Do not:     run it at night or in rain (heat_gate gives 0 there); expect a sharp band (3.5 px a texel across)
