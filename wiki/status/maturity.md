@@ -22,6 +22,8 @@ A label here comes from the [hardware ledger](../hardware/README.md) alone: what
 
 Two caps: a part is never marked above its weakest claim, so one OPEN step caps it at ALPHA; and every console result so far is from **one console** (Holly 2.42, PVR-123), so nothing can be STABLE yet. "A client" is a program other than the part's own test that calls it as a library (a demo or a suite program). All dates are 2026-11-25 unless a row says otherwise.
 
+**The client rule is decided** (lead, for the owner, 2026-11-25): demos and suite programs count as clients, as the tables below already apply it. No label changes.
+
 ## Counts
 
 | Label | Rows |
@@ -29,7 +31,7 @@ Two caps: a part is never marked above its weakest claim, so one OPEN step caps 
 | STABLE | 0 |
 | BETA | 1 |
 | ALPHA | 26 |
-| PROTOTYPE | 36 |
+| PROTOTYPE | 40 |
 
 After the re-rank from s8, mip-a and corr-a2 with Parity's second read (below). Two rows keep two versions inside ALPHA (the D1 depth fade's split from d1-c is settled at v0.3 after s9b); no label is disputed. Eight rows rest on the written client rule (a demo or a suite program counts), which the owner may change (below): psm, psm_raster, psm_pvr, pl4nar and the baked AO (the s8 re-rank), user clip (after ao4-j), tile cut (after d1-c: its callers c4, ao4 and d1 are suite programs) and autorun (after vc-b1, vc-b2 and tech-hills). `shz_dce_pvr_project`'s BETA rests on it too.
 
@@ -97,6 +99,10 @@ Every header and source in `AGENTS.md`'s Files list. Where one header holds part
 | demo disc | One program, every effect as a row | PROTOTYPE | v0.1 | `README.md:119` says its effects run on screen on it; no run is in the ledger. It calls look, glow, torch, shafts, taa and ca (and SH4DOW-DC); trail is included and never called; the other effects are not on it, so "every effect" in `AGENTS.md` and README is out of date. | A recorded run with a row per effect | Each row's frame time |
 | torch walk | First-person walk with the torch and the normal map | PROTOTYPE | v0.1 | Shows a cost label on the console; no row; no tests, by design. | Its label read into ledger rows | Draws, lit cells, TA, ms |
 | pl4nar street demo | The street driving demo (new map) | ALPHA | v0.4 | **pl4m c7, s8, a second run: 18.3 to 25.9 ms a frame, about 4.4 times c5; the PVR columns MEASURED (PVR-174, PVR-175).** pl4m c5, s7 (PVR-160 to PVR-162, SH4-086). Known defects: still SH-4 bound, not 60 (Q93); ten of 13 stages TOUCHED in c7; a van drives through the player's car (Junior, video). | 60 Hz, or a run with no key pressed | c8 with no key pressed |
+| car heat haze | The street demo's heat shimmer over the road: X steps OFF, LIGHT, STRONG; day and dry only | PROTOTYPE | v0.1 | `demo/pl4nar/src/heat.h`, host test `demo/pl4nar/host/heat_test.c`; the map autorun's heat pair (11 stages, 77 s) (616d4d2). NOT RUN: in no image a console has run (s12, not built yet). No cost figure, measured or estimated | A console run of the heat pair | The frame with heat OFF against LIGHT and STRONG |
+| car grit | The road's grit layer: `demo/pl4nar/tools/grit_gen.py` (own procedure, host self-test), a hole field with a coverage control, about 87 % clear at GRIT_SHARE 0.06 (ESTIMATE, as 294696c states it; not counted on screen); the rain row dry 1.0, damp 0.85, wet 0.70 | PROTOTYPE | v0.1 | f125c6b, 94542c7, 294696c. s11 carries the earlier generated layer (ARGB4444, e0fea7f), NOT RUN; s12 mixes the road texture with grit_gen (in progress, not committed) | A console run | The layer's PVR time dry and wet |
+| walled square | The town's replacement: Fantasy Town Kit 2.0 pieces (Kenney, CC0), generated paving, cast, hens, sun | PROTOTYPE | v0.1 | `demo/psm/tools/bake_square.py`, the SQUARE build switch, TA vertex buffer 1,536 KB (e40bacb); on s11 (`SQUARE.BIN`) and in the s12 list. NOT RUN | A console run with pages | The frame, the TA reading, the PVR split |
+| hero space stretch | hero1 rebuilt on a road between hangars (Senior): the hero runs it, the shadow window follows him, a near-plane cut for set triangles | PROTOTYPE | v0.1 | `demo/psm/hero/hero_strip.h`, `tools/bake_strip.py` (Space Kit 2.0, Kenney, CC0), host test `test/hero_strip_test.c`; not committed yet. Replaces hero1 in s12. NOT RUN | A console run with pages | The pass costs against hero1's |
 
 ## The suite discs' tools
 
@@ -117,6 +123,14 @@ Every header and source in `AGENTS.md`'s Files list. Where one header holds part
 | trilinear pair | Trilinear as two passes: TRILINEAR1 opaque, TRILINEAR2 translucent ONE × ONE, depth GEQUAL, the same vertices | ALPHA | v0.4 | **corr-a2 again (s9b): 9.48 ms PVR (9.44 before), 9.02 on 128 textures, untouched (PVR-207).** Two programs, 1 console. mip-a: the pair gives a ramp of 48 codes with no step over 2 on a flat-level texture, +0.48 ms over bilinear at 320 × 240 (PVR-168, PVR-170). corr-a2: +3.27 ms PVR and +0.74 ms SH-4 at 640 × 480, the corridor drawn with no doubled or black half (PVR-180, PVR-182). OPEN: the blend read off the corridor's screen (PVR-182). | The corridor split read with no light change across it | — |
 | mip level probe | A flat-level mipmapped texture read back to see which level each pixel took (mip-a) | ALPHA | v0.3 | mip-a, 1 run: per pixel; footprint, not depth (2 levels a doubling on a floor, 1 on a wall); costs (PVR-167 to PVR-170). OPEN: the floor reads up to one level above the MAX guess (Q96). | Q96; a second run | mip-a with the D adjust stepped |
 | fakeaf bias code | `demo/psm/fakeaf.h`'s `faf_bias_code`: a mip D adjust a polygon from its slope | ALPHA | v0.4 | **corr-a2 again (s9b): 7.19 and 7.24 ms PVR, a fixed bias 7.68, bilinear 6.14 (PVR-207, the second run).** Host test (`fakeaf_test`). corr-a2 ran it per polygon on the console: bias by slope 7.20 and 7.21 ms PVR, a fixed bias 7.71, bilinear 6.17 (PVR-180, 1 run). The level it picks was not read back, so what is measured is its cost, not its effect. OPEN: batched headers; why a biased level costs +1 ms. | The level it picks read back (as mip-a) | corr with a mip-a read-back |
+
+## Not run yet: s11 and s12
+
+Scholar, 2026-11-25, when the owner left. Nothing in this section has run on a console; no label rests on it.
+
+- **s11** (`demo/psm/out/cdi/sh4der-pvr-suite11.cdi`, built 21:30; list `demo/psm/suite/suite_11.json`): the walled square; the six car programs (car-tech, car-hills, car-wet autoruns; drive-map, drv-hills, drv-wet live) with always-on reflection and projected shadow, the low camera, the wet grid round the car, the generated grit layer, autoruns under 90 s, the closed car body; and ao4, ao-lamp, hero1, d1, hens-eyes, pvr-dma. The town tests are gone. **NOT RUN.**
+- **s12** (lead builds it; the list is final only when it is built): the six car programs with the heat haze, grit from the road texture mixed with grit_gen, a soft reflection pool round the car, always-on reflection and shadow and the low camera; the walled square; the space-stretch hero (Senior, in place of hero1); ao4, ao-lamp, d1, hens-eyes, pvr-dma; the plain menu titles; the skinned menu if Designer delivers it (`suite_skin.h`, `suite_ui.h`, `tools/suite_skin.py`, in the s12menu worktree, not committed). **NOT BUILT, NOT RUN.**
+- The last rows filed are PVR-208 to PVR-211 (vc-d and vc-c). No run since has been read.
 
 ## Re-rank after the town's vc-d and vc-c
 

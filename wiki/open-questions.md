@@ -11,6 +11,19 @@ sources: [every wiki page's "Open" section]
 
 Each item names the page it comes from. When a test settles one, move the answer into the ledger, mark the page, and delete the line here.
 
+## Decided for the owner (lead, 2026-11-25)
+
+The owner is away; lead made these calls. Each stands until the owner changes it.
+
+| # | Question | Decision |
+|---|---|---|
+| D1 | Terrain shadow on the hills: give the ground mesh its own shadow from the SH-4? | **Dropped.** No SH-4 terrain shadow. The car's projected shadow on the mesh stays as it is |
+| D2 | The client rule for [maturity](status/maturity.md): do our own demos and suite programs count as clients? | **Yes**, as the tables apply it. No label changes |
+| D3 | The plain names ([names](effects/names.md)) | **Adopted in the menu titles** (from s12). The compatibility aliases in the code are deferred |
+| D4 | Push `staging` to `main` | **Not now** |
+
+**The town is retired** (no more town runs; the walled square replaces it). The town's questions (Q2, Q3, Q4, Q6, Q10, Q55, Q66, Q71, Q73, Q78, Q79, Q80, Q87, Q99's open part, Q101's mechanism) are parked: no run will answer them as asked. Where the square shows the same thing, ask it again for the square.
+
 ## 1. Next console runs (highest value)
 
 | # | Question | Test | From |
@@ -105,6 +118,10 @@ The frame waits from c4 to c4g:
 | Q100 | The owner asked about "looking at the shadow map": the INSET row (the map shown on screen), or looking down at shadowed ground? | vc-a has a stage for each; the owner's word | frame-budget section 5 |
 | Q101 | vc-a stopped 2.3 s into its sixth stage (A boot turn): the picture froze at 00:59.30 and no page came (PVR-183). A hang or a stop? Does it repeat at the same stage, and does the town's own A turn stop on the same disc? | vc-a from stage 6 alone, with a stage time limit that opens the pages. **vc-b2 (PVR-194):** with a 1,536 KB buffer both turns ran through, PARAM 0, the buffer reading 963 and 978 KB; route A's ground stills read 1,025 to 1,037 KB, more than vc-a's buffer. The full buffer as the cause is an ESTIMATE. **vc-d (s9b): tied to the buffer size by one pair of runs.** The same image of ten A boot turns, built twice with only the vertex buffer changed: on 1,024 KB it froze about 31 frames into turn 2, after turn 1 ran whole with KallistiOS's largest frame at 1,024 KB, 100 % (PVR-208); on 1,536 KB all ten turns ran whole, PARAM 0, frame 77.13 to 77.36 ms (PVR-209). Both 1,024 KB freezes (vc-a, vc-d1024) came 20 to 40 frames into an A boot turn, and neither put up a HANG page. So the freeze goes with the smaller buffer, though not on every frame that fills it: the pair is MEASURED, one run each, one console; that the full buffer is the cause is still an association, not a known cause. Still open: why a full buffer freezes instead of dropping the frame's last polygons, and why the watchdog does not report (interrupts masked, or a reset: ESTIMATE). Route A's boot still reads 1,048 KB (PVR-211), but which scene that reading belongs to is not established (a race at the read, Senior). **Open: tied to the buffer size by one pair of runs; the cause and the mechanism are not known. No more town runs: the owner has stopped watching town tests** | PVR-183; PVR-208, PVR-209, PVR-211; TOWN-004, TOWN-099, TOWN-119; Senior built vc-b2 (stage 6 alone) and vc-b1 (the other twelve), both with a 1,536 KB vertex buffer, not yet run; PVR-194 |
 | Q102 | In d1-c, whole 32 x 32 tiles of the plain glow in the left half flash brighter on 9 to 17 % of frames, in four stages but not in stage 5, and never in the right half (PVR-193). Is it the user clip (the left half is clipped first; CORE 18, Q95), the order of the halves, or the glow's own polygon? | d1 stage 1 with no user clip, then with the halves' order reversed; a count of bright-tile frames on a page. **d1-d (PVR-206): it follows the user clip.** With a user clip a half, 17 % of frames bright on the left; with the halves cut by geometry and no user clip, none in any stage. Open: why (the clip change's early-polygon sequence, CORE 18: ESTIMATE); the halves' order reversed is not yet run | PVR-193, PVR-206; Q95 |
+| Q103 | The car's heat haze: what does each step cost (OFF, LIGHT, STRONG), and does the shimmer read on a television? | s12's map autorun heat pair (11 stages, 77 s) | [maturity](status/maturity.md) |
+| Q104 | The car's grit: the layer's PVR time dry and wet, and is about 87 % clear (ESTIMATE, 294696c) right on screen? | s12's car-wet autorun, pages and a photo | [maturity](status/maturity.md) |
+| Q105 | The walled square's first numbers: frame, TA reading against the 1,536 KB buffer, PVR split | Run SQUARE on s11 or s12 with pages | [maturity](status/maturity.md); Q101 |
+| Q106 | The space-stretch hero against hero1: do the pass costs hold with the set, and does his shadow stay in its window on the console as in the host test? | s12's hero with pages | [maturity](status/maturity.md); Q89 |
 | Q63 | ray1's slice of 1,024 stand-in receivers cost less at 16:00 than at 14:00 (539.68 against 554.19 cycles a ray; ray2 the same, 539.57 against 554.27, SH4-062), where the thesis expects about twice. What is the stand-ins' mean n at each sun, and what is the town's real receivers' mean n at 16:00? | Host count of the mean n for the same 1,024 stand-ins, then for the town's vertices | SH4-053, errata O11 |
 
 ## 4. Sound chip
