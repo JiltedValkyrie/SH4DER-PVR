@@ -21,7 +21,7 @@ sources: [include/sh4der_bump.h, README.md "The normal map effect", AGENTS.md "C
 4. **Send in this order.** At most six grey passes a cell (README:1615; ADVISED, a limit). Send the header once with `sh4der_bump_send_header` (include/sh4der_bump.h:259), then each cell with `sh4der_bump_send_fan` (include/sh4der_bump.h:270).
 5. **Check the turn.** `sh4der_bump_frame_t.flip` = 0 for a normal map whose y runs up the image (include/sh4der_bump.h:74). No recommended value yet for the azimuth's turn on a console. If the highlight moves the wrong way, set `flip` to 1 and test it on a console (include/sh4der_bump.h:31-32; open question Q42 in ../open-questions.md).
 
-On a console: NOT RUN. The page says "none of it is measured on a console" (Cost), and the header lists what is "NOT checked on a real console" (include/sh4der_bump.h:31).
+Run on a console by the owner in Torch walk (her test; no measured numbers recorded yet). The page says "none of it is measured on a console" (Cost), and the header lists what is "NOT checked on a real console" (include/sh4der_bump.h:31).
 
 Read next: [the header](../../include/sh4der_bump.h), [the call order](../../AGENTS.md#call-order-normal-map-highlight-power-2).
 

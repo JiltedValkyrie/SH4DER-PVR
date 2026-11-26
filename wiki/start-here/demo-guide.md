@@ -33,7 +33,7 @@ The menu titles, and what each program shows, are copied from the suite 13 list 
 | Drive a wet night road | you drive: rain, light pools, wet road | [Light pools [pool]](../effects/pool.md); the rain and the wet road are the street demo's own | [demo/pl4nar/src/demo.c](../../demo/pl4nar/src/demo.c) | drv-wet |
 | Walled town square | AO, sun shadows, hens, Y+A hides HUD | Corner shading from the demo's own [psm_ao.h](../../demo/psm/psm_ao.h) (not the [Baked corner shading [aobake]](../effects/aobake.md) module); [Sun shadow map [psm]](../effects/psm.md) | [demo/psm/tools/bake_square.py](../../demo/psm/tools/bake_square.py) (the square's build) and [demo/psm/psm_ao.h](../../demo/psm/psm_ao.h) | square |
 
-**Status:** nothing on suite 13 has run on a console yet. Each row says what the program should show; read [Suite 13](../methods/suite-13.md) for what to film and which ledger row each page goes to.
+**Status:** each suite 13 program is run on a console by the owner (her test; no measured numbers recorded yet). Each row says what the program should show; read [Suite 13](../methods/suite-13.md) for what to film and which ledger row each page goes to.
 
 ## Other demo programs
 
@@ -53,11 +53,11 @@ These programs are not in the suite 13 list. Their names and descriptions are fr
 
 **Status, from the wiki:**
 
-- Street car demo: ran on a console in its c5 and c7 builds (PVR-160 to PVR-175 in the [PVR ledger](../hardware/ledger-pvr.md)).
-- Heat haze on a hot road (standalone-25): FINAL demo, approved by the owner (2026-11-26). NOT RUN on a console (built on disc standalone-25). Its keys: X steps the heat OFF, LIGHT, STRONG (it starts on STRONG); A puts the car back at the start when the overlay is closed; B + X is the fly-by. Do not press A+B+X+Y: there is no menu on this disc.
-- Match Light: no console row in the wiki. NOT RUN on a console as far as the wiki records.
+- Street car demo: ran on a console in its c5 and c7 builds (PVR-160, PVR-161, PVR-174 and PVR-175 in the [PVR ledger](../hardware/ledger-pvr.md)).
+- Heat haze on a hot road (standalone-25): FINAL demo, approved by the owner (2026-11-26). Run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet); built on disc standalone-25. Its keys: X steps the heat OFF, LIGHT, STRONG (it starts on STRONG); A puts the car back at the start when the overlay is closed; B + X is the fly-by. Do not press A+B+X+Y: there is no menu on this disc.
+- Match Light: run on a console by the owner in Match Light (her test; no measured numbers recorded yet). The wiki has no ledger row for it yet.
 - Sunset sea: its page reports that it runs on a Dreamcast (REPORTED, no ledger row; `demo/OCEAN.md`).
-- Torch walk: no tests by design, and no console row in the wiki. NOT RUN on a console as far as the wiki records.
+- Torch walk: run on a console by the owner in Torch walk (her test; no measured numbers recorded yet). No tests by design, and no ledger row in the wiki yet.
 - Demo disc: the effect pages say these rows run on the demo disc (v0.50); there is no ledger row for them.
 - Town shadow demo: ran on a console (PVR-108 to PVR-115); replaced in suite 13 by the walled town square.
 - Walled square build: a host script, nothing to run on screen.

@@ -9,7 +9,7 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/start-here/cal
 **What you will learn:** how to build one frame of a town, village or ruin walk: baked corners, a sun's shadow, lamp pools, snow, fog, water and screen looks. Also what each part costs, what to cut first, and what goes wrong.
 **For:** a developer making an RPG, town or adventure game on the Dreamcast who has never used SH4DER-PVR.
 
-Status tags: **MEASURED** means a [ledger](../hardware/ledger-pvr.md) row backs it, from one console. **ADVISED** means a header, README table or demo source says so, with file and line. **NOT RUN** means no console run exists. **ESTIMATE** means arithmetic or a model, named. A count from the code is an exact host count, not a console number. Most effects here have no console run: treat every setting as a start.
+Status tags: **MEASURED** means a [ledger](../hardware/ledger-pvr.md) row backs it, from one console. **ADVISED** means a header, README table or demo source says so, with file and line. **NOT RUN** means no console run exists. **ESTIMATE** means arithmetic or a model, named. A count from the code is an exact host count, not a console number. Several effects here have no console run of their own: treat their settings as a start.
 
 ## The short version
 
@@ -17,7 +17,7 @@ Status tags: **MEASURED** means a [ledger](../hardware/ledger-pvr.md) row backs 
 - Build the corner bake at load, never in a frame: a static sun bake of 152 ms does not fit (SH4-070, MEASURED).
 - The old town's whole-map route ran at 18 frames a second (MEASURED, one run, PVR-108), which misses 30 Hz.
 - Cut order: screen layers (3.1 ms of PVR each, MEASURED, PVR-002), then water, mist and motes; keep the baked corners.
-- Rising lights, mist, dented ground, uvwarp and focus are NOT RUN on a console, and the sources disagree on the look's version.
+- Rising lights, mist and dented ground: Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). Uvwarp and focus are NOT RUN on a console, and the sources disagree on the look's version.
 
 ## What this kind of game needs
 
@@ -36,10 +36,10 @@ The budget: 16.7 ms a frame at 60 Hz, 33.3 ms at 30 Hz. If the SH-4 (main proces
 | Sun shadow map [psm], route A | Sun shadow on the ground; the PVR draws casters | [header](../../include/sh4der_psm.h), [routes](../shadows/psm-routes.md) | ALPHA v0.5 |
 | Light pools [pool] | Lamp pools, blob shadows | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | ALPHA v0.2 |
 | Drifting specks [motes] | Pollen, dust, fireflies | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | PROTOTYPE |
-| Rising lights [rise] | Lanterns that settle as stars | [header](../../include/sh4der_rise.h) | PROTOTYPE; NOT RUN |
-| Mist bank [mist] | Fog over a pond, with a shape | [header](../../include/sh4der_mist.h), [page](../effects/mist.md) | PROTOTYPE; NOT RUN |
+| Rising lights [rise] | Lanterns that settle as stars | [header](../../include/sh4der_rise.h) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Mist bank [mist] | Fog over a pond, with a shape | [header](../../include/sh4der_mist.h), [page](../effects/mist.md) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Water waves [water] | A pond or lake | [header](../../include/sh4der_water.h), [page](../effects/water.md) | PROTOTYPE |
-| Dented ground [deform] | Snow keeps footprints; mud closes them | [header](../../include/sh4der_deform.h), [page](../effects/deform.md) | PROTOTYPE; NOT RUN |
+| Dented ground [deform] | Snow keeps footprints; mud closes them | [header](../../include/sh4der_deform.h), [page](../effects/deform.md) | PROTOTYPE; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Texture ripple [uvwarp] | Banners, flags | [header](../../include/sh4der_uvwarp.h) | PROTOTYPE; NOT RUN |
 | Exposure and grade [look] | Eyes adapt indoors and out | [header](../../include/sh4der_look.h), [page](../effects/look.md) | PROTOTYPE |
 | Fake focus blur [focus] | A close-up keeps one part sharp | [header](../../include/sh4der_focus.h), [page](../effects/focus.md) | PROTOTYPE; NOT RUN |
@@ -47,7 +47,7 @@ The budget: 16.7 ms a frame at 60 Hz, 33.3 ms at 30 Hz. If the SH-4 (main proces
 | Screen warp [warp] | A spell's shockwave | [page](../effects/warp.md) | ALPHA v0.3 |
 | Tile-cut pass [tilecut] | Trims a small shadow target (route A) | [header](../../include/sh4der_tilecut.h), [page](../effects/tilecut.md) | ALPHA v0.5 |
 
-**Left out.** Corner darkening [ao] ([aobake] does the job). Planar reflection [pl4nar] (a second world draw, PVR-175). Screen bloom [glow] and shafts [shafts] (they read the picture back). Screen spotlight [torch], screen filters [visor] and inner light [holo] suit a lantern or magic scene; all NOT RUN.
+**Left out.** Corner darkening [ao] ([aobake] does the job). Planar reflection [pl4nar] (a second world draw, PVR-175). Screen bloom [glow] and shafts [shafts] (they read the picture back). Screen spotlight [torch], screen filters [visor] and inner light [holo] suit a lantern or magic scene. The torch: Run on a console by the owner in Torch walk; Demo disc (her test; no measured numbers recorded yet). The visor and holo: NOT RUN.
 
 **Source conflict.** look.h:36 says "Version: v0.50", and look.md says it runs on screen on the demo disc. maturity.md gives look PROTOTYPE v0.1 with no ledger row. The sources disagree; this page keeps the maturity label.
 
@@ -79,9 +79,9 @@ Against 16.7 and 33.3 ms: the old town's route A had SH-4 at 13.6 ms and PVR at 
 | Shadow tiles, route A | 32 KB for a 128 × 128 tile (ESTIMATE: 2 bytes a pixel); the town's whole map was 128 KB (PVR-108) | the casters you draw | Uncut pass about 3.2 ms (PVR-004: 3,213 us at 320 × 240); PVR-156's 128 × 128 target: 3,256 us uncut, 344 us cut to 4 × 5 tiles | MEASURED, one console |
 | Route A, whole old-town map | 128 KB | 27,031 TA vertices (PVR-108) | SH-4 13.6 ms, PVR 15.9 ms; 18 fps, misses 30 Hz | MEASURED, old town, one run |
 | Light pools [pool] | none | 10 triangles, 11 vertices (exact, `sh4der_pool.h` lines 47 to 49) | Not measured; fill ESTIMATE from +3.1 ms per full-screen layer (PVR-002), by area | ALPHA v0.2 |
-| Drifting specks [motes] | 512 B mask (exact) | 96 sprites × 4 = 384 vertices (exact) | Not measured | NOT RUN |
-| Mist bank [mist] | 8 KB noise (yours) | 48 triangles at 12 sheets (exact) | Not measured; fill OPEN | NOT RUN |
-| Dented ground [deform] | none | 25,600 cells of RAM (exact, `sh4der_deform.h` lines 13 to 14) | Not measured | NOT RUN |
+| Drifting specks [motes] | 512 B mask (exact) | 96 sprites × 4 = 384 vertices (exact) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Mist bank [mist] | 8 KB noise (yours) | 48 triangles at 12 sheets (exact) | Not measured; fill OPEN | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Dented ground [deform] | none | 25,600 cells of RAM (exact, `sh4der_deform.h` lines 13 to 14) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Water [water] | none | 2,016 to 23,040 triangles (exact, demo/OCEAN.md) | Not measured; demo ran (REPORTED) | PROTOTYPE |
 | Exposure and grade [look] | none | 0 to 6 full-screen layers (exact) | +3.1 ms each (PVR-002); six: ESTIMATE 18.7 ms (arithmetic); grid read OPEN | PROTOTYPE |
 | Film and tape [film], [timebase] | tape: 640 KB frame texture (ESTIMATE: 640 × 512 × 2 bytes) | film: one rectangle, 3 lines (exact) | Not measured | NOT RUN |
@@ -107,7 +107,7 @@ Least picture lost first. Costs rank only where a number exists; the rest follow
 2. **Water.** Fewer triangles (the sea demo's PERFORMANT row, 2,016). Lost: wave detail. Cost not measured.
 3. **Mist.** Fewer sheets (our advice, not tested; mist.md says keep the bank low or use fewer sheets, ADVISED). Lost: fog depth. Fill OPEN.
 4. **Motes.** Lower `max_draw`. Lost: specks.
-5. **Light pools.** Limit lamps by distance. Lost: far light. NOT RUN.
+5. **Light pools.** Limit lamps by distance. Lost: far light. Run on a console by the owner in Car on a wet night road; Drive a car on hills; Drive a wet night road; Street car demo (her test; no measured numbers recorded yet).
 6. **Shadow tiles.** Fewer people get a tile. Lost: their shadows. Route B, if you use it, goes before tiles: it is the dearest shadow measured here (40.2 to 43.9 ms of SH-4, PVR-112 and PVR-113).
 7. **Keep baked corner shading.** Its frame cost is 216 to 277 us of SH-4 (SH4-082), and its bake is paid at load.
 
@@ -131,6 +131,6 @@ Least picture lost first. Costs rank only where a number exists; the rest follow
 
 ## Related
 
-- [Racing game recipe](./racing-game.md); [What do you want to make?](../start-here/what-do-you-want.md); [demo guide](../start-here/demo-guide.md) (its walled square is NOT RUN).
+- [Racing game recipe](./racing-game.md); [What do you want to make?](../start-here/what-do-you-want.md); [demo guide](../start-here/demo-guide.md) (its walled square: Run on a console by the owner in Walled town square (her test; no measured numbers recorded yet)).
 - Genre guides: [shadows](../start-here/genre-shadows.md), [light and glow](../start-here/genre-light-and-glow.md), [water and weather](../start-here/genre-water-and-weather.md), [camera and screen](../start-here/genre-camera-and-screen.md).
 - [Frame budget](../limits/frame-budget.md), [recommended limits](../limits/recommended-limits.md), and [licence and credit](../start-here/license-and-credit.md), which you need when you ship any of this.

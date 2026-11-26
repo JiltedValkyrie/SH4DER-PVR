@@ -21,7 +21,7 @@ What it is for: darker ground under props, from a few sky directions drawn into 
 4. Each frame, after the sun's casters: for each direction `d < k`, `sh4der_aosky_slope(k, d, s)` (`include/sh4der_aosky.h:114`), then `sh4der_aosky_dir` (`:202`) with `sh4der_aosky_argb(k, strength)`. No value to set.
 5. Cap k at what the frame pays: about 0.35 to 0.45 ms of PVR a direction for scenes of about 1,100 caster triangles (the page's Recommended limits). ESTIMATE: arithmetic from the target passes in PVR-140 (451 us and 347 us a direction).
 
-On a console: NOT RUN for this copy. The page's status: "its status is ADVISED for the copy and PROVEN for the start settings."
+Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet) for this copy. The page's status: "its status is ADVISED for the copy and PROVEN for the start settings."
 
 Header: [include/sh4der_aosky.h](../../include/sh4der_aosky.h). Call order: [below](#call-order).
 
@@ -55,7 +55,7 @@ The demo's version of the call sits in `demo/psm/ao/ao4_draw.h` (`ao4_draw_dir`)
 | VRAM | the shadow target the sun already uses; no new target | |
 | RAM | the caller's `xy` and `ok` arrays: 9 bytes a vertex | by the code |
 
-The scenes of Room shading ran this method in Room shading, build d, Room shading, build h, Room shading, build i and Room shading, build j (PVR-138, PVR-152, PVR-176, PVR-186; the target passes in PVR-140 and PVR-153). This copy of the code is the same maths, checked on the host against the scenes of Room shading; it has not run on a console since the move, so its status is ADVISED for the copy and PROVEN for the start settings.
+The scenes of Room shading ran this method in Room shading, build d, Room shading, build h, Room shading, build i and Room shading, build j (PVR-138, PVR-152, PVR-176, PVR-186; the target passes in PVR-140 and PVR-153). This copy of the code is the same maths, checked on the host against the scenes of Room shading; Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet) for this copy. Its status is ADVISED for the copy and PROVEN for the start settings.
 
 ## What the console said
 

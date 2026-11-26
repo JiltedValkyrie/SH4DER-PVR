@@ -59,6 +59,6 @@ Each row is filed only from the video and the pages, with the video time (mm:ss.
 ## Related
 
 - [Frame budget, section 6](../limits/frame-budget.md#6-the-car-demo-practices-so-far): the car practices these runs would prove
-- [Maturity: not run yet](../status/maturity.md#not-run-yet-s11-s12-and-s13)
+- [Maturity: not in a ledger yet](../status/maturity.md#not-in-a-ledger-yet-s11-s12-and-s13)
 - [Open questions](../open-questions.md): Q103 to Q106
 - [Benchmarking](benchmarking.md)

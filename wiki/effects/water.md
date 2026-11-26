@@ -21,7 +21,7 @@ What it is for: give a water mesh its waves, its sky reflection and its glow, on
 4. Pass `swell` and `ripple` to `sh4der_water_sample` as 1, meaning as authored (include/sh4der_water.h:58-59, ADVISED). Turn one down to 0 to see what it adds to the picture.
 5. Crest glow: `thin_path` and `thick_path` for `sh4der_water_crest_sss` have no recommended value yet; the header gives none. The test: put the sun behind a crest, then in front of it. The glow must fade to nothing with the sun in front (AGENTS.md, the sss worked examples).
 
-On a console: NOT RUN. This page says: 'None of it is measured on a console.' The ocean demo runs on a real Dreamcast, but its steady 33.3 ms frame is not yet measured (demo/OCEAN.md:5).
+Run on a console by the owner in Sunset sea (her test; no measured numbers recorded yet). This page says: 'None of it is measured on a console.' The ocean demo runs on a real Dreamcast, but its steady 33.3 ms frame is not yet measured (demo/OCEAN.md:5).
 
 Header: [sh4der_water.h](../../include/sh4der_water.h). Call order: [Call order](#call-order), below.
 

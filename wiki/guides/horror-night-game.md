@@ -63,7 +63,7 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/effects/torch.
 - TAA, the gentle ghost: `SH4DER_TAA_WEIGHT_HI` 0.75, the history weight while the camera is still (the header default, `include/sh4der_taa.h:84`; ADVISED). The film uses 0.45 (`LENS_TAA_WEIGHT`, `demo/matchlight/matchlight.c:126`), a lighter ghost.
 - TAA, the jitter: `SH4DER_TAA_PHASES` 8 (the default, `include/sh4der_taa.h:83`; ADVISED).
 - Trail, the stronger smear: `SH4DER_TRAIL_COPIES` 3, `SH4DER_TRAIL_WEIGHT_HI` 0.5 (the cap), `SH4DER_TRAIL_SHIFT_MAX` 8 and `SH4DER_TRAIL_SPEED_HI` 8.0 (the header defaults, `include/sh4der_trail.h:67-71`; ADVISED).
-- Status: NOT RUN on a console for either effect. The film's own figures are counted, not measured (its README: "not measured on a console").
+- Status: TAA: Run on a console by the owner in Demo disc and Match Light (her test; no measured numbers recorded yet); the trail: NOT RUN on a console. The film's own figures are counted, not measured (its README: "not measured on a console").
 
 **What it costs.** It is not free.
 - TAA draws two full-screen translucent layers in a frame where the weight is above zero: one dims the frame, one adds the history (`include/sh4der_taa.h`, the blend functions). A full-screen translucent layer costs about 3.1 ms of PVR at 640 × 480 (PVR-002, MEASURED, one console). So TAA is about 6 ms of PVR a frame at 640 × 480 (ESTIMATE, two layers). That is about a third of a 60 Hz frame (16.7 ms). Its history reads the front buffer, so it needs no video memory of its own (`wiki/effects/taa.md`, as stated). Its recommended frame texture is 320 × 240, 320 KB.
@@ -98,11 +98,11 @@ A frame is 16.7 ms at 60 Hz and 33.3 ms at 30 Hz. The SH-4 and the PVR overlap, 
 | Old film wear | 0 | Rectangle, 3 lines, 12 specks (`film.h:73-74`; count) | 3.1 ms of PVR | ESTIMATE, one full-screen layer |
 | Tape wobble | 640 KB frame texture (FACT, VID-001; `ca.h:11-12`) | About 960 vertices (ESTIMATE count) | Not measured | NOT RUN |
 | Screen filters | Grain 2,048 B; thermal map 16 KB (ESTIMATE, arithmetic; visor.md) | Not stated | Not measured; 3.1 ms per full-screen layer (ESTIMATE) | NOT RUN |
-| Mist bank | 8 KB noise tile, yours (ESTIMATE, arithmetic) | 48 triangles (count) | Not measured. Model: screen share x 3.1 ms (ESTIMATE) | NOT RUN |
+| Mist bank | 8 KB noise tile, yours (ESTIMATE, arithmetic) | 48 triangles (count) | Not measured. Model: screen share x 3.1 ms (ESTIMATE) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Lightning | 0 | 120 triangles, 240 vertices (README:1191) | Not measured | NOT RUN |
-| Drifting specks | 512 B mask, optional (ESTIMATE, arithmetic) | 96 sprites (count) | Not measured | NOT RUN |
+| Drifting specks | 512 B mask, optional (ESTIMATE, arithmetic) | 96 sprites (count) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Screen warp | 256 KB (ESTIMATE, arithmetic; README:511-512). README:64 gives 160 KB: the sources disagree | Mesh 40 x 30: 2,460 vertices (BUS-004) | 2,250 us of SH-4 to send the mesh (BUS-004) | MEASURED, SH-4 |
-| Light pool | 0 | 10 triangles a disc (`pool.h:8-9`; count) | Not measured. Model: screen share x 3.1 ms (ESTIMATE) | NOT RUN |
+| Light pool | 0 | 10 triangles a disc (`pool.h:8-9`; count) | Not measured. Model: screen share x 3.1 ms (ESTIMATE) | Run on a console by the owner in Car on a wet night road; Drive a car on hills; Drive a wet night road; Street car demo (her test; no measured numbers recorded yet) |
 | Baked corners | 0 | 2,142 vertices (scene A) | 0 a frame; 252 to 254 ms at load | MEASURED on an earlier copy (SH4-076, SH4-082) |
 
 **The whole stack, on paper.** An empty 640 x 480 frame costs 3.15 ms of PVR (PVR-001, MEASURED). Add the spotlight carve, one exposure layer, the three lens layers and the film: 3.15 + 3.1 + 3.1 + 9.3 + 3.1 = 21.75 ms of PVR. That sum is an ESTIMATE: it adds measured unit costs ([budgets](../limits/budgets.md), worked example), and no console run of this stack exists. At 60 Hz it is about 5 ms over, before the world's own triangles. At 30 Hz about 11.6 ms is left.
@@ -137,7 +137,7 @@ A frame is 16.7 ms at 60 Hz and 33.3 ms at 30 Hz. The SH-4 and the PVR overlap, 
 - Strands at most 8 (`bolt.h:60`). ADVISED.
 
 **Drifting specks**
-- `max_draw` 96, with the ceiling `SH4DER_MOTES_DRAW_MAX` 128 (motes.md). ADVISED; NOT RUN.
+- `max_draw` 96, with the ceiling `SH4DER_MOTES_DRAW_MAX` 128 (motes.md). ADVISED; Run on a console by the owner in Match Light (her test; no measured numbers recorded yet).
 - At most 256 slots per emitter (motes.md, `motes.h:60`). ADVISED.
 
 **Screen warp (a shock)**

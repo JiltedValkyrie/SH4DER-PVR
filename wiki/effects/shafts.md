@@ -21,7 +21,7 @@ For dark shapes that cast shade toward the viewer from a light, such as trees ag
 4. Facing the light: `SH4DER_SHAFTS_FACE_FROM` = 0.5 and `SH4DER_SHAFTS_FACE_FULL` = 0.95 (include/sh4der_shafts.h:80-81; ADVISED, README:870-871).
 5. Each frame: `sh4der_shafts_map`, then `sh4der_shafts_upload`, then `sh4der_shafts_draw`. Clear the map once when the light leaves the view, not every frame (include/sh4der_shafts.h:21, 49; ADVISED).
 
-On a console: NOT RUN for time. The page says: "There are no times."
+Run on a console by the owner in Demo disc (her test; no measured numbers recorded yet). The page says: "There are no times."
 
 Header: [sh4der_shafts.h](../../include/sh4der_shafts.h). Steps in full: [Call order](#call-order).
 

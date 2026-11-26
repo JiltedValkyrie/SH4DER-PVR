@@ -18,7 +18,7 @@ No program in the ledger runs this whole recipe. Each number names its part.
 - Build one untextured translucent header for the pool: source alpha blending, depth test on, depth write off, no culling.
 - The hero demo's every pass totals 18.76 ms (MEASURED, PVR-178): over 60 Hz at 16.7 ms, inside 30 Hz at 33.3 ms.
 - Cut order: glow's ray copies, specks and shafts, then the shadow target for blobs (about 3.2 ms of PVR uncut, MEASURED, PVR-004).
-- The glowing tubes, bloom rings, inner light, texture ripple and thin-part glow are NOT RUN, and the sources disagree on several version labels.
+- The glowing tubes, inner light and texture ripple are NOT RUN; the bloom rings are run on a console by the owner in Lamp with a lit shade, and the thin-part glow in Lamp with a lit shade; Sunset sea (her test; no measured numbers recorded yet); and the sources disagree on several version labels.
 
 ## What this kind of game needs
 
@@ -33,12 +33,12 @@ A frame has 16.7 ms at 60 Hz and 33.3 ms at 30 Hz ([frame budget](../limits/fram
 | Effect | What it gives this game | Where | Status |
 |---|---|---|---|
 | Glowing tubes [blade] | a glowing sword or power rod | [header](../../include/sh4der_blade.h), [page](../effects/blade.md) | NOT RUN |
-| Mesh bloom [bloom] | a glow round a blade tip or lamp, no frame read | [header](../../include/sh4der_bloom.h), [page](../effects/bloom.md) | NOT RUN |
+| Mesh bloom [bloom] | a glow round a blade tip or lamp, no frame read | [header](../../include/sh4der_bloom.h), [page](../effects/bloom.md) | Run on a console by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet) |
 | Inner light [holo] | a breathing glow inside a crystal or spirit | [header](../../include/sh4der_holo.h), [page](../effects/holo.md) | NOT RUN |
 | Texture ripple [uvwarp] | a flag or force field on a strip | [header](../../include/sh4der_uvwarp.h), [page](../effects/uvwarp.md) | NOT RUN |
-| Light through thin parts [sss] | leaves and ears glow with the sun behind | [header](../../include/sh4der_sss.h), [page](../effects/sss.md) | NOT RUN |
-| Drifting specks [motes] | pollen and dust near the hero | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | host tests only |
-| Rising lights [rise] | lanterns that lift off and settle as stars | [header](../../include/sh4der_rise.h), [page](../effects/rise.md) | host tests only |
+| Light through thin parts [sss] | leaves and ears glow with the sun behind | [header](../../include/sh4der_sss.h), [page](../effects/sss.md) | Run on a console by the owner in Lamp with a lit shade; Sunset sea (her test; no measured numbers recorded yet) |
+| Drifting specks [motes] | pollen and dust near the hero | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Rising lights [rise] | lanterns that lift off and settle as stars | [header](../../include/sh4der_rise.h), [page](../effects/rise.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Dark shafts of light [shafts] | sun shapes through trees | [header](../../include/sh4der_shafts.h), [page](../effects/shafts.md) | PROTOTYPE; demo disc (REPORTED) |
 | Light pools [pool] | the hero's blob shadow; lamp light | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | disc ALPHA; fade PROTOTYPE |
 | Baked corner shading [aobake] | contact shadow in rooms, paid at load | [header](../../include/sh4der_aobake.h), [page](../effects/aobake.md) | load time MEASURED |
@@ -49,7 +49,7 @@ A frame has 16.7 ms at 60 Hz and 33.3 ms at 30 Hz ([frame budget](../limits/fram
 
 **Left out.** Smooth edges [taa] and Motion blur [trail] blend full-screen history layers. Two trail copies make six layers, about 19 ms of PVR (ESTIMATE from [PVR-002](../hardware/ledger-pvr.md)). Our advice, not tested: leave both out at 60 Hz. Corner darkening [ao] has no user yet. Planar reflection [pl4nar] is costed in the [racing guide](./racing-game.md). Water [water] and the torch [torch] have no ledger rows.
 
-**Source conflicts.** blade.h:34, bloom.h:31 and holo.h:31 say "Version: v1.00" (their effect pages add "used in a released game"); maturity.md gives the blade and holo PROTOTYPE v0.1 and the bloom rings ALPHA v0.3 (from the lamp demo's halo loop). The sources disagree. This page keeps NOT RUN, because no ledger row times these calls. glow.h:58 and shafts.h:34 say "Version: v0.50" (their effect pages say they run on the demo disc); glow.h:17 and maturity.md give PROTOTYPE v0.1. The sources disagree. sss.h:39 says v0.50 and maturity.md gives ALPHA v0.3 from the lamp demo's shade loop; this page keeps NOT RUN for sss on a body.
+**Source conflicts.** blade.h:34, bloom.h:31 and holo.h:31 say "Version: v1.00" (their effect pages add "used in a released game"); maturity.md gives the blade and holo PROTOTYPE v0.1 and the bloom rings ALPHA v0.3 (from the lamp demo's halo loop). The sources disagree. This page keeps NOT RUN for the blade and holo, because no ledger row times these calls; the bloom rings are run on a console by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet). glow.h:58 and shafts.h:34 say "Version: v0.50" (their effect pages say they run on the demo disc); glow.h:17 and maturity.md give PROTOTYPE v0.1. The sources disagree. sss.h:39 says v0.50 and maturity.md gives ALPHA v0.3 from the lamp demo's shade loop; this page keeps NOT RUN for sss on a body.
 
 ## The order of one frame
 
@@ -75,13 +75,13 @@ The sources do not place the punch-through list (step 5), or the blade against t
 | Render-target pass, uncut | its bytes | whole tile table | about 3.2 ms PVR ([PVR-004](../hardware/ledger-pvr.md)); 344 to 375 us cut ([PVR-092](../hardware/ledger-pvr.md), [PVR-156](../hardware/ledger-pvr.md)) | MEASURED, one console |
 | Hero, opaque (hero demo) | 0 | 1,465 vertices, 1,660 triangles | +3.28 ms SH-4, +0.30 ms PVR ([PVR-178](../hardware/ledger-pvr.md)) | MEASURED, one console, three runs |
 | Hero's shadow on a target (hero demo) | not in the row | +2,594 vertices | +2.08 ms SH-4, +5.05 ms PVR ([PVR-178](../hardware/ledger-pvr.md)) | MEASURED, one console, three runs |
-| Blob shadow (pool disc) | 0 | 9 vertices, 8 triangles (exact) | not measured; ESTIMATE: screen share × 3.1 ms | ADVISED; no run |
+| Blob shadow (pool disc) | 0 | 9 vertices, 8 triangles (exact) | not measured; ESTIMATE: screen share × 3.1 ms | ADVISED. Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet) |
 | Frame read, 80 × 60 | 0 | 4,800 uncached reads ([look](../effects/look.md)) | not measured here; 1,196 us in another port ([VID-005](../hardware/ledger-video.md)) | REPORTED |
 | Grade | 0 | 0 to 6 full-screen quads | ESTIMATE: layers × 3.1 ms | ESTIMATE |
 | Screen bloom | 16 KB texture, plus a 1 KB one | 3 layers, up to 4 ray copies | ESTIMATE: 9.3 ms PVR (3 × PVR-002), plus rays | ESTIMATE |
 | Dark shafts | 16 KB texture | 4,800 cells; one 8 × 6 mesh | not measured | PROTOTYPE; no row |
 | Baked corner shading | a byte a vertex in RAM | per vertex | load: 252 to 254 ms for 2,142 vertices ([SH4-076](../hardware/ledger-sh4.md)); draw: 32 to 44 ns ([SH4-077](../hardware/ledger-sh4.md), DERIVED) | MEASURED (load) |
-| Glowing tubes, mesh bloom, inner light, ripple, thin-part glow, specks, rising lights, sparks | 0 (ripple table 2 KB) | bloom 24 vertices; motes 384 (exact) | not measured; sparks ESTIMATE 25 us SH-4 (96 × 260 ns, [BUS-001](../hardware/ledger-bus-dma.md)) | NOT RUN, host tests or no row |
+| Glowing tubes, mesh bloom, inner light, ripple, thin-part glow, specks, rising lights, sparks | 0 (ripple table 2 KB) | bloom 24 vertices; motes 384 (exact) | not measured; sparks ESTIMATE 25 us SH-4 (96 × 260 ns, [BUS-001](../hardware/ledger-bus-dma.md)) | Glowing tubes, inner light, ripple: NOT RUN; the rest: Run on a console by the owner in Lamp with a lit shade (mesh bloom, thin-part glow); Sunset sea (thin-part glow); Match Light (specks, rising lights, sparks); Street car demo (sparks) (her test; no measured numbers recorded yet) |
 | Sun shadow map | a 128 KB map in the town | per caster | not measured for a hero; town routes MEASURED (PVR-108 to PVR-113) | ALPHA |
 
 One full-screen layer is 19 % of 16.7 ms and 9 % of 33.3 ms (DERIVED from PVR-002). The hero demo's every pass together is 18.76 ms (PVR-178): over 60 Hz, inside 30 Hz.
@@ -125,7 +125,7 @@ One full-screen layer is 19 % of 16.7 ms and 9 % of 33.3 ms (DERIVED from PVR-00
 **Light pools**
 - Blob: 8 triangles, centre lifted 2 to 4 cm (pool.h, RECOMMENDED block). ADVISED.
 - Blob alpha: AGENTS.md and the pool header both give 0.50 by day and 0.25 at night, the street demo's values. No console run has tested the blob's alpha on a platformer.
-- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m are the street demo's. PROTOTYPE, NOT RUN.
+- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m are the street demo's. PROTOTYPE, Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet).
 
 **Baked corner shading**
 - `SH4DER_AOBAKE_RAYS` 64, `SH4DER_AOBAKE_REACH` 3.0, `SH4DER_AOBAKE_PUSH` 0.02 (aobake.h:64-66). ADVISED for this copy.

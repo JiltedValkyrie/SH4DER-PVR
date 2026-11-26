@@ -34,16 +34,16 @@ Our advice, not tested: aim for 60 Hz if you can.
 
 | Effect | What it gives this game | Where it is | Status |
 |---|---|---|---|
-| Sparks and tracers [spark] | muzzle flash, tracer, impact sparks | [header](../../include/sh4der_spark.h), [page](../effects/spark.md) | ADVISED; pool draw NOT RUN |
+| Sparks and tracers [spark] | muzzle flash, tracer, impact sparks | [header](../../include/sh4der_spark.h), [page](../effects/spark.md) | ADVISED; pool draw Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Screen overlays [lens] | hit wedges, damage flash, vignette, grain | [header](../../include/sh4der_lens.h), [page](../effects/lens.md) | ADVISED; NOT RUN |
-| Screen spotlight [torch] | a flashlight in a dark corridor | [header](../../include/sh4der_torch.h), [page](../effects/torch.md) | ADVISED; cost NOT RUN |
+| Screen spotlight [torch] | a flashlight in a dark corridor | [header](../../include/sh4der_torch.h), [page](../effects/torch.md) | ADVISED; Run on a console by the owner in Torch walk; Demo disc (her test; no measured numbers recorded yet) |
 | Baked corner shading [aobake] | contact shadow in rooms, baked at load | [header](../../include/sh4der_aobake.h), [page](../effects/aobake.md) | load MEASURED; copy ADVISED |
-| Light pools [pool] | a lamp's pool; a blob shadow under each enemy (our advice, not tested) | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | ADVISED; reach fade NOT RUN |
+| Light pools [pool] | a lamp's pool; a blob shadow under each enemy (our advice, not tested) | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | ADVISED; reach fade Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet) |
 | Exposure and grade [look] | eyes adjust leaving a dark room | [header](../../include/sh4der_look.h), [page](../effects/look.md) | on the demo disc; cost NOT MEASURED |
 | Screen warp [warp] | shockwave from an explosion | [header](../../include/sh4der_warp.h), [page](../effects/warp.md) | SH-4 MEASURED; PVR REPORTED |
-| Drifting specks [motes] | dust in a light beam, embers | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | NOT RUN |
-| Mist bank [mist] | fog low in a yard | [header](../../include/sh4der_mist.h), [page](../effects/mist.md) | NOT RUN |
-| Dented ground [deform] | footprints in snow | [header](../../include/sh4der_deform.h), [page](../effects/deform.md) | NOT RUN |
+| Drifting specks [motes] | dust in a light beam, embers | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Mist bank [mist] | fog low in a yard | [header](../../include/sh4der_mist.h), [page](../effects/mist.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Dented ground [deform] | footprints in snow | [header](../../include/sh4der_deform.h), [page](../effects/deform.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Lightning [bolt] | an electric weapon | [header](../../include/sh4der_bolt.h), [page](../effects/bolt.md) | NOT RUN |
 | Screen filters [visor] | night goggles (added by us) | [header](../../include/sh4der_visor.h), [page](../effects/visor.md) | NOT RUN |
 | Tile-cut pass [tilecut] | for a second view, such as a scope | [header](../../include/sh4der_tilecut.h), [page](../effects/tilecut.md) | MEASURED (PVR-092) |
@@ -72,15 +72,15 @@ A 60 Hz frame has 16.7 ms; a 30 Hz frame has 33.3 ms. The SH-4 and the PVR are s
 
 | Part | Video memory | Triangles or vertices | Frame time | Status |
 |---|---|---|---|---|
-| Sparks and tracers, 24 quads | 1,256 B RAM; 3 KB atlas | 96 vertices (exact) | under 25 us of SH-4 (ESTIMATE: 96 at 142 to 260 ns, BUS-003, BUS-001) | NOT RUN as a pool |
+| Sparks and tracers, 24 quads | 1,256 B RAM; 3 KB atlas | 96 vertices (exact) | under 25 us of SH-4 (ESTIMATE: 96 at 142 to 260 ns, BUS-003, BUS-001) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Lens flash | none | one full-screen layer | 3.1 ms of PVR while shown | MEASURED per layer (PVR-002) |
 | Lens grain | 8 KB | one full-screen textured layer | not measured | NOT RUN |
 | Lens vignette | none | 594 vertices, 288 triangles at the defaults (32 spokes x 8 rings, per frame; `src/sh4der_lens.c:19`) | not measured | NOT RUN |
-| Torch | none | 306 vertices, 288 triangles (exact) | not measured (ESTIMATE: carve covers the screen, about 3.1 ms) | NOT RUN |
-| One light pool | none | 10 triangles, 176 B (exact) | not measured (ESTIMATE: area share of a full-screen layer) | NOT RUN |
-| Mist, 12 sheets | 8 KB | 48 triangles (exact) | not measured | NOT RUN |
-| Drifting specks | 512 B (optional) | 384 vertices at 96 sprites (exact) | not measured | NOT RUN |
-| Dented ground | none; 25.6 KB RAM | no new triangles | not measured | NOT RUN |
+| Torch | none | 306 vertices, 288 triangles (exact) | not measured (ESTIMATE: carve covers the screen, about 3.1 ms) | Run on a console by the owner in Torch walk; Demo disc (her test; no measured numbers recorded yet) |
+| One light pool | none | 10 triangles, 176 B (exact) | not measured (ESTIMATE: area share of a full-screen layer) | Run on a console by the owner in Car on a wet night road; Drive a car on hills; Drive a wet night road; Street car demo (her test; no measured numbers recorded yet) |
+| Mist, 12 sheets | 8 KB | 48 triangles (exact) | not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Drifting specks | 512 B (optional) | 384 vertices at 96 sprites (exact) | not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Dented ground | none; 25.6 KB RAM | no new triangles | not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Screen warp, 40 x 30 mesh | 256 KB frame texture (ESTIMATE: 512 x 256 x 2 B, `warp.h:69-70`; `README.md:64` gives 160 KB, so the sources disagree) | 2,460 vertices | SH-4 2,250 us (BUS-004, MEASURED); PVR 6,466 us (`warp.md:36`, no ledger row) | PVR REPORTED |
 | Exposure read | none | 4,800 samples | about 2.6 ms of SH-4 (ESTIMATE: 9,600 B at the 3.7 MB/s of SH4-040) | ESTIMATE |
 | Exposure layers | none | up to 6 quads; none when neutral | 3.1 ms of PVR each (PVR-002); 18.7 ms at six | MEASURED per layer |
@@ -110,7 +110,7 @@ No total. No shooter has run as a whole, so the sum is NOT RUN. The nearest meas
 
 **Light pools**
 - Disc of 10 triangles for a lamp (a blob shadow takes 8, pool.h:8), lifted 2 to 4 cm; blob alpha 0.50 by day, 0.25 at night (pool.h, lines 8 to 10). ADVISED.
-- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m (pool.h, lines 100 to 101). NOT RUN; a shorter indoor reach is our guess.
+- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m (pool.h, lines 100 to 101). Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet); a shorter indoor reach is our guess.
 
 **Screen warp**
 - `SH4DER_WARP_RING_SPEED` 180.0, `SH4DER_WARP_RING_AMP` 5.0 (README, warp tuning). ADVISED; no ledger row times the ring.
@@ -155,7 +155,7 @@ Our advice, not tested. It follows the README's spark section and gives a muzzle
 2. At load, load a 64 x 64 atlas with no alpha (3 KB, VQ RGB565). Call `sh4der_spark_init(texture, 64, 64, format)`, then `sh4der_spark_reset(&pool)`.
 3. On a shot: a KEEP billboard at the muzzle for 2 frames, a KEEP | RETREAT | TAIL0 streak to the hit for 4 frames, and a billboard plus `sh4der_spark_burst` at the hit. Life is in seconds: 2 frames is 0.033 s at 60 Hz (our arithmetic).
 4. Each frame, `sh4der_spark_update(&pool, dt, gravity)`. In the translucent list, after the world, fill a view and a screen (`sh4der_spark_screen_make`), then `sh4der_spark_draw`.
-5. You should see a muzzle flash for two frames and a streak that shrinks at its muzzle end. With the pool full of burst sparks, the flash and tracer stay and `dropped` counts the refused plain quads (spark.h, line 131). The stray-line check needs a real console (PVR-080). This draw is NOT RUN as a pool.
+5. You should see a muzzle flash for two frames and a streak that shrinks at its muzzle end. With the pool full of burst sparks, the flash and tracer stay and `dropped` counts the refused plain quads (spark.h, line 131). The stray-line check needs a real console (PVR-080). This draw as a pool: Run on a console by the owner in Match Light (her test; no measured numbers recorded yet).
 
 ## Related
 

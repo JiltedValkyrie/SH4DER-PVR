@@ -27,7 +27,7 @@ A floor or a wall can show grooves and ribs that catch a moving torch, with no b
 **Where it is:** [header](../../include/sh4der_bump.h) and [effect page](../effects/bump.md).
 
 **Starting settings:**
-- `SH4DER_BUMP_STRENGTH` = 0.65 (include/sh4der_bump.h:67; README "Normal map tuning"): the highlight at full light. ADVISED. No console run has judged it.
+- `SH4DER_BUMP_STRENGTH` = 0.65 (include/sh4der_bump.h:67; README "Normal map tuning"): the highlight at full light. ADVISED. Run on a console by the owner in Torch walk (her test; no measured numbers recorded yet); no ledger row judges it.
 - `SH4DER_BUMP_MAX_FAN` = 12 (include/sh4der_bump.h:70): the most corners one sent polygon may have. The code refuses more (bump.h:272). ADVISED: no console number backs it.
 - Map side: a power of two up to 256 (include/sh4der_bump.h:152). The README's cost line uses 64 × 64 (README "The normal map effect"). ADVISED.
 - The torch walk's vertex light uses kd 1.3 and ks 2.5 (a comment at include/sh4der_bump.h:227; not macros). ADVISED.

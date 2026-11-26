@@ -15,13 +15,13 @@ sources: [include/sh4der_hexheat.h, test/hexheat_test.c, README.md "The hexheat 
 
 For heat shimmer over a far view by day, when you already draw into a render target every frame.
 
-1. Keep the header's start values; they are the owner's. `SH4DER_HEXHEAT_S` = 8.0 (a hexagon 13.9 pixels wide and 16 high), `SH4DER_HEXHEAT_LAYERS` = 3, `SH4DER_HEXHEAT_WAVE_HEX` = 7.0 and `SH4DER_HEXHEAT_WAVE_HEX_UP` = 7.0 (the longest wave is 7 hexagon widths along the screen's x and along its y; from crest to crest that is 4.95 widths), `SH4DER_HEXHEAT_RISE_HEX` = 1.5 and `SH4DER_HEXHEAT_WIND` = 0.35 (README "Hexheat tuning"; include/sh4der_hexheat.h:83-98). ADVISED, NOT RUN.
+1. Keep the header's start values; they are the owner's. `SH4DER_HEXHEAT_S` = 8.0 (a hexagon 13.9 pixels wide and 16 high), `SH4DER_HEXHEAT_LAYERS` = 3, `SH4DER_HEXHEAT_WAVE_HEX` = 7.0 and `SH4DER_HEXHEAT_WAVE_HEX_UP` = 7.0 (the longest wave is 7 hexagon widths along the screen's x and along its y; from crest to crest that is 4.95 widths), `SH4DER_HEXHEAT_RISE_HEX` = 1.5 and `SH4DER_HEXHEAT_WIND` = 0.35 (README "Hexheat tuning"; include/sh4der_hexheat.h:83-98). ADVISED. Run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet).
 2. The size of the nudge: `SH4DER_HEXHEAT_PEAK` = 0.25, a quarter of s, which is 2 pixels: the aim at the haze's far line. `SH4DER_HEXHEAT_OFFSET_MAX` = 0.32 holds every nudge at 0.32 of s, which is 2.56 pixels, so a tile's middle stays in its own cell (include/sh4der_hexheat.h:107, 115). ADVISED. On the host the street scene's largest nudge is 1.86 pixels and a high camera's is 2.34 (test/hexheat_test.c). Two tiles that share an edge do overlap and part: see [Neighbours](#neighbours).
 3. Where the haze stands: `SH4DER_HEXHEAT_LAYER_FRAC` = 0.125 (the haze layer is one eighth of the screen's height) and `SH4DER_HEXHEAT_D0` = 30.0 m (include/sh4der_hexheat.h:101, 104). The street demo stands the haze 70 m ahead (`HEAT_DIST`) and keeps everything nearer than 64 m out of the band (`HEXH_NEAR_BACK` = 6 m, demo/pl4nar/src/heat_hex.h:20). ADVISED.
 4. The band: `SH4DER_HEXHEAT_BAND_W` = 256 by `SH4DER_HEXHEAT_BAND_H` = 128 texels, one texel a screen pixel, in a render target you already fill (include/sh4der_hexheat.h:122-123). Sample it filtered (bilinear). ADVISED.
 5. In a driving game: `SH4DER_HEXHEAT_DRIVE` = 0.5 lets the pattern stream toward the camera as the car speeds up (include/sh4der_hexheat.h:113). Read [Stripes, and the speed where they stand still](#stripes-and-the-speed-where-they-stand-still) first. ADVISED.
 
-On a console: NOT RUN. Nothing on this page has run on a Dreamcast. Every count is from the host, and a host count is not a console time.
+Run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet). Every count on this page is from the host, and a host count is not a console time.
 
 Header: [sh4der_hexheat.h](../../include/sh4der_hexheat.h). Steps in full: [Call order](#call-order). Other heat and screen effects: [What do you want?](../start-here/what-do-you-want.md) and [Camera and screen](../start-here/genre-camera-and-screen.md).
 
@@ -29,7 +29,7 @@ Header: [sh4der_hexheat.h](../../include/sh4der_hexheat.h). Steps in full: [Call
 
 The header is maths only. It gives the honeycomb, the ray to the ground, the wave and the mesh. The pass that fills the band and the draw are yours. The street demo shows both (`demo/pl4nar/src/demo.c`: `hex_band_pass`, `hex_draw`).
 
-Header only. The header's maturity line reads "PROTOTYPE v0.1" (`include/sh4der_hexheat.h:22`): nothing of it has run on a console. This lattice is the second design. The first was a few floating hexagons that popped on and off, each with a shift rolled ten times a second. The owner judged it wrong on 2026-11-26, and the lattice replaced it.
+Header only. The header's maturity line reads "PROTOTYPE v0.1" (`include/sh4der_hexheat.h:22`): run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet). This lattice is the second design. The first was a few floating hexagons that popped on and off, each with a shift rolled ten times a second. The owner judged it wrong on 2026-11-26, and the lattice replaced it.
 
 ### The honeycomb stays put
 

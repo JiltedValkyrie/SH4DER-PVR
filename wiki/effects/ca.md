@@ -20,7 +20,7 @@ Split the colours toward the corners of the screen, so the edges show a lens fri
 3. Strength 1.00 puts red and blue `SH4DER_CA_SPLIT_PX` = 3.0 screen pixels apart in the corner (`include/sh4der_ca.h:75`, `:46`, ADVISED). The useful range is 0.25 to 4.00; 12 pixels is a damaged lens (`include/sh4der_ca.h:46-47`, ADVISED).
 4. Draw the world with `sh4der_ca_begin(&ca, 0)` in place of `pvr_scene_begin` (`include/sh4der_ca.h:181-183`). Then draw green with `sh4der_ca_channel(..., SH4DER_CA_GREEN, ...)` in the opaque list, and red and blue in the translucent list (`include/sh4der_ca.h:190-192`, ADVISED). Draw the HUD after, sharp (`include/sh4der_ca.h:52`, ADVISED).
 
-On a console: NOT RUN (the page: "There are no times.").
+Run on a console by the owner in Demo disc (her test; no measured numbers recorded yet). The page: "There are no times."
 
 Header: [include/sh4der_ca.h](../../include/sh4der_ca.h). Call order: [Call order](#call-order).
 

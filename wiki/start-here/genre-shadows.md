@@ -80,7 +80,7 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 **Use it when:** the sun's shadow already goes into a target and the receiver is flat ground. It does not darken walls or moving things.
 **Where it is:** [header](../../include/sh4der_aosky.h) and [effect page](../effects/aosky.md).
 **Starting settings:**
-- `SH4DER_AOSKY_DIRS_MAX` 8 (include/sh4der_aosky.h:85) is the cap. Start at 4 directions with `sh4der_aosky_header(h, 0)` (plain blending): PROVEN for that start (PVR-138 to PVR-186, one console). This copy has NOT RUN on a console since the move.
+- `SH4DER_AOSKY_DIRS_MAX` 8 (include/sh4der_aosky.h:85) is the cap. Start at 4 directions with `sh4der_aosky_header(h, 0)` (plain blending): PROVEN for that start (PVR-138 to PVR-186, one console). This copy since the move: Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet).
 - `SH4DER_AOSKY_FLOOR` 0.5f (include/sh4der_aosky.h:87): PROVEN for the same start.
 - One side of closed casters: ADVISED. The header's block counts it in its PROVEN start, but the [recommended limits](../limits/recommended-limits.md) hold it at ADVISED until open question Q78 closes. This page follows the limits page.
 
@@ -89,7 +89,7 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 **What it looks like:** a character's limbs cast soft dark columns along the light, and two small cones of shadow sit under its feet.
 **Use it when:** a few characters near the camera need soft shadows. The cost grows with each character and column.
 **Where it is:** in this library: `include/sh4dow_dc.h`, `src/sh4dow_dc.c` and `src/sh4dow_foot.c`, with the heightfield sun in `include/sh4dow_heightfield.h`. Effect page: [sh4dow](../effects/sh4dow.md). Credit and use rules: [licence and credit](license-and-credit.md).
-**Starting settings:** NOT RUN on a console in this library. The numbers below are the original author's (REPORTED).
+**Starting settings:** Run on a console by the owner in Demo disc (her test; no measured numbers recorded yet). The numbers below are the original author's (REPORTED).
 - `SH4DOW_COLUMN_MAX` 32 (README.md, 'The sh4dow effect', line 1755): the columns one frame's state holds, about 3 KB. ADVISED, a cap in the code.
 - `sh4dow_foot_range_fade` is 1 up to 18 and 0 at 20 (README.md, line 1794). These are the original game's units, where 1 unit is 3.048 m (README.md, line 1753). ADVISED: the library's default, not measured.
 - The count of shadowed characters: none is recommended. The original game shaded its six nearest, with 14 limbs each (README.md, 'The sh4dow effect', line 1755). That is one game's choice. The bench that would set the count is OPEN.
@@ -102,9 +102,9 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 | Shadow map on the SH-4 [psm_raster] | none; 32 KB of RAM at 128 x 128 (FACT, arithmetic) | 15,142 TA vertices, route B, town scene (MEASURED, one console, 2026-11-25) | 40.2 ms uniform, 43.9 ms PSM (MEASURED, HUD). The route's own share is OPEN | PROVEN: too costly for a whole town at 30 fps (one view). ALPHA v0.5 |
 | Shadow map drawn by the PVR [psm_pvr] | 128 KB, a 256 x 256 target (FACT, arithmetic) | 27,023 to 27,075 TA vertices, route A, town scene (MEASURED) | 13.3 to 13.6 ms (MEASURED, HUD). The 18 fps is below these times: OPEN | ALPHA v0.5 |
 | Corner darkening [ao] | not stated | the crease bake costs nothing at run time (as-stated by the header) | not measured. OPEN: time the crease bake and the screen cue on a console | NOT RUN on a console. PROTOTYPE v0.1 |
-| Baked corner shading [aobake] | 0 (by the code) | 2,142 vertices in scene A, 2,544 in scene B, 64 rays each (exact counts) | load: 252 to 254 ms (A) and 391 to 393 ms (B) (MEASURED, one console, SH4-076, SH4-082). The frame moved by under 0.6 ms (PROVEN, PVR-135, PVR-138, SH4-073, SH4-076, SH4-077) | ALPHA v0.5. This copy has NOT RUN on a console since the move. Placing cost OPEN (Q91) |
-| Sky shading [aosky] | 0 more (it uses the sun's target) | 1,164 caster triangles, one side (exact count) | 522 ns a vertex (MEASURED, one scene, SH4-071). Town scene at 4 directions: frame +10.0 ms (MEASURED, PVR-135) | PROVEN for the start. This copy has NOT RUN on a console since the move |
-| Soft character shadows [sh4dow] | nothing extra (as-stated) | 6 characters, 84 columns, 5,406 vertices (REPORTED) | 14.70 ms before the column lists, 4.5 ms after (REPORTED, one run, no date) | NOT RUN on a console in this library |
+| Baked corner shading [aobake] | 0 (by the code) | 2,142 vertices in scene A, 2,544 in scene B, 64 rays each (exact counts) | load: 252 to 254 ms (A) and 391 to 393 ms (B) (MEASURED, one console, SH4-076, SH4-082). The frame moved by under 0.6 ms (PROVEN, PVR-135, PVR-138, SH4-073, SH4-076, SH4-077) | ALPHA v0.5. This copy since the move: Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet). Placing cost OPEN (Q91) |
+| Sky shading [aosky] | 0 more (it uses the sun's target) | 1,164 caster triangles, one side (exact count) | 522 ns a vertex (MEASURED, one scene, SH4-071). Town scene at 4 directions: frame +10.0 ms (MEASURED, PVR-135) | PROVEN for the start. This copy since the move: Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet) |
+| Soft character shadows [sh4dow] | nothing extra (as-stated) | 6 characters, 84 columns, 5,406 vertices (REPORTED) | 14.70 ms before the column lists, 4.5 ms after (REPORTED, one run, no date) | Run on a console by the owner in Demo disc (her test; no measured numbers recorded yet) |
 
 Video memory is the graphics chip's own memory for pictures and textures. A triangle or vertex is one corner the chip is sent each frame, and the count is the work it does.
 

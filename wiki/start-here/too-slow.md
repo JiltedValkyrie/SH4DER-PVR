@@ -23,7 +23,7 @@ Take these numbers for the same stage, with no key pressed:
 - **Vertices and TA kilobytes.** The TA is the chip that takes your polygons ([glossary](../glossary.md)). One vertex is one 32-byte store-queue burst (glossary), so vertices × 32 bytes gives the TA bytes. ESTIMATE (arithmetic on that size). A 24-quad spark pool is 96 vertices and 3,104 bytes with its header (`wiki/effects/spark.md:43`).
 - **The vertex buffer's peak.** KallistiOS's largest-scene counter, `vtx_buffer_used_max`, sits against the buffer size (`frame-budget.md:179`).
 
-The pvrx layer has a polled render-done wait and TA error counters. Those came from test programs that ran. The layer itself has not run on a console as a layer: its version is v0.05 (`include/sh4der_pvrx.h:21-22`, `:44`). Use it knowing that.
+The pvrx layer has a polled render-done wait and TA error counters. Those came from test programs that ran. The owner has run the layer on a console in Copy video memory to RAM (her test; no measured numbers recorded yet): its version is v0.05 (`include/sh4der_pvrx.h:21-22`, `:44`). Use it knowing that.
 
 Quote a segment's mean, not its largest frame. The largest frame moved by up to 10.5 ms in one test while the means agreed within 0.1 ms (`recommended-limits.md:88`, MEASURED).
 

@@ -17,13 +17,13 @@ The guide follows one working example: the street driving demo in `demo/pl4nar`.
 - Build the mirror at 256 x 128, with the street drawn upside down (ADVISED).
 - The c7 build's day frame is 25.25 ms (MEASURED, PVR-174): it holds 30 Hz but is about 8.6 ms over 60 Hz (ESTIMATE).
 - Cut the heat haze when it is on (ESTIMATE, 0.4 to 0.8 ms of SH-4), then halos and light pools, whose savings are not measured.
-- The car programs are NOT RUN on a console as a set, and the sources disagree on the starting target size and the paint's F0.
+- The car programs: Run on a console by the owner in Car in a city by day; Car on hills; Car on a wet night road (her test; no measured numbers recorded yet), and the sources disagree on the starting target size and the paint's F0.
 
 ## Read this first
 
-- **Status tags.** Every number says where it comes from. **MEASURED** means a row in the [hardware ledger](../hardware/ledger-pvr.md) backs it, from one Dreamcast. **ADVISED** means a start setting from a header or the demo's source. **NOT RUN** means the car programs have not run on a console yet ([suite 13](../methods/suite-13.md)). **ESTIMATE** means arithmetic or a model. **DERIVED** means arithmetic on measured numbers, such as a difference or a ratio. **OPEN** means nobody has measured it yet. A measured number and an estimate are never mixed in one cell.
-- **The car programs.** The car programs on the suite 13 disc have not run on a console as a set. Some earlier car builds have console rows in the ledger. Each section says which numbers come from those.
-- **Headlights and lamps.** The library can fade a pool by its distance from the eye (a prototype, not run on a console), and the street demo fades its lamps by distance. Section 3 says what each does, and what is not built.
+- **Status tags.** Every number says where it comes from. **MEASURED** means a row in the [hardware ledger](../hardware/ledger-pvr.md) backs it, from one Dreamcast. **ADVISED** means a start setting from a header or the demo's source. **NOT RUN** means no console run is recorded for it: host tests, tools, or code that no listed demo uses. A listed demo the owner has run is written as run on a console by the owner in that demo (her test; no measured numbers recorded yet) ([suite 13](../methods/suite-13.md)). **ESTIMATE** means arithmetic or a model. **DERIVED** means arithmetic on measured numbers, such as a difference or a ratio. **OPEN** means nobody has measured it yet. A measured number and an estimate are never mixed in one cell.
+- **The car programs.** The owner has run the car programs on the suite 13 disc on a console (her test; no measured numbers recorded yet). Some earlier car builds have console rows in the ledger. Each section says which numbers come from those.
+- **Headlights and lamps.** The library can fade a pool by its distance from the eye (a prototype; run on a console by the owner in Street car demo (her test; no measured numbers recorded yet) for the fade), and the street demo fades its lamps by distance. Section 3 says what each does, and what is not built.
 - **Credit.** A game that uses any of this library must credit it. See [licence and credit](../start-here/license-and-credit.md).
 - **Words.** Terms are in the [glossary](../glossary.md). The ones this page uses most: **c5** and **c7** are two builds of the street car demo, in the ledger's order (c5 the older, about 110 ms a frame in PVR-160; c7 the later, about 25 ms in PVR-174). An **autorun** is the demo's scripted run through numbered **stages**, with no keys pressed; a key press marks a stage TOUCHED. The **HUD** is the on-screen readout. **SH-4 bound** means the main processor's time sets the frame. **TA KB** is the vertex data sent to the graphics chip for one scene.
 
@@ -68,17 +68,17 @@ The rules: wait for render done after every cut pass; never cut while a render r
 
 **Two shadow routes.** Route A: the chip draws the caster map. Route B: the main CPU draws a depth map in RAM ([psm routes](../shadows/psm-routes.md)). The car demo uses neither. Its tile copies route A's first step (dark casters into a target, then a multiply layer), but the casters are the car's two boxes slid along the sun, not a depth map. For scale only, the town gave route A PVR 15.9 ms (PVR-108) and route B SH-4 40.2 ms (PVR-112), one console each.
 
-**Decision table.** The car programs have not run on a console (suite 13 pending), so car-tile costs here are NOT RUN unless a ledger row says otherwise. The sources give no frame-time budget, so the columns name layouts. Their order is an ESTIMATE from target pixels and cut size: at 128 x 64 the cut is 16 tiles (small) or 96 (big) (ESTIMATE, `demo.c:367-376`).
+**Decision table.** The car programs: Run on a console by the owner in Car in a city by day; Car on hills; Car on a wet night road (her test; no measured numbers recorded yet), so car-tile costs here have no number unless a ledger row says otherwise. The sources give no frame-time budget, so the columns name layouts. Their order is an ESTIMATE from target pixels and cut size: at 128 x 64 the cut is 16 tiles (small) or 96 (big) (ESTIMATE, `demo.c:367-376`).
 
 | Cars needing a shadow | Low: blobs | Medium: small layout | High: big layout |
 |---|---|---|---|
-| 1 (player) | Blob, `-DPL4NAR_BLOBS`. ADVISED (`sh4der_pool.h:8-9`). Cost NOT RUN. | One 32 px tile. Cost NOT RUN. | One 128 px tile. Cost NOT RUN. |
-| About 4 | Blobs within 80 m (`demo.c:56`). ADVISED. Cost NOT RUN. | Four of eight slots, 32 px. Cost NOT RUN. | All four slots, 128 px. Cost NOT RUN. |
-| About 8 | Blobs within 80 m. Cost NOT RUN. | All eight slots, 32 px. Cost NOT RUN. | Four tiles; the rest get blobs only with `-DPL4NAR_BLOBS` (`demo.c:2142-2145`). Cost NOT RUN. |
+| 1 (player) | Blob, `-DPL4NAR_BLOBS`. ADVISED (`sh4der_pool.h:8-9`). Cost NOT RUN. | One 32 px tile. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | One 128 px tile. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
+| About 4 | Blobs within 80 m (`demo.c:56`). ADVISED. Cost NOT RUN. | Four of eight slots, 32 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | All four slots, 128 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
+| About 8 | Blobs within 80 m. Cost NOT RUN. | All eight slots, 32 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | Four tiles; the rest get blobs only with `-DPL4NAR_BLOBS` (`demo.c:2142-2145`). Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
 
 No recommended value yet says which column to pick at a frame time. The test: the car-hills run in [suite 13](../methods/suite-13.md), frame line read for each layout.
 
-**Try this first.** Four client settings in `demo/pl4nar/src/demo.c`: `TILE_M` 10.0 m (`:41`), `TILE_FADE_NEAR` 40.0 m (`:52`), `TILE_FADE_FAR` 50.0 m (`:53`), `TILE_FADE_IN` 0.5 s (`:54`). The three fade settings are read only in the hills build. Each is ADVISED as the demo's chosen value ([frame budget, section 6](../limits/frame-budget.md#6-the-car-demo-practices-so-far)) and NOT RUN on a console for car tiles. Change one at a time. Film a car driving away from 60 m to 30 m with its tile on. Any pop is the fade's fault. No recommended value yet for any of the four.
+**Try this first.** Four client settings in `demo/pl4nar/src/demo.c`: `TILE_M` 10.0 m (`:41`), `TILE_FADE_NEAR` 40.0 m (`:52`), `TILE_FADE_FAR` 50.0 m (`:53`), `TILE_FADE_IN` 0.5 s (`:54`). The three fade settings are read only in the hills build. Each is ADVISED as the demo's chosen value ([frame budget, section 6](../limits/frame-budget.md#6-the-car-demo-practices-so-far)) and Run on a console by the owner in Car in a city by day; Car on hills (her test; no measured numbers recorded yet) for car tiles. Change one at a time. Film a car driving away from 60 m to 30 m with its tile on. Any pop is the fade's fault. No recommended value yet for any of the four.
 
 ## 2. Reflections on the car and the wet road
 
@@ -122,7 +122,7 @@ Tune in this order: `f0`, `gain`, `ground_keep`, `reach`, then the field-of-view
 | `reach` (`SH4DER_PL4NAR_REACH`) | 18.0 in the street build; 9.0 in the map build (`demo.c:197`, `:194`) | How far a body's reflected ray is followed (world units; 1 m in the demo) | `include/sh4der_pl4nar.h:116` | ADVISED |
 | field-of-view scale (`SH4DER_PL4NAR_FOV_SCALE`) | 1.55 body, 1 flat | Wider keeps more picture, costs sharpness | `include/sh4der_pl4nar.h:118` | ADVISED |
 
-The first client's paint read best at 0.14 and its glass at 0.24 (README, "Materials"). The street build uses 0.14 for paint (`demo.c:239`) and 0.24 for glass (`demo.c:1443`, paint plus 0.10), with gain 1.0 by day and 2.0 at night (`demo.c:196-197`). The map build uses paint 0.25 (`demo.c:237`), gain 0.9 by day and 3.0 at night (`demo.c:193-194`). Client values judged on a host picture: ADVISED, NOT RUN on a console.
+The first client's paint read best at 0.14 and its glass at 0.24 (README, "Materials"). The street build uses 0.14 for paint (`demo.c:239`) and 0.24 for glass (`demo.c:1443`, paint plus 0.10), with gain 1.0 by day and 2.0 at night (`demo.c:196-197`). The map build uses paint 0.25 (`demo.c:237`), gain 0.9 by day and 3.0 at night (`demo.c:193-194`). Client values judged on a host picture: ADVISED, Run on a console by the owner in Car in a city by day; Car on hills; Car on a wet night road; Drive a car in a city; Street car demo (her test; no measured numbers recorded yet).
 
 ### What the mirror pass costs
 
@@ -170,7 +170,7 @@ Y cycles the rain: dry, damp, wet. The wet build is always at night (`controls.h
 | DAMP | 1.0 | 1.5 | 0.75 | 0.80 | 80 % |
 | WET | 2.2 | 2.6 | 0.50 | 0.55 | 60 % |
 
-Damp and wet draw a soft reflection pool round the car, fading 40 m behind and 70 m ahead (`demo.c:904-905`), on a 13 x 35 grid of flat lookups. They were set on the host, mostly by eye (`demo.c:910-916`, `demo.h:111`): ADVISED. The car-wet program is NOT RUN on a console ([suite 13](../methods/suite-13.md); PVR-214 is proposed), so no rain cost exists yet.
+Damp and wet draw a soft reflection pool round the car, fading 40 m behind and 70 m ahead (`demo.c:904-905`), on a 13 x 35 grid of flat lookups. They were set on the host, mostly by eye (`demo.c:910-916`, `demo.h:111`): ADVISED. The car-wet program: Run on a console by the owner in Car on a wet night road (her test; no measured numbers recorded yet) ([suite 13](../methods/suite-13.md); PVR-214 is proposed), so no rain cost exists yet.
 
 ### Try this first
 
@@ -213,7 +213,7 @@ The calls, in the order you use them:
 
 The player's own headlights stay `sh4der_pool_wedge`, with no reach: they are always near.
 
-Status: PROTOTYPE v0.1 inside the pool header. Host tested (`test/pool_test.c`: the reach fade gives the same bits as the street demo's old lamp line on the plain C path). **NOT RUN on a console** as this code. Its cost is NOT MEASURED; the estimate is in the header's second RECOMMENDED block ([sh4der_pool.h](../../include/sh4der_pool.h)). The street demo's hills build calls `sh4der_pool_reach_fade` for its lamps. Its headlights start as plain wedges; the beam switch below turns on `sh4der_pool_beam`.
+Status: PROTOTYPE v0.1 inside the pool header. Host tested (`test/pool_test.c`: the reach fade gives the same bits as the street demo's old lamp line on the plain C path). **Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet)** as this code. Its cost is NOT MEASURED; the estimate is in the header's second RECOMMENDED block ([sh4der_pool.h](../../include/sh4der_pool.h)). The street demo's hills build calls `sh4der_pool_reach_fade` for its lamps. Its headlights start as plain wedges; the beam switch below turns on `sh4der_pool_beam`.
 
 Do not call `sh4der_pool_reach_make` once for each lamp. Do not put a reach on the player's own headlights.
 
@@ -275,7 +275,7 @@ ADVISED: "Limit light pools and halos by distance; their cost is translucent fil
 
 ### Try this first
 
-The car programs have not run on a console ([suite 13](../methods/suite-13.md), NOT RUN), so these values are untested there. They are the demo's own:
+The car programs: Run on a console by the owner in Car on a wet night road; Drive a car on hills; Drive a wet night road; Street car demo (her test; no measured numbers recorded yet) ([suite 13](../methods/suite-13.md)). These values are the demo's own:
 
 1. Lamps are night-only: `s_lamp` ramps up with night, and nothing draws at or under 0.02 (`demo.c:743`, `:1665`).
 2. One 10-triangle disc a lamp, radius 7.5 m, alpha 0.60 x brightness, within `LAMP_NEAR` (60 m).
@@ -285,7 +285,7 @@ The demo's lamp line at `demo.c:1681` is the same arithmetic as `sh4der_pool_rea
 
 ## 4. A starter recipe for one racing frame
 
-**What is measured.** The car programs on suite 13 (car-tech, car-hills, car-wet) have not run on a console ([suite 13](../methods/suite-13.md)), so their numbers are NOT RUN. The console numbers here come from the street demo's build c7 (PVR-174, PVR-175), the map build that car-tech uses. The steps follow the demo's own calls, not a library example. Terms: [glossary](../glossary.md).
+**What is measured.** The car programs on suite 13 (car-tech, car-hills, car-wet): Run on a console by the owner in Car in a city by day; Car on hills; Car on a wet night road (her test; no measured numbers recorded yet) ([suite 13](../methods/suite-13.md)). The console numbers here come from the street demo's build c7 (PVR-174, PVR-175), the map build that car-tech uses. The steps follow the demo's own calls, not a library example. Terms: [glossary](../glossary.md).
 
 ### The order of one frame
 
@@ -314,7 +314,7 @@ TA KB is the vertex data sent to the graphics chip for one scene.
 | Mirror target, 512 × 256 | 512 KB | not counted | mirror PVR 3.02 ms; 3.30 to 3.39 ms live | MEASURED, PVR-161, PVR-175, PVR-187 |
 | Car body and lookups | none in video memory | 364 vertices, 320 looked up | lookup 0.64 ms | time MEASURED (PVR-174); count ESTIMATE (code, PVR-160) |
 | Shadow tiles, 8 slots (map build) | none extra, inside the target (demo.c:58, 2017) | up to 8 casters, 2 triangles each (demo.c:40, 2112) | not measured | count MEASURED, at most 4 seen (PVR-175); time not measured |
-| Shadow tiles, 4 slots (hills build) | 256 KB target (ESTIMATE, 512 × 256 × 2 B; demo.c:45 to 47) | 4 casters (demo.c:340) | +0.78 ms over blobs in one earlier hills run (PVR-199, DERIVED from MEASURED stage means) | car-hills NOT RUN; PVR-199 MEASURED (one run) |
+| Shadow tiles, 4 slots (hills build) | 256 KB target (ESTIMATE, 512 × 256 × 2 B; demo.c:45 to 47) | 4 casters (demo.c:340) | +0.78 ms over blobs in one earlier hills run (PVR-199, DERIVED from MEASURED stage means) | car-hills: Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet); PVR-199 MEASURED (one run) |
 | Light pools | none (untextured) | 10 triangles a lamp, 6 a headlight (demo.c:1690, 1809) | not measured (include/sh4der_pool.h:10) | count ESTIMATE; time not measured |
 | Halos | not in these sources | 2 triangles each (demo.c:1642) | not measured | count ESTIMATE; time not measured |
 
@@ -339,7 +339,7 @@ Total not known. The PVR pair sums to 10.68 ms (ESTIMATE). The frame is about 4 
 
 Least picture lost first. Each saving is tagged.
 
-1. **Heat haze** (a shimmer of hot air over the road's far end). It starts off. On: ESTIMATE 0.4 to 0.8 ms SH-4 and 0.1 to 0.2 ms PVR (`demo/pl4nar/src/heat.h:5-8`, not run; [frame budget, section 6](../limits/frame-budget.md#6-the-car-demo-practices-so-far)). Lost: the far shimmer.
+1. **Heat haze** (a shimmer of hot air over the road's far end). It starts off. On: ESTIMATE 0.4 to 0.8 ms SH-4 and 0.1 to 0.2 ms PVR (`demo/pl4nar/src/heat.h:5-8`, no console number recorded; [frame budget, section 6](../limits/frame-budget.md#6-the-car-demo-practices-so-far)). Lost: the far shimmer.
 2. **Halos** (`draw_lamps(1)`, `draw_car_lights(1)`). Saving not measured. Lost: the lamp glow.
 3. **Light pools** (`draw_lamps(0)`, `draw_car_lights(0)`). Saving not measured. Lost: light on the road.
 4. **Mirror target size.** 128 KB to 32 KB saves 96 KB of video memory (DERIVED from the MEASURED free memory, PVR-161) and about 0.03 ms of mirror PVR (ESTIMATE, PVR-175). No frame time saved. Lost: sharpness. The [AGENTS](../../AGENTS.md) advice to go down first is about time; these numbers do not back it.
@@ -430,7 +430,7 @@ Five common problems. Each gives the likely cause from the code and the pages, w
 
 **What you see:** The frame misses its target with rain on, and holds it when the road is dry.
 
-**Likely cause:** In rain, the wet build adds a grid of flat lookups each frame, plus a grit layer, rain streaks, and lamps out to 90 m ([demo.c:900-903, 909, 1764, 126](../../demo/pl4nar/src/demo.c), ADVISED). Which part costs most is not known: the wet pool has not run on a console ([frame-budget.md:174-175](../limits/frame-budget.md), NOT RUN). The mirror pass costs about 3.2 ms of PVR at any target size ([PVR-175](../hardware/ledger-pvr.md), MEASURED; most of its stages had a key pressed, so it is not a clean read).
+**Likely cause:** In rain, the wet build adds a grid of flat lookups each frame, plus a grit layer, rain streaks, and lamps out to 90 m ([demo.c:900-903, 909, 1764, 126](../../demo/pl4nar/src/demo.c), ADVISED). Which part costs most is not known: the wet pool: Run on a console by the owner in Car on a wet night road; Drive a wet night road (her test; no measured numbers recorded yet) ([frame-budget.md:174-175](../limits/frame-budget.md)). The mirror pass costs about 3.2 ms of PVR at any target size ([PVR-175](../hardware/ledger-pvr.md), MEASURED; most of its stages had a key pressed, so it is not a clean read).
 
 **Try this:**
 1. Read the frame first: is it SH-4 bound or PVR bound ([frame-budget.md:64-70](../limits/frame-budget.md)).
@@ -441,7 +441,7 @@ Five common problems. Each gives the likely cause from the code and the pages, w
 
 **If that is not it:** not known yet. Test: the suite 13 pair "wet 128x64" against "dry 128x64" ([frame-budget.md:174](../limits/frame-budget.md)). No stage turns the grit off alone ([frame-budget.md:175](../limits/frame-budget.md)).
 
-The car programs have not run on a console (suite 13 pending), so these fixes come from the code and the pages, not from a console run.
+The owner has run the car programs on a console (her test; no measured numbers recorded yet), but no ledger row gives their numbers, so these fixes come from the code and the pages, not from a measured console run.
 
 
 ## Where the sources disagree

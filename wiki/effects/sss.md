@@ -21,7 +21,7 @@ sources: [include/sh4der_sss.h, README.md "The sss effect", AGENTS.md "Call orde
 4. **Set the path.** The path is a thickness in units of 1 / absorption. No recommended value yet. The table's values suit a thickness of 0 to about 1, and a larger model is scaled down (AGENTS.md, worked examples). Test the glow on the thin part against a front-lit view.
 5. **Check the sign.** The glow must fade to nothing as the light moves in front. If it never fades, `view` or `light` points the wrong way (AGENTS.md, worked examples).
 
-On a console: NOT RUN. The page gives "There are no times" (Cost), and no ledger row covers sss.
+Run on a console by the owner in Lamp with a lit shade and Sunset sea (her test; no measured numbers recorded yet). The page gives "There are no times" (Cost), and no ledger row covers sss.
 
 Read next: [the header](../../include/sh4der_sss.h), [the call order](../../AGENTS.md#call-order-sss-transmission).
 

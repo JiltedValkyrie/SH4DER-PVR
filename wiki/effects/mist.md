@@ -21,7 +21,7 @@ What it is for: a low band of fog with a soft top that things can walk into.
 4. `SH4DER_MIST_FEATHER` = 2.0 metres: the height of the soft top (include/sh4der_mist.h:92, ADVISED).
 5. `SH4DER_MIST_NEAR_FADE` = 3.0 metres: how close the eye gets before a sheet starts to fade (include/sh4der_mist.h:93, ADVISED).
 
-On a console: NOT RUN. This page's PVR fill row says: 'not measured', status OPEN; the header says: 'Fill is the real cost and is not measured'.
+Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). This page's PVR fill row says: 'not measured', status OPEN; the header says: 'Fill is the real cost and is not measured'.
 
 Header: [sh4der_mist.h](../../include/sh4der_mist.h). Call order: [Call order](#call-order), below.
 

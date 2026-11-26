@@ -21,7 +21,7 @@ What it is for: contact shading on still scenery, computed once at load from box
 4. `SH4DER_AOBAKE_PUSH` = 0.02 m off the surface (`include/sh4der_aobake.h:66`; `README.md:737`, ADVISED). Then `sh4der_aobake_bytes`, with a tick every 64 vertices for a watchdog (`include/sh4der_aobake.h:172-181`; `README.md:729`).
 5. In the frame, multiply the ambient light by the 0..1 share from `sh4der_aobake_open` (`include/sh4der_aobake.h:186`). No value to set.
 
-On a console: NOT RUN for this copy: the page says it "has not run on a console since the move: its status is ADVISED". The code this header moved unchanged took 254 ms for scene A on one console (SH4-076, MEASURED).
+Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet) for this copy. The code this header moved unchanged took 254 ms for scene A on one console (SH4-076, MEASURED).
 
 Header: [include/sh4der_aobake.h](../../include/sh4der_aobake.h). Call order: [below](#call-order).
 
@@ -54,7 +54,7 @@ The steps are in `AGENTS.md`'s "Files" list and the header's top comment:
 | RAM | one byte a vertex, plus the 64-ray array (768 B) | as-stated by the code |
 | VRAM | 0 | |
 
-This copy of the code is the one measured (the move kept the bytes), but it has not run on a console since the move: its status is ADVISED. See [Bake tool](ao-bake.md) for the host tool's cost, which is not measured.
+This copy of the code is the one measured (the move kept the bytes). Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet). Its status is ADVISED. See [Bake tool](ao-bake.md) for the host tool's cost, which is not measured.
 
 ## Recommended limits
 

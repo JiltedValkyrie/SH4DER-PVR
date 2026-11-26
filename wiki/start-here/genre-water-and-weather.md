@@ -32,7 +32,7 @@ You can make a sea or lake with rolling waves and light that shows through the c
 - **What it looks like:** a low fog bank with a shape: upright see-through sheets stacked one behind another, each with a soft top and slow drifting noise (a random-looking pattern that changes smoothly).
 - **Use it when:** fog must have a place and a shape, such as mist on a street or steam over water.
 - **Where it is:** [header](../../include/sh4der_mist.h) and [effect page](../effects/mist.md).
-- **Starting settings:** NOT RUN on a console.
+- **Starting settings:** Run on a console by the owner in Match Light (her test; no measured numbers recorded yet).
   - `SH4DER_MIST_SLICES` = 12, the default sheet count (include/sh4der_mist.h:89). Use fewer sheets, or keep the bank low and partial (wiki/effects/mist.md). Status: ADVISED. Test: PVR render time from `pvr_get_stats`, bank on and off.
   - `SH4DER_MIST_OPACITY` = 0.7, the share of light the bank stops (include/sh4der_mist.h:91). Status: ADVISED (a default).
   - `SH4DER_MIST_FEATHER` = 2.0, the metres of soft top (include/sh4der_mist.h:92). Status: ADVISED (a default).
@@ -42,7 +42,7 @@ You can make a sea or lake with rolling waves and light that shows through the c
 - **What it looks like:** a steady field of small round dots (dust, embers, pollen, ash) that are born, drift, fall, fade and are born again.
 - **Use it when:** you want life in the air round a player or a light, without storing anything for each speck.
 - **Where it is:** [header](../../include/sh4der_motes.h) and [effect page](../effects/motes.md).
-- **Starting settings:** NOT RUN on a console.
+- **Starting settings:** Run on a console by the owner in Match Light (her test; no measured numbers recorded yet).
   - `max_draw` = 96 in the default parameters (include/sh4der_motes.h:125), inside `SH4DER_MOTES_DRAW_MAX` = 128 (include/sh4der_motes.h:61). Status: ADVISED (a default).
   - `flat_px` = 3.0: specks this wide or less may use the untextured opaque draw (include/sh4der_motes.h:124). Status: ADVISED (a default).
   - Spread the specks: 256 sorted translucent triangles in one tile took 6,385 us, and 82 us spread out (PVR-009, MEASURED, one console). Status: PROVEN ([recommended limits](../limits/recommended-limits.md), Fill).
@@ -52,7 +52,7 @@ You can make a sea or lake with rolling waves and light that shows through the c
 - **What it looks like:** points of light that sit still, lift off one after another, drift up with a small sway, shrink and cool, then settle as twinkling stars.
 - **Use it when:** you want lanterns, candles or fireflies that leave their place and become stars.
 - **Where it is:** [header](../../include/sh4der_rise.h) and [effect page](../effects/rise.md).
-- **Starting settings:** NOT RUN on a console.
+- **Starting settings:** Run on a console by the owner in Match Light (her test; no measured numbers recorded yet).
   - `SH4DER_RISE_TWINKLE_IN` = 1.0, seconds for the twinkle to fade in after arrival (include/sh4der_rise.h:69; README "Rise tuning"). Status: ADVISED (a default).
   - Spread the lights, as for the specks: 6,385 us stacked in one tile, 82 us spread (PVR-009, MEASURED, one console). Status: PROVEN.
 
@@ -71,7 +71,7 @@ You can make a sea or lake with rolling waves and light that shows through the c
 - **What it looks like:** snow or mud that keeps the dent of a foot or a wheel, with a raised rim. Footprint decals (flat pictures laid on the ground) add crisp prints on a coarse mesh.
 - **Use it when:** a character or vehicle crosses ground you already draw, and the marks must stay (snow) or close up (mud).
 - **Where it is:** [header](../../include/sh4der_deform.h) and [effect page](../effects/deform.md).
-- **Starting settings:** NOT RUN on a console.
+- **Starting settings:** Run on a console by the owner in Match Light (her test; no measured numbers recorded yet).
   - Snow keeps its dents: the struct field `refill` = 0. Mud closes them over a few steps a second (include/sh4der_deform.h:114; README "The deform effect"). Status: ADVISED.
   - `SH4DER_DEFORM_CELL` = 0.25, metres a cell (include/sh4der_deform.h:84), so the default 160 x 160 window covers 40 m. Status: ADVISED (a default).
   - A refill pass goes over every cell, 25,600 bytes, and runs only when the refill is not 0 (include/sh4der_deform.h:19-21). Status: FACT (the header's count).
@@ -83,11 +83,11 @@ SH-4 time is the main processor's time. PVR time is the graphics chip's time. FA
 | Effect | Video memory | Triangles or vertices | SH-4 time | Status |
 |---|---|---|---|---|
 | Water waves [water] | 0 (FACT, include/sh4der_water.h:11) | Sea demo mesh: 2,016 to 23,040 triangles (FACT, demo/OCEAN.md:122-126) | Not measured (OPEN). A count: a sine-cosine pair a wave a point (ESTIMATE, include/sh4der_water.h:11-12) | REPORTED: the sea demo runs on a real console (demo/OCEAN.md:5). Frame time OPEN |
-| Mist bank [mist] | 8 KB, the 64 x 64 16-bit noise texture you make (FACT, include/sh4der_mist.h:14) | 4 triangles a sheet, 48 at the default (FACT, include/sh4der_mist.h:15) | Not measured (OPEN). A count: about 120 multiplies and a sine-cosine pair a sheet (ESTIMATE, include/sh4der_mist.h:16-17) | NOT RUN on a console. Fill OPEN |
-| Drifting specks [motes] | 512 B for the round mask, optional (FACT, include/sh4der_motes.h:34) | 4 vertices a sprite; 96 sprites, 12.3 KB of TA data a frame (FACT, README "The motes effect") | Not measured (OPEN). A count: one hash set and one position a live slot (ESTIMATE, README) | NOT RUN on a console |
-| Rising lights [rise] | 0 of its own (FACT, include/sh4der_rise.h:14) | At most one quad a light, additive (FACT, include/sh4der_rise.h:15-16) | Not measured (OPEN). A count: about 50 multiplies and 6 hashes a light (ESTIMATE, include/sh4der_rise.h:14-15) | NOT RUN on a console |
+| Mist bank [mist] | 8 KB, the 64 x 64 16-bit noise texture you make (FACT, include/sh4der_mist.h:14) | 4 triangles a sheet, 48 at the default (FACT, include/sh4der_mist.h:15) | Not measured (OPEN). A count: about 120 multiplies and a sine-cosine pair a sheet (ESTIMATE, include/sh4der_mist.h:16-17) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). Fill OPEN |
+| Drifting specks [motes] | 512 B for the round mask, optional (FACT, include/sh4der_motes.h:34) | 4 vertices a sprite; 96 sprites, 12.3 KB of TA data a frame (FACT, README "The motes effect") | Not measured (OPEN). A count: one hash set and one position a live slot (ESTIMATE, README) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
+| Rising lights [rise] | 0 of its own (FACT, include/sh4der_rise.h:14) | At most one quad a light, additive (FACT, include/sh4der_rise.h:15-16) | Not measured (OPEN). A count: about 50 multiplies and 6 hashes a light (ESTIMATE, include/sh4der_rise.h:14-15) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 | Cloud deck [cloudvolume] | 16 KB as an 8-bit palette, or 32 KB as RGB565, at 128 x 128 (FACT, include/sh4der_cloudvolume.h:16-17) | One full-screen quad (FACT, include/sh4der_cloudvolume.h:21) | 14 to 22 ms a frame at the default (ESTIMATE, wiki/effects/cloudvolume.md:32) | NOT RUN on a console. The SH-4 figure is an ESTIMATE |
-| Dented ground [deform] | 0 for the grid (FACT, include/sh4der_deform.h:16) | None of its own: it gives the height under your mesh (README "The deform effect") | Not measured (OPEN). A count: four byte loads a ground vertex (ESTIMATE, include/sh4der_deform.h:19-20) | NOT RUN on a console |
+| Dented ground [deform] | 0 for the grid (FACT, include/sh4der_deform.h:16) | None of its own: it gives the height under your mesh (README "The deform effect") | Not measured (OPEN). A count: four byte loads a ground vertex (ESTIMATE, include/sh4der_deform.h:19-20) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
 
 Video memory is the picture memory the graphics chip reads from. The machine has 8 MB of it (FACT, [glossary](../glossary.md)). A triangle is one flat shape with three corners, called vertices.
 
@@ -104,7 +104,7 @@ For scale: one full-screen translucent layer at 640 x 480 adds about 3,112 us of
 
 ## Try this first
 
-NOT RUN on a console. Start with the drifting specks [motes]: they need no state for each speck and a 512-byte mask. AGENTS.md has no call order for motes, so these steps follow the header's per-frame order (include/sh4der_motes.h:29-31). The shape all call orders share is in [call orders](call-orders.md).
+Run on a console by the owner in Match Light (her test; no measured numbers recorded yet). Start with the drifting specks [motes]: they need no state for each speck and a 512-byte mask. AGENTS.md has no call order for motes, so these steps follow the header's per-frame order (include/sh4der_motes.h:29-31). The shape all call orders share is in [call orders](call-orders.md).
 
 1. Add `sh4der_motes.h` and `src/sh4der_motes.c` to the build with KallistiOS and SH4ZAM (the maths library), as [setup](setup.md) says. Credit the library as [licence and credit](license-and-credit.md) asks.
 2. At load, `sh4der_motes_params_default` fills the parameters; check `sh4der_motes_params_valid` returns 1. Set one emitter: an `anchor` near the player and a `seed`.

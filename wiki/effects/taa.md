@@ -22,7 +22,7 @@ Smooth the jagged edges of a still picture by blending in the frame before, and 
 3. The walk speed that counts as moving, `walk_full`, is 1.5 world units a second, the header's demo value (`include/sh4der_taa.h:54-55`, ADVISED). A turn over `SH4DER_TAA_CUT_RAD` = 0.35 radians in one frame is a cut: it blends nothing that frame (`include/sh4der_taa.h:88`, `:61`, ADVISED).
 4. Keep the blended result as the next frame's history, and use the 320 x 240 frame texture: two history textures are 320 KB there, against 1,280 KB at 640 x 480 (`include/sh4der_taa.h:58-63`, ADVISED).
 
-On a console: NOT RUN (the page: "As-stated. None of it is measured on a console.").
+Run on a console by the owner in Demo disc and Match Light (her test; no measured numbers recorded yet). The page: "As-stated. None of it is measured on a console."
 
 Header: [include/sh4der_taa.h](../../include/sh4der_taa.h). Call order: [Call order](#call-order).
 

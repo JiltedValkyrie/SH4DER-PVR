@@ -51,7 +51,7 @@ Two fighters are two skinned bodies. One skinned hero of 1,465 vertices took 0.8
 | Motion blur [trail] | Speed in a replay | [header](../../include/sh4der_trail.h), [page](../effects/trail.md) | PROTOTYPE v0.1; our advice: too dear live (ESTIMATE, below) |
 | Smooth edges over time [taa] | Our advice: still replay shots, not a live fight | [header](../../include/sh4der_taa.h), [page](../effects/taa.md) | PROTOTYPE v0.1 |
 
-Left out for now: screen bloom [glow] (no measured cost), soft edges [softfade] (no console run), dust specks [motes] (host tests so far), and a sun shadow map (a stadium light is a lamp).
+Left out for now: screen bloom [glow] (no measured cost), soft edges [softfade] (no console run), dust specks [motes] (run by the owner in Match Light, her test; no measured numbers recorded yet), and a sun shadow map (a stadium light is a lamp).
 
 **Source conflicts.** blade.h:34 and bloom.h:31 say "Version: v1.00", and blade.md and bloom.md add "used in a released game"; maturity.md gives the blade PROTOTYPE v0.1 and the bloom rings ALPHA v0.3. The sources disagree; this page keeps the maturity labels. look.h:36 and taa.h:39 say "Version: v0.50", and look.md and taa.md say they run on the demo disc; maturity.md gives look and taa PROTOTYPE v0.1 with no ledger row. The sources disagree; this page keeps the maturity label.
 
@@ -78,8 +78,8 @@ Left out for now: screen bloom [glow] (no measured cost), soft edges [softfade] 
 | Trail, 3 copies | 128 B | 8 full-screen quads | about 25 ms PVR (150 % / 75 %) | ESTIMATE: 8 times PVR-002 |
 | Shockwave mesh, 40 × 30 | 256 KB (arithmetic) | 2,460 vertices | 2.25 ms SH-4 send (13 % / 7 %) | MEASURED, BUS-004. PVR render, about 6.5 ms, is in the bench notes (REPORTED) |
 | Sparks, 24 quads | 1,256 B RAM, 3 KB atlas | at most 96 vertices | 14 to 25 µs SH-4 (under 0.2 %) | ESTIMATE: 96 vertices at 142 to 260 ns (BUS-003, BUS-001) |
-| Bloom rings, a lamp's glow | none | 129 vertices, 240 triangles (the lamp demo's halo) | 205 µs SH-4 (1.2 % / 0.6 %), for that demo loop only (SH4-083) | MEASURED for the lamp demo's loop, which writes an older fade out by hand; the library call alone NOT RUN |
-| The lamp demo's shade loop (calls sss_rgb and normalises) | 40 B RAM a material | per vertex | 187 µs for 65 vertices (SH4-083); about 2.9 µs a vertex (DERIVED from that loop) | MEASURED for the lamp demo's loop only; sss alone and skin NOT RUN |
+| Bloom rings, a lamp's glow | none | 129 vertices, 240 triangles (the lamp demo's halo) | 205 µs SH-4 (1.2 % / 0.6 %), for that demo loop only (SH4-083) | MEASURED for the lamp demo's loop, which writes an older fade out by hand; the library call: Run on a console by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet) |
+| The lamp demo's shade loop (calls sss_rgb and normalises) | 40 B RAM a material | per vertex | 187 µs for 65 vertices (SH4-083); about 2.9 µs a vertex (DERIVED from that loop) | MEASURED for the lamp demo's loop only; sss: Run on a console by the owner in Lamp with a lit shade; Sunset sea (her test; no measured numbers recorded yet); skin NOT RUN |
 | Skin, two fighters | none | 2 × 1,465 (a reference body) | about 1.6 ms SH-4 (10 % / 5 %) | ESTIMATE: 2 × 1,465 × 553 ns (553 ns DERIVED from SH4-079) |
 | Baked corner shading | none | 2,142 and 2,544 | load 252 to 254 ms and 391 to 393 ms; frame +69 to +277 µs SH-4 | MEASURED, SH4-076, SH4-077, SH4-082 |
 | Shadow tile, 128 × 128 target | 32 KB (arithmetic) | casters, not counted | 3,256 µs uncut, 344 µs cut (hens' 32 px tiles) | MEASURED, PVR-156; a 128 px fighter tile is not measured |
@@ -94,7 +94,7 @@ A shockwave's PVR render and one full-screen layer each take a large share of 16
 - **Sparks [spark]:** `SH4DER_SPARK_MAX` 24, `SH4DER_SPARK_MIN_PX` 0.8, `SH4DER_SPARK_INSET` 0.0078125 for a 64 × 64 atlas (spark header). ADVISED. Burst size and life: no recommended value yet.
 - **Flash and wedges [lens]:** `SH4DER_LENS_FLASH_PEAK` 0.35, `SH4DER_LENS_FLASH_ATTACK_S` 0.03, `SH4DER_LENS_FLASH_DECAY_S` 0.25, `SH4DER_LENS_HIT_MAX` 4 (README, "Lens tuning"). ADVISED; no console run.
 - **Shockwave [warp]:** `SH4DER_WARP_RING_SPEED` 180.0, `SH4DER_WARP_RING_WIDTH` 14.0, `SH4DER_WARP_RING_AMP` 5.0 (README, "Warp tuning"). Coarse grid: `SH4DER_WARP_GRID_X` 20 by `SH4DER_WARP_GRID_Y` 15 (not measured; the bench timed 40 × 30).
-- **Light pools [pool]:** `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m (the fade is NOT RUN). A blob of 8 triangles, alpha 0.50 by day and 0.25 at night, lifted 2 to 4 cm (pool header; the same values in AGENTS.md, "Call order: pool", step 4).
+- **Light pools [pool]:** `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m (the fade: Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet)). A blob of 8 triangles, alpha 0.50 by day and 0.25 at night, lifted 2 to 4 cm (pool header; the same values in AGENTS.md, "Call order: pool", step 4).
 - **Corner shading [aobake]:** `SH4DER_AOBAKE_RAYS` 64, `SH4DER_AOBAKE_REACH` 3.0, `SH4DER_AOBAKE_PUSH` 0.02 (aobake header, RECOMMENDED). Bake at load. ADVISED for this copy.
 - **Shadow tile size:** 128 px for a person, 32 px for a small caster ([frame budget](../limits/frame-budget.md), "The advised default look"). ADVISED. The 128 px fighter tile is not measured.
 

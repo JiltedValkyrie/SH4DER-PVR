@@ -20,7 +20,7 @@ Make the picture adjust its brightness to the scene, with a light colour grade.
 3. Each frame, call `sh4der_look_eye_step(&e, &p, read_ln, dt)` (`include/sh4der_look.h:194`), where `read_ln` is the frame read's log-average (`sh4der_look_log_average`, `include/sh4der_look.h:169`). Skip the step while a flashlight is lit (`include/sh4der_look.h:55-56`, ADVISED).
 4. Pass the grade to `sh4der_look_solve` (`include/sh4der_look.h:214`), which gives at most `SH4DER_LOOK_LAYERS` = 6 layers (`include/sh4der_look.h:91`, ADVISED). Draw each layer full screen, under the HUD (the on-screen display), with depth always and no depth write (`README.md:431`, ADVISED).
 
-On a console: NOT RUN (the page: "None of it is measured on a console.").
+Run on a console by the owner in Demo disc (her test; no measured numbers recorded yet). The page: "None of it is measured on a console."
 
 Header: [include/sh4der_look.h](../../include/sh4der_look.h). Call order: [Call order](#call-order).
 
