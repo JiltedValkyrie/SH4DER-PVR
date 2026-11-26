@@ -817,8 +817,8 @@ static const float s_wet_gain[3]    = { 0.0f, 1.0f, 2.2f };     /* the reflectio
 static const float s_wet_stretch[3] = { 1.0f, 1.5f, 2.6f };     /* v toward the horizon: 1 none */
 static const float s_wet_dark[3]    = { 1.0f, 0.75f, 0.5f };    /* the road's own tone kept: water darkens it */
 #define GRIT_DRY     1.00f         /* the grit layer's share (tex_grit's alpha x this): dry, on the plain road */
-#define GRIT_DAMP    0.80f         /* damp: the reflection starts to come through */
-#define GRIT_WET     0.35f         /* wet: mostly the reflection, the grit faint (by eye on the host) */
+#define GRIT_DAMP    0.85f         /* damp: tex_grit is mostly clear, so the reflection already shows between the specks */
+#define GRIT_WET     0.70f         /* wet: the specks a little fainter (by eye on the host) */
 static const float s_grit_alpha[3]  = { GRIT_DRY, GRIT_DAMP, GRIT_WET };
 static uint32_t wet_hash(uint32_t a, uint32_t b) {
     uint32_t h = a * 0x9e3779b1u ^ (b + 0x7f4a7c15u) * 0x85ebca77u;

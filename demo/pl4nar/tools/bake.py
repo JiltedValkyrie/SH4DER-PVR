@@ -289,13 +289,18 @@ def mip_twiddled4444(im):
     return words
 
 
+GRIT_SHARE = 0.06                                     # the grit islands' share; with the lines about 13 % covered
+
+
 def grit_tex(n=128, seed=4444):
     """The wet road's grit layer, RGBA n x n, our own (an integer hash, nothing fetched): u across the road's 24 m as
     tex_road's (sidewalk, kerb, 16 m of asphalt, kerb, sidewalk), v along 12 m (one dash period). Alpha is how much of
     the dry surface shows over the reflection. The asphalt is tools/grit_gen.py's grey laid 12 m x 12 m (a texel here
-    the mean of two of its texels across, one along, so its speckles stay round): colour the grey, alpha 0.3 on the
-    dark binder up to 1 on the bright chips and dots. Over it our own road: cracks and lane paint nearly opaque,
-    patches of newer asphalt fairly opaque and smooth, puddles nearly clear. The vertex alpha scales it by the rain."""
+    the mean of two of its texels across, one along, so its speckles stay round): the layer is mostly clear (alpha 0,
+    the road and the reflection show), GRIT_SHARE of it grit islands (grit_gen's hole field and cover alpha) at alpha
+    levels 4 .. 15, the sidewalk too. Over it our own road: cracks, seams and lane paint
+    worn to half (thin lines), patches of newer asphalt darker specks, puddles clear. The vertex alpha scales it by
+    the rain."""
     rnd = random.Random(seed)
     m_u, m_v = 24.0 / n, 12.0 / n                     # metres a texel across, along
     im = Image.new("RGBA", (n, n))
@@ -317,22 +322,28 @@ def grit_tex(n=128, seed=4444):
 
     side = lambda x: x * m_u < 4.0 or x * m_u >= 20.0   # noqa: E731
     grey = grit_gen.asphalt_grit(n)
+    gg_at = lambda x, y: (grey[y * n + (2 * x) % n] + grey[y * n + (2 * x + 1) % n]) * 0.5   # noqa: E731
+    cover = grit_gen.grit_cover_alpha(grit_gen.asphalt_grit_holes(n), cover=GRIT_SHARE, lo=64)   # Cortana's islands
+
+    def speck(x, y):                                  # her alpha at the texel's left half (no mean: a hole stays clear),
+        a = cover[y * n + (2 * x) % n]                # cut to a 4444 level (4 .. 15) x 17, 0 in a hole
+        return 17 * max(4, a >> 4) if a else 0
     for y in range(n):
         for x in range(n):
             g = h(x, y, 1)
             if side(x):                               # the sidewalk: concrete, slabs 2 m long, holds little water
                 c = 116 + int(g * 18)
-                a = 0.82 + 0.12 * g
-                if (y * m_v) % 2.0 < m_v: c, a = 84, 0.95
-                px[x, y] = (c, c, c - 4, int(a * 255))
+                a = speck(x, y)
+                if (y * m_v) % 2.0 < m_v and h(x, y, 10) > 0.5: c, a = 84, 204   # the slab joint, broken
+                px[x, y] = (c, c, c - 4, a)
                 continue
-            gg = (grey[y * n + (2 * x) % n] + grey[y * n + (2 * x + 1) % n]) * 0.5   # the asphalt: grit_gen's grey
+            gg = gg_at(x, y)                          # the asphalt: grit_gen's grey
             c = int(gg)
-            a = 0.30 + 0.70 * min(1.0, max(0.0, (gg - 40.0) / 120.0))   # the binder faint, the chips and dots opaque
+            a = speck(x, y)
             pud = vnoise(x, y, 1.5, 2) * 0.7 + vnoise(x, y, 0.5, 3) * 0.3
-            if pud > 0.58:                            # standing water: the mirror
-                a *= max(0.08, 1.0 - (pud - 0.58) * 6.0)
-            px[x, y] = (c, c, c + 4, int(a * 255))
+            if pud > 0.58:                            # standing water: the mirror, no grit
+                a = 0
+            px[x, y] = (c, c, c + 4, a)
     for _k in range(3):                               # patches of newer asphalt, a sealed seam round each
         w, hh = rnd.randint(10, 22), rnd.randint(14, 34)
         x0, y0 = rnd.randint(int(4.6 / m_u), int(19.4 / m_u) - w), rnd.randint(0, n - 1)
@@ -341,7 +352,7 @@ def grit_tex(n=128, seed=4444):
                 yy = (y0 + y) % n
                 seam = x == 0 or y == 0 or x == w - 1 or y == hh - 1
                 c = 40 if seam else 52 + int(h(x0 + x, yy, 5) * 10)
-                px[x0 + x, yy] = (c, c, c + 3, 240 if seam else 190)
+                px[x0 + x, yy] = (c, c, c + 3, 204 if seam else px[x0 + x, yy][3])   # the inside keeps its specks
     for _k in range(7):                               # cracks: a random walk, a texel wide, dark, they hold the eye
         x, y = rnd.uniform(4.5 / m_u, 19.5 / m_u), rnd.uniform(0, n)
         ang = rnd.uniform(0, 6.283)
@@ -356,8 +367,7 @@ def grit_tex(n=128, seed=4444):
             if dash and y * m_v >= 3.0:
                 continue
             for x in range(int((x_m - half_m) / m_u), int((x_m + half_m) / m_u) + 1):
-                a = 0.9 if h(x, y, 7) > 0.15 else 0.55
-                px[x, y] = col + (int(a * 255),)
+                px[x, y] = col + (204 if h(x, y, 7) > 0.5 else 0,)   # tex_road has the paint: here it is worn, half
     paint(12.0 - 0.18, 0.07, (196, 160, 40), False)   # the double yellow
     paint(12.0 + 0.18, 0.07, (196, 160, 40), False)
     paint(8.0, 0.08, (200, 200, 196), True)           # the dashed lane lines
