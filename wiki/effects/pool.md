@@ -17,11 +17,11 @@ For light or a blob shadow lying on the ground, drawn as a fan of triangles that
 
 1. A disc of 10 triangles for a lamp, 8 for a blob shadow, and a wedge of 2 to 4 for a headlight (include/sh4der_pool.h:8; ADVISED, the street demo). The cap is `SH4DER_POOL_MAX_N` = 16 (include/sh4der_pool.h:98; ADVISED, README:1078).
 2. Lift the centre 2 to 4 cm off the ground. A blob shadow's alpha is 0.50 by day and 0.25 at night (include/sh4der_pool.h:8-10; ADVISED, the street demo's values).
-3. Fade by distance: `SH4DER_POOL_REACH` = 60 m and `SH4DER_POOL_FADE_W` = 10 m, with `sh4der_pool_reach_make` once a frame and `sh4der_pool_reach_fade` per lamp (include/sh4der_pool.h:100-101; ADVISED, README:1080-1081; the fade is PROTOTYPE, run on a console by the owner in Street car demo (her test; no measured numbers recorded yet), include/sh4der_pool.h:28-29).
+3. Fade by distance: `SH4DER_POOL_REACH` = 60 m and `SH4DER_POOL_FADE_W` = 10 m, with `sh4der_pool_reach_make` once a frame and `sh4der_pool_reach_fade` per lamp (include/sh4der_pool.h:100-101; ADVISED, README:1080-1081; the fade is PROTOTYPE, run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet), include/sh4der_pool.h:28-29).
 4. Do not put a reach on the player's own headlights: they are always near, so use a wedge for those (include/sh4der_pool.h:32).
 5. How many lamps to draw: no recommended value yet. Test: the same view with pools on and off, no key pressed, PVR time (include/sh4der_pool.h:14).
 
-Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet) for the fade. The beam is NOT RUN: its switch is off in the listed demos. The disc and the wedge are ADVISED, and their console test is step 5 (include/sh4der_pool.h:14).
+Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) for the fade. The beam is NOT RUN: its switch is off in the listed demos. The disc and the wedge are ADVISED, and their console test is step 5 (include/sh4der_pool.h:14).
 
 Header: [sh4der_pool.h](../../include/sh4der_pool.h). Steps in full: [Call order](#call-order).
 
@@ -64,7 +64,7 @@ The full steps are in `AGENTS.md` "Call order: pool":
 ## Recommended limits
 
 - `SH4DER_POOL_MAX_N` 16 triangles a fan (pool.h:62). Your array must hold `MAX_N` + 2 vertices (README:966).
-- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m: the street demo's lamp values, a start value, ADVISED (run on a console by the owner in Street car demo for the fade as library code, her test; no measured numbers recorded yet). To prove: lamps driven past the reach with the fade against a hard cut.
+- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m: the street demo's lamp values, a start value, ADVISED (run on a console by the owner in Street car demo, Car on hills and Drive a car on hills for the fade as library code, her test; no measured numbers recorded yet). To prove: lamps driven past the reach with the fade against a hard cut.
 - `SH4DER_POOL_BEAM_ROWS` 3 arcs a beam, at most `SH4DER_POOL_BEAM_ROWS_MAX` 4: ADVISED, not measured.
 - Limit lamps by distance: a pool is fill, and fill is what the translucent list costs (`AGENTS.md`). This is ADVISED; see [recommended limits](../limits/recommended-limits.md).
 
@@ -83,7 +83,7 @@ See `README.md` "Pool tuning" (README:968-972).
 ## Status of the parts
 
 - The disc and the wedge: ALPHA v0.2.
-- The fade by distance and the beam: PROTOTYPE v0.1, added 2026-11-26. Host tested (`test/pool_test.c`: the reach fade gives the same bits as the street demo's old lamp line on the plain C path). Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet) for the fade; the beam is NOT RUN. The street demo's hills build calls `sh4der_pool_reach_fade` for its lamps; its headlights are plain wedges unless `demo_auto_beam(1)` or `-DPL4NAR_HEAD_BEAM` turns the beam on (off at the start; no autorun stage uses it yet; the hills build keeps the wedge and scales it by the car's distance).
+- The fade by distance and the beam: PROTOTYPE v0.1, added 2026-11-26. Host tested (`test/pool_test.c`: the reach fade gives the same bits as the street demo's old lamp line on the plain C path). Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) for the fade; the beam is NOT RUN. The street demo's hills build calls `sh4der_pool_reach_fade` for its lamps; its headlights are plain wedges unless `demo_auto_beam(1)` or `-DPL4NAR_HEAD_BEAM` turns the beam on (off at the start; no autorun stage uses it yet; the hills build keeps the wedge and scales it by the car's distance).
 
 ## Open
 

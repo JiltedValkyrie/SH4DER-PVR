@@ -21,7 +21,7 @@ It moves a divider between a left half and a right half, and tells you what each
 4. `sh4der_split_halves(d, SH4DER_SPLIT_COLS, SH4DER_SPLIT_ROWS, &left, &right)`. Set each half's clip and send its look when `hidden` is 0, and put the dummy polygon before each change of clip (include/sh4der_split.h:13, 24, 68-73; ADVISED).
 5. Labels: keep them inside `SH4DER_SPLIT_SAFE_X0` = 64 and `SH4DER_SPLIT_SAFE_X1` = 576 pixels with `sh4der_split_label_x(&half, width)`. -1 means no room (include/sh4der_split.h:50-51, 89-100; ADVISED).
 
-On a console: MEASURED for the middle position (PVR-144 and PVR-161, one run each). A divider that moves: run on a console by the owner in Street car demo (her test; no measured numbers recorded yet).
+On a console: MEASURED for the middle position (PVR-144 and PVR-161, one run each). The page says: "A divider that moves has no console run."
 
 Header: [include/sh4der_split.h](../../include/sh4der_split.h). Call order: [Call order](#call-order).
 
@@ -61,7 +61,7 @@ Version: ALPHA v0.2 (`include/sh4der_split.h`, RECOMMENDED block at the top).
 ## Evidence
 
 - The middle position works on a console: the split's user clip, with the divider drawn, the layer on the left half only (PVR-161; PVR-144 for the user-clip split running in every scene). MEASURED, one run each.
-- A divider that moves: run on a console by the owner in Street car demo (her test; no measured numbers recorded yet), and no ledger row holds it. The status line in `wiki/status/maturity.md` is OPEN for it (Q95). Until a ledger row holds a moving divider, the stepping is proven by the host test only.
+- A divider that moves has no console run. The status line in `wiki/status/maturity.md` is OPEN for it (Q95). Until a run moves the divider, the stepping is proven by the host test only.
 
 ## Test
 

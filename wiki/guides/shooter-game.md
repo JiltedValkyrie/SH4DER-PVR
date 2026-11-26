@@ -38,7 +38,7 @@ Our advice, not tested: aim for 60 Hz if you can.
 | Screen overlays [lens] | hit wedges, damage flash, vignette, grain | [header](../../include/sh4der_lens.h), [page](../effects/lens.md) | ADVISED; NOT RUN |
 | Screen spotlight [torch] | a flashlight in a dark corridor | [header](../../include/sh4der_torch.h), [page](../effects/torch.md) | ADVISED; Run on a console by the owner in Torch walk; Demo disc (her test; no measured numbers recorded yet) |
 | Baked corner shading [aobake] | contact shadow in rooms, baked at load | [header](../../include/sh4der_aobake.h), [page](../effects/aobake.md) | load MEASURED; copy ADVISED |
-| Light pools [pool] | a lamp's pool; a blob shadow under each enemy (our advice, not tested) | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | ADVISED; reach fade Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet) |
+| Light pools [pool] | a lamp's pool; a blob shadow under each enemy (our advice, not tested) | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | ADVISED; reach fade Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) |
 | Exposure and grade [look] | eyes adjust leaving a dark room | [header](../../include/sh4der_look.h), [page](../effects/look.md) | on the demo disc; cost NOT MEASURED |
 | Screen warp [warp] | shockwave from an explosion | [header](../../include/sh4der_warp.h), [page](../effects/warp.md) | SH-4 MEASURED; PVR REPORTED |
 | Drifting specks [motes] | dust in a light beam, embers | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet) |
@@ -110,7 +110,7 @@ No total. No shooter has run as a whole, so the sum is NOT RUN. The nearest meas
 
 **Light pools**
 - Disc of 10 triangles for a lamp (a blob shadow takes 8, pool.h:8), lifted 2 to 4 cm; blob alpha 0.50 by day, 0.25 at night (pool.h, lines 8 to 10). ADVISED.
-- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m (pool.h, lines 100 to 101). Run on a console by the owner in Street car demo (her test; no measured numbers recorded yet); a shorter indoor reach is our guess.
+- `SH4DER_POOL_REACH` 60 m and `SH4DER_POOL_FADE_W` 10 m (pool.h, lines 100 to 101). Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet); a shorter indoor reach is our guess.
 
 **Screen warp**
 - `SH4DER_WARP_RING_SPEED` 180.0, `SH4DER_WARP_RING_AMP` 5.0 (README, warp tuning). ADVISED; no ledger row times the ring.

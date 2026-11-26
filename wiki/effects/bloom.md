@@ -21,7 +21,7 @@ For a soft glow round one bright point, with no read of the picture.
 4. Rings: `sh4der_bloom_rings` takes up to `SH4DER_BLOOM_RINGS_MAX` = 8 (include/sh4der_bloom.h:58). No recommended value yet for how many rings. Test: draw one lamp glow at 3 rings and at 8, then compare the picture and the PVR time on one console.
 5. Blend: added (source alpha / one), depth test on, depth write off, untextured (README:342; ADVISED).
 
-Run on a console by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet). The page says: "All as-stated. None of it is measured on a console."
+Run on a console by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet). The page says: "All as-stated." The lamp program's halo loop is timed: 205 us of SH-4 for 129 vertices (SH4-083, MEASURED in that loop; not the library call alone).
 
 Header: [sh4der_bloom.h](../../include/sh4der_bloom.h). Steps in full: [Call order](#call-order).
 
@@ -45,7 +45,7 @@ Blend: additive (source alpha / one), depth test on, no depth write (README:322)
 
 ## Cost
 
-All as-stated. None of it is measured on a console.
+All as-stated. The lamp program's halo loop is timed (SH4-083, MEASURED in that loop; not the library call alone). The rest is not measured on a console.
 
 | Item | Cost | Source |
 |---|---|---|
