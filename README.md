@@ -23,6 +23,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | aobake | Baked ambient occlusion against exact shapes: one byte a vertex from cosine rays cast at spheres, boxes and a ground plane, paid once at load. | Contact shadows baked into static geometry: room corners, the ground under props. | RAM one byte a vertex plus 768 B for 64 rays; VRAM 0; nothing a frame | `sh4der_aobake.h` (header only) | [section](#the-aobake-effect-baked-occlusion-against-exact-shapes) |
 | aomesh | Baked ambient occlusion over a triangle mesh: one byte a vertex from 12 rays through a cell grid of the mesh, and a byte grid over the ground, paid once at load. | Contact shadows on static scenery built as a triangle mesh (a walled street), and the ground's bytes under a ground that moves with the camera. | RAM one byte a vertex and a byte a ground cell, plus the bake's scratch; VRAM 0; nothing a frame | `sh4der_aomesh.h` (header only) | [section](#the-aomesh-effect-baked-occlusion-over-a-triangle-mesh) |
 | raytri | One ray-triangle kernel for the library's bakes and the ray bench: the numerators with the sign taken off once, a distance by the reciprocal form, a hit test with no divide, and a form prepared for one direction. | The bakes that test rays against triangles (aomesh), and any ray set over a fixed set of triangles. | RAM nothing kept (the numerators are on the stack; 64 B a prepared triangle a direction); VRAM 0; no frame cost; time NOT MEASURED | `sh4der_raytri.h` (header only) | [section](#the-raytri-effect-a-ray-against-a-triangle) |
+| menu | The logic of a menu with nothing drawn: a list whose headings the cursor steps over, tabs that each keep their place, a scrolled text and its bar, a held direction that repeats, a button that is tapped or held, word wrap, and the menu's place in one 32-bit word. | A menu, a settings page or a result browser in any program; the suite disc's menu and the hold of A on a test's last page use it. | RAM 4 B a row, 20 B the state; VRAM 0; no frame cost of its own; time NOT MEASURED | `sh4der_menu.h` (header only) | [section](#the-menu-logic) |
 | suite | The disc's way between programs: a menu starts a test and the test goes back to it, through KallistiOS's `arch_exec`, with a 32-byte mail written into the other program's image; the four buttons go back to the menu. | A disc of several test programs that must not be switched off between tests. | RAM the menu's binary (read at start, kept while the program runs); VRAM 0; no frame cost | `sh4der_suite.h` (header only) | [section](#the-suite-chaining-programs-on-one-disc) |
 | aosky | Occlusion of the sky drawn into the sun's shadow target: K slid shadows as a faint black, one side, plain blending. | Contact darkening on flat ground under props, with no bake. | VRAM 0 more (the sun's target); RAM the caller's scratch, 9 B a caster vertex | `sh4der_aosky.h` (header only) | [section](#the-aosky-effect-occlusion-of-the-sky-drawn-into-a-shadow-target) |
 | blade | Light tubes orbit an axis, a soft blocker runs through them and a pulse breathes over both, all written into vertex colours. | Energy blades, glowing rods, anything that is a bright tube. | RAM 156 B a frame + 160 B params; VRAM 0; CPU two 2D tests and one 3D test a vertex | `sh4der_blade.h` + `sh4der_blade.c` | [section](#the-blade-effect) |
@@ -120,6 +121,7 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | aobake | `sh4der_aobake.h` | Baked ambient occlusion against exact shapes (spheres, boxes, a ground plane): one byte a vertex from cosine rays, at load. The ao4 scenes' bake, 252 to 254 ms for scene A's 2,142 vertices and 391 to 393 ms for scene B's 2,544 on a console (SH4-076, SH4-082) | One byte a vertex, multiplied into the ambient light | v0.50 |
 | aomesh | `sh4der_aomesh.h` | Baked ambient occlusion over a triangle mesh (a cell grid, 12 golden-ratio rays, a reach of 1.6 m, a byte grid over the ground), at load. The walled square's bake (`demo/psm/psm_ao.h` is an adapter over it). Not run on a console: the bake's time is NOT MEASURED | One byte a vertex and a ground grid, multiplied into the ambient light | v0.10 |
 | raytri | `sh4der_raytri.h` | A ray against a triangle, one kernel: the numerators, a distance (reciprocal form), a hit with no divide, a form prepared for one direction. Not watertight; the hit test has no far limit. Used by the aomesh bake and the ray bench. Host tested; time NOT MEASURED | Nothing | PROTOTYPE v0.1 |
+| menu | `sh4der_menu.h` | A menu's decisions as plain C, nothing drawn: list with headings, tabs, scroll and bar, repeat, tap or hold, wrap, the place in one word. Used by the suite's menu (`demo/psm/suite/suite_view.h`) and `sh4der_suite.h`'s page loop. Host tested; console NOT RUN | Nothing | PROTOTYPE v0.1 |
 | suite | `sh4der_suite.h` | The disc's start and return between programs (`arch_exec`, a 32-byte mail, the four buttons). Nothing drawn; the menu program is a demo (`demo/psm/suite`). | Nothing | ALPHA v0.4 |
 | aosky | `sh4der_aosky.h` | Occlusion of the sky drawn into the sun's shadow target: K directions slid onto the ground as a faint black, one side, plain blending (AO method 2). The ao4 scenes ran it (PVR-138 to PVR-186); about 451 us of PVR a direction for scene A (DERIVED from PVR-140); the depth union failed on the PVR (PVR-127) | The sun's shadow target and its ground layer; no new target | v0.10 |
 | sh4dow | `sh4dow_dc.h` | Soft self-shadow for skinned characters, per vertex on the CPU: a limb casts a soft column that darkens what lies in it; foot cones under each foot; a heightfield sun (experimental) | a multiply in place on the vertex colour; a quad per foot cone | - |
@@ -1713,10 +1715,11 @@ RECOMMENDED (no console run of this file's own start, return or chain; the `arch
 Call order:
 
 1. Once, early in the test's `main`, after `<kos.h>` (and after `sh4der_fault.h` when the test has it): `suite_init();`. It reads the menu's binary (`/cd/MENU.BIN`) into RAM while all is well. On a disc of the test's own it returns 0 and nothing else happens.
-2. In the loop that shows the result pages, on every pass: `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }`. It goes back to the menu when A + B + X + Y are held together, and in a chained run after `SUITE_PAGE_MS` (20 s) on the last page.
+2. In the loop that shows the result pages, on every pass: `if (suite_page(buttons, &page, pages)) redraw = 1;` (v0.5, NOT RUN on a console). It turns the pages itself (A the next, B the one before), goes back to the menu when A + B + X + Y are held together or when A is held for `SH4DER_MENU_HOLD_MS` (2 s) on the last page (a tap there is still the next page; a line under the page says so and a bar fills while A is held), and in a chained run after `SUITE_PAGE_MS` (20 s) on the last page. After a live view started from a page, call `suite_page_forget()` so a button still held is not a press; `suite_page_line(0)` keeps the line off a last page that is a picture. The older form still works and has no hold: `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }` with the test's own A and B lines.
 3. `suite_chained()` is 1 in a chained run: skip what waits for a button. `suite_keys_text(alone)` gives a result page's "ABXY menu" line, or `alone` when there is no menu.
 4. `suite_rev_text(buf, size)` writes "HOLLY REV xxxx SB xx" (two register reads, nothing written) for the first line of a test, so a photo says which console it was. A host build writes "HOLLY REV ---- SB --".
 5. A new test takes those three lines and goes in a suite list (`demo/psm/suite/build.py --list`). The menu itself is `demo/psm/suite/suite_menu.c`, a demo.
+6. The menu's place: the menu writes one word (`sh4der_menu_pack`: its tab, row and scroll) into the mail's `spare` when it starts a test, and `suite_exit` hands it back, so the menu opens where it was left. A test built before v0.5 does not hand it back; the menu then opens on the test's row by its index.
 
 Tuning: none. The header has no `SH4DER_*` macro. Its constants belong to the disc and are set in the header: `SUITE_PAGE_MS` (20000 ms a chained page), `SUITE_FAULT_SHOWS` (120 redraws, 60 s, before the fault page leaves), `SUITE_IMAGE_MAX` (12 MB; a larger binary is not read).
 
@@ -1730,6 +1733,48 @@ What the suite runs showed (one console; ledger and notes):
 - OPEN: the four-button return in a photo, the 5 s countdown, a chained test going back by itself, and the fault page's return (no photo; `demo/psm/suite/NOTES.md`). The fault page's return runs KallistiOS's shutdown from inside a fault and may hang.
 
 Not for: a program that needs its RAM kept across a start (the heap holds what was there), or a mark that is edited (the menu and every test match on it).
+
+
+## The menu logic
+
+`include/sh4der_menu.h`, header only, plain C; `test/menu_test.c` tests it on the host (`make test`, and `make test-shz`). It draws nothing, reads no pad and has no clock: the caller hands over what the pad says and the time in ms, and draws what the state says. PROTOTYPE v0.1: host tested, NOT RUN on a console as this file.
+
+What is in it:
+
+- **A list with headings.** Rows are `sh4der_menu_row_t` (a kind, `SH4DER_MENU_HEAD` or `SH4DER_MENU_ITEM`, and an id and flags that are the caller's). `sh4der_menu_move` puts the cursor on the next item up or down, over headings, round at the ends. `sh4der_menu_keep` keeps the cursor in a window of rows and shows the headings just above the window's first row. `sh4der_menu_seek` finds an item by its id.
+- **Tabs.** `sh4der_menu_t` holds the tab and a place (cursor, first row) a tab; `sh4der_menu_init` puts each cursor on its list's first item, `sh4der_menu_tab` goes left or right, round at the ends.
+- **A scrolled text.** `sh4der_menu_scroll_t` (place, total lines, lines on screen), `sh4der_menu_scroll_step` (clamped), `sh4der_menu_scroll_bar` (the thumb's offset and length on a track; 0 when the text fits).
+- **A held direction.** `sh4der_menu_repeat`: one step at once, the next after `SH4DER_MENU_REPEAT_FIRST_MS`, then one every `SH4DER_MENU_REPEAT_MS`. `sh4der_menu_stick_dir` turns a stick axis into -1, 0 or 1 with a dead zone.
+- **Tap or hold.** `sh4der_menu_hold_step`: `TAP` when the button is let go before the time, `HOLDING` with the progress in thousandths while it is down, `FIRED` once at the time. A button already down when the hold is reset does nothing until it is let go.
+- **Word wrap.** `sh4der_menu_wrap`: the next line of a text in a number of columns, cut at a space.
+- **The place in one word.** `sh4der_menu_pack` and `sh4der_menu_unpack`: tab, cursor, first row and scroll in 32 bits with a mark, for a program that is started again. An unpack refuses a word without the mark, a tab that is not there, or a cursor that is not on an item.
+
+Call order:
+
+1. Once: fill a `sh4der_menu_row_t` array a tab, a `sh4der_menu_list_t` for each, and call `sh4der_menu_init(&m, lists, tabs, window)`.
+2. Each pass of the menu's loop: for the list, `step = sh4der_menu_repeat(&rep, dpad_dir, now_ms, SH4DER_MENU_REPEAT_FIRST_MS, SH4DER_MENU_REPEAT_MS)` and, when it is not 0, `sh4der_menu_move(&lists[m.tab], &m.pos[m.tab], step, window)`. For the text, the same with `sh4der_menu_stick_dir(stick, SH4DER_MENU_STICK_DEAD)` and `sh4der_menu_scroll_step`.
+3. Draw from `m.pos[m.tab].first`, `.cursor` and the scroll's place; draw the bar where `sh4der_menu_scroll_bar` returns 1.
+4. Before the program starts another: `word = sh4der_menu_pack(&m)`; when it comes back, `sh4der_menu_init` again and `sh4der_menu_unpack(&m, lists, word, window)`.
+
+The client to copy from is `demo/psm/suite/suite_view.h` (the suite disc's menu); `include/sh4der_suite.h` uses the hold for A on a test's last result page.
+
+### Menu tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_MENU_HOLD_MS | 2000 | A button held this long fires, ms (the suite: A on the last result page) |
+| SH4DER_MENU_REPEAT_FIRST_MS | 300 | A direction held: the wait before its second step, ms |
+| SH4DER_MENU_REPEAT_MS | 80 | ... and between the steps after it, ms |
+| SH4DER_MENU_STICK_DEAD | 40 | A stick axis (-128 .. 127) inside this is at rest |
+| SH4DER_MENU_TABS_MAX | 4 | The most tabs of a menu (the packed place has 2 bits for the tab) |
+| SH4DER_MENU_ROWS_MAX | 511 | The most rows of a list (the packed place has 9 bits for a row) |
+| SH4DER_MENU_PLACE_MARK | 2684354560 | The top 4 bits of a packed place (0xA0000000); a word without them is refused |
+
+All four times and the dead zone are ADVISED: chosen on the host, NOT RUN on a console.
+
+Cost: RAM 4 bytes a row (the caller's array), 20 bytes the menu's state, 6 a scroll, 8 a repeat, 8 a hold. VRAM 0. No frame cost of its own; the bar's place takes two integer divides a redraw. Time on the SH-4: NOT MEASURED.
+
+Not for: drawing (the caller's), or a list of more than 511 rows.
 
 
 ## The fault catcher

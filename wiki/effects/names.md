@@ -69,6 +69,7 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | pvrx | PVR extras | Extra calls over the PVR driver: waits, VRAM copy by DMA, error counters, clip | Tools and safety |
 | page | Result page | Text with a checksum line, or a graph (lines, bars), for a console test's numbers | Tools and safety |
 | suite | Test disc menu | A menu program and every test on one disc: a test starts the menu again, the menu starts the next test; a 32-byte mail passes the words between them | Tools and safety |
+| menu | Menu logic | Menu rules with nothing drawn: a list with headings, tabs, a scrolled text, a held button, and the place in one word | Tools and safety |
 | fxlabel | Effect label line | Each effect by its name, who does the work and when, in small text on a result or live page | Tools and safety |
 | qrpage | QR test set | 16 codes of known payloads, drawn on a result page, to test a photograph reader | Tools and safety |
 | ramp | Distance ramp | A 0 to 1 fade between two distances | Tools and safety |
@@ -117,6 +118,7 @@ The "What it actually is" column is also the proposed text for a "What it is" co
 | split | A screen cut in a left and a right half by a divider the triggers move, in 32-pixel tile columns, each half its own user clip | split screen, A/B wipe, comparison slider | a look on one half and not the other | `sh4der_split.h`; `test/split_test.c` |
 | tilecut | A render target pass through a tile table its own size: the screen's tile tables end after the target's tiles for one pass, then every word is put back | tile list trim, region array cut, partial tile render | a mirror, a shadow tile, a small depth or glow target | `sh4der_tilecut.h`; `test/tilecut_test.c` |
 | page | Text pages with a CRC line, and graph pages (lines, bars), drawn into the frame buffer after the PVR is shut down | result page, test page, CRC page, graph page | a console test's numbers on screen | `sh4der_page.h`; `test/page_test.c` |
+| menu | Menu logic: the rules of a menu (a list with headings, tabs, a scrolled text, a held direction, tap or hold, word wrap, the place in one word), with nothing drawn | menu logic, list cursor, scroll bar, press and hold, tabs | a settings page, a result browser, the suite menu | `include/sh4der_menu.h`; `test/menu_test.c` |
 | fxlabel | The effect label line: each effect by its name, who does the work and when | effect label, credits line, feature list | a demo screen's label for each mode | `sh4der_fxlabel.h`; `test/fxlabel_test.c`, `demo/psm/test/fx_tables_test.c` |
 | qrpage | 16 QR codes of known payloads at four module sizes, drawn on a result page | QR test, code test page | a photograph test of the page reader | `sh4der_qrpage.h`; `test/qrpage_test.c` (make test-demo) |
 | ramp | A linear 0..1 ramp between two distances: one call, or prepared for a loop | distance fade, range weight, falloff | a shadow's fade by camera distance, a fake AF range weight | `sh4der_ramp.h`; `test/ramp_test.c` |

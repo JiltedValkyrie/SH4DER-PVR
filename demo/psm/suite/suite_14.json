@@ -11,7 +11,7 @@
     {
       "name": "ao4",
       "file": "AO4.BIN",
-      "elf": "build/psm_ao/psm-ao4-j.elf",
+      "elf": "build/psm_ao/psm-ao4-k.elf",
       "order": 1,
       "what": "AO side by side; clip guard; tile cut last. 110 s",
       "read": "photo ALL 4 pages+graph; stages 16, 17 (GUARD label)",
@@ -38,7 +38,7 @@
     {
       "name": "ao-lamp",
       "file": "AOLAMP.BIN",
-      "elf": "build/psm_ao/psm-lamp-d.elf",
+      "elf": "build/psm_ao/psm-lamp-e.elf",
       "order": 2,
       "what": "lamp: sss shade, halo; slots in stage 3. ~35 s",
       "read": "photo pages+graph; live: X compare, A near, dn inside",
@@ -65,7 +65,7 @@
     {
       "name": "hero1",
       "file": "HERO1.BIN",
-      "elf": "build/hero_senior/h3a/sh4der-psm-hero1-h3a.elf",
+      "elf": "build/hero_senior/h3b/sh4der-psm-hero1-h3b.elf",
       "order": 3,
       "what": "Space soldier, street, hens. ~35 s",
       "read": "he and his shadow stay on screen; photo every page",
@@ -89,7 +89,7 @@
     {
       "name": "d1",
       "file": "D1.BIN",
-      "elf": "build/psm_ao/psm-d1-d.elf",
+      "elf": "build/psm_ao/psm-d1-e.elf",
       "order": 1,
       "what": "depth fade: glow cut by walls, soft right. ~70 s",
       "read": "film it all; pages after. Left half steady from stage 3?",
@@ -112,7 +112,7 @@
     {
       "name": "hens-eyes",
       "file": "HENEYES.BIN",
-      "elf": "build/psm_ao/psm-hen-e.elf",
+      "elf": "build/psm_ao/psm-hen-f.elf",
       "order": 2,
       "what": "hens: rays vs collision sweep, cycles. ~50 s",
       "read": "photo every page + graph; START = live: X mode, Y hens",
@@ -134,7 +134,7 @@
     {
       "name": "pvr-dma",
       "file": "PVRDMA.BIN",
-      "elf": "build/psm_ao/psm-pd-d.elf",
+      "elf": "build/psm_ao/psm-pd-e.elf",
       "order": 3,
       "what": "PVR-DMA download proof: VRAM to RAM. ~2 s",
       "read": "PVR-DMA download proof: photo the page and the graph",
@@ -331,7 +331,7 @@
     {
       "name": "square",
       "file": "SQUARE.BIN",
-      "elf": "build/sq_senior/sh4der-square-a5.elf",
+      "elf": "build/sq_senior/sh4der-square-a6.elf",
       "order": 0,
       "what": "Walled square, AO on. Y+A hides the HUD",
       "read": "walls darken at the foot; START, VIEW, AO row off compares",

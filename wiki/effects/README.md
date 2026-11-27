@@ -63,6 +63,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [aomesh](aomesh.md) | Baked ambient occlusion over a triangle mesh, at load (the bake for Walled town square [square]) | PROTOTYPE v0.1 | no: the bake's time and look are NOT MEASURED on a console |
 | [A ray against a triangle [raytri]](raytri.md) | One ray-triangle kernel shared by the mesh bake and the ray bench: a distance by the reciprocal form, a hit with no divide | PROTOTYPE v0.1 | no: NOT MEASURED (a routine; its time on a console is not measured) |
 | [Test disc menu [suite]](suite.md) | A menu and many test programs on one disc, with a way back after each | ALPHA v0.4 | **yes**: a menu start repeated a test's results (PVR-116, one console); the return and the chain are not measured |
+| [Menu logic [menu]](menu.md) | Menu rules with nothing drawn: a list with headings, tabs, a scrolled text, a held button | PROTOTYPE v0.1 | no: new, not yet on a disc |
 | [Sky shading [aosky]](aosky.md) | Occlusion of the sky drawn into the sun's shadow target (AO method 2) | PROTOTYPE v0.1 | no: the start settings ran in Room shading, four ways (PVR-140, one console); this library copy has not |
 | [Bake tool [ao-bake]](ao-bake.md) | Host build tool: baked occlusion over any triangle list (not a console effect) | v0.1 | no |
 | [Colour fringe [ca]](ca.md) | The frame texture and chromatic aberration | v0.50 | no |

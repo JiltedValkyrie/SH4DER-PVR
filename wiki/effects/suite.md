@@ -18,7 +18,7 @@ What it is for: the menu, a test, and the way back, on one disc.
 1. Build the disc from a list of tests: `python demo/psm/suite/build.py --tag <tag> --list <list.json> --out <folder>` (the list is one of `demo/psm/suite/suite_*.json`). The menu is `/cd/MENU.BIN`; every test is a file the menu starts. This build is the demo's, not the library's.
 2. In the test's `main`, after `<kos.h>` (and after `sh4der_fault.h` when the test has it): call `suite_init();` first, while all is well. It reads the menu's binary into RAM.
 3. In the loop that shows the result pages, every pass: `if (suite_tick(buttons, page, pages)) { page++; redraw = 1; }`. It goes back to the menu when A + B + X + Y are held together.
-4. Boot the disc. The menu starts. Start one test from the menu, then press A + B + X + Y: the menu should come back. Start RUN ALL: the tests run one after another and each goes back to the menu.
+4. Boot the disc. The menu starts. Start one test from the menu, then press A + B + X + Y: the menu should come back. On the suite 13 menu (`demo/psm/suite/suite_menu.c`), start RUN ALL: the tests run one after another and each goes back to the menu. The suite 14 menu (`demo/psm/suite/suite_view.h`) has no RUN ALL.
 5. Read the result: a started test's pages say "ABXY menu" (`suite_keys_text`), and the first line of each test carries the console's revision (`suite_rev_text`). Photograph it.
 
 Reference: the manual is at the top of `include/sh4der_suite.h`; the host test is `test/suite_test.c` (run by `make test`). Status: ALPHA v0.4 (`wiki/status/maturity.md`, "suite menu").
@@ -83,7 +83,17 @@ None. The header has no `SH4DER_*` macro. Its constants belong to the disc and a
 - The four-button return and the chain's own run, in a photo. OPEN.
 - Whether a menu start can change a result (PVR-116 is one test). OPEN.
 
+## The last result page: hold A for 2 s
+
+On a test's last result page, `suite_page(buttons, &page, pages)` does the page turning in one call (v0.5). A tap of A goes to the next page, and B to the one before. A held for 2 s (`SH4DER_MENU_HOLD_MS`) on the last page goes back to the menu, on the row the test came from: a line under the page and a fill bar show the hold while A is held, and letting go before the time stays on the page. The hold exists only in a test started from the menu and not in a chained run (RUN ALL): there, A on the last page is a plain next page. A + B + X + Y still goes back to the menu, as before. On a disc of the test's own there is no menu: A and B turn the pages and nothing else happens.
+
+The menu's place (tab, row and scroll, one word packed by `sh4der_menu_pack`) travels in the mail's spare word when the menu starts a test, and `suite_exit` hands it back, so the menu opens where it was left. A test built before v0.5 does not hand it back; the menu then opens on the test's row by its index, as before.
+
+Status: v0.5 for the pager, the hold and the place (host tested, `test/suite_test.c`). New, not yet on a disc: the owner will run it on her console later. The suite 14 menu itself (`demo/psm/suite/suite_view.h`: BY DEMO and BY EFFECT tabs, a card for the picked demo, look B, no skin) has no RUN ALL.
+
 ## Related
+
+- [Menu logic [menu]](menu.md): the rules the suite menu and the pager use (the hold, the list, the scroll).
 
 - [What do you want to make?](../start-here/what-do-you-want.md): the starter, for a picture or a goal.
 - [Tools and safety](../start-here/genre-tools-and-safety.md): the genre guide that puts the menu with the other tools.

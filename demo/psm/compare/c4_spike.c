@@ -1561,16 +1561,15 @@ int main(void) {
         sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
-        if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
-        else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
-        else if (hit & CONT_START) { live(); back = 1; }
+        if (hit & CONT_START) { live(); back = 1; }
         else if ((hit & CONT_Y) && !tiled) { tiled = 1; tiles(); back = 1; }
-        else if (suite_tick(now, page, pages)) { page++; redraw = 1; }   /* the suite disc: a chained run turns the page; ABXY leaves */
+        else if (suite_page(now, &page, pages)) redraw = 1;   /* A next, B before; on the last page hold A 2 s, or A+B+X+Y anywhere: the menu */
         if (back) {
             vid_set_mode(DM_640x480, PM_RGB565);
             pages = pg_pages();
             page = pg_text_pages() ? pg_text_pages() - 1u : 0u;   /* the last text page: what the stage just added */
             held = ~0u;                    /* what is still held from the stage just left is not a press here */
+            suite_page_forget();
             redraw = 1;
         }
         if (redraw) { pg_draw(page, "PVR CHAIN c4", suite_keys_text(tiled ? "START live" : "START live Y tiles")); redraw = 0; }

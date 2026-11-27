@@ -246,7 +246,7 @@ static void report(void) {
 }
 
 int main(void) {
-    unsigned page = 0, pages, held = ~0u;
+    unsigned page = 0, pages;
     int redraw = 1;
 
     suite_init();                           /* the suite disc: the menu's binary into RAM, before anything else */
@@ -261,14 +261,11 @@ int main(void) {
     for (;;) {
         maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
-        const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
+        const unsigned now = st ? st->buttons : 0u;
 
         sh4der_fault_beat(&crumbs);
-        held = now;
         pages = pg_pages();
-        if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
-        else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
-        else if (suite_tick(now, page, pages)) { page++; redraw = 1; }
+        if (suite_page(now, &page, pages)) redraw = 1;   /* A next, B before; on the last page hold A 2 s, or A+B+X+Y anywhere: the menu */
         if (redraw) { pg_draw(page % pages, "PVR-DMA PROOF", suite_keys_text("A B pages")); fx_page(pd_fx_page, PD_FX_PAGE_N); redraw = 0; }
         thd_sleep(20);
     }

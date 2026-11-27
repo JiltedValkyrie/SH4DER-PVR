@@ -597,7 +597,7 @@ static int vc_pad_hit(void) {
 
 /* The pages: the numbers, then a graph a route. A / B turn the page; with no controller the pages turn every 20 s. */
 static void vc_pages(void) {
-    unsigned page = 0, held = ~0u, pages, r, g, k;
+    unsigned page = 0, pages, r, g, k;
     uint64_t turned;
     char nm[12];
 
@@ -637,15 +637,12 @@ static void vc_pages(void) {
     for (;;) {
         maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
-        const unsigned now = st ? st->buttons : 0u, hit = now & ~held;
+        const unsigned now = st ? st->buttons : 0u;
         int redraw = 0;
 
         sh4der_fault_beat(&fault_crumbs);
-        held = now;
         pages = pg_pages();
-        if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
-        else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
-        else if (suite_tick(now, page, pages)) { page++; redraw = 1; }      /* does not come back when it goes to the menu */
+        if (suite_page(now, &page, pages)) redraw = 1;   /* A next, B before; on the last page hold A 2 s, or A+B+X+Y anywhere: the menu */
         else if (!suite_present() && !st && timer_ms_gettime64() - turned >= 20000u) { page = (page + 1u) % pages; redraw = 1; }
         if (redraw) { pg_draw(page, "TOWN VIEW COST", suite_keys_text("A B turn")); turned = timer_ms_gettime64(); }
         thd_sleep(20);

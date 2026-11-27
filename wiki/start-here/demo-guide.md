@@ -35,6 +35,8 @@ The menu titles, and what each program shows, are copied from the suite 13 list 
 
 **Status:** each suite 13 program is run on a console by the owner (her test; no measured numbers recorded yet). Each row says what the program should show; read [Suite 13](../methods/suite-13.md) for what to film and which ledger row each page goes to.
 
+The suite menu's rules (the list with headings, the tabs, the scrolled text, the held direction and the hold) come from the library's [menu page](../effects/menu.md). On a test's last result page, a tap of A goes to the next page and holding A for 2 s goes back to the menu. That is new and not yet on a disc: the owner will run it on her console later.
+
 ## Other demo programs
 
 These programs are not in the suite 13 list. Their names and descriptions are from the [names](../effects/names.md) page, where the program has a line there.

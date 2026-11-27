@@ -539,15 +539,13 @@ int main(void) {
         sh4der_fault_beat(&crumbs);
         held = now;
         pages = pg_pages();
-        if (hit & CONT_A) { page = (page + 1u) % pages; redraw = 1; }
-        else if (hit & CONT_B) { page = (page + pages - 1u) % pages; redraw = 1; }
-        else if (hit & CONT_START) {
+        if (hit & CONT_START) {
             live();
             vid_set_mode(DM_640x480, PM_RGB565);
-            held = ~0u;                     /* what is still held from the live view is not a press here */
+            held = ~0u; suite_page_forget();                     /* what is still held from the live view is not a press here */
             redraw = 1;
         }
-        else if (suite_tick(now, page, pages)) { page++; redraw = 1; }   /* the suite disc: a chained run turns the page; ABXY leaves */
+        else if (suite_page(now, &page, pages)) redraw = 1;   /* A next, B before; on the last page hold A 2 s, or A+B+X+Y anywhere: the menu */
         if (redraw) { pg_draw(page % pages, "AO ao0", suite_keys_text("START live view")); redraw = 0; }
         thd_sleep(20);
     }
