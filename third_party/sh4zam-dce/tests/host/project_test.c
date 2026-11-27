@@ -57,7 +57,8 @@ static unsigned one(float x, float y, float z, const shz_dce_view4_t *v, float r
     return code;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static uint32_t in_store[IN_BYTES / 4];   /* the records, on a multiple of 4 */
     uint8_t *const in = (uint8_t *)in_store;
     static float out[(N + 1) * 8 + 8];

@@ -329,7 +329,8 @@ static void batch_paths(void) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     grids();
     under_and_over();
     blend_and_bytes();

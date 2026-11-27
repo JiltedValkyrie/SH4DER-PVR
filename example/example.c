@@ -18,7 +18,21 @@ typedef struct {
 
 enum { HEAD, NECK, CHEST, HAND = 9 };
 
-int main(void) {
+#ifdef _arch_dreamcast
+#include <kos.h>
+
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+#endif
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+#ifdef _arch_dreamcast
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
+#endif
     /* Posed joints and sphere radii, in the vertices' space. */
     const sh4dow_limb_t limbs[3] = {
         { { 0.0f, 0.0f, 1.70f }, 0.10f, HEAD,  SH4DOW_LIMB_HEAD },

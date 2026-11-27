@@ -19,7 +19,8 @@ static volatile int vi;
 
 static float run_f(float x) { vx = x; return vx; }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     double worst = 0.0, worst_log = 0.0, off_min = 1e9, off_max = -1e9;
     int e, i;
 

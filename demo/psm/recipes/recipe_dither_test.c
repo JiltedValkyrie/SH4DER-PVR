@@ -132,7 +132,8 @@ static void t_bayer(void) {
     CHECK(ok);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_console();
     t_lines();
     t_fade();

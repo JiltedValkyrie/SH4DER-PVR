@@ -416,7 +416,8 @@ static void test_layout(void) {
     T_CHECK(q.e[0] == 1.0f && q.e[1] == 2.0f && q.e[2] == 3.0f && q.e[3] == 4.0f, "e[] is not w, x, y, z");
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     test_layout();
     test_nlerp();
     test_mult();

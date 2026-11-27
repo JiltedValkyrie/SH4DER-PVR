@@ -270,7 +270,8 @@ static void burst_and_guard(void) {
     printf("spark_test: %u quads drawn, %u refused by the area guard\n", drawn, refused);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults();
     billboard();
     streak();

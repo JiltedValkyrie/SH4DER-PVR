@@ -257,7 +257,8 @@ static void host_dot4_zero(void) {
 }
 #endif
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static const float sentinel = 1234.5f;
     const shz_vec3_t sent3 = shz_vec3_init(sentinel, sentinel, sentinel);
     uint32_t max_ulps_dot4 = 0u, max_ulps_norm = 0u, max_ulps_mag = 0u, max_ulps_v4 = 0u;

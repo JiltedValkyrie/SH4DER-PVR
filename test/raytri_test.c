@@ -376,7 +376,8 @@ static void t_limit(void) {
            10000u, valid, dis, max_rel, dbl_dis, dbl_edge, max_margin, pdis, pdis_edge, max_pedge);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_edges();
     t_diagonal();
     t_random();

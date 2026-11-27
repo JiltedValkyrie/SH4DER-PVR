@@ -374,7 +374,8 @@ static void t_dir(void) {
     printf("  open triangle: %u at cull 0, 1 and -1; closed: %u + %u\n", t_all, t_plus, t_minus);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_tables();
     t_slide();
     t_occlusion();

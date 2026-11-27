@@ -630,7 +630,8 @@ static int projection(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     sh4dow_frame_t f;
 
     if(single(&f) || params(&f) || sorted_random() ||

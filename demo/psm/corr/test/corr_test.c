@@ -19,7 +19,8 @@ static int fails;
 static corr_kind_t kinds[CORR_KINDS];
 static corr_list_t list;
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     unsigned id, i, j, k, f;
     corr_eye_t e = { 0.0f, 0.0f, 0.0f };
     unsigned max_n = 0, min_n = ~0u;

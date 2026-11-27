@@ -56,7 +56,8 @@ static void fake(vc_frame_t *f, uint64_t *clock, int route_a, int sampled) {
     *clock = t;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static vc_run_t r;
     vc_frame_t f;
     vc_view_t v;

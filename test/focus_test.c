@@ -111,7 +111,8 @@ static int blur(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (mask_shapes()) return 1;
     if (mesh()) return 1;
     if (division()) return 1;

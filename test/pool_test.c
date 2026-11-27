@@ -216,7 +216,8 @@ static void beam(void) {
     CHECK(p[SH4DER_POOL_BEAM_VTX_MAX].argb == 0x55555555u);              /* not one vertex past the most */
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     disc();
     wedge();
     reach();

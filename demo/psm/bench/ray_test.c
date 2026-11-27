@@ -228,7 +228,8 @@ static void t_tri(void) {
            differ, differ_sun, pairs, form, dbl);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_tri();
     t_bytes();
     t_empty();

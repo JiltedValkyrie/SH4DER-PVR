@@ -35,7 +35,8 @@ static float DIRS[64][3];
 
 static const float UP[3] = { 0.0f, 1.0f, 0.0f };
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     sh4der_aobake_occl_t ground, sph_occl, box_occl, far_occl;
     static const sh4der_aobake_sph_t sph_under[1] = { { { 0.0f, 2.0f, 0.0f }, 1.0f } };
     static const sh4der_aobake_sph_t sph_far[1] = { { { 0.0f, 5.0f, 0.0f }, 1.0f } };

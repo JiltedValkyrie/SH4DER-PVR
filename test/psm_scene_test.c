@@ -1235,7 +1235,8 @@ static void distance(void) {
     CHECK(strstr(ln[10], "DIST 500 m") && strstr(ln[10], "375 m") && strstr(ln[10], "all distances"));
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     scene_counts();
     window();
     fixed_vertices();

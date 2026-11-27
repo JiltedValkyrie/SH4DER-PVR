@@ -1,7 +1,21 @@
 #include <stdio.h>
 #include "sh4dow_dc.h"
 
-int main(void) {
+#ifdef _arch_dreamcast
+#include <kos.h>
+
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+#endif
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+#ifdef _arch_dreamcast
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
+#endif
     /* Posed joints in the vertices' space, their sphere radii, their bone ids: a head, a neck, a chest. */
     const sh4dow_limb_t limbs[3] = {
         { { 0.0f, 0.0f, 1.70f }, 0.10f, 12, SH4DOW_LIMB_HEAD },

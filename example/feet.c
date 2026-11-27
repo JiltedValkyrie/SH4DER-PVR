@@ -1,7 +1,21 @@
 #include <stdio.h>
 #include "sh4dow_dc.h"
 
-int main(void) {
+#ifdef _arch_dreamcast
+#include <kos.h>
+
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+#endif
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+#ifdef _arch_dreamcast
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
+#endif
     /* A skeleton's bind pose node spheres, model space, Z up, +Y left: pelvis, left foot, right foot. Height 0 to 1. */
     const float node[3][3] = { { 0.0f, 0.0f, 0.50f }, { 0.0f, 0.10f, 0.04f }, { 0.0f, -0.10f, 0.04f } };
     const float node_radius[3] = { 0.12f, 0.05f, 0.05f };

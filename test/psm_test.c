@@ -278,7 +278,8 @@ static void bad_input(void) {
     CHECK(!sh4der_psm_build_uniform(&w, d, behind, 1u));                       /* one point has no extent: refused */
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     depth_numbers();
     camera_rows();
     slab();

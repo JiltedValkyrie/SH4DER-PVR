@@ -1,6 +1,6 @@
 # SH4DER-PVR: the street driving demo (planar reflection, light pools, halos). Run through build.py, or by hand:
 #
-#   make SH4ZAM=<checkout> [RTT=1] [DEMO_BUILD=<n>] [MAP=1 GEN=<folder>]   build/pl4nar-demo.elf   (KallistiOS environment sourced)
+#   make [SH4ZAM=<prefix or checkout>] [RTT=1] [DEMO_BUILD=<n>] [MAP=1 GEN=<folder>]   build/pl4nar-demo.elf   (KallistiOS environment sourced)
 #
 # MAP=1 builds the new map (src/map.c, PL4NAR_MAP) in place of the street: GEN is the folder that holds assets_gen.c
 # and tools/map.py's map_gen.c (default $(BUILD)/gen), and tools/map_ao.c's map_ao_gen.c (the baked occlusion).
@@ -10,15 +10,19 @@
 ifndef KOS_BASE
 $(error KOS_BASE not set: source the KallistiOS environment first)
 endif
+# SH4ZAM: default, as installed into KallistiOS's ports ($(KOS_PORTS)/include/sh4zam, $(KOS_PORTS)/lib/libsh4zam.a).
+SH4ZAM ?= $(if $(KOS_PORTS),$(if $(wildcard $(KOS_PORTS)/include/sh4zam/shz_sh4zam.h),$(KOS_PORTS)))
 ifeq ($(SH4ZAM),)
-$(error set SH4ZAM to your SH4ZAM checkout)
+$(error set SH4ZAM to your SH4ZAM install prefix or checkout (none installed in KOS_PORTS))
 endif
 # ABI guard: environ.sh silently falls back to -m4-single-only when sh-elf-gcc cannot run at source time. Refuse it.
 ifneq ($(findstring -m4-single-only,$(KOS_CFLAGS)),)
 $(error KOS_CFLAGS has -m4-single-only, not -m4-single: put the toolchain on PATH before sourcing environ.sh)
 endif
 LIB        ?= ../..
-SH4ZAM_LIB  = $(SH4ZAM)/build/libsh4zam.a
+# An installed library (lib/) is linked as it is; a checkout's (build/) is built by tools/sh4zam_lib.mk.
+SHZ_INSTALLED := $(wildcard $(SH4ZAM)/lib/libsh4zam.a)
+SH4ZAM_LIB  = $(or $(SHZ_INSTALLED),$(SH4ZAM)/build/libsh4zam.a)
 DEMO_BUILD ?= 0
 RTT        ?= 0
 BUILD      ?= build
@@ -75,6 +79,8 @@ FORCE:
 $(TARGET): $(OBJS) $(SH4ZAM_LIB)
 	kos-cc -o $@ $(OBJS) $(SH4ZAM_LIB) -lm
 ifneq ($(SHZ_LIB),0)
+ifeq ($(SHZ_INSTALLED),)
 -include tools/sh4zam_lib.mk
+endif
 endif
 -include $(OBJS:.o=.d)

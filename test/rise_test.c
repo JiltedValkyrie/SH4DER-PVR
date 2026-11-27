@@ -374,7 +374,8 @@ static void hostile(void) {
     CHECK(((const unsigned char *)q)[0] == 0x55 && ((const unsigned char *)q)[sizeof(q) - 1u] == 0x55);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults();
     seated();
     order();

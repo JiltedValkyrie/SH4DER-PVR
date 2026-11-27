@@ -102,7 +102,8 @@ static void quad(pvr_poly_hdr_t *hdr, float x0, float y0, float x1, float y1, ui
     v.x = x1; v.y = y1; v.u = 1.0f; v.v = 1.0f; pvr_prim(&v, sizeof(v));
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     pvr_init_defaults();
     vid_set_mode(DM_640x480, PM_RGB565);
 

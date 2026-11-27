@@ -84,7 +84,8 @@ static int inside(const float p[3]) {
     return n & 1u;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     float H = 0, az14, el14, az16, el16, tan14, tan16;
     unsigned i, j, t, m, nstatic = 0, over = 0, occupied = 0, listed = 0, tlisted = 0;
     static uint8_t over_flag[G_N][G_N];

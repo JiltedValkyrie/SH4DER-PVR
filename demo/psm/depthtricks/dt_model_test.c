@@ -261,7 +261,8 @@ static void cel(unsigned slices, unsigned stacks) {
     CHECK(d_ramp < d_gour);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     depth_map();
     printf("2 RAMP CEL SHADING, 4 bands from an 8-texel point-sampled ramp, light (%.2f, %.2f, %.2f)\n", (double)LDIR[0], (double)LDIR[1], (double)LDIR[2]);
     cel(8u, 6u);

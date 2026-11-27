@@ -195,7 +195,8 @@ static void drift_all(void) {
             }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (weight_checks() || copy_offsets() || still_and_cut() || fast_pan() || slow_pan() || taa_copy_px() || keep_add_sum())
         return 1;
     drift_all();

@@ -156,7 +156,8 @@ static int run_all(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (run_all()) return 1;
     printf("visor_test: ok\n");
     return 0;

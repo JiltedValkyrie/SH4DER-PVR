@@ -30,7 +30,8 @@ static NOINLINE float s_asinf(float x) { return shz_asinf(x); }
 static NOINLINE float d_acosf(float x) { return shz_dce_acosf(x); }
 static NOINLINE float s_acosf(float x) { return shz_acosf(x); }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     double worst_fit = 0.0, worst_as = 0.0, worst_ac = 0.0;
     int k;
 

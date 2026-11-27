@@ -99,7 +99,8 @@ static void t_two(void) {
     CHECK(ok);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_fade();
     t_cut();
     t_two();

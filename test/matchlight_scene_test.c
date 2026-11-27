@@ -954,7 +954,8 @@ static void budget(void) {
     printf("  worst shot: %u triangles (counted, not measured)\n", worst);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     timeline();
     match_state();
     cameras();

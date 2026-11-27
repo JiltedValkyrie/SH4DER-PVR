@@ -39,7 +39,8 @@ static double exact(const float pl[4], const float p[3], double *pmax) {
     return t[0] + t[1] + t[2] + t[3];
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static shz_dce_planes6_t six;        /* static: on a multiple of 8 (16 on the host) */
     static shz_dce_planes4_t four;
     static float pts[600 * 8];

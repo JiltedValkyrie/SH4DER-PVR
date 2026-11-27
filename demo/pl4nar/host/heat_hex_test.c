@@ -13,7 +13,8 @@
 static int fails;
 #define CHECK(c) do { if (!(c)) { fails++; printf("FAIL line %d: %s\n", __LINE__, #c); } } while (0)
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     /* the demo's high camera behind a car at the origin that heads along +z; and its low one (1.9 m, 0.09 rad down) */
     const float eye[3] = { 0.0f, 3.3f, -7.0f }, at[3] = { 0.0f, 1.0f, 1.2f }, up[3] = { 0.0f, 1.0f, 0.0f };
     const float eye_low[3] = { 0.0f, 1.9f, -6.0f }, at_low[3] = { 0.0f, 1.9f - 10.0f * sinf(0.09f), -6.0f + 10.0f * cosf(0.09f) };

@@ -254,7 +254,8 @@ static int dark(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (radii() || profiles() || near_and_fog() || gate() || power() || meshes() || dark() || aa2x())
         return 1;
     printf("torch_test: ok\n");

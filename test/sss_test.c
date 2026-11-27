@@ -7,7 +7,8 @@
 #define SH4DER_TEST_TOL 0.0001f
 #endif
 static int closef(float a, float b, float tol) { return fabsf(a - b) <= tol; }
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     const float tint[3] = {1.0f, 0.58f, 0.30f}, absorb[3] = {0.50f, 0.13f, 0.07f};
     const float view[3] = {0, 0, 1}, behind[3] = {0, 0, -1}, front[3] = {0, 0, 1}, side[3] = {1, 0, 0}, n[3] = {0, 1, 0};
     const float tol = 4 * SH4DER_TEST_TOL;

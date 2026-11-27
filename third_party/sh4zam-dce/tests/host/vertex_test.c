@@ -467,7 +467,8 @@ static void sweep_directed(void) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     /* count 0 writes nothing (its input is not even given); count 1 gives its one record and nothing after it */
     {
         shz_dce_vertex20_grid_t g;

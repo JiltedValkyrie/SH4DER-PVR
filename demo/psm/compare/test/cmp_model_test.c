@@ -173,7 +173,8 @@ static void counters(void) {
     CHECK(cmp_count_diff(img, ref) == 2u);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     arithmetic();
     blend();
     alpha();

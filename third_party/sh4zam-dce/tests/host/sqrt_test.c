@@ -48,7 +48,8 @@ static float pick(void) {
 /* volatile: the routines see run-time values (a constant operand takes SH4ZAM's own compile-time path) */
 static volatile float vx, vy;
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     int trial;
     for (trial = 0; trial < 400000; trial++) {
         float a[4], b[4];

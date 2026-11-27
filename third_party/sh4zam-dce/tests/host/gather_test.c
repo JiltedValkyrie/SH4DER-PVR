@@ -170,7 +170,8 @@ static void unpack_case(unsigned bx, unsigned by, unsigned bz, const uint32_t *s
     free(bufb);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     unsigned bx, by, bz;
     long triples = 0, vertices = 0, copy_entries = 0;
     int edge_runs = 0, cases = 0, prefetch_calls = 0;

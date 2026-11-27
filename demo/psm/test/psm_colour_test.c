@@ -40,7 +40,8 @@ static void plain(void) {
     memcpy(ref_m, frame.mcol, sizeof ref_m); memcpy(ref_g, frame.gcol, sizeof ref_g);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     psm_state_t st;
     unsigned route, i, sent, made;
 

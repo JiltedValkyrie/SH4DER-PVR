@@ -2766,7 +2766,15 @@ NOINLINE static void frame_draw(const ml_where_t *w, int lens) {
     pvr_list_finish();
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     pvr_init_params_t init = pvr_default_params;
     uint64_t previous, window_start, window_total = 0, window_worst = 0;
     unsigned window_frames = 0, stuck = 0;

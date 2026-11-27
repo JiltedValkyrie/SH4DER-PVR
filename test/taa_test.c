@@ -220,7 +220,8 @@ static int copy_px(void) {   /* the feed copy's whole offsets: x even (the parit
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (halton_values() || jitter_cycle() || jitter_clip() || reproject() || weight() || angle_wrap() || steps() || colours() || copy_px())
         return 1;
     printf("taa_test: ok\n");

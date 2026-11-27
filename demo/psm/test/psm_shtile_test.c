@@ -16,7 +16,8 @@ static void sun_at(float az_deg, float el_deg, float s[3]) {
 
 #define N_TILES 12u
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static const uint8_t kind_of[N_TILES] = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 };
     sht_tile_t t[N_TILES];
     sht_caster_t c[13];

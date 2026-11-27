@@ -405,7 +405,8 @@ static void filters(void) {
     CHECK(strstr(ln[8], "B FILTER: POINT") && strstr(ln[5], "B POINT"));        /* route AB follows B FILTER */
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     psm_scene_init(&scene);
     delay0();
     delay1();

@@ -344,7 +344,8 @@ static void hostile(void) {
     CHECK(sh4der_film_exposure(NULL, 1.0f) == 1.0f);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults();
     ranges();
     flicker();

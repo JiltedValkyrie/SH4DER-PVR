@@ -1932,7 +1932,15 @@ static void input(float dt) {
     }
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     pvr_init_params_t init = pvr_default_params;
     uint64_t previous, cpu_t0, waited = 0;   /* waited: us spent blocked on the PVR this frame, not CPU work */
     unsigned frame = 0, stuck = 0, stuck_shown = 0, hud_tick = 0;

@@ -159,7 +159,8 @@ static void home_of(const sh4der_hexheat_vtx_t *v, float x0, float y0, double *h
     *r = (int)floor(*hy / (1.5 * s) + 0.5); *q = (int)floor(*hx / hexw - 0.5 * (double)*r + 0.5);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     const float s = SH4DER_HEXHEAT_S, bw = (float)SH4DER_HEXHEAT_BAND_W, bh = (float)SH4DER_HEXHEAT_BAND_H, dt = 1.0f / 60.0f;
     const double hexw = (double)s * sqrt(3.0);
     /* the street demo's high camera: 3.3 m up and 7 m behind the car, looking at a point 1 m up and 1.2 m ahead of it */

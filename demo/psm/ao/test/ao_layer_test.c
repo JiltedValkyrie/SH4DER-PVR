@@ -320,7 +320,8 @@ static void t_town(void) {
 }
 #endif
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_tables();
     t_slide();
     t_occlusion();

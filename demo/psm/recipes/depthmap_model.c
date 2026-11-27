@@ -291,7 +291,8 @@ static void sizes(void) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static const unsigned boxes[5] = { 8u, 25u, 100u, 250u, 1000u };
     unsigned k;
     printf("camera depth map 128 x 96, 8-bit, near %.1f far %.0f; all prices ESTIMATE (see price())\n", (double)NEAR_Z, (double)FAR_Z);

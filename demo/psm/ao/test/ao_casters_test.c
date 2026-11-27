@@ -68,7 +68,8 @@ static void raster(const psm_cobj_t *o, int cull, unsigned which, unsigned d) {
 
 typedef struct { int a, b; } dedge_t;
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static int weld[PSM_CV_MAX];
     static dedge_t de[PSM_CT_MAX * 3u];
     psm_state_t st;

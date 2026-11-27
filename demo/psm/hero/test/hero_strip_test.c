@@ -177,7 +177,8 @@ static void frame(const hero_cam_t *cam, float z, float heading, unsigned clip, 
     if (clipped > clipped_max) clipped_max = clipped;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     unsigned s, i;
     float run_t = 0.0f, secs = 0.0f;
 

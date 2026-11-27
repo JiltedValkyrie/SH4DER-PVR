@@ -292,7 +292,8 @@ static void scan(void) {
     CHECK(sh4der_fault_scan_stack(STACK_LO, 64u, fake32, fake16, fake_text, NULL, out) == SH4DER_FAULT_TRACE_MAX);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     crumbs();
     watchdog();
     reports();

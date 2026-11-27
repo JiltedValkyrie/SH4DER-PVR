@@ -25,7 +25,8 @@
 
 static volatile float vx;   /* run-time values: a constant argument takes the compile-time path */
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     double worst_as = 0.0, worst_ac = 0.0, worst_os = 0.0, worst_oc = 0.0;
     int k;
 

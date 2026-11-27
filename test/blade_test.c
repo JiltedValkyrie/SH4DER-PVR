@@ -317,7 +317,8 @@ static int centres(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (shipped() || against_reference() || period_and_fade() || ripples() || bad_params() || loops() || centres())
         return 1;
     printf("blade_test: ok\n");

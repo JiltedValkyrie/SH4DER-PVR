@@ -75,7 +75,8 @@ static unsigned differ(void) {
     return d;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static const unsigned cuts[5][2] = { { 4, 5 }, { 8, 9 }, { 1, 1 }, { 4, 15 }, { 20, 4 } };
     static unsigned seen[TW][TH];
     static sh4der_tilecut_t c;

@@ -221,7 +221,8 @@ static int loop(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (shipped() || tracker() || order() || fade() || bad_params() || glint() || loop())
         return 1;
     printf("holo_test: ok\n");

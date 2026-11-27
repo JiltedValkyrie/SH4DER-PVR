@@ -115,7 +115,8 @@ static void pager(void) {
     CHECK(sizeof suite_mail.spare == sizeof(uint32_t) && sizeof(sh4der_menu_pack(&(sh4der_menu_t){ 0 })) == sizeof(uint32_t));
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static uint32_t words[4096];
     uint8_t *img = (uint8_t *)words;
     const char mark[16] = SUITE_MARK;

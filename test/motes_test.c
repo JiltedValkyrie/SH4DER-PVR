@@ -291,7 +291,8 @@ static void mask_and_finite(void) {
     CHECK(drawn > 1000u);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults_and_params();
     hash();
     rule_and_curves();

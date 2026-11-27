@@ -122,7 +122,8 @@ static void run(int kind, size_t count, size_t is, size_t os, int in_place) {
     if (!in_place) T_CHECK(!memcmp(in, src, in_bytes), "%s count %u: the input was changed", kind_name[kind], (unsigned)count);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     int kind, trial;
 
     for (kind = 0; kind < KINDS; kind++) {

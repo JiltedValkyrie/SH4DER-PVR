@@ -5,7 +5,8 @@
 #include <string.h>
 #include "../demo/ocean_scene.h"
 #define OCEAN_SKY_CHUNK_TEST 8
-int main(void){
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     ocean_settings_t s={6,0,-0.045f,1,1,1,1,0,0};
     float sun[3],scaled[3],horizon[3],upper[3],fog[129];
     const float horizon_ray[3]={0,0,1},upper_ray[3]={0,0.6f,0.8f};

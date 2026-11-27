@@ -306,7 +306,8 @@ static void all_finite(void) {
     CHECK(drawn > 1000);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults_and_params();
     shape();
     segments();

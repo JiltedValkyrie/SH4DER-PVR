@@ -35,7 +35,8 @@ static double angle_err(float got, double want) {
     return e;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     double worst = 0.0, wfit = 0.0;
     int i, k;
 

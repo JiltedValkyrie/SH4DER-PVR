@@ -206,7 +206,8 @@ static void meshes(void) {
     CHECK(sh4der_softfade_argb(&f, &wl, 1u, NULL, 0u, NULL, sizeof p[0], &p[0].argb, sizeof p[0], n) == n && memcmp(p, q, sizeof q) == 0);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     planes();
     walls();
     near_and_fit();

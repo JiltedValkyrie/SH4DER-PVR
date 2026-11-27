@@ -462,7 +462,8 @@ static void test_layers(void) {
     CHECK(sh4dow_foot_layer_distinct(NULL, NULL, east, up) == 0, "NULL away");
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     test_layers();
     test_shipped_numbers();
     test_cone_flat_floor();

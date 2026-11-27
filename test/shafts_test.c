@@ -80,7 +80,8 @@ static int map_from_read(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (terms() || map_from_read())
         return 1;
     printf("shafts_test: ok\n");

@@ -86,7 +86,8 @@ static void clamped(void) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     ends_and_middle();
     forms_agree();
     steps();

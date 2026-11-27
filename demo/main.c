@@ -895,7 +895,15 @@ static void input(float dt) {
     cam_x = nx; cam_y = ny;
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     pvr_init_defaults();
     pvr_set_bg_color(0.20f, 0.38f, 0.72f);   /* a deeper sky: under the bloom threshold, so only the sun and the lamps glow */
     make_brick();

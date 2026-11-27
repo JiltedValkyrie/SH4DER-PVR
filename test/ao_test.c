@@ -142,7 +142,8 @@ static int screen(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (crease()) return 1;
     if (corner_mesh()) return 1;
     if (screen()) return 1;

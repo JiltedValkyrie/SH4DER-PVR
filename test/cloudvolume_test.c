@@ -327,7 +327,8 @@ static void path(void) {
     sh4der_cloudvolume_path(&c, 1.0f, 1.0f, 1, NULL);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults_and_valid();
     map_checks();
     bake_checks();

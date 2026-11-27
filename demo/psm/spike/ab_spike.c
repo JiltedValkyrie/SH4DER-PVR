@@ -775,7 +775,15 @@ static void run_cached(void) {
     say("PART 2 done");
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     unsigned page = 0, pages, held = ~0u;
     int part2 = 0;
 

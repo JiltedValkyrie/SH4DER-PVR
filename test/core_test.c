@@ -78,7 +78,8 @@ static int refusals(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (feather_is_sh4dow() || steps() || refusals())
         return 1;
     printf("core_test: ok\n");
