@@ -2,7 +2,7 @@
 """SH4DER-PVR: the examples disc, SH4DER-PVR-Examples.cdi: every approved demo on ONE disc, with the suite's menu.
 Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
 
-A new demo or test is first a small disc of its own (one ELF, its own name in demo/psm/out/cdi). When the owner
+A new demo or test is first a small disc of its own (one ELF, its own name in out/cdi). When the owner
 approves it, it is added to the list and to this disc. The developers' test discs (psm-suite-<tag>) are another thing
 and are not made here.
 
@@ -27,7 +27,7 @@ What it does, each step refusing to go on when it fails:
   3 the builds   each entry's "build" command
   4 the disc     demo/psm/suite/build.py does the rest with this list: the menu, each ELF's checks (an SH-4 ELF at
                  0x8c010000, its end below the stack's room, one mail mark: it comes back to the menu), the manifest
-                 with every file's sha256, and the image in demo/psm/out/cdi, never overwritten.
+                 with every file's sha256, and the image in out/cdi, never overwritten.
 
 The image is SH4DER-PVR-Examples.cdi when that name is free. When it exists it is NOT overwritten: the image is
 SH4DER-PVR-Examples-b<N>.cdi with the first N from 2 that is free, and the script says so. The tag (the menu's title
@@ -233,7 +233,7 @@ def main():
     ap = argparse.ArgumentParser(description="Every approved demo on one disc, with the suite's menu.")
     ap.add_argument("--list", default=os.path.join(HERE, "demos_approved.json"))
     ap.add_argument("--tag")
-    ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "demo", "psm", "out", "cdi"))
+    ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "out", "cdi"))
     ap.add_argument("--mkdcdisc", default=os.environ.get("MKDCDISC", "mkdcdisc"))
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--no-build", action="store_true")

@@ -5,7 +5,7 @@
 #   make dc SH4ZAM=<checkout>       Dreamcast library build/libsh4der_core.a (KallistiOS environment sourced; includes SH4DOW-DC's soft shadows and foot cones)
 #   make bench SH4ZAM=<checkout>    Dreamcast timing program build/bench.elf (bench/bench.c, SH4DOW-DC's three vertex loops); run it on the console
 #   make test-dc SH4ZAM=<checkout>  build/*_test.elf: every test on the Dreamcast path
-#   make demo SH4ZAM=<checkout>     the demo disc build/demo/sh4der-demo.cdi (KallistiOS environment sourced; needs python and mkdcdisc)
+#   make demo SH4ZAM=<checkout>     the demo disc out/cdi/sh4der-demo.cdi (KallistiOS environment sourced; needs python and mkdcdisc)
 #   make dc DEMO=1 SH4ZAM=<checkout> the library, and with the flag DEMO=1 the demo disc as well
 #   make clean
 
@@ -429,17 +429,21 @@ $(BUILD)/libsh4der_core.a: $(SRC) $(HDR)
 	$(DC_CC) $(DC_FLAGS) -c src/sh4dow_foot.c -o $(BUILD)/sh4dow_foot.o
 	$(DC_AR) rcs $@ $(BUILD)/sh4dow_dc.o $(BUILD)/sh4dow_foot.o $(BUILD)/sh4der_ca.o $(BUILD)/sh4der_shafts.o $(BUILD)/sh4der_frame.o $(BUILD)/sh4der_core.o $(BUILD)/sh4der_blade.o $(BUILD)/sh4der_holo.o $(BUILD)/sh4der_bloom.o $(BUILD)/sh4der_glow.o $(BUILD)/sh4der_warp.o $(BUILD)/sh4der_trail.o $(BUILD)/sh4der_lens.o $(BUILD)/sh4der_focus.o $(BUILD)/sh4der_visor.o $(BUILD)/sh4der_torch.o $(BUILD)/sh4der_spark.o $(BUILD)/sh4der_pl4nar.o $(BUILD)/sh4der_pvrx.o
 
+# Every disc image a build writes goes to CDI_DIR (out/cdi at the top of the repository; git ignores it).
+CDI_DIR ?= out/cdi
+
 # The hardware probe disc (demo/probe/): one PowerVR2 mode a screen (modifier volumes, two-volume polygons, fog table mode 2,
 # the bump texture format, the colour clamp registers), each with a read-back verdict. For a real console. See demo/probe/README.md.
 # PROBE_CDI names the image; an existing image is never replaced (a new build takes a new number).
 .PHONY: probe
-PROBE_CDI ?= $(BUILD)/probe/sh4der-probe-b3.cdi
+PROBE_CDI ?= $(CDI_DIR)/sh4der-probe-b3.cdi
 probe: $(PROBE_CDI)
 $(BUILD)/probe/sh4der-probe.elf: demo/probe/probe.c include/sh4der_guard.h include/sh4der_tilecut.h include/sh4der_core.h
 	@mkdir -p $(BUILD)/probe
 	$(DC_CC) $(DC_FLAGS) -Werror demo/probe/probe.c -o $@
 $(PROBE_CDI): $(BUILD)/probe/sh4der-probe.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	@mkdir -p $(dir $@)
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PROBE
 
 # The short film (demo/matchlight/): a 120 second snowy night street in twelve shots and 32 seconds of end credits, built
@@ -447,7 +451,7 @@ $(PROBE_CDI): $(BUILD)/probe/sh4der-probe.elf
 # Needs SH4ZAM=<checkout>, as every Dreamcast target does.
 # MATCHLIGHT_CDI names the image; an existing image is never replaced (a new build takes a new number).
 .PHONY: matchlight
-MATCHLIGHT_CDI ?= $(BUILD)/matchlight/sh4der-matchlight.cdi
+MATCHLIGHT_CDI ?= $(CDI_DIR)/sh4der-matchlight.cdi
 # The sound files (demo/matchlight/tools/audio.py writes them here); the image is made without sound when the folder is not there.
 MATCHLIGHT_DISC ?= $(BUILD)/matchlight/disc
 matchlight: $(MATCHLIGHT_CDI)
@@ -457,6 +461,7 @@ $(BUILD)/matchlight/sh4der-matchlight.elf: demo/matchlight/matchlight.c demo/mat
 	$(DC_CC) $(DC_FLAGS) -Werror demo/matchlight/matchlight.c src/sh4der_spark.c src/sh4der_motes.c src/sh4der_ca.c -o $@
 $(MATCHLIGHT_CDI): $(BUILD)/matchlight/sh4der-matchlight.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	@mkdir -p $(dir $@)
 	$(MKDCDISC) -e $< -o $@ -N -n MATCHLIGHT $(if $(wildcard $(MATCHLIGHT_DISC)),-D $(MATCHLIGHT_DISC))
 
 # The demo disc (demo/): one program that shows the effects, as a .cdi image for a Dreamcast, a GDEMU or an emulator.
@@ -469,7 +474,7 @@ DEMO_DIR    = $(BUILD)/demo
 DEMO_MODELS = demo/models/dude.obj demo/models/wagon.obj demo/models/jet.obj demo/models/crate.obj demo/models/lamp.obj
 DEMO_SH4DOW = src/sh4dow_dc.c src/sh4dow_foot.c
 
-demo: $(DEMO_DIR)/sh4der-demo.cdi
+demo: $(CDI_DIR)/sh4der-demo.cdi
 
 $(DEMO_DIR)/models.h: $(DEMO_MODELS) demo/tools/obj2c.py
 	@mkdir -p $(DEMO_DIR)
@@ -478,7 +483,8 @@ $(DEMO_DIR)/models.h: $(DEMO_MODELS) demo/tools/obj2c.py
 $(DEMO_DIR)/sh4der-demo.elf: demo/main.c $(DEMO_DIR)/models.h $(BUILD)/libsh4der_core.a $(DEMO_SH4DOW)
 	$(DC_CC) $(DC_FLAGS) -I$(DEMO_DIR) demo/main.c $(DEMO_SH4DOW) $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 
-$(DEMO_DIR)/sh4der-demo.cdi: $(DEMO_DIR)/sh4der-demo.elf
+$(CDI_DIR)/sh4der-demo.cdi: $(DEMO_DIR)/sh4der-demo.elf
+	@mkdir -p $(dir $@)
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PVR-DEMO
 
 # The flag: `make dc DEMO=1` builds the demo disc after the library.
@@ -502,7 +508,7 @@ clean:
 
 # Separate sunset scene; original effects gallery remains `make demo`.
 .PHONY: ocean ocean-preview test-water
-OCEAN_CDI ?= $(BUILD)/ocean/sh4der-ocean-b9.cdi
+OCEAN_CDI ?= $(CDI_DIR)/sh4der-ocean-b9.cdi
 OCEAN_HEADERS = demo/ocean_scene.h include/sh4der_water.h include/sh4der_sss.h include/sh4dow_heightfield.h
 ocean: $(OCEAN_CDI)
 $(BUILD)/ocean/sh4der-ocean.elf: demo/ocean.c $(OCEAN_HEADERS) $(BUILD)/libsh4der_core.a
@@ -511,6 +517,7 @@ $(BUILD)/ocean/sh4der-ocean.elf: demo/ocean.c $(OCEAN_HEADERS) $(BUILD)/libsh4de
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) demo/ocean.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 $(OCEAN_CDI): $(BUILD)/ocean/sh4der-ocean.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	@mkdir -p $(dir $@)
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-OCEAN
 $(BUILD)/ocean-preview: demo/ocean.c $(OCEAN_HEADERS)
 	@mkdir -p $(BUILD)
@@ -528,7 +535,7 @@ $(BUILD)/shz/ocean_scene_test $(BUILD)/ocean_scene_test.elf: $(OCEAN_HEADERS)
 # twice) lit by it (demo/torchwalk_ab.c, include/sh4der_bump.h). The R trigger fires.
 # TORCHWALK_STAGE names a folder whose files go on the disc (the demo reads TWTEX.BIN from it if it is there); without it the demo makes its own textures.
 .PHONY: torchwalk-ab
-TORCHWALK_AB_CDI ?= $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.cdi
+TORCHWALK_AB_CDI ?= $(CDI_DIR)/sh4der-torchwalk-ab.cdi
 TORCHWALK_STAGE ?=
 torchwalk-ab: $(TORCHWALK_AB_CDI)
 $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.elf: demo/torchwalk_ab.c include/sh4der_bump.h $(BUILD)/libsh4der_core.a
@@ -536,6 +543,7 @@ $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.elf: demo/torchwalk_ab.c include/sh4de
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) demo/torchwalk_ab.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 $(TORCHWALK_AB_CDI): $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	@mkdir -p $(dir $@)
 	$(MKDCDISC) -e $< $(if $(TORCHWALK_STAGE),-D "$(TORCHWALK_STAGE)") -o $@ -N -n SH4DER-TORCHWALK-AB
 
 # Perspective shadow maps on the Dreamcast, two routes side by side (demo/psm/psm_dc.c): route A, the PVR draws the map into
@@ -545,7 +553,7 @@ $(TORCHWALK_AB_CDI): $(BUILD)/torchwalk_ab/sh4der-torchwalk-ab.elf
 # The image boots into the town square (demo/psm/psm_town.h, the SCENE row), whose mesh is the bake rule above.
 # An existing image is never replaced: a new build takes a new PSM_DC_CDI name.
 .PHONY: psm-dc
-PSM_DC_CDI   ?= $(BUILD)/psm_dc/sh4der-psm-ab-b1.cdi
+PSM_DC_CDI   ?= $(CDI_DIR)/sh4der-psm-ab-b1.cdi
 PSM_COW_TRIS ?= 400
 PSM_COW_OBJ   = demo/psm/assets/_dl/spot.obj
 PSM_COW_H     = $(BUILD)/psm_dc/psm_cow.h
@@ -559,6 +567,7 @@ $(BUILD)/psm_dc/sh4der-psm-ab.elf: demo/psm/psm_dc.c demo/psm/psm_mapsrc.h inclu
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -Idemo/psm $(PSM_COW_FLAGS) $(PSM_TOWN_INC) $(PSM_SQUARE_FLAGS) $(PSM_DC_EXTRA) demo/psm/psm_dc.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 $(PSM_DC_CDI): $(BUILD)/psm_dc/sh4der-psm-ab.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	@mkdir -p $(dir $@)
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-PSM-AB
 
 # Cloud fly-through (include/sh4der_cloudvolume.h): the host preview of demo/cloudvolume.c. It marches the clouds into the small
@@ -573,7 +582,7 @@ cloudvolume-preview: $(BUILD)/cloudvolume-preview
 # The Dreamcast program of the same file: the clouds, a PVR sky and the ocean demo's water under them, with rows of settings.
 # CLOUDVOLUME_CDI names the image; an existing image is never replaced (a new build takes a new number).
 .PHONY: cloudvolume
-CLOUDVOLUME_CDI ?= $(BUILD)/cloudvolume/sh4der-cloudvolume-b1.cdi
+CLOUDVOLUME_CDI ?= $(CDI_DIR)/sh4der-cloudvolume-b1.cdi
 cloudvolume: $(CLOUDVOLUME_CDI)
 $(BUILD)/cloudvolume/sh4der-cloudvolume.elf: demo/cloudvolume.c include/sh4der_cloudvolume.h $(OCEAN_HEADERS) $(BUILD)/libsh4der_core.a
 	@test -n "$(SH4ZAM_DCE)" || { echo "set SH4ZAM_DCE to your SH4ZAM-DCE checkout"; exit 1; }
@@ -581,4 +590,5 @@ $(BUILD)/cloudvolume/sh4der-cloudvolume.elf: demo/cloudvolume.c include/sh4der_c
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) demo/cloudvolume.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 $(CLOUDVOLUME_CDI): $(BUILD)/cloudvolume/sh4der-cloudvolume.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
+	@mkdir -p $(dir $@)
 	$(MKDCDISC) -e $< -o $@ -N -n SH4DER-CLOUDS

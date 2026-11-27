@@ -1945,7 +1945,7 @@ SH4DOW-DC's origin is in the "Credits and license" section below.
 Build the disc image:
 
 ```sh
-make demo SH4ZAM=/path/to/sh4zam            # build/demo/sh4der-demo.cdi
+make demo SH4ZAM=/path/to/sh4zam            # out/cdi/sh4der-demo.cdi
 make dc DEMO=1 SH4ZAM=/path/to/sh4zam       # the library, and with the flag DEMO=1 the demo disc as well
 ```
 

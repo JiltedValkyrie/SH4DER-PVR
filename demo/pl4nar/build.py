@@ -189,7 +189,7 @@ def main():
     ap.add_argument("--sh4zam", default=os.environ.get("SH4ZAM", ""))
     ap.add_argument("--blender", default=os.environ.get("BLENDER", "blender"))
     ap.add_argument("--mkdcdisc", default=os.environ.get("MKDCDISC", "mkdcdisc"))
-    ap.add_argument("--out", default=os.path.join(ROOT, "out"))
+    ap.add_argument("--out", default=os.path.normpath(os.path.join(ROOT, "..", "..", "out", "cdi")))
     ap.add_argument("--rtt", action="store_true", help="the KallistiOS in use has pvr_scene_begin_rtt")
     ap.add_argument("--pin", action="store_true", help="accept packs that have no sha256 in the table yet")
     ap.add_argument("--jobs", type=int, default=os.cpu_count() or 2)

@@ -7,7 +7,7 @@
 One disc: a menu the console boots, and every test as a file the menu starts (../psm_suite.h). This script builds no
 test: it takes each test's ELF as its own build made it, named in the table, and checks what can be checked on a host.
 Run it in a shell where the KallistiOS environment is sourced. It fetches nothing and touches no file outside --out
-(default build/psm_suite/<tag>) and --cdi-dir (default demo/psm/out/cdi; git ignores it).
+(default build/psm_suite/<tag>) and --cdi-dir (default out/cdi at the top of the repository; git ignores it).
 
 The table is JSON: {"tests": [{"name", "file", "elf", "order", "what", "read", "group", "credits"}, ...]}
   name   up to 10 characters, shown in the menu     file   the name on the disc, 8.3, upper case, .BIN
@@ -291,7 +291,7 @@ def main():
     ap.add_argument("--tag", required=True)
     ap.add_argument("--list", required=True)
     ap.add_argument("--out", default=None)
-    ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "demo", "psm", "out", "cdi"))
+    ap.add_argument("--cdi-dir", default=os.path.join(ROOT, "out", "cdi"))
     ap.add_argument("--mkdcdisc", default=os.environ.get("MKDCDISC", "mkdcdisc"))
     ap.add_argument("--host-cc", default=os.environ.get("HOST_CC", "gcc"))
     ap.add_argument("--host-only", action="store_true")
