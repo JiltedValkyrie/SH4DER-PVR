@@ -118,6 +118,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [methods/sh4zam-rule.md](methods/sh4zam-rule.md) | The SH4ZAM rule | method, sh4 | 2026-11-26 | why all maths goes through SH4ZAM, what to do when SH4ZAM has no call for it, and what counts as "slow".
 - [methods/suite-12.md](methods/suite-12.md) | Suite 12: what each program tests and what to read | method, suite, run, ledger | 2026-11-25 | what each program on the suite 12 disc shows, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to. IDs BUS-054 to VID-017 (11 rows).
 - [methods/suite-13.md](methods/suite-13.md) | Suite 13: what each program tests and what to read | method, suite, run, ledger | 2026-11-25 | what each program on the suite 13 disc should show, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to. IDs BUS-054 to VID-017 (9 rows).
+- [methods/suite-14.md](methods/suite-14.md) | Suite 14: the menu, the hold of A, and what to look for | method, suite, run, ledger, menu | 2026-11-26 | what is on the suite 14 disc, which programs hold A on the last page, and what to check when the owner runs it
 
 ## research
 
