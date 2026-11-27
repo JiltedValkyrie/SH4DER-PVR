@@ -1,0 +1,662 @@
+{
+  "note": "sh4der-pvr-suite14: suite 13's thirteen programs plus the heat haze street demo (passed FINAL by the owner, 2026-11-26), with the fields of the menu look B v7: menu_group, effects (main first), card, the By Effect rows (effect_headings) and the Not in the menu row. Card text: Scholar's final cards (owner approved). NOT RUN on a console.",
+  "menu_groups": [
+    "Driving",
+    "Rooms and light",
+    "Characters",
+    "Town",
+    "Tools"
+  ],
+  "tests": [
+    {
+      "name": "ao4",
+      "file": "AO4.BIN",
+      "elf": "build/psm_ao/psm-ao4-j.elf",
+      "order": 1,
+      "what": "AO side by side; clip guard; tile cut last. 110 s",
+      "read": "photo ALL 4 pages+graph; stages 16, 17 (GUARD label)",
+      "group": "demos",
+      "title": "Room shading, four ways",
+      "shows": "corner shading: none, baked, ground, texture",
+      "menu_group": "Rooms and light",
+      "effects": [
+        {
+          "heading": "BAKED CORNER SHADING",
+          "text": "Baked corner shading (main)"
+        },
+        {
+          "heading": "SKY SHADING",
+          "text": "Sky shading"
+        }
+      ],
+      "card": {
+        "what": "The same room four times side by side, each with a different way of darkening the corners.",
+        "controls": "Automatic run, about 110 seconds. A+B+X+Y goes back to the menu.",
+        "cost": "Measured on one console: the bake at load takes 254 ms for scene A and 393 ms for scene B."
+      }
+    },
+    {
+      "name": "ao-lamp",
+      "file": "AOLAMP.BIN",
+      "elf": "build/psm_ao/psm-lamp-d.elf",
+      "order": 2,
+      "what": "lamp: sss shade, halo; slots in stage 3. ~35 s",
+      "read": "photo pages+graph; live: X compare, A near, dn inside",
+      "group": "demos",
+      "title": "Lamp with a lit shade",
+      "shows": "light through a thin shade, glow halo",
+      "menu_group": "Rooms and light",
+      "effects": [
+        {
+          "heading": "LIGHT THROUGH THIN PARTS",
+          "text": "Light through thin parts (main)"
+        },
+        {
+          "heading": "MESH BLOOM",
+          "text": "Mesh bloom"
+        }
+      ],
+      "card": {
+        "what": "A lamp whose shade lets light through its thin parts, with a glow round the lamp.",
+        "controls": "Automatic run, about 35 seconds. Live: X compares, A goes near, down goes inside.",
+        "cost": "Measured on one console in the lamp program's own loop: the glow round the lamp takes about 0.2 ms."
+      }
+    },
+    {
+      "name": "hero1",
+      "file": "HERO1.BIN",
+      "elf": "build/hero_senior/h3a/sh4der-psm-hero1-h3a.elf",
+      "order": 3,
+      "what": "Space soldier, street, hens. ~35 s",
+      "read": "he and his shadow stay on screen; photo every page",
+      "group": "demos",
+      "credits": "space",
+      "title": "Space soldier on a street",
+      "shows": "running figure, his shadow, hangars, long street",
+      "menu_group": "Characters",
+      "effects": [
+        {
+          "heading": "SUN SHADOW MAP",
+          "text": "Sun shadow map (main)"
+        }
+      ],
+      "card": {
+        "what": "A figure running down a long street with his shadow, hangars and hens beside the road.",
+        "controls": "Automatic run, about 35 seconds. A+B+X+Y goes back to the menu.",
+        "cost": "Measured on one console in an earlier build: about 19 ms a frame when idle."
+      }
+    },
+    {
+      "name": "d1",
+      "file": "D1.BIN",
+      "elf": "build/psm_ao/psm-d1-d.elf",
+      "order": 1,
+      "what": "depth fade: glow cut by walls, soft right. ~70 s",
+      "read": "film it all; pages after. Left half steady from stage 3?",
+      "group": "tools",
+      "title": "Glow that meets a wall",
+      "shows": "a glow that fades where it meets a wall",
+      "menu_group": "Rooms and light",
+      "effects": [
+        {
+          "heading": "DEPTH FADE (TEST)",
+          "text": "Depth fade, a test program (main)"
+        }
+      ],
+      "card": {
+        "what": "A glow that fades where it meets a wall, instead of stopping on a hard line.",
+        "controls": "Automatic run, about 70 seconds. A+B+X+Y goes back to the menu.",
+        "cost": "Measured on one console in an earlier build of this test: the fade's depth map cost about 3.7 ms a frame."
+      }
+    },
+    {
+      "name": "hens-eyes",
+      "file": "HENEYES.BIN",
+      "elf": "build/psm_ao/psm-hen-e.elf",
+      "order": 2,
+      "what": "hens: rays vs collision sweep, cycles. ~50 s",
+      "read": "photo every page + graph; START = live: X mode, Y hens",
+      "group": "tools",
+      "title": "Hens that see the room",
+      "shows": "two ways to steer hens, and what each costs",
+      "menu_group": "Characters",
+      "effects": [
+        {
+          "heading": "STEERING BY RAYS",
+          "text": "Steering by rays (main)"
+        }
+      ],
+      "card": {
+        "what": "Two ways to steer hens round a room, side by side, with what each one costs.",
+        "controls": "Automatic run, about 50 seconds. START opens live: X changes mode, Y the hens."
+      }
+    },
+    {
+      "name": "pvr-dma",
+      "file": "PVRDMA.BIN",
+      "elf": "build/psm_ao/psm-pd-d.elf",
+      "order": 3,
+      "what": "PVR-DMA download proof: VRAM to RAM. ~2 s",
+      "read": "PVR-DMA download proof: photo the page and the graph",
+      "group": "tools",
+      "title": "Copy video memory to RAM",
+      "shows": "a fast copy by the graphics chip, checked",
+      "menu_group": "Tools",
+      "effects": [
+        {
+          "heading": "VIDEO MEMORY COPY",
+          "text": "Video memory copy (main)"
+        }
+      ],
+      "card": {
+        "what": "A fast copy of picture memory into RAM by the graphics chip, checked against the original.",
+        "controls": "Automatic, about 2 seconds, then the result pages. A+B+X+Y goes back to the menu.",
+        "cost": "Measured on one console in an earlier copy test: about 25 MB/s for a polled copy."
+      }
+    },
+    {
+      "name": "car-tech",
+      "file": "CARTECH.BIN",
+      "elf": "demo/pl4nar/build/pl4m_tech-map-12/sh4der-pl4m-tech-map-12.elf",
+      "order": 4,
+      "what": "car map autorun: shadow, heat fly-by. ~56 s",
+      "read": "photo every page; 8 stages; stage 2 fly-by",
+      "group": "demos",
+      "credits": "pl4nar",
+      "title": "Car in a city by day",
+      "shows": "reflection, car shadow, corner shading, heat haze",
+      "menu_group": "Driving",
+      "effects": [
+        {
+          "heading": "PLANAR REFLECTION",
+          "text": "Planar reflection (main)"
+        },
+        {
+          "heading": "SUN SHADOW MAP",
+          "text": "Sun shadow map"
+        },
+        {
+          "heading": "ROAD CORNER SHADING",
+          "text": "Road corner shading, baked by the host tool"
+        },
+        {
+          "heading": "HEAT HAZE",
+          "text": "Heat haze (older layer, some stages)"
+        }
+      ],
+      "card": {
+        "what": "An automatic run down a city street by day, with the car's reflection, its shadow and corner shading.",
+        "controls": "Automatic run, about 56 seconds. A+B+X+Y goes back to the menu.",
+        "cost": "Earlier build of the street demo, measured on one console: 18 to 26 ms a frame."
+      }
+    },
+    {
+      "name": "car-hills",
+      "file": "CARHILL.BIN",
+      "elf": "demo/pl4nar/build/pl4m_tech-hills-13/sh4der-pl4m-tech-hills-13.elf",
+      "order": 5,
+      "what": "car hills autorun: shadow, heat fly-by. ~63 s",
+      "read": "photo every page; 9 stages; stage 4 fly-by",
+      "group": "demos",
+      "credits": "pl4nar",
+      "title": "Car on hills",
+      "shows": "car shadow on sloped ground, reflection",
+      "menu_group": "Driving",
+      "effects": [
+        {
+          "heading": "SUN SHADOW MAP",
+          "text": "Sun shadow map (main)"
+        },
+        {
+          "heading": "PLANAR REFLECTION",
+          "text": "Planar reflection"
+        }
+      ],
+      "card": {
+        "what": "An automatic run with the car on a sloped road, showing its shadow on the slope and its reflection.",
+        "controls": "Automatic run, about 63 seconds. A+B+X+Y goes back to the menu.",
+        "cost": "Earlier build of the hills map, measured on one console: 53 to 57 frames a second."
+      }
+    },
+    {
+      "name": "car-wet",
+      "file": "CARWET.BIN",
+      "elf": "demo/pl4nar/build/pl4m_wet-14/sh4der-pl4m-wet-14.elf",
+      "order": 6,
+      "what": "wet night road autorun. ~35 s + pages",
+      "read": "photo every page; reflection pool, grit, rain",
+      "group": "demos",
+      "credits": "pl4nar",
+      "title": "Car on a wet night road",
+      "shows": "rain, wet road, light pools, reflection, grit",
+      "menu_group": "Driving",
+      "effects": [
+        {
+          "heading": "LIGHT POOLS",
+          "text": "Light pools (main)"
+        },
+        {
+          "heading": "PLANAR REFLECTION",
+          "text": "Planar reflection"
+        },
+        {
+          "heading": "WET ROAD GRIT",
+          "text": "Wet road grit"
+        }
+      ],
+      "card": {
+        "what": "An automatic run on a wet road at night: rain, the car in the wet road, lamp pools and grit.",
+        "controls": "Automatic run, about 35 seconds. A+B+X+Y goes back to the menu."
+      }
+    },
+    {
+      "name": "drive-map",
+      "file": "DRVMAP.BIN",
+      "elf": "demo/pl4nar/build/pl4m_drive-map-15/sh4der-pl4m-drive-map-15.elf",
+      "order": 0,
+      "what": "DRIVE the car: map. Live, you play",
+      "read": "B+Y hides the HUD, START brings it back; ABXY = menu",
+      "group": "demos",
+      "credits": "pl4nar",
+      "title": "Drive a car in a city",
+      "shows": "you drive: reflection, shadow, low camera",
+      "menu_group": "Driving",
+      "effects": [
+        {
+          "heading": "PLANAR REFLECTION",
+          "text": "Planar reflection (main)"
+        },
+        {
+          "heading": "SUN SHADOW MAP",
+          "text": "Sun shadow map"
+        }
+      ],
+      "card": {
+        "what": "You drive the car down the city street, with its reflection and shadow on.",
+        "controls": "You drive. B+Y hides the panel; START brings it back. A+B+X+Y goes back to the menu.",
+        "cost": "Earlier build of the street demo, measured on one console: 18 to 26 ms a frame."
+      }
+    },
+    {
+      "name": "drv-hills",
+      "file": "DRVHILL.BIN",
+      "elf": "demo/pl4nar/build/pl4m_drive-hills-16/sh4der-pl4m-drive-hills-16.elf",
+      "order": 0,
+      "what": "DRIVE the car: hills. Live",
+      "read": "lights stay on slopes; B+Y hides HUD; ABXY = menu",
+      "group": "demos",
+      "credits": "pl4nar",
+      "title": "Drive a car on hills",
+      "shows": "you drive: slopes, lights that stay on the car",
+      "menu_group": "Driving",
+      "effects": [
+        {
+          "heading": "LIGHT POOLS",
+          "text": "Light pools (main)"
+        }
+      ],
+      "card": {
+        "what": "You drive the car on the hills. Light pools lie on the road as it slopes.",
+        "controls": "You drive. B+Y hides the panel. A+B+X+Y goes back to the menu.",
+        "cost": "Earlier build of the hills map, measured on one console: 53 to 57 frames a second."
+      }
+    },
+    {
+      "name": "drv-wet",
+      "file": "DRVWET.BIN",
+      "elf": "demo/pl4nar/build/pl4m_live-wet-17/sh4der-pl4m-live-wet-17.elf",
+      "order": 0,
+      "what": "DRIVE the wet night road. Live",
+      "read": "Y rain; B+Y hides HUD; ABXY = menu",
+      "group": "demos",
+      "credits": "pl4nar",
+      "title": "Drive a wet night road",
+      "shows": "you drive: rain, light pools, wet road",
+      "menu_group": "Driving",
+      "effects": [
+        {
+          "heading": "LIGHT POOLS",
+          "text": "Light pools (main)"
+        },
+        {
+          "heading": "WET ROAD GRIT",
+          "text": "Wet road grit"
+        }
+      ],
+      "card": {
+        "what": "You drive on a wet night road, with rain, light pools and the wet road itself.",
+        "controls": "You drive. Y makes rain. B+Y hides the panel. A+B+X+Y goes back to the menu."
+      }
+    },
+    {
+      "name": "square",
+      "file": "SQUARE.BIN",
+      "elf": "build/sq_senior/sh4der-square-a5.elf",
+      "order": 0,
+      "what": "Walled square, AO on. Y+A hides the HUD",
+      "read": "walls darken at the foot; START, VIEW, AO row off compares",
+      "group": "demos",
+      "credits": "square",
+      "title": "Walled town square",
+      "shows": "AO, sun shadows, hens, Y+A hides HUD",
+      "menu_group": "Town",
+      "effects": [
+        {
+          "heading": "CORNER SHADING (SQUARE)",
+          "text": "Corner shading (square) (main)"
+        },
+        {
+          "heading": "SUN SHADOW MAP",
+          "text": "Sun shadow map"
+        }
+      ],
+      "card": {
+        "what": "A walled square with stalls, a fountain and hens, with baked corner shading and sun shadows.",
+        "controls": "Walk it. Y+A hides the panel. START, VIEW and the AO row compare the corners."
+      }
+    },
+    {
+      "name": "heat-haze",
+      "file": "HEAT.BIN",
+      "elf": "demo/pl4nar/build/pl4m_heat-standalone-25/sh4der-pl4m-heat-standalone-25.elf",
+      "order": 0,
+      "what": "Heat haze hexagons on a hill street. Live",
+      "read": "X heat off/light/strong, A restart, B+X fly-by, START tech",
+      "group": "demos",
+      "credits": "pl4nar",
+      "title": "Heat haze on a hot road",
+      "shows": "hot air shimmers over the road ahead",
+      "menu_group": "Driving",
+      "effects": [
+        {
+          "heading": "HEAT HAZE",
+          "text": "Heat haze (main)"
+        }
+      ],
+      "card": {
+        "what": "A shimmer of hot air over the road ahead, drawn over the picture of the road.",
+        "controls": "X steps the heat: off, light, strong. It starts on."
+      }
+    }
+  ],
+  "effect_headings": [
+    {
+      "heading": "BAKED CORNER SHADING",
+      "demos": [
+        "ao4"
+      ]
+    },
+    {
+      "heading": "CORNER SHADING (SQUARE)",
+      "demos": [
+        "square"
+      ]
+    },
+    {
+      "heading": "DEPTH FADE (TEST)",
+      "demos": [
+        "d1"
+      ]
+    },
+    {
+      "heading": "HEAT HAZE",
+      "demos": [
+        "heat-haze",
+        "car-tech"
+      ]
+    },
+    {
+      "heading": "LIGHT POOLS",
+      "demos": [
+        "car-wet",
+        "drv-hills",
+        "drv-wet"
+      ]
+    },
+    {
+      "heading": "LIGHT THROUGH THIN PARTS",
+      "demos": [
+        "ao-lamp"
+      ]
+    },
+    {
+      "heading": "MESH BLOOM",
+      "demos": [
+        "ao-lamp"
+      ]
+    },
+    {
+      "heading": "PLANAR REFLECTION",
+      "demos": [
+        "car-tech",
+        "drive-map",
+        "car-wet",
+        "car-hills"
+      ]
+    },
+    {
+      "heading": "ROAD CORNER SHADING",
+      "demos": [
+        "car-tech"
+      ]
+    },
+    {
+      "heading": "SKY SHADING",
+      "demos": [
+        "ao4"
+      ]
+    },
+    {
+      "heading": "STEERING BY RAYS",
+      "demos": [
+        "hens-eyes"
+      ]
+    },
+    {
+      "heading": "SUN SHADOW MAP",
+      "demos": [
+        "car-hills",
+        "hero1",
+        "car-tech",
+        "drive-map",
+        "square"
+      ]
+    },
+    {
+      "heading": "VIDEO MEMORY COPY",
+      "demos": [
+        "pvr-dma"
+      ]
+    },
+    {
+      "heading": "WET ROAD GRIT",
+      "demos": [
+        "car-wet",
+        "drv-wet"
+      ]
+    }
+  ],
+  "not_in_menu": {
+    "subtitle": "Not a demo: nothing to run.",
+    "intro": "These effects are in the library, but this menu has no demo for them. Each line says where else the effect is shown.",
+    "items": [
+      {
+        "name": "Shadow map on the SH-4",
+        "also_shown_in": [
+          "Town shadow demo"
+        ]
+      },
+      {
+        "name": "Shadow map by the PVR",
+        "also_shown_in": [
+          "Town shadow demo"
+        ]
+      },
+      {
+        "name": "Corner darkening",
+        "also_shown_in": []
+      },
+      {
+        "name": "Mesh corner shading",
+        "also_shown_in": []
+      },
+      {
+        "name": "Soft character shadows",
+        "also_shown_in": [
+          "Demo disc"
+        ]
+      },
+      {
+        "name": "Glowing tubes",
+        "also_shown_in": []
+      },
+      {
+        "name": "Screen bloom",
+        "also_shown_in": [
+          "Demo disc"
+        ]
+      },
+      {
+        "name": "Screen spotlight",
+        "also_shown_in": [
+          "Torch walk",
+          "Demo disc"
+        ]
+      },
+      {
+        "name": "Dark shafts of light",
+        "also_shown_in": [
+          "Demo disc"
+        ]
+      },
+      {
+        "name": "Soft edges for light",
+        "also_shown_in": []
+      },
+      {
+        "name": "Sparks and tracers",
+        "also_shown_in": [
+          "Street car demo",
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Lightning",
+        "also_shown_in": []
+      },
+      {
+        "name": "Water waves",
+        "also_shown_in": [
+          "Sunset sea"
+        ]
+      },
+      {
+        "name": "Mist bank",
+        "also_shown_in": [
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Drifting specks",
+        "also_shown_in": [
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Rising lights",
+        "also_shown_in": [
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Cloud deck",
+        "also_shown_in": []
+      },
+      {
+        "name": "Dented ground",
+        "also_shown_in": [
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Sharp floors at an angle",
+        "also_shown_in": []
+      },
+      {
+        "name": "Paving slab texture",
+        "also_shown_in": []
+      },
+      {
+        "name": "Normal map",
+        "also_shown_in": [
+          "Torch walk"
+        ]
+      },
+      {
+        "name": "Texture ripple",
+        "also_shown_in": []
+      },
+      {
+        "name": "Inner light",
+        "also_shown_in": []
+      },
+      {
+        "name": "Exposure and grade",
+        "also_shown_in": [
+          "Demo disc"
+        ]
+      },
+      {
+        "name": "Smooth edges over time",
+        "also_shown_in": [
+          "Demo disc",
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Motion blur",
+        "also_shown_in": []
+      },
+      {
+        "name": "Screen overlays",
+        "also_shown_in": [
+          "Match Light",
+          "Torch walk"
+        ]
+      },
+      {
+        "name": "Screen warp",
+        "also_shown_in": []
+      },
+      {
+        "name": "Colour fringe",
+        "also_shown_in": [
+          "Demo disc",
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Old film wear",
+        "also_shown_in": [
+          "Match Light"
+        ]
+      },
+      {
+        "name": "Tape wobble",
+        "also_shown_in": []
+      },
+      {
+        "name": "Screen filters",
+        "also_shown_in": []
+      },
+      {
+        "name": "Fake focus blur",
+        "also_shown_in": []
+      },
+      {
+        "name": "Split screen",
+        "also_shown_in": []
+      }
+    ]
+  }
+}

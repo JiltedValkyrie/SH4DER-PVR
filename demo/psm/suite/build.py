@@ -22,6 +22,12 @@ psm-suite). --image is the image's whole file name in --cdi-dir, in place of <pr
 overwritten). demo/demos_disc.py gives all three: the examples disc is SH4DER-PVR-Examples.cdi.
   what   one line, up to 49 characters: what the test does and about how long
   read   one line, up to 59 characters: what to photograph
+The menu look B v7 (suite_14.json on) adds, checked by check_menu (demo/psm/suite/test/suite_list_test.py):
+  menu_group  one of the table's "menu_groups" (By Demo); the order in a group is the table's order
+  effects     [{"name": the card's plain name, "heading": its By Effect row}], the main effect first
+  card        {"what", "controls", "cost"}: plain sentences; cost only where a number was measured; no ledger IDs
+  top level   "effect_headings" [{"heading" (24 characters at most), "demos" (names, best first)}] and
+              "not_in_menu" {"title", "subtitle", "intro", "items" [{"name", "also_shown_in": [...]}]} (34 names)
 
 Steps, each refusing to go on when it fails:
   1 host tests  test/suite_test.c (finding the mail in an image), test/suite_nav_test.c (the menu's screens and
@@ -132,6 +138,150 @@ def check_binary(name, elf, binp):
     return {"bytes": os.path.getsize(binp), "returns": total == 1, "end": hi, "sha256": sha256(binp)}
 
 
+LEDGER_ID = re.compile(r"\b[A-Z]{2,6}-\d{3}\b")   # a ledger ID (PVR-160, SH4-076): wiki only, never on a card
+NOT_IN_MENU_N = 34                                 # the names in the Not in the menu row (menu look B v7)
+MENU_GROUPS = ["Driving", "Rooms and light", "Characters", "Town", "Tools"]   # By Demo, in this order (suite_view.h)
+TAB_ROWS_MAX = 250                                 # rows a tab the menu holds (headings and rows)
+
+
+def check_menu(doc):
+    """The menu fields of a table (look B v7: suite_14.json on). A table without them (suite_13 and before) passes as
+    it is. Returns a list of lines saying what is wrong; empty when the table is right."""
+    tests, bad = doc["tests"], []
+    if "effect_headings" not in doc and not any("menu_group" in t for t in tests):
+        return bad
+    groups = doc.get("menu_groups", [])
+    rows = {r["heading"]: r["demos"] for r in doc.get("effect_headings", [])}
+    names = [t["name"] for t in tests]
+    if len(rows) != len(doc.get("effect_headings", [])):
+        bad.append("effect_headings: a heading is there twice")
+    if groups != MENU_GROUPS:
+        bad.append("menu_groups must be %r, in that order" % (MENU_GROUPS,))
+    heads = [r["heading"] for r in doc.get("effect_headings", [])]
+    if heads != sorted(heads):
+        bad.append("effect_headings: not in alphabetical order")
+    for h, demos in rows.items():
+        if len(h) > 24 or h != h.upper():
+            bad.append("effect heading %r: over 24 characters or not upper case" % h)
+        if not demos:
+            bad.append("effect heading %r: no demo (only effects with a demo are rows)" % h)
+        for n in demos:
+            if n not in names:
+                bad.append("effect heading %r: no test named %r" % (h, n))
+    for t in tests:
+        who = t["name"]
+        for key in ("menu_group", "effects", "card"):
+            if key not in t:
+                bad.append("%s: no %r" % (who, key))
+        if "menu_group" in t and t["menu_group"] not in groups:
+            bad.append("%s: menu_group %r is not one of menu_groups" % (who, t["menu_group"]))
+        if not t.get("title") or len(t["title"]) > 25:
+            bad.append("%s: title missing or over 25 characters" % who)
+        effs = t.get("effects", [])
+        if not effs:
+            bad.append("%s: no effect" % who)
+        for e in effs:
+            if "text" in e and not e["text"]:
+                bad.append("%s: an effect with an empty text" % who)
+            if e.get("heading") not in rows:
+                bad.append("%s: effect %r has no row in effect_headings" % (who, e.get("heading")))
+            elif who not in rows[e["heading"]]:
+                bad.append("%s: the row %r does not list it" % (who, e["heading"]))
+        for h, demos in rows.items():
+            if who in demos and h not in [e.get("heading") for e in effs]:
+                bad.append("%s: listed under %r but has no such effect" % (who, h))
+        card = t.get("card", {})
+        for key in ("what", "controls"):
+            if not card.get(key):
+                bad.append("%s: card has no %r" % (who, key))
+        for key, text in card.items():
+            if LEDGER_ID.search(text) or "NOT RUN" in text:
+                bad.append("%s: card %s carries a ledger ID or NOT RUN (status and IDs are not card data)" % (who, key))
+    ni = doc.get("not_in_menu", {})
+    items = ni.get("items", [])
+    if len(items) != NOT_IN_MENU_N:
+        bad.append("not_in_menu: %d names, not %d" % (len(items), NOT_IN_MENU_N))
+    if len(set(i.get("name") for i in items)) != len(items):
+        bad.append("not_in_menu: a name is there twice")
+    for i in items:
+        if not i.get("name") or not isinstance(i.get("also_shown_in", []), list):
+            bad.append("not_in_menu: an entry with no name, or also_shown_in not a list")
+    if not ni.get("subtitle") or not ni.get("intro"):
+        bad.append("not_in_menu: no subtitle or intro")
+    by_demo = len(set(t.get("menu_group") for t in tests)) + len(tests)
+    by_effect = len(rows) + sum(len(d) for d in rows.values()) + 1 + len(items)
+    if by_demo > TAB_ROWS_MAX or by_effect > TAB_ROWS_MAX:
+        bad.append("a tab over %d rows (By Demo %d, By Effect %d)" % (TAB_ROWS_MAX, by_demo, by_effect))
+    for path, text in menu_texts(doc):
+        if any(not 32 <= ord(ch) <= 126 for ch in text):
+            bad.append("%s: a character outside ASCII 32 .. 126 (the font has nothing else)" % path)
+    return bad
+
+
+def menu_texts(doc):
+    """(where, text) for every string the menu shows."""
+    for t in doc["tests"]:
+        yield "%s title" % t["name"], t.get("title", "")
+        for e in t.get("effects", []):
+            yield "%s effect" % t["name"], fx_text(t, e)
+        for k, v in t.get("card", {}).items():
+            yield "%s card %s" % (t["name"], k), v
+    for r in doc.get("effect_headings", []):
+        yield "heading", r["heading"]
+    ni = doc.get("not_in_menu", {})
+    for k in ("subtitle", "intro"):
+        yield "not_in_menu %s" % k, ni.get(k, "")
+    for i in ni.get("items", []):
+        yield "not_in_menu item", nim_text(i)
+
+
+def fx_text(t, e):
+    """An effect's bullet: its text, or its heading in sentence case with " (main)" on the first."""
+    if e.get("text"):
+        return e["text"]
+    h = e.get("heading", "")
+    return h[:1] + h[1:].lower() + (" (main)" if t["effects"] and t["effects"][0] is e else "")
+
+
+def nim_text(i):
+    return i["name"] + (" (also shown in: %s)" % "; ".join(i["also_shown_in"]) if i.get("also_shown_in") else "")
+
+
+def write_cards(doc, path, list_name):
+    """<out>/suite_cards.h: the menu's cards, its By Effect rows and the Not in the menu row, data only; the types are
+    the menu's (suite_view.h). The same index as suite_list."""
+    tests = doc["tests"]
+    index = {t["name"]: k for k, t in enumerate(tests)}
+    with open(path, "w", encoding="ascii", newline="\n") as f:
+        f.write("/* Written by demo/psm/suite/build.py from %s. Do not edit. */\n" % list_name)
+        f.write("#define SUITE_GROUPS_N %uu\n" % len(MENU_GROUPS))
+        f.write("static const char *const suite_group_name[SUITE_GROUPS_N] = { %s };\n" % ", ".join(c_str(g.upper()) for g in MENU_GROUPS))
+        for k, t in enumerate(tests):
+            f.write("static const char *const suite_card_fx_%u[] = { %s };\n" % (k, ", ".join(c_str(fx_text(t, e)) for e in t["effects"])))
+        f.write("static const suite_card_t suite_card[SUITE_N] = {\n")
+        for k, t in enumerate(tests):
+            c = t["card"]
+            f.write("    { %uu, %uu, suite_card_fx_%u, %s, %s, %s },\n" % (MENU_GROUPS.index(t["menu_group"]), len(t["effects"]), k,
+                                                                    c_str(c["what"]), c_str(c["controls"]), c_str(c["cost"]) if c.get("cost") else "0"))
+        f.write("};\n")
+        rows = doc["effect_headings"]
+        f.write("#define SUITE_FX_N %uu\n" % len(rows))
+        for k, r in enumerate(rows):
+            f.write("static const unsigned char suite_fx_d_%u[] = { %s };\n" % (k, ", ".join("%uu" % index[n] for n in r["demos"])))
+        f.write("static const suite_fx_t suite_fx[SUITE_FX_N] = {\n")
+        for k, r in enumerate(rows):
+            f.write("    { %s, %uu, suite_fx_d_%u },\n" % (c_str(r["heading"]), len(r["demos"]), k))
+        f.write("};\n")
+        ni = doc["not_in_menu"]
+        f.write("#define SUITE_NIM_N %uu\n" % len(ni["items"]))
+        f.write("static const char suite_nim_subtitle[] = %s;\n" % c_str(ni["subtitle"]))
+        f.write("static const char suite_nim_intro[] = %s;\n" % c_str(ni["intro"]))
+        f.write("static const char *const suite_nim_item[SUITE_NIM_N] = {\n")
+        for i in ni["items"]:
+            f.write("    %s,\n" % c_str(nim_text(i)))
+        f.write("};\n")
+
+
 def c_str(s):
     return '"%s"' % s.replace("\\", "\\\\").replace('"', '\\"')
 
@@ -175,7 +325,11 @@ def main():
         return 0
 
     with open(a.list, encoding="utf-8") as f:
-        tests = json.load(f)["tests"]
+        doc = json.load(f)
+    tests = doc["tests"]
+    bad = check_menu(doc)
+    if bad:
+        raise SystemExit("the menu fields of %s:\n  %s" % (a.list, "\n  ".join(bad)))
     kos_cc, objcopy = find_kos_cc(), find_tool("sh-elf-objcopy")
     if not os.environ.get("KOS_BASE") or not kos_cc or not objcopy:
         raise SystemExit("kos-cc or sh-elf-objcopy is not on the PATH, or KOS_BASE is not set: source the KallistiOS environment first")
@@ -216,7 +370,9 @@ def main():
             f.write("    { %s, %s, %s, %s, %uu, %uu, %uu, %uu, %s, %s },\n" % (c_str(t["file"]), c_str(t["name"]), c_str(t["what"]), c_str(t["read"]), t["order"], int(t["returns"]), t["bytes"],
                                                                  GROUPS[t["group"]], c_str(t["title"]) if t.get("title") else "0", c_str(t["shows"]) if t.get("shows") else "0"))
         f.write("};\n")
-    menu_elf, menu_bin = os.path.join(out, "%s-%s.elf" % (a.prefix, a.tag)), os.path.join(disc, "MENU.BIN")
+    if "effect_headings" in doc:
+        write_cards(doc, os.path.join(out, "suite_cards.h"), os.path.basename(a.list))
+    menu_elf, menu_bin =os.path.join(out, "%s-%s.elf" % (a.prefix, a.tag)), os.path.join(disc, "MENU.BIN")
     if os.path.isfile(os.path.join(ROOT, "third_party", "sh4zam", "LICENSE")):
         run("3 credits", [sys.executable, os.path.join(ROOT, "tools", "make_credits.py"), "--check", "--kos", os.environ["KOS_BASE"]])
     else:

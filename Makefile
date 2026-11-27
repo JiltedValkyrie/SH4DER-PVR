@@ -246,6 +246,7 @@ HERO_STRIP_TEST = $(if $(wildcard $(HERO_STRIP_ZIP)),$(DEMO_T)/hero_strip_test)
 QRPAGE_TEST     = $(if $(wildcard demo/psm/assets/_dl/qrcodegen.c),$(DEMO_T)/qrpage_test)
 test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS) $(CONTROLS_TESTS)) $(HERO_STRIP_TEST) $(SNAP_TEST) $(QRPAGE_TEST)
 	$(PYTHON) demo/psm/hero/tools/bake_strip.py --self-test
+	$(PYTHON) -I demo/psm/suite/test/suite_list_test.py
 	$(DEMO_T)/heat_test
 	$(DEMO_T)/heat_hex_test
 	$(DEMO_T)/suite_ui_test
