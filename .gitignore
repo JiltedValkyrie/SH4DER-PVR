@@ -17,3 +17,4 @@ demo/psm/ao/room/work/
 demo/psm/ao/preview/
 hero_model_test.bin
 out/
+.claude/
