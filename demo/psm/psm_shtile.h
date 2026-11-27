@@ -3,7 +3,7 @@
    demo/psm/psm_shtile.h
    Copyright (c) 2026 Jilted Valkyrie. See ../../LICENSE.
 
-   A test's helper, not yet the library's. NOTHING HERE HAS RUN ON A CONSOLE. Maths only: no KallistiOS or PVR calls, the
+   A test's helper, not yet the library's. Maths only: no KallistiOS or PVR calls, the
    caller draws.
 
    THE IDEA. With a sun that stands still, what does not move is baked. What moves (people, hens, cars) gets a tile each:

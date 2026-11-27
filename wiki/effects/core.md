@@ -20,7 +20,7 @@ It holds the shared maths the other effects call. Its settings are macros that t
 3. Colour ramps, once at load: `sh4der_ramp_colours(avg, white, edge, core)` with `SH4DER_RAMP_EDGE_SAT` = 1.6 and `SH4DER_RAMP_CORE_SAT` = 0.25 (include/sh4der_core.h:113-114, 158; ADVISED). `white` (0 to 1): no recommended value yet; the test is the look on screen with it at 0 and at 1.
 4. Caps: `SH4DER_TUBE_MAX` = 2 tubes and `SH4DER_BLOCKER_MAX` = 2 blockers an effect frame holds (include/sh4der_core.h:85-86; ADVISED).
 
-On a console: NOT RUN for these numbers. The page says: "None of it is measured on a console."
+On a console: no figures for these numbers. The page says: "None of it is measured on a console."
 
 Header: [include/sh4der_core.h](../../include/sh4der_core.h). Call order: [Call order](#call-order).
 

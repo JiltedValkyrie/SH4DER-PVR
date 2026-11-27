@@ -9,7 +9,7 @@
                MEASURED, one console, with the code this header moved unchanged (SH4-076, SH4-082). About 1.85 to 2.41 us
                a ray: DERIVED (SH4-076). Per vertex: ESTIMATE, 64 rays times the occluders a ray tests; not measured
    Status:     ADVISED for this copy: the host bytes match the code the bake was measured with (test/aobake_test.c checks
-               the ray set; the ao4 scenes' bytes were checked before and after the move); no console run of this header yet
+               the ray set; the ao4 scenes' bytes were checked before and after the move); nothing of this header is measured on a console
    Do:         bake at load, once per scene, not per frame; pass the reach your scene needs
    Do not:     bake a moving occluder at run time; read the byte as physical light (it is a multiply on the ambient light)
    Maturity:   ALPHA v0.5

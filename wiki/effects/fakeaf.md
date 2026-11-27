@@ -44,7 +44,7 @@ Header only, all `static inline`. Plain C with `SH4DER_CORE_NO_SH4ZAM`; the squa
 | Corridor, bilinear, same stages | 6.17 ms (PVR-180); 6.14 ms (PVR-207) | MEASURED |
 | Corridor, trilinear | 9.44 ms (PVR-180) | MEASURED |
 | The level the bias picks on the PVR | not read back | OPEN (ledger PVR-180, "why: OPEN") |
-| Ranges | not run on a console | NOT MEASURED |
+| Ranges | no figures | NOT MEASURED |
 | Three stretched copies of a 256 x 256 RGB565 texture | 114,688 bytes (112 KB) | exact, by the code |
 | Fill of the ranges, a 3 x 3 m corridor at focal 400 (3V; 3D) | 0.068 and 0.478 of a screen | ESTIMATE, a model (`faf_fill_3v`, `faf_fill_3d`), not a measurement |
 
@@ -80,4 +80,4 @@ The default table (`faf_table_default`, an eye about 1.6 m above the floor, inve
 
 ## Maturity
 
-ALPHA v0.4 (`wiki/status/maturity.md`): the bias code has run on a console; the ranges have not. Host test: `test/fakeaf_test.c`, on the plain path and on SH4ZAM's software path; both pass. Byte check (MEASURED on the host, 2026-11-26): every helper's output is bit-equal between the two paths except the ranges of `faf_table_from`, where 96 of 320 range values differ, the largest by 9.5e-07 m (SH4ZAM's reciprocal and root; the console's FSRRA path NOT RUN). The default table and the bias codes are equal.
+ALPHA v0.4 (`wiki/status/maturity.md`): the bias code has run on a console; the ranges have no figures. Host test: `test/fakeaf_test.c`, on the plain path and on SH4ZAM's software path; both pass. Byte check (MEASURED on the host, 2026-11-26): every helper's output is bit-equal between the two paths except the ranges of `faf_table_from`, where 96 of 320 range values differ, the largest by 9.5e-07 m (SH4ZAM's reciprocal and root; the console's FSRRA path NOT RUN). The default table and the bias codes are equal.

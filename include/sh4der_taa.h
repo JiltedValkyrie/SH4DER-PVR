@@ -63,7 +63,6 @@
       textures are 320 KB there, 1,280 KB at 640 x 480.
 
     \author Jilted Valkyrie
-    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 
     PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */

@@ -1,6 +1,6 @@
 # Version review, code side (proposal only)
 
-For: lead, to compare with Scholar's evidence side (`VERSION_REVIEW.md`). Written 2026-11-25 by Cortana. **Proposal only:** no header, source or README was edited.
+For: lead, to compare with Scholar's evidence side (`VERSION_REVIEW.md`). Written 2026-11-25. **Proposal only:** no header, source or README was edited.
 
 Read for this:
 

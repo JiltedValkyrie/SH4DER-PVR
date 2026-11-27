@@ -7,7 +7,7 @@
    RECOMMENDED (one console run by the library's author, REPORTED: not in the ledger yet; wiki/effects/sh4dow.md)
    Cost:       the shade, REPORTED on a Dreamcast: 14.70 ms before the column lists and the one-FTRV loop, 4.5 ms after (one
                cutscene, six characters, 84 columns, 5,406 vertices, 33 ms frame): about 0.83 us a vertex. The foot cones and
-               the packed loops: NOT MEASURED on hardware. RAM: about 3 KB a frame (one per character). VRAM: 0.
+               the packed loops: no time measured. RAM: about 3 KB a frame (one per character). VRAM: 0.
    Start with: SH4DOW_INNER 1.25, SH4DOW_OUTER 1.35, SH4DOW_LENGTH 1.8, SH4DOW_HOLD 0.8, SH4DOW_DARK 0.65, SH4DOW_COLLAR 0.8,
                SH4DOW_FADE_IN 0.1 (the tuning table in README.md, "The sh4dow effect"; the header's macros are the source).
    Do:         call sh4dow_prepare once per character per frame, after posing; call the list or packed loops only with a ball

@@ -17,7 +17,7 @@
    Do not:     write depth from a pool; draw it before the ground
    Maturity:   ALPHA v0.2 (the disc and the wedge)
 
-   RECOMMENDED, the fade by distance (sh4der_pool_reach_*, sh4der_pool_beam; no console run: nothing here is measured)
+   RECOMMENDED, the fade by distance (sh4der_pool_reach_*, sh4der_pool_beam; nothing here is measured)
    Start with: SH4DER_POOL_REACH 60 m, SH4DER_POOL_FADE_W 10 m (the street demo's lamps); a beam of
                SH4DER_POOL_BEAM_ROWS 3 arcs; sh4der_pool_reach_make once a frame, sh4der_pool_reach_fade a lamp
    Cost:       NOT MEASURED. ESTIMATE: sh4der_pool_reach_make one FSRRA reciprocal; sh4der_pool_reach_fade a
@@ -26,7 +26,7 @@
                n x rows: 1 + rows (n + 1) vertices and n + 2 n (rows - 1) triangles (2 x 3: 10 vertices, 10
                triangles, against the wedge's 4 and 2). The fill is the wedge's: the same area
    Status:     PROTOTYPE; the reach fade's arithmetic is the street demo's lamp line (the same bits on the plain C
-               path, test/pool_test.c); NOT RUN on a console as this code. To prove: lamps driven past the reach
+               path, test/pool_test.c). To prove: lamps driven past the reach
                with the fade against a hard cut, and a far car's beam with 1 row against 3, on a console
    Do:         skip a pool whose fade is 0 before building it; give the fade to the halo too, so both go together
    Do not:     call sh4der_pool_reach_make a lamp; put a reach on the player's own headlights (they are always near)

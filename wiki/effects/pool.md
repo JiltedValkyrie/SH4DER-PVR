@@ -21,7 +21,7 @@ For light or a blob shadow lying on the ground, drawn as a fan of triangles that
 4. Do not put a reach on the player's own headlights: they are always near, so use a wedge for those (include/sh4der_pool.h:32).
 5. How many lamps to draw: no recommended value yet. Test: the same view with pools on and off, no key pressed, PVR time (include/sh4der_pool.h:14).
 
-Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) for the fade. The beam is NOT RUN: its switch is off in the listed demos. The disc and the wedge are ADVISED, and their console test is step 5 (include/sh4der_pool.h:14).
+Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) for the fade. The beam's switch is off in the listed demos. The disc and the wedge are ADVISED, and their console test is step 5 (include/sh4der_pool.h:14).
 
 Header: [sh4der_pool.h](../../include/sh4der_pool.h). Steps in full: [Call order](#call-order).
 
@@ -83,7 +83,7 @@ See `README.md` "Pool tuning" (README:968-972).
 ## Status of the parts
 
 - The disc and the wedge: ALPHA v0.2.
-- The fade by distance and the beam: PROTOTYPE v0.1, added 2026-11-26. Host tested (`test/pool_test.c`: the reach fade gives the same bits as the street demo's old lamp line on the plain C path). Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) for the fade; the beam is NOT RUN. The street demo's hills build calls `sh4der_pool_reach_fade` for its lamps; its headlights are plain wedges unless `demo_auto_beam(1)` or `-DPL4NAR_HEAD_BEAM` turns the beam on (off at the start; no autorun stage uses it yet; the hills build keeps the wedge and scales it by the car's distance).
+- The fade by distance and the beam: PROTOTYPE v0.1, added 2026-11-26. Host tested (`test/pool_test.c`: the reach fade gives the same bits as the street demo's old lamp line on the plain C path). Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) for the fade; the beam has no figures. The street demo's hills build calls `sh4der_pool_reach_fade` for its lamps; its headlights are plain wedges unless `demo_auto_beam(1)` or `-DPL4NAR_HEAD_BEAM` turns the beam on (off at the start; no autorun stage uses it yet; the hills build keeps the wedge and scales it by the car's distance).
 
 ## Open
 

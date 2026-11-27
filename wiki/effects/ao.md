@@ -21,7 +21,7 @@ What it is for: darken creases at build time, and add a cavity cue on the screen
 4. Strength: `SH4DER_AO_SCR_K` = 0.5 (`include/sh4der_ao.h:58`; `README.md:722`, ADVISED): a multiply at full cavity is 1 - 0.5.
 5. Floor: `SH4DER_AO_SCR_FLOOR` = 4.0 (`include/sh4der_ao.h:61`; `README.md:725`, ADVISED): black needs it, or black areas read as deep cavities (the page's Pitfalls).
 
-On a console: NOT RUN. The page's status: "As-stated. There are no numbers."
+The page's status: "As-stated. There are no numbers."
 
 Header: [include/sh4der_ao.h](../../include/sh4der_ao.h). Call order: [below](#call-order).
 

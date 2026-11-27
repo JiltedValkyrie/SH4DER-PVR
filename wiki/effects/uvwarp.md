@@ -21,7 +21,7 @@ sources: [include/sh4der_uvwarp.h, README.md "The uvwarp effect"]
 4. **Wrap the time.** The plain `sh4der_uvwarp_offset` loses precision as time grows, so wrap the time to the scroll's period now and then (include/sh4der_uvwarp.h:40; ADVISED). The prepared form does not need it (README:1562).
 5. **Keep the corners in range.** u and v must stay under `SH4DER_UVWARP_UV_MAX` = 8388608.0, which is 2^23 (include/sh4der_uvwarp.h:74; ADVISED, a limit).
 
-On a console: NOT RUN. The page gives the accuracy as a "host test, not a console" (Cost), and no ledger row covers uvwarp.
+On a console: no figures. The page gives the accuracy as a "host test, not a console" (Cost), and no ledger row covers uvwarp.
 
 Read next: [the header](../../include/sh4der_uvwarp.h), [the call order in the README](../../README.md#the-uvwarp-effect-per-vertex-texture-offset).
 

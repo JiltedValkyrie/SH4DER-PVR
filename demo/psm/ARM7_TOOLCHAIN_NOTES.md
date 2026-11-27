@@ -119,7 +119,7 @@ The hashes above are shortened. Copy the full values from the pages before check
 2. Write MCIPD bit 5 from the ARM with MCIEB bit 5 set, and see SB_ISTEXT bit 1 on the SH-4.
 3. Execute one `ldrh` and one `umull` behind an undefined-instruction vector that logs. This confirms row 6 on our own console.
 
-## Option A built: results in ledger form (Junior, 2026-11-25)
+## Option A built: results in ledger form (2026-11-25)
 
 The compiler was built and checked on the host only. Nothing was loaded or run on a console, so no row below is MEASURED: they are facts about the toolchain, not about the chip. Full build notes, hashes and logs: `D:\dc-arm7\BUILD_NOTES.txt` and `D:\dc-arm7\SHA256SUMS.txt` (outside the repo). Status tags: `wiki/STRUCTURE.md`.
 

@@ -21,7 +21,7 @@ For a moving glow on a blade, rod or tube, with one untextured draw per material
 4. Give each object its own phase: 57 × the object's index, added to the tick, so a group does not pulse together (README:229; ADVISED).
 5. Call `sh4der_blade_prepare` once per instance per frame (include/sh4der_blade.h:146), then `sh4der_blade_argb` with the group's colour (include/sh4der_blade.h:158). A frame it refuses is dark (include/sh4der_blade.h:143-145).
 
-On a console: NOT RUN (for the cost). The page says: "None of it is measured on a console."
+On a console: no figures for the cost. The page says: "None of it is measured on a console."
 
 Header: [sh4der_blade.h](../../include/sh4der_blade.h). Steps in full: [Call order](#call-order).
 

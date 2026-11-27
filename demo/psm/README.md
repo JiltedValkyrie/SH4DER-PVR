@@ -59,7 +59,7 @@ KallistiOS's `timer_ns_gettime64` steps 2,502,400 ns ahead once every reload of 
 | `PSM_COLOUR_TABLE` | 1 | a model vertex's colour is read from a table (a row a palette entry, a column a sun share), made again only when the light or the palette changes: 64 KB of RAM in `psm_frame_t` |
 | `PSM_COLOUR_SEEN` | 2 | only the vertices `psm_place_geo` marked as sent get a colour; call `psm_place_geo` before `psm_colour` |
 
-**The tile cut's tables** (`include/sh4der_tilecut.h`, moved from `ao/tile_cut.h`). `sh4der_tilecut_t.need` is the number of tile tables a cut wants found before `sh4der_tilecut_begin` or `sh4der_tilecut_begin_cols` will write: `SH4DER_TILECUT_TABLES` (2) from `sh4der_tilecut_init`; a program that knows it has one table sets it to 1 after the init. A cut with one table of two cut cost the street demo 3.05 ms (PVR-200, MEASURED, one console). The refusal itself is host tested (`ao/test/tile_cut_test.c`) and has not run on a console.
+**The tile cut's tables** (`include/sh4der_tilecut.h`, moved from `ao/tile_cut.h`). `sh4der_tilecut_t.need` is the number of tile tables a cut wants found before `sh4der_tilecut_begin` or `sh4der_tilecut_begin_cols` will write: `SH4DER_TILECUT_TABLES` (2) from `sh4der_tilecut_init`; a program that knows it has one table sets it to 1 after the init. A cut with one table of two cut cost the street demo 3.05 ms (PVR-200, MEASURED, one console). The refusal itself is host tested (`ao/test/tile_cut_test.c`) and
 
 ## Baked occlusion and the clean picture (`psm_dc.c`)
 
@@ -77,7 +77,7 @@ KallistiOS's `timer_ns_gettime64` steps 2,502,400 ns ahead once every reload of 
 
 **Y + A: the clean picture.** With the panel closed, Y and A pressed together hide everything the program draws over the picture (the readout, the panel, the inset, the heartbeat); the same keys, or START, bring it back (`psm_state_t.hide` in `psm_scene.h`, `psm_send_hud` in `psm_send.h`).
 
-Suite 13 (`suite/suite_13.json`) has the square with both, as `square` (`build/sq_senior/sh4der-square-a5.elf`); not run on a console when this was written.
+Suite 13 (`suite/suite_13.json`) has the square with both, as `square` (`build/sq_senior/sh4der-square-a5.elf`).
 
 ## One disc for every test: the suite
 

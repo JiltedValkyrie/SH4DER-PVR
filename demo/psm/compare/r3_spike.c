@@ -24,8 +24,7 @@
    Only PVR registers and video memory are written. The fault catcher (include/sh4der_fault.h) is in; every wait is bounded.
    Every number comes from the run that prints it; only a real console's run is evidence. The numbers the host model
    expects are printed beside each line, marked "model": they are ESTIMATE.
-   Build: python demo/psm/compare/build.py --spike r3 --tag <new tag> --sh4zam <checkout>. Not run on a console when
-   this file was written.
+   Build: python demo/psm/compare/build.py --spike r3 --tag <new tag> --sh4zam <checkout>.
 */
 
 #include <kos.h>

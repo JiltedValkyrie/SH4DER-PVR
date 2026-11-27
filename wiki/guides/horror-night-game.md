@@ -9,7 +9,7 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/effects/torch.
 **What you will learn:** how to build a dark night scene: a torch as the main light, fog and dust for dread, and one camera feel. You will also learn what each part costs, what to cut first, and what goes wrong.
 **For:** a developer making a horror or night game on the Dreamcast who has never used SH4DER-PVR.
 
-**Status tags.** **MEASURED** means a ledger row backs the number (one console; the row is named). **ADVISED** means a value from a header's RECOMMENDED block, a README table or demo source (file and line). **NOT RUN** means no console run of that part. **ESTIMATE** means arithmetic or a model, and the model is named. A count read from the code is an ESTIMATE too. A host count is exact, but it is not a console number. Most effects here are PROTOTYPE, so most numbers are not measured. Reader names follow the [names page](../effects/names.md), section 0.
+**Status tags.** **MEASURED** means a ledger row backs the number (one console; the row is named). **ADVISED** means a value from a header's RECOMMENDED block, a README table or demo source (file and line). **no figures** means the owner has run that part on a console and no number is recorded. **ESTIMATE** means arithmetic or a model, and the model is named. A count read from the code is an ESTIMATE too. A host count is exact, but it is not a console number. Most effects here are PROTOTYPE, so most numbers are not measured. Reader names follow the [names page](../effects/names.md), section 0.
 
 ## The short version
 
@@ -17,7 +17,7 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/effects/torch.
 - Build the torch's gate and carve meshes, and check each triangle for zero area before it is sent.
 - The whole stack, on paper, is about 21.75 ms of PVR (ESTIMATE), about 5 ms over 60 Hz before the world's triangles are counted.
 - Our advice: cut specks, lightning, warp, mist, then grain (about 6.2 ms of PVR, ESTIMATE); the carve goes last.
-- Several parts are NOT RUN on a console, and the sources disagree on the torch's near light and the warp's frame texture size.
+- Several parts have no figures, and the sources disagree on the torch's near light and the warp's frame texture size.
 
 ## What this kind of game needs
 
@@ -63,7 +63,7 @@ sources: [wiki/guides/racing-game.md, wiki/effects/names.md, wiki/effects/torch.
 - TAA, the gentle ghost: `SH4DER_TAA_WEIGHT_HI` 0.75, the history weight while the camera is still (the header default, `include/sh4der_taa.h:84`; ADVISED). The film uses 0.45 (`LENS_TAA_WEIGHT`, `demo/matchlight/matchlight.c:126`), a lighter ghost.
 - TAA, the jitter: `SH4DER_TAA_PHASES` 8 (the default, `include/sh4der_taa.h:83`; ADVISED).
 - Trail, the stronger smear: `SH4DER_TRAIL_COPIES` 3, `SH4DER_TRAIL_WEIGHT_HI` 0.5 (the cap), `SH4DER_TRAIL_SHIFT_MAX` 8 and `SH4DER_TRAIL_SPEED_HI` 8.0 (the header defaults, `include/sh4der_trail.h:67-71`; ADVISED).
-- Status: TAA: Run on a console by the owner in Demo disc and Match Light (her test; no measured numbers recorded yet; released in the public Match Light film); the trail: NOT RUN on a console. The film's own figures are counted, not measured (its README: "not measured on a console").
+- Status: TAA: Run on a console by the owner in Demo disc and Match Light (her test; no measured numbers recorded yet; released in the public Match Light film); the trail: no figures. The film's own figures are counted, not measured (its README: "not measured on a console").
 
 **What it costs.** It is not free.
 - TAA draws two full-screen translucent layers in a frame where the weight is above zero: one dims the frame, one adds the history (`include/sh4der_taa.h`, the blend functions). A full-screen translucent layer costs about 3.1 ms of PVR at 640 × 480 (PVR-002, MEASURED, one console). So TAA is about 6 ms of PVR a frame at 640 × 480 (ESTIMATE, two layers). That is about a third of a 60 Hz frame (16.7 ms). Its history reads the front buffer, so it needs no video memory of its own (`wiki/effects/taa.md`, as stated). Its recommended frame texture is 320 × 240, 320 KB.
@@ -96,10 +96,10 @@ A frame is 16.7 ms at 60 Hz and 33.3 ms at 30 Hz. The SH-4 and the PVR overlap, 
 | One exposure layer | 0 | 4 vertices (count) | 3.1 ms of PVR | MEASURED (PVR-002) |
 | Screen overlays, three layers | 8 KB grain tile (ESTIMATE, arithmetic; `include/sh4der_lens.h:111`) | Vignette 594 vertices (`src/sh4der_lens.c:19`; count) | 9.3 ms of PVR | ESTIMATE: 3 x PVR-002 |
 | Old film wear | 0 | Rectangle, 3 lines, 12 specks (`film.h:73-74`; count) | 3.1 ms of PVR | ESTIMATE, one full-screen layer |
-| Tape wobble | 640 KB frame texture (FACT, VID-001; `ca.h:11-12`) | About 960 vertices (ESTIMATE count) | Not measured | NOT RUN |
-| Screen filters | Grain 2,048 B; thermal map 16 KB (ESTIMATE, arithmetic; visor.md) | Not stated | Not measured; 3.1 ms per full-screen layer (ESTIMATE) | NOT RUN |
+| Tape wobble | 640 KB frame texture (FACT, VID-001; `ca.h:11-12`) | About 960 vertices (ESTIMATE count) | Not measured | no figures |
+| Screen filters | Grain 2,048 B; thermal map 16 KB (ESTIMATE, arithmetic; visor.md) | Not stated | Not measured; 3.1 ms per full-screen layer (ESTIMATE) | no figures |
 | Mist bank | 8 KB noise tile, yours (ESTIMATE, arithmetic) | 48 triangles (count) | Not measured. Model: screen share x 3.1 ms (ESTIMATE) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
-| Lightning | 0 | 120 triangles, 240 vertices (README:1191) | Not measured | NOT RUN |
+| Lightning | 0 | 120 triangles, 240 vertices (README:1191) | Not measured | no figures |
 | Drifting specks | 512 B mask, optional (ESTIMATE, arithmetic) | 96 sprites (count) | Not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Screen warp | 256 KB (ESTIMATE, arithmetic; README:511-512). README:64 gives 160 KB: the sources disagree | Mesh 40 x 30: 2,460 vertices (BUS-004) | 2,250 us of SH-4 to send the mesh (BUS-004) | MEASURED, SH-4 |
 | Light pool | 0 | 10 triangles a disc (`pool.h:8-9`; count) | Not measured. Model: screen share x 3.1 ms (ESTIMATE) | Run on a console by the owner in Car on a wet night road; Drive a car on hills; Drive a wet night road; Street car demo (her test; no measured numbers recorded yet) |
@@ -126,14 +126,14 @@ A frame is 16.7 ms at 60 Hz and 33.3 ms at 30 Hz. The SH-4 and the PVR overlap, 
 - `SH4DER_FILM_FLICKER_MAX` 0.04 (8 % peak to peak) and `SH4DER_FILM_RATE_MAX_HZ` 3.0 (`film.h:75-76`). Design limits, not tested on viewers. ADVISED.
 
 **Tape (one camera feel)**
-- Tension 0.375, flutter 0.135, a mesh row every 6 rows, overscan 8 px (`timebase.h:37-39`). ADVISED; NOT RUN.
+- Tension 0.375, flutter 0.135, a mesh row every 6 rows, overscan 8 px (`timebase.h:37-39`). ADVISED; no figures.
 
 **Mist bank**
 - `SH4DER_MIST_SLICES` 12 and `SH4DER_MIST_OPACITY` 0.7 (README:1320-1321). ADVISED.
 - No recommended value yet for its PVR cost. Test: PVR time with the bank on and off (mist.md).
 
 **Lightning**
-- `SH4DER_BOLT_STRANDS` 4 and `SH4DER_BOLT_REROLL_S` 0.1333 (`bolt.h:64-78`). ADVISED; NOT RUN.
+- `SH4DER_BOLT_STRANDS` 4 and `SH4DER_BOLT_REROLL_S` 0.1333 (`bolt.h:64-78`). ADVISED; no figures.
 - Strands at most 8 (`bolt.h:60`). ADVISED.
 
 **Drifting specks**

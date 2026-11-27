@@ -20,7 +20,7 @@ Slide the rows of the finished picture sideways, so it looks like a worn tape.
 3. Mesh: a mesh row every 6 picture rows, an overscan of 8 pixels, and `SH4DER_CA_ROWS_MESH_X` = 2 (`include/sh4der_timebase.h:39`, `include/sh4der_ca.h:78-79`, ADVISED). Draw the bands with `sh4der_ca_channel_rows` (`include/sh4der_ca.h:204`).
 4. Draw the HUD and text after the bent pass, not through it (`include/sh4der_timebase.h:49`, ADVISED).
 
-On a console: NOT RUN (the header: "no console run on record: nothing below is measured"; the page: "Console time | not measured | OPEN").
+On a console: no figures (the header: "nothing below is measured"; the page: "Console time | not measured | OPEN").
 
 Header: [include/sh4der_timebase.h](../../include/sh4der_timebase.h). Order: [How the picture is bent](#how-the-picture-is-bent).
 

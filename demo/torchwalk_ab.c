@@ -4,7 +4,6 @@
  * the picture, a slope facing the half vector goes up to twice it. Power 2 only: a broad highlight. Signed terms (Nx Ny ...) are stored biased (0.5 + 0.5 x value / the
  * map's largest), in a + and a - copy; a cell draws the copy its light's sign asks for and the bias is taken off the flat level, so the sum is exact up to the clamps
  * (the level never below 0, a weight never above 1). The R trigger fires (a point light at the muzzle).
- * Not checked on a real console.
  *
  * Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
  *
@@ -23,7 +22,7 @@
  * (made by a private script from other textures), those are used instead; the file is never part of the source.
  *
  * Costs, per frame, measured by the readout: cpu ms (cells, clipping, light), frame ms, render ms (PVR), VRAM free, texture KB, TA KB.
- * Not checked on a real console: the light's azimuth against the texture's v axis (row AZIMUTH turns it round).
+ * The light's azimuth against the texture's v axis (row AZIMUTH turns it round).
  */
 #include <stdio.h>
 #include <stdlib.h>

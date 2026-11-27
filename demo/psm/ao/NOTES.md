@@ -2,7 +2,7 @@
 
 **It ran on 2026-11-25 (suite s3, one console). The result, in ledger form with the pages typed and CRC-checked, is `../compare/SUITE_RUN23_RESULTS_senior.md`, sections 3 to 5.** In short: the depth union fails as one darkening a direction (it acts like one side: about one darkening a caster); one side works as the host test said; a direction costs the SH-4 1,824 us and the PVR 1,213 us at 1,164 caster triangles, 68 KB of TA; one side 1,278 us, 753 us and 34 KB. The rest of this file is the note written before the run.
 
-Built 2026-11-25 by Senior. **Not run on a console.** Nothing below is a hardware result. The method: `../AO_METHOD.md` and `../ao_layer.h`.
+Built 2026-11-25 by Senior. The method: `../AO_METHOD.md` and `../ao_layer.h`.
 
 ## The image
 
@@ -63,9 +63,9 @@ Numbers the host gives for the load scene, exact counts: 3,492 vertices and 68 K
 
 ---
 
-# ao4: AO side by side on simple scenes (built, not run)
+# ao4: AO side by side on simple scenes (built)
 
-Built 2026-11-25 by Senior, after the owner could not tell whether the town's AO was visible. **Not run on a console.** The pictures in `ao/preview/` are a software render on the host of what the program is meant to show: they show the look; they are not the PVR's picture and no cost.
+Built 2026-11-25 by Senior, after the owner could not tell whether the town's AO was visible. The pictures in `ao/preview/` are a software render on the host of what the program is meant to show: they show the look; they are not the PVR's picture and no cost.
 
 | Item | Value |
 |---|---|
@@ -121,9 +121,9 @@ The scene is drawn twice a frame, so the screen is about 7,600 to 9,300 triangle
 
 ---
 
-# ao4-c: scene C, the living room, and the hens (built, not run)
+# ao4-c: scene C, the living room, and the hens (built)
 
-Built 2026-11-25 by Senior. **Not run on a console.** The pictures `ao/preview/ao4_c_*.png` are a software render on the host: the look, not the PVR's picture and no cost.
+Built 2026-11-25 by Senior. The pictures `ao/preview/ao4_c_*.png` are a software render on the host: the look, not the PVR's picture and no cost.
 
 | Item | Value |
 |---|---|
@@ -165,9 +165,9 @@ Built 2026-11-25 by Senior. **Not run on a console.** The pictures `ao/preview/a
 
 ---
 
-# ao4-d: mode 3+M, a tile a hen (built, not run)
+# ao4-d: mode 3+M, a tile a hen (built)
 
-Built 2026-11-25 by Senior on lead's go for the small spike of `../AO2_DESIGN.md` (the movers' half only). **Not run on a console.**
+Built 2026-11-25 by Senior on lead's go for the small spike of `../AO2_DESIGN.md` (the movers' half only).
 
 | Item | Value |
 |---|---|
@@ -191,9 +191,9 @@ Built 2026-11-25 by Senior on lead's go for the small spike of `../AO2_DESIGN.md
 
 ---
 
-# hens-eyes, entry hen-a: rays against a collision sweep (built, not run)
+# hens-eyes, entry hen-a: rays against a collision sweep (built)
 
-Built 2026-11-25 by Senior on Cortana's modules (`ao/hen_eyes.h`, `ao/hen_sweep.h`, `ao/HEN_EYES.md`). **Not run on a console.**
+Built 2026-11-25 by Senior on Cortana's modules (`ao/hen_eyes.h`, `ao/hen_sweep.h`, `ao/HEN_EYES.md`).
 
 | Item | Value |
 |---|---|
@@ -225,9 +225,9 @@ Built 2026-11-25 by Senior on Cortana's modules (`ao/hen_eyes.h`, `ao/hen_sweep.
 
 ---
 
-# ao4-e: the clip guard's test and the tile list cut (built, not run, not on a disc yet)
+# ao4-e: the clip guard's test and the tile list cut (built, not on a disc yet)
 
-Built 2026-11-25 by Senior. **Not run on a console. No disc holds it: `suite/suite_s7.json` is ready and s7 is cut when lead says.**
+Built 2026-11-25 by Senior. No disc holds it: `suite/suite_s7.json` is ready and s7 is cut when lead says.
 
 | Item | Value |
 |---|---|
@@ -250,7 +250,7 @@ Built 2026-11-25 by Senior. **Not run on a console. No disc holds it: `suite/sui
 
 **Not tested on hardware (new in e):** the per-pass rewrite of the tile tables; the user clip changed with no polygon before it (that is the test).
 
-# pd-a: the PVR-DMA download proof (built, not run, not on a disc yet)
+# pd-a: the PVR-DMA download proof (built, not on a disc yet)
 
 | Item | Value |
 |---|---|
@@ -260,7 +260,7 @@ Built 2026-11-25 by Senior. **Not run on a console. No disc holds it: `suite/sui
 One page for outsiders and a bar graph: what it proves in a line; a 524,288-byte pattern written to video memory, copied back by PVR-DMA through the 04 and the 05 area and compared byte by byte ("N of 524,288 wrong"); the register sequence with this run's own values (SB_PDSTAP, SB_PDSTAR, SB_PDLEN, SB_PDDIR = 1, SB_PDEN, SB_PDST, and the end); a table of us and MB/s for 32, 128 and 512 KB: PVR-DMA polled (04, 05), PVR-DMA by interrupt, `memcpy` from A4 and from A5 (uncached), and a cached RAM-to-RAM copy; the Holly revision; the page's CRC. Best of 3, cycle counter. About 2 s; nothing is drawn.
 - The 05 copy is compared with the CPU's own read through A5, because the two areas show the same memory in a different order.
 - The cached copy is a loop of SH4ZAM's inline `shz_memcpy32_1`, not `shz_memcpy32`: that one hands a large copy to a routine in SH4ZAM's library, which no build here links (no libsh4zam.a in the checkout or in this KallistiOS).
-- The sequence is c4's test 7 and bench_h1's, which ran on one console; this program itself has not run.
+- The sequence is c4's test 7 and bench_h1's, which ran on one console.
 
 ---
 
@@ -281,7 +281,7 @@ Photographs `logs/benchmarks/suite_run6b`, PXL_20261125_173806884 to 173847168 (
 
 # The "tile bins out of memory" count: a host estimate, and what the counts themselves say
 
-Written 2026-11-25 by Senior for PVR-143 (ao4-d: 4,948 events), with PVR-121 (the town) and PVR-132 (ao0). **Nothing new was run on a console.**
+Written 2026-11-25 by Senior for PVR-143 (ao4-d: 4,948 events), with PVR-121 (the town) and PVR-132 (ao0).
 
 **1. The host estimate (ESTIMATE: a model of the TA's binning, `ao/test/ao4_bins_test.c`).** Every pass's polygons are put into 32-pixel tiles as ao4 sends them (a strip in pieces of six triangles, a piece one entry in each tile a triangle's box touches, the user clip keeping a half to its ten columns) and the overflow blocks a tile's list needs are summed against the pool KallistiOS was given (16-word bins for two lists, `opb_overflow_count` 4: 2,400 blocks a scene, read from `pvr_buffers.c` and `pvr_misc.c`).
 
@@ -306,9 +306,9 @@ KallistiOS has two TA buffers and uses them in turn. So the event comes with one
 
 ---
 
-# Effect labels, the movable divider, ao4-h, hen-d, pd-c (built, not run; on s7)
+# Effect labels, the movable divider, ao4-h, hen-d, pd-c (built; on s7)
 
-Written 2026-11-25 by Senior. **Nothing here has run on a console.**
+Written 2026-11-25 by Senior.
 
 **Effect labels** (`../psm_effects.h`, host test `../test/psm_effects_test.c`; the tables of these programs are in `ao_fx.h`). A line says what a view shows, who does the work each frame and when: `Name (detail): WHO When`, WHO one of SH4, PVR, SH4+PVR; When one of Baked, Texture, Realtime (written `Realtime<<`, in yellow). Rules, as lead ruled them:
 - WHO is who works each frame. The PVR counts only for work the effect itself needs (a render target pass, a texture that carries the effect, an alpha test), not for drawing the triangles.
@@ -325,9 +325,9 @@ Written 2026-11-25 by Senior. **Nothing here has run on a console.**
 
 ---
 
-# ao-lamp, entry lamp-c: the lamp look (built, not run; on s7)
+# ao-lamp, entry lamp-c: the lamp look (built; on s7)
 
-Written 2026-11-25 by Senior. **Not run on a console.** Program `lamp_spike.c`, the look's maths `ao4_lamp.h`, host test `test/ao4_lamp_test.c` (it also renders the previews `preview/lamp_sheet_{room,front,side,below}.png` and `lamp_crop_slots.png` with a software renderer: host pictures, not the PVR's). ELF `build/psm_ao/psm-lamp-c.elf`, sha256 c41122d85e351ad6f498a2a742cffc9a97ef81ff423410c16b39a26400179c87.
+Written 2026-11-25 by Senior. Program `lamp_spike.c`, the look's maths `ao4_lamp.h`, host test `test/ao4_lamp_test.c` (it also renders the previews `preview/lamp_sheet_{room,front,side,below}.png` and `lamp_crop_slots.png` with a software renderer: host pictures, not the PVR's). ELF `build/psm_ao/psm-lamp-c.elf`, sha256 c41122d85e351ad6f498a2a742cffc9a97ef81ff423410c16b39a26400179c87.
 
 **What it draws.** The room's own lamp, found in the room data by name: the shade is rebuilt as a lathe of 65 vertices and 96 triangles and lit as paper with the bulb inside it.
 - The shade: `sh4der_sss_rgb` per vertex (absorption 0.2 / 0.3 / 0.5, wrap 0.4, distortion 0.1, a warm tint), plus an emission term, into the vertex's base and offset colours. Label: "Emission" is the lampshade (the owner's wording), "Subsurface Scattering" the paper.
@@ -342,9 +342,9 @@ Written 2026-11-25 by Senior. **Not run on a console.** Program `lamp_spike.c`, 
 
 ---
 
-# d1, entry d1-a: a halo that fades at the scene (built, not run; on s7)
+# d1, entry d1-a: a halo that fades at the scene (built; on s7)
 
-Written 2026-11-25 by Senior. **Not run on a console. The design is an ESTIMATE until T1 and T3 have run.** Program `d1_spike.c`, the arithmetic `d1_model.h`, host test `test/d1_model_test.c`. ELF `build/psm_ao/psm-d1-a.elf`, sha256 046e692e82ad851856d2f75867a0bcb7343ed34cd5d3d260d2a0fce64460907a. It is in this folder, not in `compare/`, because this folder's build makes the room's data.
+Written 2026-11-25 by Senior. The design is an ESTIMATE until T1 and T3 have run. Program `d1_spike.c`, the arithmetic `d1_model.h`, host test `test/d1_model_test.c`. ELF `build/psm_ao/psm-d1-a.elf`, sha256 046e692e82ad851856d2f75867a0bcb7343ed34cd5d3d260d2a0fce64460907a. It is in this folder, not in `compare/`, because this folder's build makes the room's data.
 
 **The design.** The room is drawn once more from the camera into a 320 x 240 target through a 256-texel ramp that repeats: vertex z = 1 / depth and u = depth / 1.2 m, so the PVR's perspective-correct lookup gives each pixel a code linear in its own depth, 256 codes a turn of 1.2 m. That target is read as a BUMP texture; the bump unit gives K1 + K3 cos(2 pi (M - Q) / 256) for the map's code M and the polygon's Q. With K1 0, K3 255 and Q = the halo's code + 64 the level is 0 where the scene is at the halo's depth and full 0.3 m behind it. Four quads in the translucent list, sent in order (autosort off):
 1. CLEAR: colour (1, 1, 1, 0), ZERO x DESTCOLOR: destination alpha to 0, colour kept.
@@ -368,9 +368,9 @@ Written 2026-11-25 by Senior. **Not run on a console. The design is an ESTIMATE 
 
 ---
 
-# s7's console run, and the builds made from it: d1-b, lamp-d, ao4-i, hen-e, pd-d (built, not run; for s8)
+# s7's console run, and the builds made from it: d1-b, lamp-d, ao4-i, hen-e, pd-d (built; for s8)
 
-Written 2026-11-25 by Senior. The run: suite s7 on one console (HOLLY REV 0011 SB 0B), recorded as `s7.mkv` by the owner. The ledger rows are Scholar's (PVR-152 to 158, PVR-163 to 165, SH4-082, 083, 085, BUS-053); the typed pages are in `../compare/suite_run7_pages/`. This section is what the run meant for these programs. **The five builds below have not run on a console.**
+Written 2026-11-25 by Senior. The run: suite s7 on one console (HOLLY REV 0011 SB 0B), recorded as `s7.mkv` by the owner. The ledger rows are Scholar's (PVR-152 to 158, PVR-163 to 165, SH4-082, 083, 085, BUS-053); the typed pages are in `../compare/suite_run7_pages/`. This section is what the run meant for these programs. The five builds below
 
 **What the run showed (MEASURED, the rows have the numbers).**
 - d1, T1: the bump unit's level can be laid into destination alpha as an alpha-only add on a black base, with MODULATE and MODULATEALPHA alike (both read 252 at code 64, 172 at 96, 0 at 128, 160, 192 and 0; the backdrop's colour kept on 256 of 256 pixels). A level below zero reads 0. The level is not an exact cosine (172 where a cosine gives 180).

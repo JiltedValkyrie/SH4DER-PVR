@@ -4,7 +4,7 @@
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 
-   RECOMMENDED (no console run of the lens as its own test: nothing here is measured; wiki/limits/header-recommended.md)
+   RECOMMENDED (nothing here is measured; wiki/limits/header-recommended.md)
    Start with: sh4der_lens_init, sh4der_lens_vignette_setup(w, h), then a frame sh4der_lens_vignette_draw and
                sh4der_lens_grain(frame, w, h): the first forms, at SH4DER_LENS_VIG_* and SH4DER_LENS_GRAIN_AMP 0.06.
                Reach for the variations only when a picture needs them: a grain of your own (sh4der_lens_grain_make,
@@ -21,8 +21,8 @@
                is one layer, not two; a rectangle costs its share of the screen; the tile's size, kind and movement
                change no fill. SH-4: a few vertex writes and one or two hashes a grain draw; the vignette's first
                draw rebuilds its bands every frame, sh4der_lens_vignette_mesh_draw copies a mesh built once
-   Status:     ADVISED; host tested (test/lens_test.c: the first forms' bytes are pinned there). NOT RUN on a console
-               as its own test. To prove: the same view with each overlay on and off, PVR time and frame time
+   Status:     ADVISED; host tested (test/lens_test.c: the first forms' bytes are pinned there).
+               To prove: the same view with each overlay on and off, PVR time and frame time
    Do:         build a caller's vignette mesh once; turn neutral off where the picture can take the darkening (it
                saves a layer); keep the grain's amplitude under 0.5 (past it the boost cannot give the mean back)
    Do not:     draw any of it before sh4der_lens_init or the grain's own make (the draws refuse: an uncompiled
@@ -77,7 +77,6 @@
       direction markers in a shooter, lightning or a flash grenade.
 
     \author Jilted Valkyrie
-    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 
     PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */

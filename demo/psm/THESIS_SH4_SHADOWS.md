@@ -142,7 +142,7 @@ Every row is a fact this design leans on. "Source" is the file that records it.
 | F18 | Route B's raster and compare on a console | **never timed** | `ROUTE_AB_NOTES.md` "Still open" | — |
 | F19 | The PVR's render time for a caster pass | not measured (s3's figure is a scheduler-tick upper bound) | same | — |
 | F20 | Bump unit as a subtract; 1555 write threshold; fog-table depth code (spike c3, run as image c3b, `compare/sub_spike.c`) | **The bump unit is a subtract:** level about 128 + 127 sin(M − Q), Q one value a polygon (not interpolated), the result in alpha; exact to ±1 code, so a bias of at least one code is needed (PVR-045, PVR-046). The curve is not exactly a sine (c4 test 1: 443 of 40,960 pairs off the cosine table at window 32; PVR-096). **A non-twiddled bump texture, and a render target used as one, did not hang** and gave the same numbers as a twiddled one (CORE 26 not reproduced; one run is not proof). **The 1555 frame-buffer write thresholds accumulated alpha** exactly at 1, 2 and 128. **The fog table gives a depth code per pixel**, about one 6-bit step low (PVR-049). | `compare/NOTES.md` "Hardware result c3b" and "c4 ... (second run)" | MEASURED (c3b 2026-11-25; c4 test 1; one run each) |
-| F21 | Modifier volumes at town scale | spike c2 (`compare/vol_spike.c`): built, **still not run** | repo; `wiki/shadows/thesis.md` | — |
+| F21 | Modifier volumes at town scale | spike c2 (`compare/vol_spike.c`): built | repo; `wiki/shadows/thesis.md` | — |
 | F22 | Punch-through, reference 128, a 4444 alpha ramp (c4 test 6) | KallistiOS's header draws the half with alpha ≥ reference (16,384 of 32,768; c3b 5a the same rule at 64 / 128 / 192; PVR-060). Blend ONE / ZERO draws all 32,768 (PVR-061). **Vertex alpha 128 draws 2,048: the tested alpha is texture alpha x vertex alpha** (PVR-064); how the product rounds is OPEN. The bump level can be the tested alpha (10,200 of 20,480 drawn; PVR-065). Depth write off or depth "always" changed nothing on an empty screen (PVR-062: cannot tell "ignored" from "harmless") | `compare/NOTES.md` "c4 ... (second run)" | MEASURED (one run); rounding OPEN |
 | F23 | SH-4 operand cache (bench h1) | hit 3.17, read miss 18.41, write miss 41.91 cycles a 32-byte line; allocate + write 16.24 (SH4-003, SH4-004). OC-RAM holds 8 KB, is no faster than a hit (1,401 against 1,446 us for 20,000 reads) and makes the same 8 KB of RAM data 59 % slower by halving the cache (SH4-010 to SH4-012) | `bench/NOTES.md` "Hardware result h1" | MEASURED |
 | F24 | Transform and placing (bench h2) | `mat_transform` 13.16 cycles a vertex in the cache on a clean placing, 38.67 with source and output a multiple of 16 KB apart (SH4-020, SH4-021); FTRV row 16.58, FIPR 38.10, plain C 72.43 cycles a point (SH4-017). c4's projection ran 132 cycles a vertex for this reason (its arrays 256 KB apart) | `bench/NOTES.md` "Hardware result h2"; `compare/NOTES.md` c4 | MEASURED |
@@ -618,7 +618,7 @@ The benches:
 | Route B has never been timed on a console (F18) | 5.11's comparison lacks its baseline |
 | The PVR's render time for a town caster pass is not known (F19); c4 timed only its own small passes (5.11) | The overlay's cost is an extrapolation from F8 |
 | Punch-through: the rule is settled on our console (alpha ≥ reference, texture x vertex; F22), but the product's rounding and the depth mode for a coplanar copy are not | The punch-through overlay (5.8) may place its edge up to a code off τ, and may fail or pass its depth test; P6's grid test would show both |
-| Spike c2 (volumes at town scale) is built and has not run; c3b ran once and c4 twice | The volumes row of 5.11 is context, not data |
+| Spike c2 (volumes at town scale) is built; c3b ran once and c4 twice | The volumes row of 5.11 is context, not data |
 | The frame is set by waiting, not work, in c4 (F26), and the cause is not known | Any frame-rate figure here (5.9) can be off by a whole 10 ms step |
 | The PVR's Gouraud precision is not documented | The base tier's darkest shade and its banding are unknown |
 | The interval formula (5.4) is transcribed, not checked against the page | Check it before building on it |
@@ -658,7 +658,7 @@ None of this is a measured result. Section 6 says what would show it wrong.
 Repo files (this repository unless named):
 
 - `demo/psm/ROUTE_AB_NOTES.md`: route AB, PVR-DMA, s2 / s3 results
-- `demo/psm/compare/NOTES.md`: results of spikes c1, c3b and c4 (both runs); `compare/vol_spike.c` (spike c2): built, not run
+- `demo/psm/compare/NOTES.md`: results of spikes c1, c3b and c4 (both runs); `compare/vol_spike.c` (spike c2): built
 - `demo/psm/bench/NOTES.md`: results of chip benches h1 and h2
 - `wiki/hardware/ledger-pvr.md`, `ledger-sh4.md`, `ledger-bus-dma.md`: the ledger IDs cited (PVR-, SH4-, BUS-)
 - `demo/psm/PVR_FEATURES.md`: per-pixel operations, Sega's bug list, contradictions, KOS issues

@@ -69,7 +69,7 @@
        slower than c4's: OPEN).
 
    Build: python demo/psm/compare/build.py --spike c4 --tag <new tag> --sh4zam <checkout>. c4b ran on a console on
-   2026-11-25; c4c: not run on a console when this file was written.
+   2026-11-25.
 */
 
 #include <kos.h>

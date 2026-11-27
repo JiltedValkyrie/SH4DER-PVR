@@ -171,7 +171,7 @@ See `README.md` "Hexheat tuning". Turn the knobs in this order: `SH4DER_HEXHEAT_
 ## Pitfalls
 
 - **Point sampling looks like cracked glass.** With a point-sampled band a hexagon's picture moves by whole pixels and its edges show. Sample filtered. The street demo's `-DPL4NAR_HEAT_HEX_POINT` builds the point-sampled form to compare (host pictures only).
-- **A soft patch.** A filtered sample moved by a part of a pixel blurs a little. So the far picture under the honeycomb is slightly softer than the sharp picture round it, all the time (host pictures; not seen on a console).
+- **A soft patch.** A filtered sample moved by a part of a pixel blurs a little. So the far picture under the honeycomb is slightly softer than the sharp picture round it, all the time (host pictures; no figures from a console).
 - **Faint edges on a smooth sky, on the host.** The host preview cuts the band to 16 bits and the screen not, so on the host every tile is up to 7 levels of 255 darker than the picture round it, and its edges show on smooth colour. That is the host's own error. The host does not model the PVR's packing or its dither: see [Open](#open) for what the console may show instead.
 - **Breaks along the tiles' edges.** Two tiles side by side across the stripes move differently ([Neighbours](#neighbours)). On hard edges in the far picture this shows as small steps, with filtering too.
 - **A thing beyond the cut that is not in the band vanishes.** A tile replaces what is under it. The street demo's player car was missing from the band at first, and on the host it disappeared in the fly-by once it was farther than 64 m.

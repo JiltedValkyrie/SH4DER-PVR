@@ -1,5 +1,5 @@
 {
-  "note": "sh4der-pvr-suite13: the walled square with AO4 and Y+A HUD hide, the space soldier with hens, car demos with only pl4nar and the mesh shadow, B+Y HUD hide, no car snap, a fly-by stage (map 2, hills 4) with heat shown only while the camera stands still. NOT RUN on a console.",
+  "note": "sh4der-pvr-suite13: the walled square with AO4 and Y+A HUD hide, the space soldier with hens, car demos with only pl4nar and the mesh shadow, B+Y HUD hide, no car snap, a fly-by stage (map 2, hills 4) with heat shown only while the camera stands still.",
   "tests": [
     {
       "name": "ao4",

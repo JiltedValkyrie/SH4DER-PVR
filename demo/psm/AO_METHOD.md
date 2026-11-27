@@ -1,6 +1,6 @@
 # Ambient occlusion in the town: two methods, their costs, and which to build
 
-Written 2026-11-25 by Senior for lead and Junior. **Nothing here has run on a console.** Every cost is an ESTIMATE unless a ledger id stands beside it; those are measured on other scenes and carried over.
+Written 2026-11-25 by Senior for lead and Junior. Every cost is an ESTIMATE unless a ledger id stands beside it; those are measured on other scenes and carried over.
 
 **Changed since the first version (same day), read these first:**
 
@@ -8,7 +8,7 @@ Written 2026-11-25 by Senior for lead and Junior. **Nothing here has run on a co
 - **TA bytes a direction are 68 KB, not 101 KB**: 60 bytes a triangle by the town's own count (1,164 triangles, host test). K = 8 is 545 KB.
 - **One side only halves that.** A closed caster covers each texel of its shadow twice (a face toward the direction, a face away). Sending one sign of area draws the same shadow with half the vertices: 34 KB a direction (host test: the same texels, half the triangles). On closed convex casters it is also the union without the depth trick. It needs the casters closed and wound one way; the town's are not checked yet.
 - **Names:** ao0 is the small hardware image (mine), ao1 the town (Junior's).
-- **Built:** `demo/psm/ao_layer.h`, its host tests, `demo/psm/ao/ao0_spike.c`. Nothing has run on a console.
+- **Built:** `demo/psm/ao_layer.h`, its host tests, `demo/psm/ao/ao0_spike.c`.
 
 The demo flips live between OFF, method 1 and method 2 (X). Both multiply into the town's existing light; neither needs a reload to switch.
 

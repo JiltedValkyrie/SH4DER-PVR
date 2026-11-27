@@ -3,7 +3,7 @@
  * design and every formula are the owner's (the lattice, the field, its gradient as the shimmer, the envelope, the
  * lensing; the screen-to-world step: wiki/effects/hexheat.md).
  *
- * RECOMMENDED (no console run: every number an ESTIMATE; wiki/limits/header-recommended.md)
+ * RECOMMENDED (every number an ESTIMATE; wiki/limits/header-recommended.md)
  * Cost:       video memory: a band of SH4DER_HEXHEAT_BAND_W x _BAND_H texels (64 KB at 16 bit) in a target the client
  *             already renders; SH-4 a frame: the far world sent a second time into the band (the client's count); the
  *             lattice's cells in the band walked (about 160; 158 in the street demo's view: a ray each, two reciprocals,
@@ -13,14 +13,13 @@
  *             hexagon widths, rise 1.5 widths a second, wind 0.35 of the rise, haze layer 12.5 % of the screen's
  *             height, D0 30 m, offset 0.25 s (2 px) at the sheet's foot, 0.32 s (2.56 px) at most, lens 0.1, travel x 0.5
  * Use it for: a hot far view by day: a road's or a runway's far end, a desert horizon, the air over a far fire
- * Status:     ADVISED: host tested (test/hexheat_test.c, against a double-precision transcription of the formulas);
- *             NOT RUN on a console
+ * Status:     ADVISED: host tested (test/hexheat_test.c, against a double-precision transcription of the formulas)
  * Do:         fill the band in a pass that already runs (a render target's spare region), a texel a screen pixel, and
  *             sample it filtered (bilinear); give the field the time and the camera, never last frame's place
  * Do not:     put near things in the band (cut it to the near distance); move a hexagon's home; roll random numbers
  *             a frame; draw the hexagons nearer than the cut; leave out of the band anything the screen shows beyond
  *             the cut, translucent layers too (a far shadow, smoke, a light): a hexagon replaces it with the band
- * Maturity:   PROTOTYPE v0.1 (the lattice is the second design; no console run, so the label stays: wiki/status/maturity.md)
+ * Maturity:   PROTOTYPE v0.1 (the lattice is the second design, so the label stays: wiki/status/maturity.md)
  *
  * How, on the PVR. The picture behind the hexagons is not read from the screen. A render pass the client already runs
  * (the street demo: its reflection pass) also draws the far end of the world as THIS frame's camera sees it into a band

@@ -1,7 +1,7 @@
 /* SH4DOW-DC: directional sun visibility for a regularly spaced heightfield.
  * Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE.
  *
- * RECOMMENDED (no console run: host tested by test/water_test.c, both maths paths; wiki/effects/sh4dow.md)
+ * RECOMMENDED (host tested by test/water_test.c, both maths paths; wiki/effects/sh4dow.md)
  * Cost:       O(width x height) a sweep, no GPU memory; the caller holds the height and shadow fields and a scratch of
  *             2 * max(width, height) floats. Time on a console: NOT MEASURED (ESTIMATE only).
  * Start with: the sun above the horizon (sun.y > 0), a feather a few cells wide, a bias of zero.

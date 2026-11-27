@@ -45,7 +45,6 @@
       music driven by brightness.
 
     \author Jilted Valkyrie
-    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 
     PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */

@@ -5,10 +5,10 @@
 
    RECOMMENDED (no ledger row for this texture; wiki/effects/ground.md)
    Start with: psm_ground_slabs once at load, the seed fixed, the base colour of your ground
-   Cost:       ESTIMATE: 4,096 texels once at load (integer maths); NOT MEASURED on a console. Video memory 8 KB, exact
+   Cost:       ESTIMATE: 4,096 texels once at load (integer maths); no time measured. Video memory 8 KB, exact
                (64 x 64 x 2 bytes, not twiddled). No cost a frame: the texture is read like any other
    Status:     ADVISED as a stand-in for a two-tone chequer; to prove: the same view with this texture against the
-               chequer, on a console, with the texture's cost read from the PVR. No console run
+               chequer, on a console, with the texture's cost read from the PVR
    Do:         make it at load into a RAM buffer, then upload it (pvr_txr_load or a twiddled copy); tile it, do not
                stretch it past the repeat
    Do not:     regenerate it each frame; use it for a surface that needs a real stone map (it has no normal or height)

@@ -59,7 +59,7 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 **What it looks like:** creases and corners are a little darker, so a model reads as solid.
 **Use it when:** you bake a crease into vertex colour at build time, or want a cavity cue on the finished frame, one frame behind.
 **Where it is:** [header](../../include/sh4der_ao.h) and [effect page](../effects/ao.md).
-**Starting settings:** NOT RUN on a console. No program uses this header yet (maturity: PROTOTYPE v0.1). The values are ADVISED defaults.
+**Starting settings:** no figures. No program uses this header yet (maturity: PROTOTYPE v0.1). The values are ADVISED defaults.
 - `SH4DER_AO_CREASE_K` 0.5f (include/sh4der_ao.h:54): a full concave crease keeps half its colour.
 - `SH4DER_AO_SCR_K` 0.5f and `SH4DER_AO_SCR_ENGAGE` 0.2f (include/sh4der_ao.h:58-59): the cue's depth, and the luma floor below which nothing darkens.
 - `SH4DER_AO_SCR_GRID_X` 80 and `SH4DER_AO_SCR_GRID_Y` 60 (include/sh4der_ao.h:56-57): the grid the look effect reads.
@@ -101,7 +101,7 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 | Sun shadow map [psm] | none (maths) | none of its own | none of its own | The 80 B map description is RAM: ESTIMATE, from a host `sizeof`. Cost on a console OPEN. ALPHA v0.5 |
 | Shadow map on the SH-4 [psm_raster] | none; 32 KB of RAM at 128 x 128 (FACT, arithmetic) | 15,142 TA vertices, route B, town scene (MEASURED, one console, 2026-11-25) | 40.2 ms uniform, 43.9 ms PSM (MEASURED, HUD). The route's own share is OPEN | PROVEN: too costly for a whole town at 30 fps (one view). ALPHA v0.5 |
 | Shadow map drawn by the PVR [psm_pvr] | 128 KB, a 256 x 256 target (FACT, arithmetic) | 27,023 to 27,075 TA vertices, route A, town scene (MEASURED) | 13.3 to 13.6 ms (MEASURED, HUD). The 18 fps is below these times: OPEN | ALPHA v0.5 |
-| Corner darkening [ao] | not stated | the crease bake costs nothing at run time (as-stated by the header) | not measured. OPEN: time the crease bake and the screen cue on a console | NOT RUN on a console. PROTOTYPE v0.1 |
+| Corner darkening [ao] | not stated | the crease bake costs nothing at run time (as-stated by the header) | not measured. OPEN: time the crease bake and the screen cue on a console | no figures. PROTOTYPE v0.1 |
 | Baked corner shading [aobake] | 0 (by the code) | 2,142 vertices in scene A, 2,544 in scene B, 64 rays each (exact counts) | load: 252 to 254 ms (A) and 391 to 393 ms (B) (MEASURED, one console, SH4-076, SH4-082). The frame moved by under 0.6 ms (PROVEN, PVR-135, PVR-138, SH4-073, SH4-076, SH4-077) | ALPHA v0.5. This copy since the move: Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet). Placing cost OPEN (Q91) |
 | Sky shading [aosky] | 0 more (it uses the sun's target) | 1,164 caster triangles, one side (exact count) | 522 ns a vertex (MEASURED, one scene, SH4-071). Town scene at 4 directions: frame +10.0 ms (MEASURED, PVR-135) | PROVEN for the start. This copy since the move: Run on a console by the owner in Room shading, four ways (her test; no measured numbers recorded yet) |
 | Soft character shadows [sh4dow] | nothing extra (as-stated) | 6 characters, 84 columns, 5,406 vertices (REPORTED) | 14.70 ms before the column lists, 4.5 ms after (REPORTED, one run, no date) | Run on a console by the owner in Demo disc (her test; no measured numbers recorded yet) |
@@ -116,7 +116,7 @@ PVR time, where it matters: psm_pvr is 15.9 ms in the town scene (MEASURED, HUD)
 
 1. Include `sh4der_aobake.h` from the library's `include` folder. Its maths uses SH4ZAM on the Dreamcast, or plain C with `SH4DER_CORE_NO_SH4ZAM` on a host build. Keep the [credit notice](license-and-credit.md).
 2. At load, fill a `sh4der_aobake_occl_t` with your boxes and spheres. Set `ground` to 1 and `ground_y` to the floor's height (include/sh4der_aobake.h:73-79).
-3. Call `sh4der_aobake_rays(dirs, 64)` into a `float dirs[64][3]` array you own. Then call `sh4der_aobake_bytes` over your static vertices and their unit normals, with a tick function for a watchdog. Scene A took 252 to 254 ms on one console (MEASURED, SH4-076). This copy has not run since the move, so time your own scene.
+3. Call `sh4der_aobake_rays(dirs, 64)` into a `float dirs[64][3]` array you own. Then call `sh4der_aobake_bytes` over your static vertices and their unit normals, with a tick function for a watchdog. Scene A took 252 to 254 ms on one console (MEASURED, SH4-076). This copy has no figures since the move, so time your own scene.
 4. Keep the bytes. Each frame, multiply the ambient light at each vertex by `sh4der_aobake_open(byte, 0)`, a 0 to 1 share.
 5. The wall-and-floor corners, and the ground under a box, should read darker than open floor. A vertex sunk inside a box reads black. In direct sun with colour the effect is hard to see (ADVISED, one run, [recommended limits](../limits/recommended-limits.md)).
 6. With the bytes in use, the frame should move by under 0.6 ms (PROVEN). A slower frame suggests the bake ran inside the frame, not at load.

@@ -21,7 +21,7 @@ Give the picture a night-vision, amber or thermal look, with a fade in and out.
 4. Grain: a 32-pixel tile (`SH4DER_VISOR_GRAIN_TEX` = 32), scrolled each frame by `SH4DER_VISOR_GRAIN_SPEED_U` = 0.37 and `SH4DER_VISOR_GRAIN_SPEED_V` = 0.61 tile widths (`include/sh4der_visor.h:67-69`, ADVISED). Draw it with `sh4der_visor_draw_grain` (`include/sh4der_visor.h:253`).
 5. Thermal: the ramp's stops are cold (0.02, 0.02, 0.20), mid (0.95, 0.25, 0.05) and hot (1.00, 0.95, 0.80) (`include/sh4der_visor.h:93-97`, ADVISED), turned into a 64-entry table by `sh4der_visor_lut` (`include/sh4der_visor.h:164`).
 
-On a console: NOT RUN (the page: "As-stated. None of it is measured on a console.").
+On a console: no figures (the page: "As-stated. None of it is measured on a console.").
 
 Header: [include/sh4der_visor.h](../../include/sh4der_visor.h). Call order: [Call order](#call-order).
 

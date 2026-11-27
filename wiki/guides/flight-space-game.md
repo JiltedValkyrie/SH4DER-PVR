@@ -15,7 +15,7 @@ sources: [include/sh4der_glow.h, include/sh4der_bloom.h, include/sh4der_spark.h,
 - Build the spark pool, then the engine glow, and time the frame with sprites on and off (our advice, not tested).
 - Budget: an empty frame is 3.15 ms of PVR (MEASURED, PVR-001), and each full-screen layer adds 3.1 ms (MEASURED, PVR-002).
 - Cut order: glow rays (about 12.4 ms of PVR, ESTIMATE), then trail down to two copies, then screen bloom (9.3 ms, ESTIMATE).
-- The heat haze is run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet); the motion blur and cloud deck are NOT RUN, and the sources disagree on the glow threshold (0.62 or 0.80, ADVISED).
+- The heat haze is run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet); the motion blur and cloud deck have no figures, and the sources disagree on the glow threshold (0.62 or 0.80, ADVISED).
 
 ## What this kind of game needs
 
@@ -23,7 +23,7 @@ A flying ship needs a bright sun, engine glow, sparks from guns and hits, a sens
 
 The budget is the hard part. The main processor (the SH-4) and the graphics chip (the PVR; terms in the [glossary](../glossary.md)) share each frame. A frame has 16.7 ms at 60 frames a second (60 Hz) and 33.3 ms at 30 (30 Hz). The PVR spends 3.15 ms on an empty 640 × 480 frame (PVR-001, MEASURED). Each full-screen translucent layer, a glow or flash over the whole screen, adds about 3.1 ms (PVR-002, MEASURED). Pick a few such layers and keep the rest small.
 
-Tags: **MEASURED** = a ledger row (ID given), one console. **ADVISED** = a header or demo value, with file and line. **NOT RUN** = no console run. **ESTIMATE** = arithmetic or a named model. A host count is exact on the PC, not a console number.
+Tags: **MEASURED** = a ledger row (ID given), one console. **ADVISED** = a header or demo value, with file and line. **no figures** = the owner has run it on a console and no number is recorded. **ESTIMATE** = arithmetic or a named model. A host count is exact on the PC, not a console number.
 
 ## Effects that fit, and why
 
@@ -32,15 +32,15 @@ Tags: **MEASURED** = a ledger row (ID given), one console. **ADVISED** = a heade
 | Screen bloom [glow] | Sun rays and bright parts bleed light. Needs the frame read. | [header](../../include/sh4der_glow.h), [page](../effects/glow.md) | ADVISED values; PROTOTYPE v0.1 (`glow.h:17`). The sources disagree: `glow.h:58` and the glow page say Version v0.50, runs on the demo disc |
 | Mesh bloom [bloom] | Glow on an engine nozzle, a sun disc or a lamp. No frame read. | [header](../../include/sh4der_bloom.h), [page](../effects/bloom.md) | The sources disagree: `bloom.h:31` says v1.00 (used in a released game); maturity.md says ALPHA v0.3 for rings and PROTOTYPE v0.1 for the blade glow |
 | Sparks and tracers [spark] | Exhaust, tracers, hit flashes from a pool of 24 quads. | [header](../../include/sh4der_spark.h), [page](../effects/spark.md) | PROTOTYPE v0.1; vertex cost MEASURED (BUS-001, BUS-003) |
-| Lightning [bolt] | A weapon's arc. | [header](../../include/sh4der_bolt.h), [page](../effects/bolt.md) | PROTOTYPE v0.1 (maturity.md); NOT RUN |
+| Lightning [bolt] | A weapon's arc. | [header](../../include/sh4der_bolt.h), [page](../effects/bolt.md) | PROTOTYPE v0.1 (maturity.md); no figures |
 | Drifting specks [motes] | Dust and embers in space. | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | PROTOTYPE v0.1 (maturity.md); Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Exposure and grade [look] | The eye adjusts from sun to dark; a colour grade. | [header](../../include/sh4der_look.h), [page](../effects/look.md) | PROTOTYPE v0.1 (maturity.md); on the demo disc, no ledger row; read not timed. The sources disagree: `look.h:36` says Version v0.50 (runs on the demo disc) |
 | Screen overlays [lens] | A flash on a hit, a dark vignette. | [header](../../include/sh4der_lens.h), [page](../effects/lens.md) | PROTOTYPE v0.1 (maturity.md); no console row |
 | Screen warp [warp] | A shockwave ring, heat wobble, speed blur. | [header](../../include/sh4der_warp.h), [page](../effects/warp.md) | Send cost MEASURED (BUS-004); PVR cost not in the ledger |
 | Heat haze hexagons [hexheat] | A honeycomb of hexagons that shimmers over a hot far horizon. | [header](../../include/sh4der_hexheat.h), [page](../effects/hexheat.md) | Run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet); fits when you already draw a target pass |
-| Motion blur [trail] | Streaks on turns and boosts. | [header](../../include/sh4der_trail.h), [page](../effects/trail.md) | NOT RUN; by ESTIMATE, 2 copies (6 layers) alone pass 16.7 ms |
+| Motion blur [trail] | Streaks on turns and boosts. | [header](../../include/sh4der_trail.h), [page](../effects/trail.md) | no figures; by ESTIMATE, 2 copies (6 layers) alone pass 16.7 ms |
 | Water waves [water] | A sea below. | [header](../../include/sh4der_water.h), [page](../effects/water.md) | REPORTED on a console; frame time OPEN |
-| Cloud deck [cloudvolume] | Clouds to fly through. | [header](../../include/sh4der_cloudvolume.h), [page](../effects/cloudvolume.md) | NOT RUN; cost is ESTIMATE |
+| Cloud deck [cloudvolume] | Clouds to fly through. | [header](../../include/sh4der_cloudvolume.h), [page](../effects/cloudvolume.md) | no figures; cost is ESTIMATE |
 
 Left out. Rising lights [rise] (lights that lift into stars; a city's lights stay put, our judgement). Split screen [split] (a two-view tool; a moving divider has not run on a console, PVR-144 and PVR-161 cover the middle position).
 
@@ -71,11 +71,11 @@ A frame costs about the larger of the SH-4 and PVR when they overlap, or their s
 | Exposure and grade | none | 0 to 6 quads | 3.1 ms PVR a layer; 2 layers 6.2 ms (37 % / 19 %), ESTIMATE | Run on a console by the owner in Demo disc (her test; no measured numbers recorded yet) |
 | Mesh bloom | none | 24 vertices (blade glow); up to 193 (rings, `bloom.h:59`) | ESTIMATE: 205 us SH-4 for a 129-vertex halo, as the lamp program's own loop timed it (SH4-083, MEASURED in that loop; the library call alone is not timed) | The sources disagree on status (`bloom.h:31` v1.00; maturity.md ALPHA v0.3 for rings); PVR not measured |
 | Sparks | your atlas, about 3 KB at 64 × 64 (README, as stated) | 96 vertices (24 quads) | 14 to 25 us SH-4 (ESTIMATE: 96 × 142 to 260 ns, BUS-003, BUS-001) | Run on a console by the owner in Street car demo; Match Light (her test; no measured numbers recorded yet) |
-| Lightning and motes | motes 512 B mask | bolt 240 vertices; motes 384 | bolt 34 to 62 us; motes 55 to 100 us SH-4 (ESTIMATE, same rates) | Lightning NOT RUN; motes: Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
+| Lightning and motes | motes 512 B mask | bolt 240 vertices; motes 384 | bolt 34 to 62 us; motes 55 to 100 us SH-4 (ESTIMATE, same rates) | Lightning: no figures; motes: Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Screen warp | 256 KB, 512 × 256 RGB565 (`warp.h:13-14`, arithmetic); `README.md:64` gives 160 KB, so the sources disagree | mesh 2,460 vertices | 2.25 ms SH-4 for the mesh (BUS-004, MEASURED, h2) | PVR not in the ledger |
 | Heat haze hexagons | 64 KB band (arithmetic) | 131 hexagons of 4 triangles in the street scene (host count, 2026-11-26) | far world sent again, and a ray a cell: not measured | Run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet) |
-| Motion blur | 128 B mask | 2 copies = 6 layers; 3 copies = 8 | 18.7 ms at 2 copies (112 % / 56 %); 24.9 ms at 3: ESTIMATE, layers × PVR-002 | NOT RUN |
-| Cloud deck | 16 KB (8-bit) or 32 KB (RGB565) at 128 × 128 (`cloudvolume.h:16-17`) | one quad | SH-4 14 to 22 ms (ESTIMATE, instruction counts) plus one layer, 3.1 ms PVR (ESTIMATE) | NOT RUN |
+| Motion blur | 128 B mask | 2 copies = 6 layers; 3 copies = 8 | 18.7 ms at 2 copies (112 % / 56 %); 24.9 ms at 3: ESTIMATE, layers × PVR-002 | no figures |
+| Cloud deck | 16 KB (8-bit) or 32 KB (RGB565) at 128 × 128 (`cloudvolume.h:16-17`) | one quad | SH-4 14 to 22 ms (ESTIMATE, instruction counts) plus one layer, 3.1 ms PVR (ESTIMATE) | no figures |
 | Water waves | none | sea mesh 2,016 to 23,040 triangles (`demo/OCEAN.md`) | not measured; a steady 33.3 ms not yet on hardware (OCEAN.md:5) | REPORTED on a console |
 
 One ESTIMATE sum, kept apart from the MEASURED empty frame: glow's 9.3 ms plus look's two layers, 6.2 ms, make 15.5 ms of PVR (93 % of 16.7 ms; 47 % of 33.3 ms). At 60 Hz those two take nearly the whole frame. At 30 Hz the cloud march's 14 to 22 ms of SH-4 takes most of the rest. The cloud page's 143 KB RAM total does not add up (about 90 KB by arithmetic; OPEN).
@@ -86,7 +86,7 @@ One ESTIMATE sum, kept apart from the MEASURED empty frame: glow's 9.3 ms plus l
 - **Sparks:** `SH4DER_SPARK_MAX` 24, `SH4DER_SPARK_MIN_PX` 0.8, `SH4DER_SPARK_INSET` 0.0078125 for a 64 × 64 atlas; `SH4DER_SPARK_KEEP` on flashes and tracers (`spark.h:11-17`). ADVISED.
 - **Exposure and grade:** `SH4DER_LOOK_LIGHT_S` 2.0 and `SH4DER_LOOK_DARK_S` 6.0 (`look.h:87-88`); eye strength 0.25 (`look.h:46-53`). ADVISED, the author's eye. Our advice, not tested: hold the eye during a flash, as `look.h:55-56` does for a flashlight.
 - **Screen warp:** `SH4DER_WARP_SOURCES` 4, `SH4DER_WARP_BLUR_COPIES` 4 at most, `SH4DER_WARP_PIXEL_CELL` 16 (`warp.h:71, 86, 88`); `SH4DER_WARP_MESH_SEND_PRIM` 1 and `SH4DER_WARP_PIXEL_SEND_PRIM` 0 (`src/sh4der_warp.c:67, 70`). ADVISED; the send choice is MEASURED (BUS-004).
-- **Motion blur:** `SH4DER_TRAIL_COPIES` 3 by default, 2 the lowest (`trail.h:67`); `SH4DER_TRAIL_SHIFT_MAX` 8 (`trail.h:72`). ADVISED, NOT RUN.
+- **Motion blur:** `SH4DER_TRAIL_COPIES` 3 by default, 2 the lowest (`trail.h:67`); `SH4DER_TRAIL_SHIFT_MAX` 8 (`trail.h:72`). ADVISED, no figures.
 - **Cloud deck:** `SH4DER_CLOUDVOLUME_STEPS` 16 by default, `SH4DER_CLOUDVOLUME_MAX_STEPS` 64 (`cloudvolume.h:81, 97`). ADVISED; the cost is ESTIMATE.
 - **Water waves:** `footprint` at your vertex spacing, or 0 to switch the fade off; full at 6 footprints, gone at 2 (`water.h:54-57`). ADVISED.
 - **Screen overlays:** `SH4DER_LENS_VIG_SPOKES` 32, `SH4DER_LENS_Z_VIG` 430 (`include/sh4der_lens.h:106, 133`). ADVISED.

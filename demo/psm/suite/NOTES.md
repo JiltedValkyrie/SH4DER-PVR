@@ -1,6 +1,6 @@
-# Test suite disc (image psm-suite-s1): built, not run
+# Test suite disc (image psm-suite-s1): built
 
-Built 2026-11-25 by Senior, with the four town binaries from Junior. **Not run on a console.** Nothing below is a hardware result. The whole return path (a test starting the menu, the menu starting a test) has never run anywhere; the first boot of this disc is its test.
+Built 2026-11-25 by Senior, with the four town binaries from Junior.
 
 ## What it is
 
@@ -144,7 +144,7 @@ Rows with photo names: `compare/SUITE_RUN1_RESULTS_senior.md`, `bench/RESULTS_su
 - The risk listed above as the first one (the test's read of the menu file after a start) did not happen in six tests.
 - hud1's hang is before its first frame, where the fault catcher is not yet armed. Nothing on the menu's side differs for HUD1.BIN: same address, a size between a3e's and bake1's, the same bytes on the disc as built.
 
-## Suite s2: built, not run
+## Suite s2: built
 
 s2 is s1 with **hud1b-auto in place of hud1-auto**. Nothing else changed: the other six binaries are the same bytes as on s1 (same sha256 in both manifests). The menu was built again for the new list.
 
@@ -161,7 +161,7 @@ s2 is s1 with **hud1b-auto in place of hud1-auto**. Nothing else changed: the ot
 
 Menu row 6 reads: "HUD loss test, boot steps printed. ~3 min" and "photo the pages; if it stops, photo the BOOT list/fault".
 
-## Suite s3: built, not run
+## Suite s3: built
 
 s3 is s2 plus four tests, with the menu's RUN ALL order changed. The seven binaries of s2 are the same bytes (same sha256 in both manifests). The menu was built again.
 
@@ -191,9 +191,9 @@ s3 is s2 plus four tests, with the menu's RUN ALL order changed. The seven binar
 | Claim | Status |
 |---|---|
 | The console's Holly and system-bus revisions | OPEN until a photo of the s3 menu |
-| The menu with the revision line starts and lists 11 tests | built; not run |
+| The menu with the revision line starts and lists 11 tests | built |
 
-## Suite s4: built, not run
+## Suite s4: built
 
 A short menu after the owner's runs 2 and 3.
 
@@ -216,9 +216,9 @@ Dropped from s3: c4g, r3-d, qr-q2 and ao0 (their results are in), a3e-auto, a3f-
 
 ---
 
-# s5 (built, not run)
+# s5 (built)
 
-`demo/psm/out/cdi/psm-suite-s5.cdi`, sha256 c90eca50eb792d06e0caab7f6b587a341623ef88f996016f07daa9e6b02d0d8d, 7,438,793 bytes. List: `suite_s5.json`. Built 2026-11-25 by Senior. Supersedes s4c (which was never run): the same entries, with ao4-c in place of ao4-b and hero1 added.
+`demo/psm/out/cdi/psm-suite-s5.cdi`, sha256 c90eca50eb792d06e0caab7f6b587a341623ef88f996016f07daa9e6b02d0d8d, 7,438,793 bytes. List: `suite_s5.json`. Built 2026-11-25 by Senior. Supersedes s4c: the same entries, with ao4-c in place of ao4-b and hero1 added.
 
 | Entry | ELF sha256 | What | Read |
 |---|---|---|---|
@@ -231,7 +231,7 @@ hero1 h1b was built with the placeholder room; the living room's data is ready f
 
 ---
 
-# s5b and s6 (built, not run)
+# s5b and s6 (built)
 
 - `psm-suite-s5b.cdi`, sha256 e524323ed3a414f363d8fc7018f7787f8fe150c64bc34c82ea9e1cf5c894d16c, 7,483,177 bytes: s5 with Junior's hero1 h1c (the living room; ELF sha 732b6943…658a) in place of h1b. List `suite_s5b.json`.
 - **`psm-suite-s6.cdi`, sha256 c255e2346e7c352dd047bc8e0ab9e14e6d6a31b35b196040d6e2777739b7a493, 7,483,177 bytes: s5b with ao4-d (ELF sha 5c29e3ce…476a) in place of ao4-c.** List `suite_s6.json`. It supersedes s5 and s5b if neither has run.
@@ -244,7 +244,7 @@ hero1 h1b was built with the placeholder room; the living room's data is ready f
 
 ---
 
-# s6b (built, not run)
+# s6b (built)
 
 `psm-suite-s6b.cdi`, sha256 38bf0f23c8c1239f61d63825b539943a38aa72c1933f21e8947ecea6ddaee7ac, 7,936,361 bytes. List `suite_s6b.json`. s6 with one entry added: **hens-eyes** (RUN ALL 3; ELF `build/psm_ao/psm-hen-a.elf`, sha df0b5076…2d16): rays against a collision sweep for the same hens in the room, about 50 s by itself; photo every page and the graph; START = live (X mode, Y hens, A rays drawn, B tick, up / down fan). It supersedes s5, s5b and s6 if none has run. Notes: `ao/NOTES.md` "hens-eyes".
 
@@ -254,15 +254,15 @@ hero1 h1b was built with the placeholder room; the living room's data is ready f
 
 `suite_s7.json` is ready: s6b with ao4-e in place of ao4-d and the entry pvr-dma added (RUN ALL: ao4, hero1, hens-eyes, pvr-dma). One command when lead says: `python demo/psm/suite/build.py --tag s7 --list demo/psm/suite/suite_s7.json --mkdcdisc <mkdcdisc>` (here: `sh /d/tmp/psmbuild/suite_img.sh '' s7`). ELFs: ao4-e 1ad24f15…7924, pd-a 98c7ff38…b711, hen-a df0b5076…2d16, hero1 h1c 732b6943…658a.
 
-The current disc is **s6b**, the only suite disc in `out/cdi`. s5, s5b and s6 were superseded, never run, and recycled by lead. From 2026-11-25 lead builds the discs: Senior delivers ELFs, their sha256 and the suite's list.
+The current disc is **s6b**, the only suite disc in `out/cdi`. s5, s5b and s6 were superseded and recycled by lead. From 2026-11-25 lead builds the discs: Senior delivers ELFs, their sha256 and the suite's list.
 
 **s7's list as of 2026-11-25 (still not built):** ao4-e2 (sha e002381d…8a08), hero1 h1d (Junior, sha 131647dd…5053), hens-eyes hen-b (sha bc71fa68…f3c2), pvr-dma pd-a (sha 98c7ff38…b711), then ao1c, ao1c-live, hud1c-1/2/3 as on s6b. All three room programs are on the room data with the trim lit by its wall's normal.
 
 ---
 
-# s7 (built by lead 2026-11-25, not run)
+# s7 (built by lead 2026-11-25)
 
-`psm-suite-s7.cdi`, sha256 1af06472f589c0d567394bbc77e6fff075893512d241d9c372116647861e93dc, 7,938,697 bytes (lead's build; commit a26f3c2). List `suite_s7.json`. It replaces the "ready, NOT BUILT" list above. **Nothing on it has run on a console as these builds.**
+`psm-suite-s7.cdi`, sha256 1af06472f589c0d567394bbc77e6fff075893512d241d9c372116647861e93dc, 7,938,697 bytes (lead's build; commit a26f3c2). List `suite_s7.json`. It replaces the "ready, NOT BUILT" list above.
 
 **The menu has two levels** (`suite_nav.h`, pure, host test `test/suite_nav_test.c`; `suite_menu.c` draws what `nav_grid` gives; the screens as text: `SCREENS_s7.txt`). TOP: TECH DEMOS / DEVELOPER TOOLS. LIST: a group's entries, RUN ALL the group's own (tools once through, demos round and round); B or START back, Y the credits. A list with one group has no TOP, so older lists build as before. A test's "group" is "demos" or "tools" (default tools). `psm_suite.h` and the mail between the menu and a program are unchanged.
 

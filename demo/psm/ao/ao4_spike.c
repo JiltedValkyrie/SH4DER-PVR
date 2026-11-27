@@ -53,7 +53,7 @@
    Every number comes from the run that prints it; only a real console's run is evidence.
    ANY BUTTON OR TRIGGER DURING THE RUN (ao4-i) ends the run there and opens the live view at once, as that stage; the
    pages after it say the run was stopped. The stick moves the eye in the run too, as it always did.
-   Build: python demo/psm/ao/build.py --spike ao4 --tag <new tag>. Not run on a console when this file was written. */
+   Build: python demo/psm/ao/build.py --spike ao4 --tag <new tag>. */
 
 #include <kos.h>
 #include <stdarg.h>

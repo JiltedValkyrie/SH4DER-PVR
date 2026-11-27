@@ -25,7 +25,7 @@
 
    The fault catcher (include/sh4der_fault.h) is in: a hang or an exception shows its own screen, with the step it was in.
    Every number comes from the run that prints it. Only a real console's run is evidence.
-   Build: python demo/psm/compare/build.py. Not run on a console when this file was written.
+   Build: python demo/psm/compare/build.py.
 */
 
 #include <kos.h>

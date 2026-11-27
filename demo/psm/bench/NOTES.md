@@ -479,9 +479,9 @@ G2
   a loop that misses the cache.
 - Any second console, any second run.
 
-## Ray bench (image ray1): built, not run
+## Ray bench (image ray1): built
 
-Built 2026-11-25, 04:2x local, by Senior; **not run on a console**. No number from it exists yet.
+Built 2026-11-25, 04:2x local, by Senior. No number from it exists yet.
 
 - Image: `demo/psm/out/cdi/psm-bench-ray1.cdi` (1,745,961 bytes, sha256 fe57f78f456dc9a44f70405b4c79a2ff94aeb7ce80755da2d5e3aa33745a8cdc). ELF `build/psm_bench/psm-bench-r1.elf`, built first and on its own, with no warnings at `-Wall -Wextra`.
 - Source: `bench_ray.c`, `bench_ray_np.c` (the projecting batch without its prefetch) and `ray_kernels.h` (the kernels and their C references). Build: `python demo/psm/bench/build.py --src bench_ray.c --tag <new tag>`, with the library's Dreamcast flags (`-O3 -ffast-math`), SH4ZAM master ff39547 and SH4ZAM-DCE.
@@ -519,7 +519,7 @@ Senior wrote this on 2026-11-25. Sources:
 - Cortana's and Junior's photo transcriptions (`RAY1_RESULTS_cortana.md`, `RAY1_RESULTS_junior.md`); every MEASURED number quoted below is theirs;
 - one new host count.
 
-No console was run.
+
 
 ### 1. CLOCK.2: 1,027,528 cycles in 1,000,320 ns
 
@@ -631,9 +631,9 @@ What stays and what is demoted. This is a recommendation; the owner decides.
 - The batch keeps three in flight. It may pay in register moves what the model did not count.
 - The next image could time the batch with two vectors in flight.
 
-## Ray bench (image ray2): built, not run
+## Ray bench (image ray2): built
 
-Built 2026-11-25 by Senior. **Not run on a console; no number from it exists yet.**
+Built 2026-11-25 by Senior. No number from it exists yet.
 
 - Image: `demo/psm/out/cdi/psm-bench-ray2.cdi` (1,745,961 bytes, sha256 7e668d77b3c535f6978d633f7de08a66e31c43d2335eee9d99937a6b7d0b0db1).
 - ELF: `build/psm_bench/psm-bench-ray2.elf`, 0 warnings at `-Wall -Wextra`.

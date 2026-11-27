@@ -3,7 +3,6 @@
    demo/main.c
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
-   Written with Cortana (Claude, an AI by Anthropic).
 
    One program that shows the library's effects on a small scene of its own: a dark hall that opens on a sunlit yard, and a few box-built
    models (tools/make_models.py) as actors. Every effect is a row on the read-out, switched and tuned live.

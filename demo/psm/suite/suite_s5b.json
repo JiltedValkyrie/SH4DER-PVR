@@ -1,5 +1,5 @@
 {
-  "note": "The suite disc psm-suite-s5b: demo/psm/suite/build.py --tag s5b --list demo/psm/suite/suite_s5b.json. s4c with ao4-c in place of ao4-b (scene C added: the living room, vertex AO against lightmap AO against the PVR map, the town's four hens walking in it) and Junior's hero1 h1c (a skinned hero in a clay set or the living room, with the hens). RUN ALL runs ao4 then hero1: a hud1c build may hang by design. Times are ESTIMATE, not measured. Nothing on this disc has run on a console. s5 was the same with hero1 h1b, which had the placeholder room; s5b supersedes it.",
+  "note": "The suite disc psm-suite-s5b: demo/psm/suite/build.py --tag s5b --list demo/psm/suite/suite_s5b.json. s4c with ao4-c in place of ao4-b (scene C added: the living room, vertex AO against lightmap AO against the PVR map, the town's four hens walking in it) and Junior's hero1 h1c (a skinned hero in a clay set or the living room, with the hens). RUN ALL runs ao4 then hero1: a hud1c build may hang by design. Times are ESTIMATE, not measured. s5 was the same with hero1 h1b, which had the placeholder room; s5b supersedes it.",
   "tests": [
     {
       "name": "ao4",

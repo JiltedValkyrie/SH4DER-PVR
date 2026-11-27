@@ -21,14 +21,14 @@ Lay a dark edge, grain, damage wedges and a flash over the picture, without read
 4. Damage wedges: up to `SH4DER_LENS_HIT_MAX` = 4 at once, full alpha in `SH4DER_LENS_HIT_ATTACK_S` = 0.05 s, held for `SH4DER_LENS_HIT_HOLD_S` = 1.0 s, gone at `SH4DER_LENS_HIT_LIFE_S` = 1.5 s (`include/sh4der_lens.h:115-118`, ADVISED). Call `sh4der_lens_hit_add` and `sh4der_lens_hit_tick` (`include/sh4der_lens.h:488`, `:521`).
 5. Flash: `sh4der_lens_flash_hit(&f, SH4DER_LENS_FLASH_PEAK)` with a peak of 0.35 (`include/sh4der_lens.h:127`, `:568`), attack 0.03 s and decay 0.25 s (`include/sh4der_lens.h:128-129`, ADVISED). The overlays sit at z 430, 432, 950 and 960, under a HUD at 1000 (`include/sh4der_lens.h:133-136`, ADVISED).
 
-**When the first forms are not enough** (all ADVISED, host tested, NOT RUN on a console):
+**When the first forms are not enough** (all ADVISED, host tested, no figures):
 
 - The grain over part of the screen, weaker, or one layer cheaper: make a grain of your own, `sh4der_lens_grain_make(&g, 64, 1, seed, SH4DER_LENS_GRAIN_MONO)`, and draw it with `sh4der_lens_grain_draw(&g, frame, x0, y0, x1, y1, z, amp, neutral)`. `neutral` 0 leaves the boost layer out: the picture is darker by about half the amplitude, and one translucent layer is saved.
 - A different grain: a tile of 16, 32, 64 or 128 a side; `SH4DER_LENS_GRAIN_CHROMA` for colour grain, `SH4DER_LENS_GRAIN_SOFT` for a gentler one; your own texels with `sh4der_lens_grain_load`; a texture you already have with `sh4der_lens_grain_use`.
 - A different movement: `sh4der_lens_grain_move(&g, SH4DER_LENS_MOVE_HOLD, SH4DER_LENS_GRAIN_HOLD)` holds each offset 2 frames (film at 30 a second on a 60 Hz screen); `_DRIFT` slides, `_STILL` stays.
 - A different vignette: start from `sh4der_lens_vig_default`, change the fields, `sh4der_lens_vig_round`, `sh4der_lens_vig_centre` and `curve`, then `sh4der_lens_vignette_shape(&v)`; `sh4der_lens_vignette_draw_at(ox, oy, z)` for a picture band; `sh4der_lens_vignette_mesh_draw` for a mesh you built once.
 
-On a console: NOT RUN (no ledger row for the lens; the page's vignette figure is "ESTIMATE, a host sweep, not hardware").
+On a console: run by the owner in Torch walk and Match Light (her test; no measured numbers recorded yet; released in the public Match Light film). No ledger row for the lens; the page's vignette figure is "ESTIMATE, a host sweep, not hardware".
 
 Header: [include/sh4der_lens.h](../../include/sh4der_lens.h). Call order: [Call order](#call-order).
 

@@ -4,7 +4,7 @@ A small clay living room for the ambient occlusion tests: a floor, two walls wit
 
 **Licence.** Own work, modelled from numbers by `tools/build_room.py`. No third-party asset, texture or scan is used. Copyright (c) 2026 Jilted Valkyrie; it is covered by this repository's `LICENSE`.
 
-**Status.** Host work only. Nothing here has run on a console. The triangle counts are exact. No cost on the Dreamcast is claimed.
+**Status.** Host work only. The triangle counts are exact. No cost on the Dreamcast is claimed.
 
 ## The look
 

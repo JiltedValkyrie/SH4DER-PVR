@@ -1,5 +1,5 @@
 {
-  "note": "sh4der-pvr-suite11: the walled square, the six car programs (always-on reflection and projected shadow, low camera, wet grid round the car, grit layer, autoruns under 90 s, closed car body), and the d1, ao4, lamp, hero1, hens, pvr-dma tests. The old town tests are gone. NOT RUN on a console.",
+  "note": "sh4der-pvr-suite11: the walled square, the six car programs (always-on reflection and projected shadow, low camera, wet grid round the car, grit layer, autoruns under 90 s, closed car body), and the d1, ao4, lamp, hero1, hens, pvr-dma tests. The old town tests are gone.",
   "tests": [
     {
       "name": "ao4",

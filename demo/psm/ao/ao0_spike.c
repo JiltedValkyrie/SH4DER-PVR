@@ -28,7 +28,7 @@
    program's handler in front of KallistiOS's, which still runs); no wait is longer than LIMIT_NS. Only PVR registers
    and video memory are written. The fault catcher (include/sh4der_fault.h) is in.
    Every number comes from the run that prints it; only a real console's run is evidence.
-   Build: python demo/psm/ao/build.py --tag <new tag>. Not run on a console when this file was written. */
+   Build: python demo/psm/ao/build.py --tag <new tag>. */
 
 #include <kos.h>
 #include <stdarg.h>

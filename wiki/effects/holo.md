@@ -21,7 +21,7 @@ sources: [include/sh4der_holo.h, src/sh4der_holo.c, README.md "The holo effect",
 4. **Set the core's size.** `SH4DER_HOLO_INNER` = 0.010 (full core) and `SH4DER_HOLO_OUTER` = 0.055 (no core), in the bind model's units (include/sh4der_holo.h:68-69; README:327-328; ADVISED). The centre, `SH4DER_HOLO_X`, `_Y` and `_Z` (include/sh4der_holo.h:65-67), is the default model's chest. No recommended value yet for another body: test by placing the core on its chest in the bind pose.
 5. **Set the glint.** `SH4DER_GLINT_OFFSET` = 0.0075: draw the glint that far toward the viewer, depth tested, with no depth write (include/sh4der_core.h:104; README:1666; ADVISED).
 
-On a console: NOT RUN. The page says "None of it is measured on a console" (Cost).
+On a console: no figures. The page says "None of it is measured on a console" (Cost).
 
 Read next: [the header](../../include/sh4der_holo.h), [the call order](../../AGENTS.md#call-order-holo).
 

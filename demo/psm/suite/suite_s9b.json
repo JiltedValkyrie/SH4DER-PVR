@@ -1,5 +1,5 @@
 {
-  "note": "The suite disc psm-suite-s9b (lead builds it, one disc for everything pending: no more single-test discs). s8 with ao4-j, d1-d, mip-a, corr-a2 and the four town view-cost builds (c1, c2, d1024, d1536). NOT RUN on a console.",
+  "note": "The suite disc psm-suite-s9b (lead builds it, one disc for everything pending: no more single-test discs). s8 with ao4-j, d1-d, mip-a, corr-a2 and the four town view-cost builds (c1, c2, d1024, d1536).",
   "tests": [
     {
       "name": "ao4",

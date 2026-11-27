@@ -21,7 +21,7 @@ It keeps one shape of the picture sharp and lets the rest go soft.
 4. The mesh is `SH4DER_FOCUS_GRID_X` = 16 by `SH4DER_FOCUS_GRID_Y` = 12 cells, 408 vertices (include/sh4der_focus.h:63-64, 80; ADVISED).
 5. Each frame: `sh4der_focus_box565(src, dst)`, then `sh4der_focus_upload(&g, dst)`, then `sh4der_focus_submit(&g, &m, SH4DER_FOCUS_Z)` with `SH4DER_FOCUS_Z` = 1.0. Draw it after the frame and before the HUD (include/sh4der_focus.h:30-31, 73, 185, 219, 221; ADVISED).
 
-On a console: NOT RUN. The page says: "As-stated. None of it is measured on a console."
+On a console: no figures. The page says: "As-stated. None of it is measured on a console."
 
 Header: [include/sh4der_focus.h](../../include/sh4der_focus.h). Call order: [Call order](#call-order).
 

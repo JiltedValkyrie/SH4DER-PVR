@@ -31,13 +31,13 @@ Scenes: A (two spheres and a box on a ground), B (two walls, a corner, a sphere)
 | D-pad up held + B | the effect labels on / off |
 | START | between the result pages and the live view |
 
-It runs by itself first and counts the costs, then shows result pages and a graph. The trigger keys above are ao4-h's (suite s7): not run on a console yet; up to ao4-e2 either trigger was the scene.
+It runs by itself first and counts the costs, then shows result pages and a graph. The trigger keys above are ao4-h's (suite s7); up to ao4-e2 either trigger was the scene.
 
 ### The effect labels
 
 Two lines at the foot of the live view name what each half shows, who does the work each frame and when: for example `Ambient Occlusion: L SH4 Baked` and `Ambient Occlusion (ground): R SH4+PVR Realtime<<`. SH4 or PVR is who works each frame (the PVR is named only for work the effect needs: a render target pass, a texture that carries the effect, an alpha test); Baked, Texture or Realtime is when the effect is computed, and a Realtime entry is marked `<<` and drawn in yellow. The labels are off while the program measures and on in the live view and on the result pages.
 
-<!-- DRAFT, same status: the two programs below are on suite s7, built 2026-11-25, NOT RUN on a console. No cost here is measured. -->
+<!-- DRAFT, same status: the two programs below are on suite s7, built 2026-11-25. No cost here is measured. -->
 
 ## The lamp demo (ao-lamp)
 

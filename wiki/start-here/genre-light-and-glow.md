@@ -94,7 +94,7 @@ The header's distances assume one world unit of about 3 metres (torch.h:68-69). 
 **Use it when:** an arc, a spark gap or a storm needs lightning that changes shape.
 **Where it is:** [header](../../include/sh4der_bolt.h) and [effect page](../effects/bolt.md).
 **Starting settings:**
-- No start setting is recommended. The defaults are in the README "Bolt tuning" table. NOT RUN on a console.
+- No start setting is recommended. The defaults are in the README "Bolt tuning" table. No figures.
 
 ## What it costs
 
@@ -105,13 +105,13 @@ Screen bloom [glow] and dark shafts [shafts] read the finished picture back, so 
 | Effect | Video memory | Triangles or vertices | SH-4 time | Status |
 |---|---|---|---|---|
 | Glowing tubes [blade] | 0 bytes. FACT: the draw is untextured (README, blade cost note) | None added: the work is done in the model's own vertex colours (FACT, blade.h:37-38) | Not measured (OPEN: time `sh4der_blade_prepare` and the vertex loop) | PROTOTYPE v0.1. No console row ([maturity](../status/maturity.md)) |
-| Mesh bloom [bloom] | 0 bytes. FACT: no texture (README, bloom cost note) | Blade glow: 24 vertices, 24 triangles. Largest ring glow: 193 and 360 (FACT, bloom.h:59-62) | Rings: 205 us for 129 vertices in the lamp program's halo, which uses the library's ring indices. MEASURED, one console, one run (SH4-083; the row gives no date, only the photo name 03:08.6). The timed loop is the lamp program's own. Blade glow: not measured (OPEN) | Blade glow: PROTOTYPE v0.1, NOT RUN on a console (host only). Rings: ALPHA v0.3 |
+| Mesh bloom [bloom] | 0 bytes. FACT: no texture (README, bloom cost note) | Blade glow: 24 vertices, 24 triangles. Largest ring glow: 193 and 360 (FACT, bloom.h:59-62) | Rings: 205 us for 129 vertices in the lamp program's halo, which uses the library's ring indices. MEASURED, one console, one run (SH4-083; the row gives no date, only the photo name 03:08.6). The timed loop is the lamp program's own. Blade glow: not measured (OPEN) | Blade glow: PROTOTYPE v0.1, no figures. Rings: ALPHA v0.3 |
 | Screen bloom [glow] | 16 KB texture (128 x 64 at 2 bytes a texel) and a 1 KB shrink. FACT (glow.h:107-112) | Three full-screen layers, plus up to 4 ray copies (glow.h:118). FACT | Frame read: 1,196 us in another port. REPORTED (VID-005). Our time: not measured (OPEN) | PROTOTYPE v0.1. The demo disc runs it (REPORTED). No ledger row |
 | Screen spotlight [torch] | 0 bytes. FACT: no texture (README, torch section) | 306 vertices and 288 triangles a frame, in two meshes (FACT, torch.h:113) | Not measured (OPEN: time both meshes and the near add) | PROTOTYPE v0.1. No ledger row |
 | Light pools [pool] | 0 bytes. FACT (README, pool cost) | A 10-triangle disc has 11 vertices. FACT (design) | A rim vertex takes one sine and cosine pair and six multiply-adds. FACT (README). Time and PVR fill: not measured (OPEN) | ALPHA v0.2. The street demo's blob stage ran, not the pool alone (PVR-160) |
 | Dark shafts of light [shafts] | 16 KB texture, the glow's size. FACT (shafts.h:26-27) | One mesh of 8 x 6 cells on the PVR. FACT (shafts.h:28) | 4,800 cells a frame on the SH-4. FACT (shafts.h:27). Time: not measured (OPEN) | PROTOTYPE v0.1. The demo disc runs it (REPORTED). No ledger row |
 | Sparks and tracers [spark] | Your atlas: 3 KB for a 64 x 64 VQ RGB565 atlas. ESTIMATE (as stated in README) | Up to 24 quads: 96 vertices and 48 triangles. FACT (spark.h:11) | 142 ns a vertex in a store-queue run (BUS-003), 260 ns with `pvr_prim` (BUS-001). MEASURED, one console | PROTOTYPE v0.1. No ledger row names the pool. The street demo's halos ran ([maturity](../status/maturity.md)) |
-| Lightning [bolt] | 0 bytes. FACT (README, bolt cost) | Default look: 120 triangles, 240 vertices. FACT (README) | Not measured (OPEN: time `sh4der_bolt_draw` on a console) | PROTOTYPE v0.1. NOT RUN on a console: no program uses it |
+| Lightning [bolt] | 0 bytes. FACT (README, bolt cost) | Default look: 120 triangles, 240 vertices. FACT (README) | Not measured (OPEN: time `sh4der_bolt_draw` on a console) | PROTOTYPE v0.1. No figures: no program uses it |
 
 PVR time (the chip's drawing time) has no column above, so here it is:
 

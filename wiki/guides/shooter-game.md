@@ -35,7 +35,7 @@ Our advice, not tested: aim for 60 Hz if you can.
 | Effect | What it gives this game | Where it is | Status |
 |---|---|---|---|
 | Sparks and tracers [spark] | muzzle flash, tracer, impact sparks | [header](../../include/sh4der_spark.h), [page](../effects/spark.md) | ADVISED; pool draw Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
-| Screen overlays [lens] | hit wedges, damage flash, vignette, grain | [header](../../include/sh4der_lens.h), [page](../effects/lens.md) | ADVISED; NOT RUN |
+| Screen overlays [lens] | hit wedges, damage flash, vignette, grain | [header](../../include/sh4der_lens.h), [page](../effects/lens.md) | ADVISED; no figures |
 | Screen spotlight [torch] | a flashlight in a dark corridor | [header](../../include/sh4der_torch.h), [page](../effects/torch.md) | ADVISED; Run on a console by the owner in Torch walk; Demo disc (her test; no measured numbers recorded yet) |
 | Baked corner shading [aobake] | contact shadow in rooms, baked at load | [header](../../include/sh4der_aobake.h), [page](../effects/aobake.md) | load MEASURED; copy ADVISED |
 | Light pools [pool] | a lamp's pool; a blob shadow under each enemy (our advice, not tested) | [header](../../include/sh4der_pool.h), [page](../effects/pool.md) | ADVISED; reach fade Run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) |
@@ -44,8 +44,8 @@ Our advice, not tested: aim for 60 Hz if you can.
 | Drifting specks [motes] | dust in a light beam, embers | [header](../../include/sh4der_motes.h), [page](../effects/motes.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Mist bank [mist] | fog low in a yard | [header](../../include/sh4der_mist.h), [page](../effects/mist.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Dented ground [deform] | footprints in snow | [header](../../include/sh4der_deform.h), [page](../effects/deform.md) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
-| Lightning [bolt] | an electric weapon | [header](../../include/sh4der_bolt.h), [page](../effects/bolt.md) | NOT RUN |
-| Screen filters [visor] | night goggles (added by us) | [header](../../include/sh4der_visor.h), [page](../effects/visor.md) | NOT RUN |
+| Lightning [bolt] | an electric weapon | [header](../../include/sh4der_bolt.h), [page](../effects/bolt.md) | no figures |
+| Screen filters [visor] | night goggles (added by us) | [header](../../include/sh4der_visor.h), [page](../effects/visor.md) | no figures |
 | Tile-cut pass [tilecut] | for a second view, such as a scope | [header](../../include/sh4der_tilecut.h), [page](../effects/tilecut.md) | MEASURED (PVR-092) |
 | Crash and hang screen [fault] | development: a report when the build dies | [header](../../include/sh4der_fault.h), [page](../effects/fault.md) | PROTOTYPE |
 
@@ -74,8 +74,8 @@ A 60 Hz frame has 16.7 ms; a 30 Hz frame has 33.3 ms. The SH-4 and the PVR are s
 |---|---|---|---|---|
 | Sparks and tracers, 24 quads | 1,256 B RAM; 3 KB atlas | 96 vertices (exact) | under 25 us of SH-4 (ESTIMATE: 96 at 142 to 260 ns, BUS-003, BUS-001) | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
 | Lens flash | none | one full-screen layer | 3.1 ms of PVR while shown | MEASURED per layer (PVR-002) |
-| Lens grain | 8 KB | one full-screen textured layer | not measured | NOT RUN |
-| Lens vignette | none | 594 vertices, 288 triangles at the defaults (32 spokes x 8 rings, per frame; `src/sh4der_lens.c:19`) | not measured | NOT RUN |
+| Lens grain | 8 KB | one full-screen textured layer | not measured | no figures |
+| Lens vignette | none | 594 vertices, 288 triangles at the defaults (32 spokes x 8 rings, per frame; `src/sh4der_lens.c:19`) | not measured | no figures |
 | Torch | none | 306 vertices, 288 triangles (exact) | not measured (ESTIMATE: carve covers the screen, about 3.1 ms) | Run on a console by the owner in Torch walk; Demo disc (her test; no measured numbers recorded yet) |
 | One light pool | none | 10 triangles, 176 B (exact) | not measured (ESTIMATE: area share of a full-screen layer) | Run on a console by the owner in Car on a wet night road; Drive a car on hills; Drive a wet night road; Street car demo (her test; no measured numbers recorded yet) |
 | Mist, 12 sheets | 8 KB | 48 triangles (exact) | not measured | Run on a console by the owner in Match Light (her test; no measured numbers recorded yet; released in the public Match Light film) |
@@ -84,11 +84,11 @@ A 60 Hz frame has 16.7 ms; a 30 Hz frame has 33.3 ms. The SH-4 and the PVR are s
 | Screen warp, 40 x 30 mesh | 256 KB frame texture (ESTIMATE: 512 x 256 x 2 B, `warp.h:69-70`; `README.md:64` gives 160 KB, so the sources disagree) | 2,460 vertices | SH-4 2,250 us (BUS-004, MEASURED); PVR 6,466 us (`warp.md:36`, no ledger row) | PVR REPORTED |
 | Exposure read | none | 4,800 samples | about 2.6 ms of SH-4 (ESTIMATE: 9,600 B at the 3.7 MB/s of SH4-040) | ESTIMATE |
 | Exposure layers | none | up to 6 quads; none when neutral | 3.1 ms of PVR each (PVR-002); 18.7 ms at six | MEASURED per layer |
-| Lightning | 3.3 KB RAM | 240 vertices, 120 triangles (exact) | not measured | NOT RUN |
+| Lightning | 3.3 KB RAM | 240 vertices, 120 triangles (exact) | not measured | no figures |
 | Baked corners | one byte a vertex | none at run time | load 252 to 254 ms (SH4-076, SH4-082); a frame +222 us of SH-4 in an ao4 build (PVR-176) | MEASURED |
 | Second view (tile cut) | 14,400 B RAM | 3,312 to 375 us of PVR, a 20-tile map pass in the compare program (PVR-092) | MEASURED | ALPHA |
 
-No total. No shooter has run as a whole, so the sum is NOT RUN. The nearest measured frame is a corridor filter test: 16.63 to 16.66 ms at 640 x 480, 60 Hz held (PVR-180, MEASURED, one console). It is a filter test, not a game.
+No total. No shooter has run as a whole, so the sum has no figures. The nearest measured frame is a corridor filter test: 16.63 to 16.66 ms at 640 x 480, 60 Hz held (PVR-180, MEASURED, one console). It is a filter test, not a game.
 
 ## Settings to start with
 

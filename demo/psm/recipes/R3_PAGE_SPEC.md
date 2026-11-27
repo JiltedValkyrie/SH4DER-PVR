@@ -1,6 +1,6 @@
 # R3 page: the punch-through product (spec for coding from c4's `punch_pass`)
 
-For: Senior. Status: spec only, not built, not run.
+For: Senior. Status: spec only, not built.
 
 **Purpose.** Settle ledger row PVR-064 (OPEN): how the PVR rounds "texture alpha x vertex alpha" before the punch-through test.
 

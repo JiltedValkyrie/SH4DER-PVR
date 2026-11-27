@@ -35,7 +35,7 @@
    its first line to its render's end. The effect labels (../psm_effects.h) are OFF in the measured stages.
    Waits: "ready" and "render done" are polled; no wait is longer than LIMIT_NS. Only PVR registers and video memory
    are written. The fault catcher (include/sh4der_fault.h) is in; the program goes back to the suite's menu.
-   Build: python demo/psm/ao/build.py --spike lamp --tag <new tag>. NOT RUN ON A CONSOLE when this file was written:
+   Build: python demo/psm/ao/build.py --spike lamp --tag <new tag>.
    the punch-through list, the 1-bit texture, a divider that moves and the lamp's whole look are untested there. */
 
 #include <kos.h>

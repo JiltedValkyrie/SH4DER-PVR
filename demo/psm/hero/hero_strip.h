@@ -5,7 +5,7 @@
    Copyright (c) 2026 Jilted Valkyrie. See ../../../LICENSE.
    The set's art (hero_strip_data.h, written by tools/bake_strip.py): Space Kit (2.0) by Kenney (www.kenney.nl), CC0 1.0.
 
-   RECOMMENDED (no console run: nothing here is measured; wiki/limits/header-recommended.md)
+   RECOMMENDED (nothing here is measured; wiki/limits/header-recommended.md)
    Cost:       not measured. Counts (exact, the set as baked): 2,671 triangles, 3,543 vertices, 21 objects. A frame:
                strip_run and strip_place (one sine and cosine each), a sphere test an object (strip_seen), one
                matrix product each for the camera and the shadow, a cut only where a triangle crosses the near plane

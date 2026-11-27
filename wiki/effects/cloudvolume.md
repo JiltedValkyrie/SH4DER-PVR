@@ -21,7 +21,7 @@ What it is for: a lit cloud slab you fly through, worked out on the main process
 4. Density: `SH4DER_CLOUDVOLUME_DENSITY` = 0.010 a metre in full cloud (include/sh4der_cloudvolume.h:90, ADVISED). The header's note says 63 % is hidden after 100 m.
 5. Cost test: read the march's counters in `sh4der_cloudvolume_frame_t` (rays, samples, skips, hits, noise reads) with the cycle counter, in the demo, and set them against this page's 14 to 22 ms a frame (ESTIMATE, Cost). No recommended frame budget yet.
 
-On a console: NOT RUN. This page says: 'ESTIMATE from instruction counts, not measured on a console'; its Open list says: 'The march's time on a console.'
+On a console: no figures. This page says: 'ESTIMATE from instruction counts, not measured on a console'; its Open list says: 'The march's time on a console.'
 
 Header: [sh4der_cloudvolume.h](../../include/sh4der_cloudvolume.h).
 

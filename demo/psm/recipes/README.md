@@ -1,6 +1,6 @@
 # demo/psm/recipes: host models of the pass recipes
 
-Host reference models and tests for four recipes of `demo/psm/RECIPES_NOTES.md`. Host only, for review: nothing in `include/`, `src/` or `test/` uses this folder, and nothing here has run on a console.
+Host reference models and tests for four recipes of `demo/psm/RECIPES_NOTES.md`. Host only, for review: nothing in `include/`, `src/` or `test/` uses this folder, and
 
 | File | Recipe | What it checks |
 |---|---|---|

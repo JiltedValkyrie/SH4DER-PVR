@@ -21,7 +21,7 @@ sources: [include/sh4der_softfade.h, test/softfade_test.c, README.md "The softfa
 4. **Give the mesh vertices.** A halo as 8 rings, from `sh4der_bloom_rings` (include/sh4der_softfade.h:19-20; ADVISED: the header says 8 rings ran in the lamp test). A beam with 3 or 4 rows, from `sh4der_pool_beam` (include/sh4der_softfade.h:20; README:1082-1083, `SH4DER_POOL_BEAM_ROWS` = 3 and its maximum of 4; ADVISED).
 5. **Point the planes.** A plane's normal points toward the lit side. Set the wrong way round, everything in front of it goes dark (this page's Pitfalls; `sh4der_softfade_plane`, include/sh4der_softfade.h:106).
 
-On a console: NOT RUN. The page's status: "PROTOTYPE v0.1: host tested (test/softfade_test.c), NOT RUN on a console."
+On a console: run by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet). The page's status: "PROTOTYPE v0.1: host tested (test/softfade_test.c)."
 
 Read next: [the header](../../include/sh4der_softfade.h), [the call order](#call-order).
 
@@ -37,7 +37,7 @@ The caller names the surfaces: planes (endless) and walls (a plane over a rectan
 
 Header only, maths only. It draws nothing.
 
-Version: v0.10. PROTOTYPE v0.1: host tested (`test/softfade_test.c`), NOT RUN on a console.
+Version: v0.10. PROTOTYPE v0.1: host tested (`test/softfade_test.c`).
 
 ## Call order
 
@@ -50,14 +50,14 @@ Version: v0.10. PROTOTYPE v0.1: host tested (`test/softfade_test.c`), NOT RUN on
 
 | Item | Cost | Status |
 |---|---|---|
-| RAM | 16 B a plane, 60 B a wall, 8 B the fade distance | ESTIMATE (a host size count; not checked on the SH-4) |
+| RAM | 16 B a plane, 60 B a wall, 8 B the fade distance | ESTIMATE (a host size count; not measured on the SH-4) |
 | VRAM, PVR passes, textures | 0 | FACT (the header: no PVR pass, no video memory, no texture) |
 | CPU, a plane a vertex | one 3-term dot, a subtract, a multiply, a saturate, a smooth step | ESTIMATE (not measured) |
 | CPU, a wall a vertex | the plane's, and two more dots and two saturates | ESTIMATE (not measured) |
 | CPU, near or fit | once a light, a dot a surface | ESTIMATE (not measured) |
 | A lamp's halo of 129 vertices faded against a room's planes, another program's own code | 205 us of SH-4 a frame, the halo's build included | MEASURED, one console, for the old hand-written fade (SH4-083); not this header |
 
-Nothing in this header has run on a console.
+Run on a console by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet).
 
 ## Recommended limits
 
@@ -85,7 +85,7 @@ A camera depth map the PVR draws fades a glow per pixel against any shape. It ra
 ## Open
 
 - Everything on a console: the cost a vertex, and the look.
-- One client in the tree: the lamp test's halo (`demo/psm/ao/ao4_lamp.h`) fades through `sh4der_softfade_levels` since 2026-11-26; on the host its levels equal the old hand-written fade's (`demo/psm/ao/test/ao4_lamp_test.c` prints it when `python demo/psm/ao/build.py --spike lamp --host-only` runs; `make test` does not run that test. The author's host run printed: largest difference 0 of 255, 0 of 387 channels over 0.75, where 387 is 3 channels x 129 halo vertices. This page did not re-run it). That build has NOT RUN on a console; the 205 us in the table is the old code's.
+- One client in the tree: the lamp test's halo (`demo/psm/ao/ao4_lamp.h`) fades through `sh4der_softfade_levels` since 2026-11-26; on the host its levels equal the old hand-written fade's (`demo/psm/ao/test/ao4_lamp_test.c` prints it when `python demo/psm/ao/build.py --spike lamp --host-only` runs; `make test` does not run that test. The author's host run printed: largest difference 0 of 255, 0 of 387 channels over 0.75, where 387 is 3 channels x 129 halo vertices. This page did not re-run it). That build has no figures on a console; the 205 us in the table is the old code's.
 
 ## Related
 

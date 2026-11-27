@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_coupe  # noqa: E402  (tools/check_coupe.py: the hero car has no hole)
-import grit_gen  # noqa: E402  (tools/grit_gen.py: the asphalt's grey, Cortana's generator)
+import grit_gen  # noqa: E402  (tools/grit_gen.py: the asphalt's grey)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 A = os.path.join(ROOT, "assets")            # fetched packs (tools/fetch.py), not in the repository

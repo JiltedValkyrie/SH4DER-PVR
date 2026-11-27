@@ -61,8 +61,8 @@ The block for `demo/psm/ao/tile_cut.h` as it was at the pilot (now `include/sh4d
                (PVR-156, PVR-092, PVR-192). SH-4: tile_cut_begin +3,930 us a frame in d1-c, and the frame
                903 us slower: MEASURED (PVR-192)
    Status:     the PVR saving PROVEN (three passes); a frame gain ADVISED: the first form did not pay in d1-c
-               (its begin read the whole tables from video memory); this form, tables kept in RAM, has not run
-               on a console. To prove: the whole frame cut and uncut, with the begin and end timed apart
+               (its begin read the whole tables from video memory); this form, tables kept in RAM, has run
+               in Glow that meets a wall, build d (PVR-205). To prove: the whole frame cut and uncut, with the begin and end timed apart
    Do:         wait for render done after every cut pass; cut only with every tile table found (PVR-200: one of two cut)
    Do not:     cut while the next scene fills during a render; carry on if tile_cut_end returns bad
                (shut the PVR down and pvr_init again)
@@ -71,7 +71,7 @@ The block for `demo/psm/ao/tile_cut.h` as it was at the pilot (now `include/sh4d
 
 ## Car demo headers: done
 
-From section 6 of [frame budget](frame-budget.md); Cortana made the edits (comment only).
+From section 6 of [frame budget](frame-budget.md); comment only.
 
 - **`demo/pl4nar/src/heat.h`:** its block (from 4cb117d) now gives the PVR layer about 0.3 to 0.5 ms (8 % of the screen, scaled from full-screen translucent bilinear layers, PVR-006; ESTIMATE) and names the test: car-tech stage 11 (stage 1 with the heat on STRONG) against stage 1, and the page's "last copy" line. PROTOTYPE v0.1. **Replaced by version 2** (in the tree, not committed): the block now gives the PVR layer about 0.1 to 0.2 ms (256 × 32 px, under 3 % of the screen, the same scaling from PVR-006; ESTIMATE), TA 8.5 KB, the start values of the smooth wobble (0.7 px up and down, 70 m ahead), and Maturity "PROTOTYPE v0.2", a version the [maturity](../status/maturity.md) scale does not have (PROTOTYPE is v0.1). Its proof line still names car-tech stage 11, which no longer exists since 2a2b3e7; the fly-by stage (heat on, not committed) is the candidate.
 - **`include/sh4der_pl4nar.h`:** the Maturity line is now "ALPHA v0.5": the client rule is decided ([open questions](../open-questions.md) D2).

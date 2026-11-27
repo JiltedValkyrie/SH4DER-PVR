@@ -101,7 +101,7 @@ A one-off of the street at night in rain. **Y** steps the rain: DRY, DAMP, WET. 
 - **A soft pool round the car.** The grid is centred on the car, not the camera. It is full within 15 m along the road (`WET_FULL`) and across to the kerbs (`WET_KERB`, 8 m from the road's middle), then falls by a smoothstep to 0 at 70 m ahead (`WET_AHEAD`), 40 m behind (`WET_BEHIND`) and the building lines (12 m). The rows are even (14 behind, 2.9 m apart; 20 ahead, 3.5 m apart) and the columns 2 m apart, so the fade spans 9 to 16 rows and the PVR's colour interpolation shows no steps: there is no water line, and the orbit camera (B + stick) looking back sees the pool behind the car too. Nothing is reflected beyond 70 m.
 - **The road layer over it** (`GFX_MAT_GRIT`, lifted 1.5 cm over the reflection's 1 cm): one road surface, `tex_road`'s colour (asphalt, paint, kerbs) lightened and darkened by the grey of `tools/grit_gen.py`, with our cracks and patches of newer asphalt. 128 x 128 ARGB4444 with mipmaps, the same placement as `tex_road` (24 m across, 12 m along). Its alpha is how much of the road shows over the reflection: 4-bit levels 7 to 11 by grit_gen's field (mean 0.56), 2.7 % of the texels at 0, the paint, kerbs, cracks and seams at 15 so they stay readable (variant A in `tools/bake.py`, `GRIT_VARIANT`; B, holes and the rest near opaque, was the alternative not chosen). The rain lowers the whole layer's vertex alpha: 1.00 dry, 0.80 damp, 0.55 wet (`GRIT_DRY`, `GRIT_DAMP`, `GRIT_WET`), so the reflection comes through it everywhere a little, more as it gets wetter. The layer uses the pool's fade, so it has no edge either.
 
-Tuned by eye on the host preview. Nothing of the pool or the road layer has run on a console yet.
+Tuned by eye on the host preview.
 
 Its macros, in `src/demo.c`:
 
@@ -125,7 +125,7 @@ Its macros, in `src/demo.c`:
 
 By day on a dry road (street, map, hills), the air over the road's far end shimmers. A window of the frame on screen (256 x 32 pixels round a point of the road 70 m ahead) is copied pixel for pixel into a 256 x 32 texture and drawn back over the same place through a 32 x 4 cell mesh. The samples drift by 0.7 of a pixel at most, in two slow waves that neighbours share, and the layer is at most half of the picture there. **X** steps it: OFF, LIGHT, STRONG; the autoruns run it OFF but for the fly-by stage, which runs it on STRONG; no stage pairs that with OFF, so its cost is not measured yet. It is gone by night (from night level 0.25) and in rain. The overlay's label shows the last copy's time. The code is `src/heat.h`, host tested by `host/heat_test.c`.
 
-This is version 2. Version 1 looked like swimming texels (seen as host pictures; no console run of the heat is in the ledger): its copy was 3.5 pixels to a texel, each mesh corner wobbled on its own by 2 pixels, and it sat 30 m ahead. What version 2 keeps to:
+This is version 2. Version 1 looked like swimming texels (seen as host pictures): its copy was 3.5 pixels to a texel, each mesh corner wobbled on its own by 2 pixels, and it sat 30 m ahead. What version 2 keeps to:
 
 - **Only the far end.** The layer has the depth of the road 70 m ahead. The car, the poles and the near buildings cover it and are not redrawn.
 - **It follows a turn.** The copy is one or two frames old. The layer samples it where the far picture was in that frame, worked out from the camera's two directions (`heat_slip`), and fades out while the far picture moves fast.
@@ -175,7 +175,7 @@ Its cost is in the Cost table below.
 
 ### The still-camera gate and the fly-by (`src/demo.c`)
 
-The owner's rule: the shimmer is never on screen while the camera moves (a moving camera breaks it). `heat_shown()` is what `heat_copy` and `heat_draw` get: the level above, times a gate that `heat_still_step` sets once a frame from the frame's eye and target. Any move or turn over the limits below turns it off that frame, at once; it comes back after the camera has stood still for `HEAT_STILL`. So a follow camera behind a moving car never shows it, and X on LIGHT or STRONG with the car moving shows the HUD line "heat: waiting for a still camera" in its place. The fly-by (**B + X**, and a stage of each day autorun) holds its kerb camera still, brings the heat in after the cut, fades it out, and only then starts the dolly back to the follow camera. `host/snap_test.c` fails any frame that draws heat with a moving eye. Not run on a console.
+The owner's rule: the shimmer is never on screen while the camera moves (a moving camera breaks it). `heat_shown()` is what `heat_copy` and `heat_draw` get: the level above, times a gate that `heat_still_step` sets once a frame from the frame's eye and target. Any move or turn over the limits below turns it off that frame, at once; it comes back after the camera has stood still for `HEAT_STILL`. So a follow camera behind a moving car never shows it, and X on LIGHT or STRONG with the car moving shows the HUD line "heat: waiting for a still camera" in its place. The fly-by (**B + X**, and a stage of each day autorun) holds its kerb camera still, brings the heat in after the cut, fades it out, and only then starts the dolly back to the follow camera. `host/snap_test.c` fails any frame that draws heat with a moving eye.
 
 | Macro | Value | What it is |
 |---|---|---|
@@ -206,14 +206,14 @@ Two things to know before you judge it. First, the wave is stripes along one dia
 | What | Where | Value |
 |---|---|---|
 | `PL4NAR_HEAT_HEX` | build flag (`EXTRA=-DPL4NAR_HEAT_HEX`) | starts with the hexagons in place of the layer (not the wet build): X steps them OFF (the start), LIGHT, STRONG, and they obey the still-camera gate. The hills build then starts at the 256 x 128 target, the one size there with room for the band. The HUD has their own line under the clock while they are on: the level, the hexagons drawn and the largest move in pixels, or why nothing is drawn |
-| `PL4NAR_HEAT_HEX_FREE` | build flag, with `PL4NAR_HEAT_HEX` | the heat's own show program (the standalone disc): the still-camera gate does not hold the hexagons, so they show while the car drives; the heat starts on STRONG (X still steps OFF, LIGHT, STRONG) and the hour starts held at DAY; the HUD's heat line is always on screen. Not run on a console |
+| `PL4NAR_HEAT_HEX_FREE` | build flag, with `PL4NAR_HEAT_HEX` | the heat's own show program (the standalone disc): the still-camera gate does not hold the hexagons, so they show while the car drives; the heat starts on STRONG (X still steps OFF, LIGHT, STRONG) and the hour starts held at DAY; the HUD's heat line is always on screen. |
 | `PL4NAR_HEAT_HEX_POINT` | build flag | the band point sampled, not filtered: the picture under a hexagon moves by whole pixels and the hexagons' edges show. To compare with; host pictures only |
 | `HEXH_NEAR_BACK` | `src/heat_hex.h` | 6 m: the band holds what is farther than the anchor less this |
 | `demo_auto_hex(on, gate_free)` | `src/demo.h` | the switch: on resizes the target for the band; `gate_free` draws them under a moving camera too (the still gate off; `heat_shown()` is unchanged) |
 | `demo_hex_cells()`, `demo_hex_peak()` | `src/demo.h` | the hexagons drawn in the last frame (4 triangles each), and the largest offset among them in pixels |
 | `XS_HEX` | `src/main.c` | the autorun's hexagon stage: 256 x 128, day, STRONG, driving, the gate off. The last stage of the map and hills autoruns, and stage 10 of the street's (before its two headlight stages); every other stage has no band, so its numbers compare with the runs before |
 
-The result page gives, for that stage, the frames with a band, the most triangles sent into it in a frame and the most hexagons drawn in a frame. The macros of the hexagons themselves are in the library README's "Hexheat tuning". Not run on a console.
+The result page gives, for that stage, the frames with a band, the most triangles sent into it in a frame and the most hexagons drawn in a frame. The macros of the hexagons themselves are in the library README's "Hexheat tuning".
 
 ## The headlight beam (`PL4NAR_HEAD_BEAM`)
 
@@ -225,13 +225,13 @@ In the hills build the road drape (`fan_drape`) takes only a fan, so both wedges
 |---|---|---|
 | `PL4NAR_HEAD_BEAM` | build flag (`EXTRA=-DPL4NAR_HEAD_BEAM`) | starts with the beam on |
 | `demo_auto_beam(on)` | `src/demo.h` | the switch: 0 the two wedges, 1 the beam |
-| `demo_auto_cine_far()`, `CINE_FAR_Y` | `src/demo.h`, `src/demo.c` | the fly-by's shot from 6 m up (the same place, hold and dolly): a still camera that looks down on the road, so a light 50 to 60 m off is more than a line of pixels. NOT RUN on a console |
-| stages 11 and 12, "headlight fade" and "headlight plain" | `src/main.c`, the street's autorun only | Headlights fade with distance: night, the far shot, the car driving away (50 m off at 4.6 s, 60 m at 5.3 s); first with the fade, then the same shot without it. Appended, so stages 1 to 10 make the calls they made before. 12 stages, 84 s. NOT RUN on a console |
+| `demo_auto_cine_far()`, `CINE_FAR_Y` | `src/demo.h`, `src/demo.c` | the fly-by's shot from 6 m up (the same place, hold and dolly): a still camera that looks down on the road, so a light 50 to 60 m off is more than a line of pixels. |
+| stages 11 and 12, "headlight fade" and "headlight plain" | `src/main.c`, the street's autorun only | Headlights fade with distance: night, the far shot, the car driving away (50 m off at 4.6 s, 60 m at 5.3 s); first with the fade, then the same shot without it. Appended, so stages 1 to 10 make the calls they made before. 12 stages, 84 s. |
 | `LAMP_NEAR`, `LAMP_FADE_W` | `src/demo.c` | 60 m, 10 m: the reach and the fade over its last part |
 
 What "plain" means: the two wedges have no reach at all, so in stage 12 the light stays on the road however far the car is. The pair shows the light dying away between 50 and 60 m against the light staying; it is not a fade against a hard cut.
 
-Host count (the street build, `snap_test` replaying the two stages, 210 frames each, the far shot): with the fade 264,908 triangles sent (most in a frame 1,351), without 254,020 (most 1,335); the two stages are not the same stretch of street, so the difference is not the beam's cost alone. In the fly-by's low shot run twice over one stretch (the count before the far shot existed): beam off 251,468, on 252,022, about 2.6 more a frame. A beam is 10 vertices and 10 triangles a headlight, against the wedge's 4 and 2. `snap_test` also holds the far shot's camera still through its hold and the car to its speed. The map and hills builds are not counted. NOT RUN on a console.
+Host count (the street build, `snap_test` replaying the two stages, 210 frames each, the far shot): with the fade 264,908 triangles sent (most in a frame 1,351), without 254,020 (most 1,335); the two stages are not the same stretch of street, so the difference is not the beam's cost alone. In the fly-by's low shot run twice over one stretch (the count before the far shot existed): beam off 251,468, on 252,022, about 2.6 more a frame. A beam is 10 vertices and 10 triangles a headlight, against the wedge's 4 and 2. `snap_test` also holds the far shot's camera still through its hold and the car to its speed. The map and hills builds are not counted.
 
 ## Camera and thumbnail
 

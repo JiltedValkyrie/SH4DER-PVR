@@ -1,5 +1,5 @@
 {
-  "note": "The suite disc psm-suite-s6: demo/psm/suite/build.py --tag s6 --list demo/psm/suite/suite_s6.json. s5b with ao4-d in place of ao4-c: scene C gains the mode 3+M (the lightmaps and a tile a hen: the movers' half of AO2_DESIGN.md) and the splits 3|3+M, 3+M|2, 3+M|3+M. hero1 is Junior's h1c (the living room). RUN ALL runs ao4 then hero1: a hud1c build may hang by design. Times are ESTIMATE, not measured. Nothing on this disc has run on a console. It supersedes s5 and s5b if neither has run.",
+  "note": "The suite disc psm-suite-s6: demo/psm/suite/build.py --tag s6 --list demo/psm/suite/suite_s6.json. s5b with ao4-d in place of ao4-c: scene C gains the mode 3+M (the lightmaps and a tile a hen: the movers' half of AO2_DESIGN.md) and the splits 3|3+M, 3+M|2, 3+M|3+M. hero1 is Junior's h1c (the living room). RUN ALL runs ao4 then hero1: a hud1c build may hang by design. Times are ESTIMATE, not measured. It supersedes s5 and s5b if neither has run.",
   "tests": [
     {
       "name": "ao4",

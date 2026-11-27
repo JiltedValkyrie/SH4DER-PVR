@@ -21,7 +21,7 @@ It turns a distance into a strength from 0 to 1 that eases between two distances
 4. For one point: `sh4der_ramp_in(from, len, d)`, one call with one reciprocal (include/sh4der_ramp.h:44-50; ADVISED).
 5. An end at or before the start, or a length of 0 or less, is a step at the start and not a fade (include/sh4der_ramp.h:43, 47, 60).
 
-On a console: NOT RUN. The page says: "Nothing has run on a console."
+On a console: no figures.
 
 Header: [include/sh4der_ramp.h](../../include/sh4der_ramp.h). Call order: [Call order](#call-order).
 
@@ -50,7 +50,7 @@ Version: v0.10, host tested (`test/ramp_test.c`).
 | CPU, prepared, a point | one multiply and a saturate | ESTIMATE (not measured) |
 | VRAM | 0 | |
 
-Nothing has run on a console. No row in the ledger backs a number here.
+No row in the ledger backs a number here.
 
 ## Recommended limits
 

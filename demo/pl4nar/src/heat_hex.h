@@ -2,14 +2,14 @@
  * demo's camera and road each frame, and the view before (for a turn and the camera's travel). The maths is the
  * library's; this file is what only this demo has: where the haze stands and how near the band's picture may come.
  *
- * RECOMMENDED (no console run: every number an ESTIMATE)
+ * RECOMMENDED (every number an ESTIMATE)
  * Cost:       the band: 256 x 128 texels in the reflection target, 64 KB (street), 128 KB (map), 0 (hills: a spare
  *             region); the far world sent a second time (COUNTED on the host: README "Heat haze, hexagons"); the
  *             hexagons: 131 a frame on the start's straight, 4 triangles each (COUNTED on the host, the three layouts;
  *             113 to 132 over the hills by the road's shape)
  * Start with: the haze sheet HEAT_DIST = 70 m ahead; HEXH_NEAR_BACK = 6 m: the band holds what is farther than
  *             HEAT_DIST - 6 = 64 m along the view, and the hexagons stand at that depth
- * Status:     ADVISED: host tested (host/heat_hex_test.c); nothing of it has run on a console
+ * Status:     ADVISED: host tested (host/heat_hex_test.c).
  * Maturity:   PROTOTYPE v0.1
  *
  * Include after heat.h. The band's pass and the draw are demo.c's (hex_band_pass, hex_draw). */

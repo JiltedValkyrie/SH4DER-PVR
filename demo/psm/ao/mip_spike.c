@@ -7,7 +7,7 @@
    grows with depth. A texture whose levels are flat, different greys (mip_model.h) then writes a number that depends
    on depth into the frame, and trilinear filtering should blend neighbouring levels into a ramp. If the choice is made
    a pixel, that is a camera depth reading with no second transform; if it is made a triangle, it is not.
-   ALL OF THAT IS AN ESTIMATE: this program finds out. Nothing here has run on a console.
+   ALL OF THAT IS AN ESTIMATE: this program finds out.
 
    A floor from 1 m to 60 m, the eye 0.75 m above it looking level, drawn into a 320 x 240 render target, read back
    by PVR-DMA (as d1 does), one column of it (x = COL) compared with the depth the SH-4 knows for each row. Ten

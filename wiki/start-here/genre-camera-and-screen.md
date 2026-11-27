@@ -50,7 +50,7 @@ Three of these work on the picture itself. [look](../effects/look.md) reads the 
 - `SH4DER_TRAIL_COPIES` = 3 (README.md:537): history copies, two or three. ADVISED (no measured number).
 - `SH4DER_TRAIL_SHIFT_MAX` = 8 (README.md:542): the longest copy offset, in pixels. ADVISED (no measured number).
 - Never both at once with [ca](../effects/ca.md): they share one stride register. Hard rule (VID-003, FACT, from the code).
-- NOT RUN on a console: the demo disc includes this header and never calls it (maturity.md).
+- No figures: the demo disc includes this header and never calls it (maturity.md).
 
 ### Screen overlays [lens]
 
@@ -104,7 +104,7 @@ Three of these work on the picture itself. [look](../effects/look.md) reads the 
 **Starting settings:**
 - `SH4DER_FILM_FLICKER_MAX` = 0.04 and `SH4DER_FILM_RATE_MAX_HZ` = 3.0 (sh4der_film.h:75-76): at most an 8 % brightness swing, peak to peak, at 3 Hz or slower. ADVISED (design limits, not tested on viewers).
 - `SH4DER_FILM_SCRATCH_SLOTS` = 3 and `SH4DER_FILM_SPECKS_MAX` = 12 (README.md:1269-1270). ADVISED (no measured number).
-- NOT RUN on a console: host tests only (maturity.md).
+- No figures (maturity.md).
 
 ### Tape wobble [timebase]
 
@@ -112,7 +112,7 @@ Three of these work on the picture itself. [look](../effects/look.md) reads the 
 **Use it when:** a cutscene, a security monitor or a broken broadcast should look as if it plays from video tape.
 **Where it is:** [header](../../include/sh4der_timebase.h) and [effect page](../effects/timebase.md).
 **Starting settings:**
-- The header's block (sh4der_timebase.h:37-39): tension 0.375, flutter 0.135, head_switch_us 0.6, a mesh row every 6 picture rows, an overscan of 8 pixels. ADVISED. NOT RUN on a console; the ledger has no row.
+- The header's block (sh4der_timebase.h:37-39): tension 0.375, flutter 0.135, head_switch_us 0.6, a mesh row every 6 picture rows, an overscan of 8 pixels. ADVISED. No figures; the ledger has no row.
 - `SH4DER_CA_ROWS_MESH_X` = 2 (README.md:806): cells across the banded mesh. ADVISED (no measured number).
 - Required credit, not a setting: keep the NTSCRT notice in the header, and credit NTSCRT and its author, Finn McKenty (README.md:1277-1278; [licence and credit](license-and-credit.md)).
 
@@ -124,7 +124,7 @@ Three of these work on the picture itself. [look](../effects/look.md) reads the 
 **Starting settings:**
 - `SH4DER_VISOR_FADE_IN_S` = 0.25 and `SH4DER_VISOR_FADE_OUT_S` = 0.40 (README.md:623-624): seconds from off to on, and on to off. ADVISED (no measured number).
 - `SH4DER_VISOR_VIG_R` = 280.0 and `SH4DER_VISOR_VIG_FEATHER` = 200.0 (README.md:630-631): the clear disc and its falloff, in pixels. ADVISED (no measured number).
-- NOT RUN on a console: no program uses it (maturity.md).
+- No figures: no program uses it (maturity.md).
 
 ### Fake focus blur [focus]
 
@@ -135,7 +135,7 @@ Three of these work on the picture itself. [look](../effects/look.md) reads the 
 - `SH4DER_FOCUS_FEATHER` = 48.0 (README.md:607): pixels over which the sharp part falls to blur. ADVISED (no measured number).
 - `SH4DER_FOCUS_DISC_R` = 120.0, `SH4DER_FOCUS_BAND_H` = 60.0, `SH4DER_FOCUS_RECT_W` = 100.0 and `SH4DER_FOCUS_RECT_H` = 80.0 (README.md:609-612): the shape sizes, in pixels. ADVISED (no measured number).
 - `SH4DER_FOCUS_TEX_W` = 128 and `SH4DER_FOCUS_TEX_H` = 64 (README.md:601-602): powers of two. ADVISED (the effect page's limits).
-- NOT RUN on a console: no program uses it (maturity.md).
+- No figures: no program uses it (maturity.md).
 
 ## What it costs
 
@@ -143,15 +143,15 @@ Three of these work on the picture itself. [look](../effects/look.md) reads the 
 |---|---|---|---|---|
 | [look](../effects/look.md) | 0 (FACT, README.md:448) | 0 to 6 full-screen quads of 4 vertices (FACT, README.md:448) | Read: 4,800 uncached loads a frame (FACT). Read time not measured (OPEN: time `sh4der_frame` on a console) | Runs on the demo disc (REPORTED, README.md:135); cost OPEN |
 | [taa](../effects/taa.md) | 320 KB for two history textures at 320 x 240 (FACT, arithmetic, sh4der_taa.h:62-63) | Its layers are drawn by trail; not counted | Not measured (OPEN: time the blend on a console) | Runs on the demo disc (REPORTED); no row |
-| [trail](../effects/trail.md) | 128 B mask (FACT, sh4der_trail.h:157); history from the front buffer, 0 B | 8 full-screen layers at the default 3 copies (FACT count, sh4der_trail.h:26-28, 67) | Not measured (OPEN) | NOT RUN on a console |
+| [trail](../effects/trail.md) | 128 B mask (FACT, sh4der_trail.h:157); history from the front buffer, 0 B | 8 full-screen layers at the default 3 copies (FACT count, sh4der_trail.h:26-28, 67) | Not measured (OPEN) | no figures |
 | [lens](../effects/lens.md) | 8 KB grain tile, 64 x 64 x 2 B (FACT, arithmetic, sh4der_lens.h:111) | Vignette: 32 spokes by 8 rings by default (FACT, sh4der_lens.h:106-107); vertex count 594 and 288 triangles (`src/sh4der_lens.c:19`) | Not measured (OPEN) | No console row (maturity.md). The 2.3 of 255 shading error is ESTIMATE (host sweep) |
 | [warp](../effects/warp.md) | 256 KB: a 512 x 256 RGB565 texture (FACT, arithmetic, sh4der_warp.h:13-14) | Mesh 40 x 30: 2,460 vertices; pixelate pass: 1,200 (MEASURED, h2) | Mesh 2,250 us by `pvr_prim`, 2,394 us by runs; pixelate 440 us by `pvr_prim`, 290 us by runs (MEASURED, h2, least of 8 frames) | "Measured on a console. h2 bench, one console, one run, 2026-11-25." PVR render: mesh 6,466 us, pixelate 3,183 us (least, same run) |
 | [hexheat](../effects/hexheat.md) | 64 KB: a 256 x 128 band at 16 bits (FACT, arithmetic, sh4der_hexheat.h:122-123) | 131 hexagons of 4 triangles a frame (786 vertices as strips); the street demo's far world sent again, mean 599 triangles a frame (ESTIMATE, host count) | About 160 cells walked a frame, a ray each; not measured (OPEN) | Run on a console by the owner in Heat haze on a hot road (her test; no measured numbers recorded yet); every count is a host ESTIMATE (2026-11-26) |
 | [ca](../effects/ca.md) | 640 KB at 640 x 480, or 160 KB at 320 x 240, per texture (FACT, VID-001) | Three meshes of 63 vertices (FACT count, sh4der_ca.h:28-29) | Not timed (OPEN: a multiply and an add per vertex) | Runs on the demo disc (REPORTED); second scene OPEN |
-| [film](../effects/film.md) | None of its own; 92-byte parameter block in RAM (FACT, sh4der_film.h:85) | One multiply rectangle, up to 3 lines and 12 specks a frame (FACT count, sh4der_film.h:73-74) | Two sines a frame (FACT count); not measured (OPEN) | NOT RUN on a console |
-| [timebase](../effects/timebase.md) | None of its own; frame texture 640 KB at 640 x 480 (FACT, VID-001) | 4 vertices a mesh row a channel (FACT count, sh4der_timebase.h:42-43) | About 4.2 KB of stack, 40 B of RAM and 4 B of state (FACT, header counts); not measured (OPEN) | ADVISED; NOT RUN in the ledger |
-| [visor](../effects/visor.md) | Grain 2,048 B and scanline 128 B (FACT, sh4der_visor.h:79-80); thermal map is the focus map, 16 KB | Not stated (drawn through the look layers) | Thermal ramp 128 B of RAM (FACT, sh4der_visor.h:81); not measured (OPEN) | NOT RUN on a console (no program uses it) |
-| [focus](../effects/focus.md) | 16,384 B: a 128 x 64 RGB565 blur texture (FACT, sh4der_focus.h:78) | 408 strip vertices and 384 triangles a frame (FACT, sh4der_focus.h:80-81) | The box blur runs on the SH-4; not measured (OPEN); 1,440 B of RAM (FACT, focus.md) | NOT RUN on a console (no program uses it) |
+| [film](../effects/film.md) | None of its own; 92-byte parameter block in RAM (FACT, sh4der_film.h:85) | One multiply rectangle, up to 3 lines and 12 specks a frame (FACT count, sh4der_film.h:73-74) | Two sines a frame (FACT count); not measured (OPEN) | no figures |
+| [timebase](../effects/timebase.md) | None of its own; frame texture 640 KB at 640 x 480 (FACT, VID-001) | 4 vertices a mesh row a channel (FACT count, sh4der_timebase.h:42-43) | About 4.2 KB of stack, 40 B of RAM and 4 B of state (FACT, header counts); not measured (OPEN) | ADVISED; no ledger row |
+| [visor](../effects/visor.md) | Grain 2,048 B and scanline 128 B (FACT, sh4der_visor.h:79-80); thermal map is the focus map, 16 KB | Not stated (drawn through the look layers) | Thermal ramp 128 B of RAM (FACT, sh4der_visor.h:81); not measured (OPEN) | no figures (no program uses it) |
+| [focus](../effects/focus.md) | 16,384 B: a 128 x 64 RGB565 blur texture (FACT, sh4der_focus.h:78) | 408 strip vertices and 384 triangles a frame (FACT, sh4der_focus.h:80-81) | The box blur runs on the SH-4; not measured (OPEN); 1,440 B of RAM (FACT, focus.md) | no figures (no program uses it) |
 
 Video memory is the picture memory the graphics chip keeps its textures and drawing targets in, and triangles are the flat shapes sent to it, so a bigger count means more work for the chip.
 

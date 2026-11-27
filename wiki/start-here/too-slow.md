@@ -9,7 +9,7 @@ sources: [wiki/limits/frame-budget.md, wiki/limits/recommended-limits.md, wiki/m
 **What you will learn:** how to find out what makes a frame slow before you cut anything, which setting to cut at each step and what each cut costs in the picture, and which parts to leave alone.
 **For:** anyone whose frame misses 60 Hz (or 30 Hz) with this library, whatever the game.
 
-Every number here has a status tag. **MEASURED** means a ledger row names the run. **ADVISED** means a header's or a guide's start value. **ESTIMATE** means arithmetic or a named model. **NOT RUN** and **OPEN** mean nobody has the number yet. A measured and an estimated number never share a cell. [Benchmarking](../methods/benchmarking.md) says what counts as evidence: a real Dreamcast, and no emulator.
+Every number here has a status tag. **MEASURED** means a ledger row names the run. **ADVISED** means a header's or a guide's start value. **ESTIMATE** means arithmetic or a named model. **no figures** and **OPEN** mean nobody has the number yet. A measured and an estimated number never share a cell. [Benchmarking](../methods/benchmarking.md) says what counts as evidence: a real Dreamcast, and no emulator.
 
 ## 1. Measure before you cut
 

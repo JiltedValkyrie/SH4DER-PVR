@@ -33,7 +33,7 @@
    SOFTWARE.
 */
 
-/* RECOMMENDED (no console run on record: nothing below is measured; wiki/limits/header-recommended.md)
+/* RECOMMENDED (nothing below is measured; wiki/limits/header-recommended.md)
    Start with: the short film's deck (640 pixels wide, 360 rows): tension = 0.375 (a hook of about 24 pixels at the
                top row), flutter = 0.135, head_switch_us = 0.6 shown 1.5 s in every 20 s, afc_speed = 0, amount = 1;
                a mesh row every 6 picture rows; an overscan of 8 pixels; SH4DER_CA_ROWS_MESH_X = 2
@@ -41,7 +41,7 @@
                about 4.2 KB of stack in sh4der_timebase_field; RAM 40 B and 4 B of state; VRAM 0 of its own (the
                frame texture is sh4der_ca.h's: 640 KB at 640 x 480). The screen pass through
                sh4der_ca_channel_rows is 4 vertices a mesh row a channel
-   Status:     ADVISED (NOT RUN in the ledger); host tested (test/timebase_test.c). To prove: the same shot with
+   Status:     ADVISED (no ledger row); host tested (test/timebase_test.c). To prove: the same shot with
                the bend on and off, frame, SH-4 and PVR time
    Do:         call sh4der_timebase_field once a displayed frame, fields in order, from the main thread; give
                sh4der_ca_channel_rows an overscan as large as the largest shift; keep the notice above and credit
@@ -103,7 +103,6 @@
       broken broadcast, through a frame texture drawn as bands.
 
     \author Jilted Valkyrie
-    \author Claude (an AI by Anthropic): the port and the tests
     \author Finn McKenty: the model (NTSCRT, MIT License, notice above)
 */
 

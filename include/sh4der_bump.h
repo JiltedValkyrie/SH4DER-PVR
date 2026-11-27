@@ -28,7 +28,7 @@
     - The light is read in the same frame: x along +u, y along -v (up the image), z along the normal. A sh4der_bump_frame_t gives +v (the way rows run), so
       flip 0 turns it round for you; flip 1 is for a normal map whose y runs DOWN the image.
 
-    NOT checked on a real console: which way the azimuth runs against the texture's u axis (the y-up frame above is pvrtex's, read from its source; a mirrored
+    The one open item: which way the azimuth runs against the texture's u axis (the y-up frame above is pvrtex's, read from its source; a mirrored
     surface turns the other way). sh4der_bump_frame_t.flip turns it round when it looks wrong.
 
     No allocation, no globals. The twiddled output is a uint16_t array the caller owns (a uint16_t array is 2-byte aligned;

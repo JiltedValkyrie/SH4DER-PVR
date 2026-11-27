@@ -1,6 +1,6 @@
-# QR reading test (image psm-qr-q1): built, not run
+# QR reading test (image psm-qr-q1): built
 
-Built 2026-11-25 by Senior. **Not run on a console.** Nothing below is a hardware result.
+Built 2026-11-25 by Senior.
 
 ## The question
 

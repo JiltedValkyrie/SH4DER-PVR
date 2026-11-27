@@ -35,7 +35,7 @@
 
    A volume with a vertex nearer than the near plane is not sent (counted as "skipped"): the cut is not in this spike.
    The fault catcher (include/sh4der_fault.h) is in. Every number comes from the run that prints it; only a real console's
-   run is evidence. Build: python demo/psm/compare/build.py --spike vol. Not run on a console when this was written.
+   run is evidence. Build: python demo/psm/compare/build.py --spike vol.
 */
 
 #include <kos.h>

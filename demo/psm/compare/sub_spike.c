@@ -35,7 +35,7 @@
 
    Only PVR registers and video memory are written. The fault catcher (include/sh4der_fault.h) is in; every wait is bounded.
    Every number comes from the run that prints it; only a real console's run is evidence.
-   Build: python demo/psm/compare/build.py --spike sub. Not run on a console when this file was written.
+   Build: python demo/psm/compare/build.py --spike sub.
 */
 
 #include <kos.h>

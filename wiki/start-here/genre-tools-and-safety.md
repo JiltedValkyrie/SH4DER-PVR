@@ -9,7 +9,7 @@ sources: [include/sh4der_guard.h, include/sh4der_fault.h, include/sh4der_tilecut
 **What you will learn:** which helpers stop a Dreamcast program from freezing or drawing stray lines, which ones save PVR time, what each costs, and how much console proof backs it.
 **For:** a programmer adding SH4DER-PVR to a Dreamcast project, and any agent that wires a helper into a client.
 
-This genre is about your safety and speed more than about pictures. Most parts here are small helpers. Several have no console run of their own yet, and each part says so.
+This genre is about your safety and speed more than about pictures. Most parts here are small helpers. Several have no figures of their own yet, and each part says so.
 
 ## What you can make
 
@@ -74,7 +74,7 @@ Status: the header says "nothing here has run on a console AS THIS LAYER". Its c
 - For a loop over many points, prepare the ramp once with `sh4der_ramp_make` (header "Do"). ADVISED.
 - Do not use it for a strength the PVR must work out per pixel from a texture (header "Do not"). ADVISED.
 
-Status: ADVISED, with no console run. To prove it: the same view faded against a hard step, timed for PVR and frame. This part has no row on the [maturity](../status/maturity.md) page.
+Status: ADVISED, no figures. To prove it: the same view faded against a hard step, timed for PVR and frame. This part has no row on the [maturity](../status/maturity.md) page.
 
 ### Split screen [split]
 **What it looks like:** the screen is cut in two by a divider, and each half shows its own look.
@@ -128,7 +128,7 @@ Video memory is the 8 MB the graphics chip keeps for frame buffers, render targe
 | Crash and hang screen [fault] | About 3 KB of report buffers, plus the breadcrumbs (ESTIMATE, from the code) | None sent by it | Under 100 instructions a frame; watchdog about 20 a blank (ESTIMATE, from the code). Not measured (OPEN: a deliberate fault, photographed) | PROTOTYPE v0.1 |
 | Tile-cut pass [tilecut] | 0 (tables rewritten in place, FACT). RAM: 14,400 B for the two copies (sh4der_tilecut.h:89) | Not vertices: PVR tile time. 3,312 to 375 us for a 20-tile target (PVR-092). 5,075 to 1,425 us for a 10 x 8 map (PVR-205). MEASURED, one console each | Begin 126 us, end 130 us a pass (PVR-205, MEASURED, one console). Columns form: 5 us and 3 us | ALPHA v0.5 |
 | PVR extras [pvrx] | 0 (FACT). Your RAM buffer, in whole 32-byte units (sh4der_pvrx.h:93-102) | Not vertices. A download by interrupt: 32 KB 869 us, 128 KB 3,461 us, 512 KB 13,742 us (BUS-021, MEASURED, one console) | Frame 39.9 to 23.3 ms in one program, both waits polled (PVR-117, MEASURED, two runs). Other calls not measured (OPEN: the pvrx-check entry) | PROTOTYPE v0.1 |
-| Distance ramp [ramp] | 0 | None: a helper | One reciprocal a call (ESTIMATE, not measured) | ADVISED, no console run |
+| Distance ramp [ramp] | 0 | None: a helper | One reciprocal a call (ESTIMATE, not measured) | ADVISED, no figures |
 | Split screen [split] | 0 | Not measured: the halves' own sends. A hidden half is not sent | Integer compares a frame. Not measured (OPEN: move the divider and time it) | ALPHA v0.2 |
 | Frame read [frame] | 0 extra: the stamp is drawn into the frame on screen. Raw grid 9,600 B (80 x 60 cells of 2 B, FACT, src/sh4der_frame.c:23) | 4,800 samples a read, not vertices | Read time not measured (OPEN). Bus rates: 3.7 MB/s uncached (SH4-040), 38.6 to 38.7 MB/s through the cache (SH4-041), MEASURED, one console. Another port's log: 1,196 us (VID-005, REPORTED) | PROTOTYPE v0.1 |
 | Shared parts [core] | 0 | Not a vertex cost | One SH4ZAM call or instruction a helper (as stated, not measured). Breath tracker: 364 bytes (README "Shared tuning") | PROTOTYPE v0.1 |

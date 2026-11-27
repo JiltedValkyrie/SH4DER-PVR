@@ -21,7 +21,7 @@ The guide follows one working example: the street driving demo in `demo/pl4nar`.
 
 ## Read this first
 
-- **Status tags.** Every number says where it comes from. **MEASURED** means a row in the [hardware ledger](../hardware/ledger-pvr.md) backs it, from one Dreamcast. **ADVISED** means a start setting from a header or the demo's source. **NOT RUN** means no console run is recorded for it: host tests, tools, or code that no listed demo uses. A listed demo the owner has run is written as run on a console by the owner in that demo (her test; no measured numbers recorded yet) ([suite 13](../methods/suite-13.md)). **ESTIMATE** means arithmetic or a model. **DERIVED** means arithmetic on measured numbers, such as a difference or a ratio. **OPEN** means nobody has measured it yet. A measured number and an estimate are never mixed in one cell.
+- **Status tags.** Every number says where it comes from. **MEASURED** means a row in the [hardware ledger](../hardware/ledger-pvr.md) backs it, from one Dreamcast. **ADVISED** means a start setting from a header or the demo's source. **no figures** means no number is recorded for it: host tests, tools, or code that no listed demo uses. A listed demo the owner has run is written as run on a console by the owner in that demo (her test; no measured numbers recorded yet) ([suite 13](../methods/suite-13.md)). **ESTIMATE** means arithmetic or a model. **DERIVED** means arithmetic on measured numbers, such as a difference or a ratio. **OPEN** means nobody has measured it yet. A measured number and an estimate are never mixed in one cell.
 - **The car programs.** The owner has run the car programs on the suite 13 disc on a console (her test; no measured numbers recorded yet). Some earlier car builds have console rows in the ledger. Each section says which numbers come from those.
 - **Headlights and lamps.** The library can fade a pool by its distance from the eye (a prototype; run on a console by the owner in Street car demo, Car on hills and Drive a car on hills (her test; no measured numbers recorded yet) for the fade), and the street demo fades its lamps by distance. Section 3 says what each does, and what is not built.
 - **Credit.** A game that uses any of this library must credit it. See [licence and credit](../start-here/license-and-credit.md).
@@ -72,9 +72,9 @@ The rules: wait for render done after every cut pass; never cut while a render r
 
 | Cars needing a shadow | Low: blobs | Medium: small layout | High: big layout |
 |---|---|---|---|
-| 1 (player) | Blob, `-DPL4NAR_BLOBS`. ADVISED (`sh4der_pool.h:8-9`). Cost NOT RUN. | One 32 px tile. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | One 128 px tile. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
-| About 4 | Blobs within 80 m (`demo.c:56`). ADVISED. Cost NOT RUN. | Four of eight slots, 32 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | All four slots, 128 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
-| About 8 | Blobs within 80 m. Cost NOT RUN. | All eight slots, 32 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | Four tiles; the rest get blobs only with `-DPL4NAR_BLOBS` (`demo.c:2142-2145`). Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
+| 1 (player) | Blob, `-DPL4NAR_BLOBS`. ADVISED (`sh4der_pool.h:8-9`). Cost: no figures. | One 32 px tile. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | One 128 px tile. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
+| About 4 | Blobs within 80 m (`demo.c:56`). ADVISED. Cost: no figures. | Four of eight slots, 32 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | All four slots, 128 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
+| About 8 | Blobs within 80 m. Cost: no figures. | All eight slots, 32 px. Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). | Four tiles; the rest get blobs only with `-DPL4NAR_BLOBS` (`demo.c:2142-2145`). Run on a console by the owner in Car on hills (her test; no measured numbers recorded yet). |
 
 No recommended value yet says which column to pick at a frame time. The test: the car-hills run in [suite 13](../methods/suite-13.md), frame line read for each layout.
 
@@ -196,7 +196,7 @@ The header's fade runs across the fan. A disc's centre has full alpha and its ri
 
 The library fades a pool by its distance from the eye from commit 083d3f6. Before that commit, at e48edf3, it did not. A fade that softens a glow where it meets any shape (a camera depth map) is **not in the library**. A fade against the planes and rectangles you name is a separate header, `sh4der_softfade.h` (below).
 
-### The distance fade (PROTOTYPE, not run on a console)
+### The distance fade (PROTOTYPE, no figures)
 
 The library fades a pool by its distance from the eye. Its two settings come from the street demo's lamps:
 
@@ -217,17 +217,17 @@ Status: PROTOTYPE v0.1 inside the pool header. Host tested (`test/pool_test.c`: 
 
 Do not call `sh4der_pool_reach_make` once for each lamp. Do not put a reach on the player's own headlights.
 
-### The headlight beam switch (street build, NOT RUN on a console)
+### The headlight beam switch (street build, no figures)
 
-A car's headlight in the street demo starts as two plain wedges. The switch `-DPL4NAR_HEAD_BEAM` (or `demo_auto_beam(1)` in code) turns on `sh4der_pool_beam` for the beam: 2 across, 3 rows, with reach `LAMP_NEAR` (60 m) and fade width `LAMP_FADE_W` (10 m), measured from the eye. The spill wedge is scaled by the car's distance. The street demo's autorun now has 12 stages (84 s). Stage 11, "Headlights fade with distance", turns the beam on; stage 12 is the two plain wedges for comparison. In stage 11 a car driving away at 14 m/s is 50 m off at 4.6 s and 60 m off at 5.3 s. NOT RUN on a console.
+A car's headlight in the street demo starts as two plain wedges. The switch `-DPL4NAR_HEAD_BEAM` (or `demo_auto_beam(1)` in code) turns on `sh4der_pool_beam` for the beam: 2 across, 3 rows, with reach `LAMP_NEAR` (60 m) and fade width `LAMP_FADE_W` (10 m), measured from the eye. The spill wedge is scaled by the car's distance. The street demo's autorun now has 12 stages (84 s). Stage 11, "Headlights fade with distance", turns the beam on; stage 12 is the two plain wedges for comparison. In stage 11 a car driving away at 14 m/s is 50 m off at 4.6 s and 60 m off at 5.3 s. No figures.
 
 The hills build keeps the long wedge with no fade along it; only its spill is scaled by the car's distance.
 
-The host counts are exact counts, not console numbers. Over one stretch of road, a 210-frame night fly-by in the street build sent 251,468 triangles with the switch off and 252,022 with it on. The two autorun stages cover different stretches of road, so their counts are not a like-for-like comparison: with the fade, 264,908 triangles were sent (most in a frame: 1,351), without it 254,020 (most in a frame: 1,335). These are host numbers; NOT RUN on a console.
+The host counts are exact counts, not console numbers. Over one stretch of road, a 210-frame night fly-by in the street build sent 251,468 triangles with the switch off and 252,022 with it on. The two autorun stages cover different stretches of road, so their counts are not a like-for-like comparison: with the fade, 264,908 triangles were sent (most in a frame: 1,351), without it 254,020 (most in a frame: 1,335). These are host numbers; no figures from a console.
 
 ### Soft edges at planes and walls (not the depth fade)
 
-`sh4der_softfade.h` fades a light per vertex near planes and rectangular walls that you name. It reads no depth, so it does not fade against a car, a person or a curved shape. Status: PROTOTYPE v0.1, host tested, NOT RUN on a console; cost NOT MEASURED for this header. Plain words and the calls are in [Soft edges for light](../effects/softfade.md).
+`sh4der_softfade.h` fades a light per vertex near planes and rectangular walls that you name. It reads no depth, so it does not fade against a car, a person or a curved shape. Status: PROTOTYPE v0.1, host tested, run on a console by the owner in Lamp with a lit shade (her test; no measured numbers recorded yet); cost NOT MEASURED for this header. Plain words and the calls are in [Soft edges for light](../effects/softfade.md).
 
 The camera depth-map route, which softens a glow against any shape, is not in the library. A separate test program ran it on a console: the hard line went (PVR-204, MEASURED, the pictures), and the map cost 5.1 ms of PVR (PVR-203, MEASURED, one console; a different program's own code, not this library).
 
@@ -331,7 +331,7 @@ The 32, 128 and 512 KB figures are the map build's target, twice the mirror's wi
 | Car lookups (inside SH-4) | 0.64 ms | fits | fits | MEASURED, PVR-174 |
 | Screen PVR (day: tiles in; lamps, pools and halos off, demo.c:743) | 7.45 ms | fits | fits | MEASURED, PVR-174 |
 | Mirror PVR | 3.23 ms | fits | fits | MEASURED, PVR-174 |
-| Tiles, pools, halos, heat alone | not measured | not measured | not measured | heat NOT RUN |
+| Tiles, pools, halos, heat alone | not measured | not measured | not measured | heat: no figures |
 
 Total not known. The PVR pair sums to 10.68 ms (ESTIMATE). The frame is about 4 ms over the SH-4 time, so it is SH-4 bound ([frame budget, section 1](../limits/frame-budget.md)).
 
@@ -448,7 +448,7 @@ The owner has run the car programs on a console (her test; no measured numbers r
 
 - **Tile layouts and the fade (conflict a).** [frame-budget.md:178](../limits/frame-budget.md) gives four 128 px tiles, faded from 40 m, as the car default; the row's practice text does not name the hills build, though its evidence comes from it. The code has those layouts and the fade only in the hills build (`demo.c:44-60`, `340-347`, `355`, `1960`, `1988`); the map build has eight tiles, no fade and a 50 m cut (`demo.c:2012-2058`). The guide follows the code. DISPUTED: the frame budget row needs "hills build".
 - **Start size (conflict g).** [include/sh4der_pl4nar.h:8](../../include/sh4der_pl4nar.h) and AGENTS.md say start at 256 x 128; `demo.c:550, 559` start the wet and hills builds at 128 x 64 (the comment at 559 gives the owner's choice). The guide gives both. OPEN: no run compares the two starts.
-- **Paint F0 (conflict h).** [include/sh4der_pl4nar.h:112](../../include/sh4der_pl4nar.h) and the README's pl4nar table say 0.06 (physical). `demo.c:239` uses 0.14 in the street build and `demo.c:237` 0.25 in the map build; README line 1018 says 0.14 read best in the first client, as a stylised look. The guide gives 0.06 as the preset and the demo values as the demo's. OPEN: no console run says which looks right.
+- **Paint F0 (conflict h).** [include/sh4der_pl4nar.h:112](../../include/sh4der_pl4nar.h) and the README's pl4nar table say 0.06 (physical). `demo.c:239` uses 0.14 in the street build and `demo.c:237` 0.25 in the map build; README line 1018 says 0.14 read best in the first client, as a stylised look. The guide gives 0.06 as the preset and the demo values as the demo's. OPEN: which looks right is OPEN.
 - **Cut and tuning order (conflict j).** [demo/pl4nar/README.md](../../demo/pl4nar/README.md) "What to turn down" (size, rate, triangles) is a cost order; AGENTS.md "Tuning, in the order that matters" (size, world, f0, reach, field of view) is a tuning order; AGENTS.md's engine section, step 4, tunes f0, then gain, then ground_keep (the order this guide's tuning list follows). PVR-175 (size left the mirror near 3.2 ms) and PVR-200 (a one-table tile cut added 3.05 ms) do not back size first. The guide gives the README's order and says the numbers do not back it. DISPUTED.
 
 ## Related

@@ -21,7 +21,7 @@ What it is for: contact shading on static triangle scenery, baked once at load, 
 4. Ground grid: `SH4DER_AOMESH_GCELL` = 0.5 m and `SH4DER_AOMESH_MARGIN` = 8.0 m (`include/sh4der_aomesh.h:66-67`; `README.md:751-752`, ADVISED). Pass NULL for the rectangle when you want the vertex bytes alone (`README.md:741`).
 5. Call `sh4der_aomesh_bake` at load with a tick every 256 vertices and every 8 ground rows (`README.md:741`, ADVISED), then read the ground each frame with `sh4der_aomesh_ground` (`include/sh4der_aomesh.h:356`).
 
-On a console: NOT RUN. The page's status: "Load-time bake on a console | NOT MEASURED".
+Run on a console by the owner in Walled town square (her test; no measured numbers recorded yet). The page's status: "Load-time bake on a console | NOT MEASURED".
 
 Header: [include/sh4der_aomesh.h](../../include/sh4der_aomesh.h). Call order: [below](#call-order).
 

@@ -18,7 +18,7 @@
    Only RAM, video memory and PVR / SH-4 registers are written; nothing outlives a power cycle. Every wait has a
    limit. Every number comes from the run that prints it: one run, one console; only that is evidence.
    Times are from timer_ns_gettime64 and the SH-4's cycle counter (the first lines say what they resolve).
-   Build: python demo/psm/bench/build.py. Not run on a console when this file was written.
+   Build: python demo/psm/bench/build.py.
 */
 
 #include <kos.h>

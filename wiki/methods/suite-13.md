@@ -9,7 +9,7 @@ sources: [demo/psm/suite/suite_13.json, demo/pl4nar/src/main.c, demo/psm/hero/he
 **What you will learn:** what each program on the suite 13 disc should show, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to.
 **For:** the owner, running the disc; and Scholar, filing the run.
 
-This page follows the committed list (`demo/psm/suite/suite_13.json`, the car ELFs tagged tech-map-12, tech-hills-13, wet-14, drive-map-15, drive-hills-16, live-wet-17). It replaces [suite 12](suite-12.md), which never ran. **Nothing on it has run on a console yet:** every claim below is what the code should do (ESTIMATE), and every part is PROTOTYPE until a run.
+This page follows the committed list (`demo/psm/suite/suite_13.json`, the car ELFs tagged tech-map-12, tech-hills-13, wet-14, drive-map-15, drive-hills-16, live-wet-17). It replaces [suite 12](suite-12.md), which never ran. **The owner has run the car programs on it (her test; no measured numbers recorded yet):** every number below is what the code should do (ESTIMATE), and every part is PROTOTYPE until a run.
 
 **On the disc:** the heat haze's version 2 and a fly-by stage in each day autorun (car-tech stage 2, car-hills stage 4). The heat is drawn only while the camera stands still: in the fly-by it comes up 0.5 s into a static kerb shot, is faded out by 5.7 s, and the camera moves only after that (host: `demo/pl4nar/host/snap_test.c`). The wet road has no fly-by and no heat.
 

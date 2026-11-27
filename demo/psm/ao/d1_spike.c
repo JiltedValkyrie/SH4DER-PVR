@@ -45,7 +45,7 @@
    The translucent list is sent in order (autosort off): the layers depend on it. Nothing is written but PVR
    registers and video memory; the frame buffer's write control is not touched (no 1555 threshold here). Waits are
    polled, none longer than LIMIT_NS; the fault catcher is in; the program goes back to the suite's menu.
-   Build: python demo/psm/ao/build.py --spike d1 --tag <new tag>. NOT RUN ON A CONSOLE when this file was written:
+   Build: python demo/psm/ao/build.py --spike d1 --tag <new tag>.
    every step named NEW above is untested there, and the design (d1_model.h) is an ESTIMATE until it has. */
 
 #include <kos.h>

@@ -10,7 +10,7 @@
                              into the floor or a wall (a camera-facing glow passes through whatever is near it)
      Punch-Through Cutout    slots in the shade: a 1-bit texture, the PVR's alpha test in the punch-through list
    This header is all of it that is maths: it draws nothing and has no KallistiOS in it. Host tested
-   (test/ao4_lamp_test.c, which also renders the look in software). NOTHING HERE HAS RUN ON A CONSOLE.
+   (test/ao4_lamp_test.c, which also renders the look in software).
 
    THE SHADE is not the room model's: the model's shade is two rings of 12 with caps, too coarse for a colour a vertex
    to shape the glow. ao4_lamp_find reads the lamp's place and the shade's two rings from the model's vertices,
@@ -31,7 +31,7 @@
    (a normalise for the view, one for the light, sh4der_sss_rgb: three exp), the halo 205 us for its 129 (the planes'
    dots). Sent: 96 + 240 triangles (PVR-157). That halo number is the fade as it was then, written out here; since
    2026-11-26 the halo's fade is sh4der_softfade.h's (one reciprocal a halo, not one a vertex): the same levels on the
-   host (ao4_lamp_test), NOT RUN on a console, so its time is not known. */
+   host (ao4_lamp_test), so its time is not known. */
 
 #ifndef AO4_LAMP_H
 #define AO4_LAMP_H

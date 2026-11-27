@@ -33,7 +33,7 @@
    Only RAM, video memory, sound RAM and PVR / SH-4 / G2 registers are written; nothing outlives a power cycle. No
    flash, no GD-ROM, no AICA clock. No access to the sound chip while a G2 DMA runs. Every wait has a limit. Every
    number comes from the run that prints it: one run, one console; only that is evidence.
-   Build: python demo/psm/bench/build.py --src bench_h2.c --tag h2. Not run on a console when this file was written.
+   Build: python demo/psm/bench/build.py --src bench_h2.c --tag h2.
 */
 
 #include <kos.h>

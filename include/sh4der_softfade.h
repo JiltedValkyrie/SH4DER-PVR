@@ -4,7 +4,7 @@
    Copyright (c) 2026 Jilted Valkyrie
    See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 
-   RECOMMENDED (no console run of this header: nothing here is measured as this code; wiki/limits/header-recommended.md)
+   RECOMMENDED (nothing here is measured as this code; wiki/limits/header-recommended.md)
    Start with: SH4DER_SOFTFADE_DIST 0.30 m; the surfaces near the light only (SH4DER_SOFTFADE_MAX 8 a call);
                sh4der_softfade_near first, and the fade only when it says 1
    Cost:       NOT MEASURED. ESTIMATE, a surface: a plane is one 3-term dot, a subtract, a multiply, a saturate and a
@@ -13,7 +13,7 @@
                the surfaces. No PVR pass, no video memory, no texture; the PVR's work is the halo's own triangles.
                The one number near it, MEASURED as another program's own code (one console, SH4-083, PVR-157): a lamp's
                halo of 129 vertices faded against a room's planes, 205 us of SH-4 a frame with the halo's build in it
-   Status:     PROTOTYPE: host tested (test/softfade_test.c). NOT RUN on a console. The other route, a camera depth
+   Status:     PROTOTYPE: host tested (test/softfade_test.c). The other route, a camera depth
                map the PVR draws (per pixel, any shape), ran on a console in a test program and is not in the library:
                5.1 ms of PVR for the map, 1.4 ms cut to its tiles (PVR-203, PVR-205), the hard line gone (PVR-204)
    Do:         give the fade a mesh with vertices where it acts (a halo as rings: sh4der_bloom_rings, 8 rings ran in

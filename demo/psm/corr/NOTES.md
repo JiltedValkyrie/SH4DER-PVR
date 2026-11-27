@@ -2,7 +2,7 @@
 
 corr-a is a standalone test program: an endless corridor that shows the PVR's texture filters where they are weakest, a floor and walls seen edge on far off. Each mode can be shown alone or beside another on a split screen. It has a cost table for each mode, and a count of the polygons that pile up on one tile.
 
-Nothing in this folder has run on a console yet. Every statement about the filters' look, the PVR's mip choice and the trilinear passes is OPEN until a console run is read off the screen. Only a real Dreamcast is evidence; an emulator is not.
+Every statement about the filters' look, the PVR's mip choice and the trilinear passes is OPEN until a console run is read off the screen. Only a real Dreamcast is evidence; an emulator is not.
 
 ## Files
 

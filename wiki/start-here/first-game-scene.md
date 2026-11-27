@@ -9,7 +9,7 @@ sources: [include/sh4der_pool.h, include/sh4der_blade.h, include/sh4der_spark.h,
 **What you will learn:** how to put three effects in one scene: a light pool, a glowing cable and sparks. You will see the calls, their order, what the scene should look like, and what to check when it does not work.
 **For:** a developer who has built the host tests (see [Your first hour](first-hour.md)) and now wants more than one effect on screen.
 
-**Status: NOT RUN on a console.** Nothing here has run as one scene on a Dreamcast. The values come from the headers and READMEs, each with its file and line. The code blocks show calls by name, not a full program. Your scene needs your own models, camera and game code.
+**Status: no figures.** Nothing here has run as one scene on a Dreamcast. The values come from the headers and READMEs, each with its file and line. The code blocks show calls by name, not a full program. Your scene needs your own models, camera and game code.
 
 ## The scene
 

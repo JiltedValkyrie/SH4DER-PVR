@@ -53,7 +53,6 @@
       newsreel on a screen inside a scene.
 
     \author Jilted Valkyrie
-    \author Claude (an AI by Anthropic): the maths and the tests
 
     PVR terms (TA, TR/OP list, EOL): see the PVR glossary in README.md.
 */

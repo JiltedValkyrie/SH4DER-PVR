@@ -40,7 +40,7 @@ A floor or a wall can show grooves and ribs that catch a moving torch, with no b
 
 **Where it is:** [header](../../include/sh4der_pl4nar.h) and [effect page](../effects/pl4nar.md).
 
-**Starting settings:** the header's block gives these as ADVISED. The street driving demo ([demo/pl4nar](../../demo/pl4nar/README.md)) has run on a console, so no NOT RUN tag applies.
+**Starting settings:** the header's block gives these as ADVISED. The street driving demo ([demo/pl4nar](../../demo/pl4nar/README.md)) has run on a console, so no status tag is needed.
 - A target of 256 × 128, 64 KB with `-DSH4DER_PL4NAR_HAVE_RTT` (include/sh4der_pl4nar.h:8, 76-78). ADVISED. The header says to go down in size first, but in the car runs the size did not change the mirror pass's PVR time (PVR-174 and PVR-175, MEASURED, one console), so measure the mirror at each size before you cut.
 - `SH4DER_PL4NAR_FOV_SCALE` = 1.55 for a body, and 1 for a flat surface (include/sh4der_pl4nar.h:118). ADVISED.
 - `SH4DER_PL4NAR_F0_PAINT` = 0.06 (line 112) and `SH4DER_PL4NAR_F0_GLASS` = 0.10 (line 113). ADVISED. Paint and glass were judged on a picture from the host. The other materials are untested gains (README "Materials").
@@ -54,7 +54,7 @@ A floor or a wall can show grooves and ribs that catch a moving torch, with no b
 
 **Where it is:** [header](../../include/sh4der_uvwarp.h) and [effect page](../effects/uvwarp.md).
 
-**Starting settings:** NOT RUN on a console. No RECOMMENDED block exists for this effect, so these values come from the README and the header's limits.
+**Starting settings:** no figures. No RECOMMENDED block exists for this effect, so these values come from the README and the header's limits.
 - A table of 64 × 16 pairs of bytes, 2 KB (README "The uvwarp effect"; include/sh4der_uvwarp.h:26). ADVISED as a size. The 2 KB is arithmetic (ESTIMATE).
 - `SH4DER_UVWARP_SIDE_MAX` = 256 (include/sh4der_uvwarp.h:73) and `SH4DER_UVWARP_UV_MAX` = 8388608.0f, which is 2^23 (line 74): the largest side of a table, and the coordinate limit past which the call gives 0, 0. ADVISED.
 - The weight fades to 0 at both ends of the strip, so the ends stay on their anchors (README "The uvwarp effect"). ADVISED.
@@ -80,7 +80,7 @@ A floor or a wall can show grooves and ribs that catch a moving torch, with no b
 
 **Where it is:** [header](../../include/sh4der_holo.h) and [effect page](../effects/holo.md).
 
-**Starting settings:** NOT RUN on a console. The values are the defaults in the README's "Holo tuning" table, which match the header's macros.
+**Starting settings:** no figures. The values are the defaults in the README's "Holo tuning" table, which match the header's macros.
 - `SH4DER_HOLO_BASE` = 0.60 and `SH4DER_HOLO_AMP` = 0.40: the core's strength at breath out, and the amount added at breath in (include/sh4der_holo.h:61-62). ADVISED.
 - `SH4DER_HOLO_BODY` = 0.62 (line 63): bake the texture 1 / 0.62 brighter, so the body away from the core shows it as painted (README "The holo effect"). ADVISED.
 - `SH4DER_HOLO_INNER` = 0.010 and `SH4DER_HOLO_OUTER` = 0.055 (lines 68-69): the core's feather. ADVISED. The centre (`SH4DER_HOLO_X`, `_Y`, `_Z`, lines 65-67) is a chest marker for one bind model, so a new body needs its own centre. The centre's values are ADVISED too.
@@ -92,9 +92,9 @@ A floor or a wall can show grooves and ribs that catch a moving torch, with no b
 | Normal map [bump] | Nine grey maps, 4 KB each at 64 × 64 (ESTIMATE, arithmetic) | Up to 8 draws a lit cell; fans of up to 12 corners (ESTIMATE, from the pass list) | Not measured (OPEN). Test: the cost label of the [torch walk](../../demo/torchwalk_ab.c) on a console | PROTOTYPE v0.1; no ledger row; two looks OPEN (Q42) |
 | Planar reflection [pl4nar], lookup | 64 KB at 256 × 128 (FACT, include/sh4der_pl4nar.h:76-78) | 320 looked-up vertices on the car body (FACT, host count) | 0.92 to 0.97 ms (MEASURED, 1 console, 1 run, PVR-160) | ALPHA v0.5 |
 | Planar reflection [pl4nar], mirror pass | The same target | Not counted for a fixed scene (OPEN) | About 41 ms of frame added (ESTIMATE, a difference of two frame times, PVR-160) | ALPHA v0.5 |
-| Texture ripple [uvwarp] | None (FACT: the header allocates nothing) | Per vertex; no count | Not measured (OPEN). Test: time a loop of `sh4der_uvwarp_offset_p` with the cycle counter, as in [benchmarking](../methods/benchmarking.md) | PROTOTYPE v0.1; NOT RUN on a console |
+| Texture ripple [uvwarp] | None (FACT: the header allocates nothing) | Per vertex; no count | Not measured (OPEN). Test: time a loop of `sh4der_uvwarp_offset_p` with the cycle counter, as in [benchmarking](../methods/benchmarking.md) | PROTOTYPE v0.1; no figures |
 | Light through thin parts [sss] | None (FACT: the header allocates nothing) | Per vertex; no count | 187 us for 65 vertices in the lamp program's shade loop, which calls the sss maths and normalises (MEASURED, 1 console, 1 run, SH4-083; the loop is not the library call alone) | ALPHA v0.3 |
-| Inner light [holo] | None (FACT: the header allocates nothing) | 64 multiply-adds a frame and one table load a vertex (ESTIMATE, counts from the README) | Not measured (OPEN). Test: time `sh4der_holo_prepare` and a vertex loop with the cycle counter | PROTOTYPE v0.1; NOT RUN on a console |
+| Inner light [holo] | None (FACT: the header allocates nothing) | 64 multiply-adds a frame and one table load a vertex (ESTIMATE, counts from the README) | Not measured (OPEN). Test: time `sh4der_holo_prepare` and a vertex loop with the cycle counter | PROTOTYPE v0.1; no figures |
 
 Video memory is the 8 MB the graphics chip keeps its textures and render targets in, a triangle is one flat shape it draws, and a vertex is one corner the SH-4 works out before the chip draws it.
 

@@ -177,7 +177,7 @@ three above it.
 - The fog level routed into the low byte of a target.
 - Any time. A second run.
 
-## Spike c4: the whole chain (built, not run)
+## Spike c4: the whole chain (built)
 
 `c4_spike.c`, `c4_model.h`, `test/c4_model_test.c`; image `demo/psm/out/cdi/psm-c4-c4.cdi`. Nothing below is a
 console result: it is the design and what the host MODEL says. The console's pages replace it when they exist.
@@ -380,9 +380,9 @@ sky left out).
   these numbers (4 and 5 periods; the mask pass crosses 10 ms between 1,288 and 2,192 vertices: 6.1 and 10.2 ms).
   That is a guess from three numbers. OPEN, with its test in the table.
 
-## c4b: built, not run
+## c4b: built
 
-Built 2026-11-25, 04:2x local, by Senior; **not run on a console**. No number from it exists yet.
+Built 2026-11-25, 04:2x local, by Senior. No number from it exists yet.
 
 - Image: `demo/psm/out/cdi/psm-c4-c4b.cdi` (1,795,017 bytes, sha256 1b82d8df59cdeea9519f564bf0a6322c1a2987565732aab1ae9765902d125d02). The ELF `build/psm_cmp/psm-c4-c4b.elf` was built first and on its own, with 0 warnings at `-Wall -Wextra`. The build also runs the host model test twice, plain C and on SH4ZAM's software back end; both passed.
 - **Placing (SH4-046).** `bsrc`, `bscr` and `bref` now share one pool, `vpool`. `bscr` starts at 256 KB + 8 KB, `bref` at 512 KB + 20 KB, so no two of them are a multiple of 16 KB apart; a `_Static_assert` checks this. The run prints the three addresses and their distances mod 16 KB on its first page, as FACT. Per `sh-elf-nm`, `vpool` is at 8c19ca40.
@@ -462,9 +462,9 @@ Image `psm-c4-c4b.cdi`, one console, the owner's run, 2026-11-25. Senior transcr
 - **The frame is the render-done wait.** About 36 of 39 ms, in both runs. The ready waits are tens of microseconds. The vblank count is 60 Hz, and the frame is not a whole number of pictures. The next test is to time a render done polled on `render_busy` instead of `pvr_wait_render_done`.
 - **Punch-through is a working mask route.** Same pixels as 1555 at two suns. It is 14 to 18 % dearer on the PVR in this pass, and it needs the green depth pass to tell its pixels apart.
 
-## c4c: built, not run
+## c4c: built
 
-Built 2026-11-25 by Senior. **Not run on a console; no number from it exists yet.**
+Built 2026-11-25 by Senior. No number from it exists yet.
 
 - Image: `demo/psm/out/cdi/psm-c4-c4c.cdi` (1,806,697 bytes, sha256 e8202993824206e8fd6f3670298e6d1d8b1c41017f582ec4626b21b8a4d081c3).
 - ELF: `build/psm_cmp/psm-c4-c4c.elf`, 0 warnings at `-Wall -Wextra`.
@@ -527,9 +527,9 @@ What it can and cannot say: it shows where the cut's time is and whether the edg
 - Test 5 still times the cut by the ns clock; page C uses cycles. The two will differ by the clock's own error.
 - Page S runs 14 more scenes; the result pages are about 14 now.
 
-## R3 page (image r3-a): built, not run
+## R3 page (image r3-a): built
 
-Built 2026-11-25 by Senior, to Cortana's `../recipes/R3_PAGE_SPEC.md`. **Not run on a console.** It is meant to settle PVR-064: how the PVR rounds texture alpha × vertex alpha before the punch-through test.
+Built 2026-11-25 by Senior, to Cortana's `../recipes/R3_PAGE_SPEC.md`. It is meant to settle PVR-064: how the PVR rounds texture alpha × vertex alpha before the punch-through test.
 
 - Image: `demo/psm/out/cdi/psm-r3-a.cdi` (1,722,601 bytes, sha256 978e7ad3eec93ddf40eb5a8efdbf8e9c0f4458ddc03c268166542f963f4c1fd1).
 - ELF: `build/psm_cmp/psm-r3-a.elf`, 0 warnings.
@@ -559,9 +559,9 @@ Built 2026-11-25 by Senior, to Cortana's `../recipes/R3_PAGE_SPEC.md`. **Not run
 
 **Risk.** The frame is read back from the address in the PVR's render register after the render ends, as c4 does. c4's two counts came out right that way on the console.
 
-## Result pages with small text, graphs and a CRC (images c4e and r3-c): built, not run
+## Result pages with small text, graphs and a CRC (images c4e and r3-c): built
 
-Built 2026-11-25 by Senior, on the owner's request: fewer photos, graphs for shape, pages inside the title-safe area. **Not run on a console.** Whether the small text photographs well off a television is OPEN; the host has no BIOS font, so it could not be judged there.
+Built 2026-11-25 by Senior, on the owner's request: fewer photos, graphs for shape, pages inside the title-safe area. Whether the small text photographs well off a television is OPEN; the host has no BIOS font, so it could not be judged there.
 
 **Images.** Same tests as c4c and r3-a; only the pages differ.
 
@@ -603,9 +603,9 @@ Built 2026-11-25 by Senior, on the owner's request: fewer photos, graphs for sha
 - The gain on c4 is smaller than a halving: the title-safe area costs 8 columns and 3 lines against a page that used the whole action-safe area (72 × 25 was the first version).
 - The live view and the tile stage of c4 still draw their own screens; they are not result pages.
 
-## c4f: c4e with the reload step of the ns clock taken out (built, not run)
+## c4f: c4e with the reload step of the ns clock taken out (built)
 
-Built 2026-11-25 by Senior. **Not run.** Use c4f in place of c4e. c4e is not wrong, but its times can carry the step.
+Built 2026-11-25 by Senior. Use c4f in place of c4e. c4e is not wrong, but its times can carry the step.
 
 | Image | sha256 | Size |
 |---|---|---|

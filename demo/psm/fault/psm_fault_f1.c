@@ -14,7 +14,7 @@
 
    It draws with the PVR as a demo does (a moving bar and a texture of instructions), fills the breadcrumbs every
    frame, and calls sh4der_fault_init after pvr_init: the same use a demo makes of it. Every button is a test hook.
-   Build: python demo/psm/fault/build.py. Not run on a console when this file was written.
+   Build: python demo/psm/fault/build.py.
 */
 
 #include <kos.h>

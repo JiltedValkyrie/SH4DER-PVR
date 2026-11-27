@@ -13,7 +13,7 @@
    suite_rev_text, suite_present = 0 and suite_chained = 0 on a host build) compiles and runs on the host; the
    start, the return and the page timer are Dreamcast only.
 
-   RECOMMENDED (no console run of this file's own start, return or chain: nothing here is measured by that; the arch_exec
+   RECOMMENDED (nothing here is measured by this file's own start, return or chain; the arch_exec
    facts below are read from KallistiOS's source, NOT MEASURED. The console facts are the suite NOTES and the ledger rows
    named in wiki/effects/suite.md)
    Cost:       at suite_init, one read of the menu's binary into RAM, kept until the program leaves (its size is the

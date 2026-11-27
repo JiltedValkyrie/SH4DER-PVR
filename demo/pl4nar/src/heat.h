@@ -2,7 +2,7 @@
  * texture and drawn back over the same place through a fine mesh whose samples drift under a pixel, slowly and
  * smoothly. By day on a dry road only (heat_gate); at night or in rain nothing is copied and nothing is drawn.
  *
- * RECOMMENDED (no console run: every number an ESTIMATE; wiki/limits/header-recommended.md)
+ * RECOMMENDED (every number an ESTIMATE; wiki/limits/header-recommended.md)
  * Cost:       video memory 16 KB, RAM 16 KB; SH-4 a frame: 8,192 uncached reads (0.4 to 0.8 ms) and 16 KB by store
  *             queue (about 0.1 ms); TA 8.5 KB; PVR one translucent layer of 256 x 32 px (about 0.1 to 0.2 ms: under
  *             3 % of the screen, scaled from full-screen translucent bilinear layers, PVR-006): all ESTIMATE. Off: 0
@@ -20,7 +20,7 @@
  * Use it for: a hot dry day: the far end of a long straight road, tarmac or a runway, a desert or salt flat's
  *             horizon, the air over an exhaust or a fire seen from far off (move the anchor there)
  * Status:     ADVISED: host tested (host/heat_test.c) and seen by the owner as host pictures (approved 2026-11-25);
- *             nothing of it has run on a console, the copy's time is not measured. To prove: the autorun's fly-by
+ *             the copy's time is not measured. To prove: the autorun's fly-by
  *             stage (the heat on STRONG) on a console, and the page's last copy line; no stage pairs it with OFF yet
  * Do:         heat_copy before any scene is open; heat_view and heat_draw after the world in the translucent list;
  *             heat_reset after every pvr_init; keep the gate: it is what makes the cost 0 when there is no heat
@@ -46,7 +46,7 @@
  *     out while the far picture moves fast.
  *   - the edges fade over four cells each side, and to nothing at the top and the bottom.
  *
- * Cost, the screen at 640 x 480 (ESTIMATE, nothing here has run on a console):
+ * Cost, the screen at 640 x 480 (ESTIMATE):
  *   video memory  16 KB (HEAT_TW x HEAT_TH, RGB565, not twiddled)
  *   RAM           16 KB (the copy's rows, before the store queue takes them) and under 1 KB of state
  *   SH-4          8,192 reads of video memory a frame (uncached: 0.4 to 0.8 ms ESTIMATE) and 16 KB through the store

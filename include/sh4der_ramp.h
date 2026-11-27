@@ -9,7 +9,6 @@
    Cost:       not measured. ESTIMATE: one FSRRA reciprocal a call (sh4der_ramp_in), or one a sh4der_ramp_make
                (the prepared form), then a multiply and a saturate a point
    Status:     ADVISED; to prove: the same view with a faded effect against a hard step, PVR time and frame time
-               (no console run)
    Do:         prepare the ramp once for a loop over many points (sh4der_ramp_make, then _up / _down per point)
    Do not:     use a ramp for a strength the PVR must evaluate per pixel from a texture: this header is the CPU form
    Maturity:   v0.10, host tested

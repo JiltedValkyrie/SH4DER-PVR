@@ -22,7 +22,7 @@ Smear the picture along a fast camera turn, so a boost or a stunned view reads a
 3. The blur rises from none at `SH4DER_TRAIL_SPEED_LO` = 1.0 pixel a frame to `SH4DER_TRAIL_WEIGHT_HI` = 0.5 at `SH4DER_TRAIL_SPEED_HI` = 8.0 pixels a frame (`include/sh4der_trail.h:69-71`, ADVISED).
 4. Copies: `SH4DER_TRAIL_COPIES` = 3, each offset by at most `SH4DER_TRAIL_SHIFT_MAX` = 8 pixels (`include/sh4der_trail.h:67`, `:72`, ADVISED). Draw them with `sh4der_trail_draw` (`include/sh4der_trail.h:182`) in the translucent list. The colour fringe's render target shares the stride register, so never run both in one frame (`include/sh4der_trail.h:24`, ADVISED).
 
-On a console: NOT RUN for the effect (the page: "As-stated. None of it is measured on a console."). One full-screen translucent layer is MEASURED at about 3.1 ms at 640 x 480 ([PVR-002](../hardware/ledger-pvr.md)).
+On a console: no figures for the effect (the page: "As-stated. None of it is measured on a console."). One full-screen translucent layer is MEASURED at about 3.1 ms at 640 x 480 ([PVR-002](../hardware/ledger-pvr.md)).
 
 Header: [include/sh4der_trail.h](../../include/sh4der_trail.h). Call order: [Call order](#call-order).
 

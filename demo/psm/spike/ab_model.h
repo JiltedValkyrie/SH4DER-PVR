@@ -20,8 +20,7 @@
    fill rule. k and n are affine over the screen, so the two triangles of the strip agree.
 
    This is a model of the idea. Whether the PVR does it (the texel bit-exact through to a 16-bit target, the texture
-   coordinate's precision, where in the pixel it samples) is what the console run measures. Nothing here was run on
-   a Dreamcast when this file was written.
+   coordinate's precision, where in the pixel it samples) is what the console run measures.
 */
 
 #ifndef AB_MODEL_H

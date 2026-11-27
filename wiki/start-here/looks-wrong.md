@@ -33,7 +33,7 @@ Each row gives its source. Where the sources do not say something, the row says 
 
 ## If none of the rows fits
 
-Turn the effect off, then turn on one part at a time, so the part that breaks the picture shows itself. Check the status line of the effect's page: a PROTOTYPE or NOT RUN effect has no console result to compare against. Then read the [send checks](../effects/guard.md) page, because many "nothing draws" faults come from a triangle or a header.
+Turn the effect off, then turn on one part at a time, so the part that breaks the picture shows itself. Check the status line of the effect's page: a PROTOTYPE effect, or one with no figures, has no recorded console number to compare against. Then read the [send checks](../effects/guard.md) page, because many "nothing draws" faults come from a triangle or a header.
 
 ## Related
 

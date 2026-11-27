@@ -21,7 +21,7 @@ For lightning, an arc or a spark gap: thin jagged lines that change a few times 
 4. Width: `SH4DER_BOLT_WIDTH_PX` = 2.0 pixels on the screen, at any distance (include/sh4der_bolt.h:24-25, 74; ADVISED, README:1228).
 5. Each frame: `sh4der_bolt_update` once, then `sh4der_bolt_draw` inside the translucent list (include/sh4der_bolt.h:29-30).
 
-On a console: NOT RUN for time. The page says: "There are no times." The header and README give no console status.
+On a console: no figures for time. The page says: "There are no times." The header and README give no console status.
 
 Header: [sh4der_bolt.h](../../include/sh4der_bolt.h). Steps in full: [Call order](#call-order).
 

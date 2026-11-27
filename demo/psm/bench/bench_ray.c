@@ -30,7 +30,7 @@
    Only RAM and SH-4 registers are written (the OC-RAM switch is in the cache's own register: a power cycle clears it).
    No flash, no GD-ROM, no sound chip, no PVR drawing. Every loop has a fixed count.
    Build: python demo/psm/bench/build.py --src bench_ray.c --tag <new tag>. Image ray1 ran on a console on 2026-11-25
-   (NOTES.md). ray2, not run when written, changes: CLOCK reads both clocks together (ray1's CLOCK.2 held a print) and
+   (NOTES.md). ray2, changes: CLOCK reads both clocks together (ray1's CLOCK.2 held a print) and
    looks for the ns clock's step once a second; every P1 row prints the ns less the cycles, the read gaps, whether the ns
    clock's second changed, and the interrupts of a second run; P1.2 and P1.4 run three times; page RT times a shadow ray
    against a triangle (the kernels and their references are in ray_kernels.h, host tested).

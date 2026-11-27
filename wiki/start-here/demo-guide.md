@@ -63,7 +63,7 @@ These programs are not in the suite 13 list. Their names and descriptions are fr
 - Demo disc: the effect pages say these rows run on the demo disc (v0.50); there is no ledger row for them.
 - Town shadow demo: ran on a console (PVR-108 to PVR-115); replaced in suite 13 by the walled town square.
 - Walled square build: a host script, nothing to run on screen.
-- Software shadow demo: a host program. NOT RUN on a console.
+- Software shadow demo: a host program.
 
 ## Older suites
 

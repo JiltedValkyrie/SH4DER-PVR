@@ -41,7 +41,6 @@
     Use it for: lightning, an arc, a spark gap, a discharge, cracks of light, a lit root system.
 
     \author Jilted Valkyrie
-    \author Junior (Claude, an AI by Anthropic): the effect
 
     PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */

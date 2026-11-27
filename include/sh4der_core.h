@@ -54,7 +54,6 @@
     Use it for: the base of a per-vertex effect of your own.
 
     \author Jilted Valkyrie
-    \author Cortana (Claude, an AI by Anthropic): the effects' maths, the PVR paths, the tests
 
     PVR terms (TA, TR/OP list, EOL, twiddled, direct render): see the PVR glossary in README.md.
 */

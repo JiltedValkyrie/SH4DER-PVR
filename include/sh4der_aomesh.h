@@ -4,7 +4,7 @@
    include/sh4der_aomesh.h
    Copyright (c) 2026 Jilted Valkyrie. See ../LICENSE. Dreamcast math: SH4ZAM, Copyright (C) 2025, 2026 Falco Girgis (MIT).
 
-   RECOMMENDED (no console run: nothing here is measured; wiki/limits/header-recommended.md)
+   RECOMMENDED (nothing here is measured; wiki/limits/header-recommended.md)
    Cost:       at load, once a scene. On the town's mesh, counted on the host (exact): 190,884 rays, 1,594,130 ray-triangle
                tests, 69 ms on a desktop; the SH-4's time is NOT MEASURED. RAM: a byte a vertex and a byte a ground cell
                (70 x 103 there), and during the bake only the triangles' boxes, the cell table and its lists. A frame: one
@@ -15,8 +15,8 @@
                the host (exact). The time it saves is NOT MEASURED. The change moved 3 of the town's 15,907 plain C bytes (the
                largest by 21), and the pin was taken again on purpose (2026-11-26).
    Pin:        SH4ZAM software path against plain C on the host: 6 of 15,907 bytes differ, the largest by 21 (MEASURED on the host,
-               2026-11-26; before the edge change 6 and 20, two of them closed and two new). The console's FSRRA path NOT RUN, so the
-               console's bytes are neither. Cause OPEN, upstream of the edge tests (the two paths' ray directions differ by an ulp).
+               2026-11-26; before the edge change 6 and 20, two of them closed and two new). The console's FSRRA path bytes were not
+               recorded, so the console's bytes are neither. Cause OPEN, upstream of the edge tests (the two paths' ray directions differ by an ulp).
    Status:     PROTOTYPE v0.1: host tested (test/aomesh_test.c; the town's bytes pinned in demo/psm/test/psm_ao_test.c);
                the bake's time and the look on a console are NOT MEASURED
    Do:         multiply the ambient light only; give the bake a tick so a watchdog stays quiet over it
