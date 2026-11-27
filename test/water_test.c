@@ -5,7 +5,8 @@
 #include "sh4der_water.h"
 #include "sh4dow_heightfield.h"
 static int closef(float a,float b,float tol){return fabsf(a-b)<tol;}
-int main(void){
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     sh4der_water_wave_t w={0.6f,0.8f,0.2f,7.0f,2.0f,0.4f,0};
     sh4der_water_surface_t s,lo,hi;float eps=0.002f,n[3],r[3],v[3]={0,1,0};
     float incident[3]={1,1,1},absorb[3]={0.5f,0.1f,0.05f},out[3];

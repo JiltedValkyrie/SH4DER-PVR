@@ -103,7 +103,8 @@ static int coords(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (sizes() || split() || coords())
         return 1;
     printf("ca_test: ok\n");

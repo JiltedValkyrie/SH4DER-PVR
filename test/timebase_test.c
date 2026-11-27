@@ -397,7 +397,8 @@ static void hostile(void) {
     sh4der_timebase_reset(NULL);                          /* must not crash */
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults();
     against_reference();
     walk_equals_division();

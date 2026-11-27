@@ -15,7 +15,8 @@
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     faf_range_t t[FAF_RANGES_MAX], bad[FAF_RANGES_MAX];
     float edge[FAF_EDGES_MAX], s[FAF_EDGES_MAX], d, v3, d3;
     static uint16_t src[8 * 8], dst[8 * 8];

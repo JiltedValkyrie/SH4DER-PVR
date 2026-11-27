@@ -10,7 +10,21 @@
 #include <stdio.h>
 #include "sh4der_blade.h"
 
-int main(void) {
+#ifdef _arch_dreamcast
+#include <kos.h>
+
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+#endif
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+#ifdef _arch_dreamcast
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
+#endif
     /* blade vertices in the blade's own space: x along the blade */
     static const float blade[3][3] = {{0.20f, 0.0f, 0.06f}, {0.20f, 0.0f, -0.05f}, {0.33f, 0.0f, 0.01f}};
     static const float cyan[3] = {0.35f, 0.82f, 1.0f};   /* the blade texture's average, brightest channel 1 */

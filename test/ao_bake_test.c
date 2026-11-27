@@ -104,7 +104,8 @@ static void t_fill(void) {
     for (i = 0; i < 25u; i++) CHECK(v[i] == 200u && !bad[i], "point %u = %u after the fill", i, v[i]);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_room();
     t_wrap();
     t_fill();

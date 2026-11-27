@@ -213,7 +213,8 @@ static void t_sphere(void) {
     CHECK(share[3] <= share[0]);                                         /* the ramp's half texel is the floor left */
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_u();
     t_monotonic();
     t_edges();

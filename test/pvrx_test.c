@@ -133,7 +133,8 @@ static int clip(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     int bad = 0;
 
     bad += wait_count();

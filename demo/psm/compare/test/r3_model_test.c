@@ -27,7 +27,8 @@ static void draw(unsigned a, unsigned ref, unsigned rule) {
     for (y = 0; y < R3_H; y++) for (x = 0; x < R3_W; x++) px[y * R3_W + x] = rcp_pt_pass(x / 16u, a, ref, RCP_EXP_REPLICATE, rule) ? 0xffffu : R3_BG;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     /* the spec's table: n and lo of lines A, B, C, D, F for VTX256, BOTH256, ROUND, FLOOR */
     static const uint8_t want_n[4][5] = { { 8, 1, 9, 4, 0 }, { 8, 1, 9, 5, 1 }, { 8, 1, 10, 5, 1 }, { 8, 1, 10, 4, 1 } };
     static const uint8_t want_lo[4][5] = { { 8, 15, 7, 12, 16 }, { 8, 15, 7, 11, 15 }, { 8, 15, 6, 11, 15 }, { 8, 15, 6, 12, 15 } };

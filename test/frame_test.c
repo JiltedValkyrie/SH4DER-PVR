@@ -93,7 +93,8 @@ static int glow_helpers(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (stamp() || pixels() || glow_helpers())
         return 1;
     printf("frame_test: ok\n");

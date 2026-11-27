@@ -309,6 +309,14 @@ static float worst(const float *a, const float *b) {
     return w;
 }
 
+#ifndef SH4DOW_DC_NO_SH4ZAM
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+#endif
+
 int main(int argc, char **argv) {
     uint64_t t_prep, t_every, t_list, t_packed, t_noskip, t_batch;
     char line[8][96];
@@ -316,6 +324,7 @@ int main(int argc, char **argv) {
 
     (void)argc; (void)argv;
 #ifndef SH4DOW_DC_NO_SH4ZAM
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     if(!perf_cntr_timer_enabled())
         perf_cntr_timer_enable();
 #endif

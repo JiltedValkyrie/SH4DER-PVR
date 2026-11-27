@@ -59,7 +59,8 @@ static void bump(void) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     lex();
     bump();
     printf(fails ? "sub_model_test: %d FAILED\n" : "sub_model_test: ok\n", fails);

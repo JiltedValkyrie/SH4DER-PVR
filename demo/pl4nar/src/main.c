@@ -309,6 +309,12 @@ static void report(void) {
 }
 #endif
 
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
 int main(int argc, char **argv) {
     demo_stats_t st;
     demo_input_t in;
@@ -323,6 +329,7 @@ int main(int argc, char **argv) {
     if (suite_init() && suite_chained()) suite_exit(SUITE_OK);   /* "run all": a live program has no pages, so it is passed over */
 #endif
     (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     printf("pl4nar reflection demo v%s b%d\n", DEMO_VERSION, DEMO_BUILD);
     gfx_init();
     demo_init();

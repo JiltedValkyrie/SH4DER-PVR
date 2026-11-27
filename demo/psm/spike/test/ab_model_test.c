@@ -266,7 +266,8 @@ static void faults(void) {
     CHECK(!ab_test_make(&t, AB_TESTS, 10) && !ab_test_make(&t, AB_TEST_FLAT, 12) && !ab_test_make(NULL, AB_TEST_FLAT, 10));
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     ramps();
     agree();
     shapes();

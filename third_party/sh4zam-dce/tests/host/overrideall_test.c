@@ -24,7 +24,8 @@
 
 static volatile float vf[8];
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     int k;
 
     IS(shz_sqrtf, "shz_dce_sqrtf");

@@ -82,7 +82,8 @@ static int bake(const mesh_t *m, const sh4der_aomesh_rect_t *ground, uint8_t *ve
 static unsigned ticks;
 static void count_tick(void) { ticks++; }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static mesh_t m, bx, t2, e;
     static uint8_t vert[MAXV], vert_again[MAXV];
     sh4der_aomesh_grid_t grid;

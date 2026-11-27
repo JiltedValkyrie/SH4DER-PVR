@@ -255,7 +255,8 @@ static int sizes(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (texels() || wrap() || offsets() || guards() || prepared() || extremes() || sizes()) return 1;
     printf("uvwarp_test: PASS\n");
     return 0;

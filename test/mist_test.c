@@ -310,7 +310,8 @@ static void noise(void) {
     CHECK(sh4der_mist_noise(b, 64u, 64u, 1u) == 1 && memcmp(a, b, sizeof(a)) == 0);   /* the same seed is the same picture */
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults_and_alpha();
     slices();
     bad();

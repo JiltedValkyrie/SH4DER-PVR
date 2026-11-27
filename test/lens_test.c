@@ -463,7 +463,8 @@ static int vig_variations(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     float w8 = 0.0f, w16 = 0.0f;
     if (pins()) return 1;
     if (grain_variations() || vig_variations()) return 1;

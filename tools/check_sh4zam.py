@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail, with how to get it, when there is no usable SH4ZAM checkout.
+"""Fail, with how to get it, when there is no usable SH4ZAM install or checkout.
 
 SH4ZAM (the maths: https://github.com/gyrovorbis/sh4zam, MIT, Falco Girgis) is not shipped
 with this repository; third_party/sh4zam is ignored by git. It is a git clone of SH4ZAM's
@@ -8,7 +8,11 @@ the host test of the SH4ZAM path (make test-shz) need 0.10 or later, and master 
 commits in NEEDED (checked by name: master still says 0.10.0). The plain C path
 (make test) does not need it.
 
-usage: check_sh4zam.py [checkout]       (default: $SH4ZAM, else third_party/sh4zam next to this repo)
+usage: check_sh4zam.py [prefix] [--sw <file>]
+                                        prefix: an install prefix (include/sh4zam, lib/libsh4zam.a) or a source checkout;
+                                        default: $SH4ZAM, else $KOS_PORTS when SH4ZAM is installed there, else
+                                        third_party/sh4zam next to this repo.
+                                        --sw: SH4ZAM's software XMTRX source, required (the host tests compile it)
        check_sh4zam.py --self-test      the checks of this script, against made-up checkouts
 
 Exit 0 when the checkout is usable, 1 otherwise (the reason and the fix on stderr).
@@ -22,12 +26,12 @@ import tempfile
 MIN_VERSION = (0, 10)
 REPO = "https://github.com/gyrovorbis/sh4zam"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# what the Makefile compiles or includes from a checkout
+# what every build includes from an install prefix or a checkout
 REQUIRED = [
     "include/sh4zam/shz_sh4zam.h",
     "include/sh4zam/shz_version.h",
-    "source/sw/shz_xmtrx_sw.c",
 ]
+SW = "source/sw/shz_xmtrx_sw.c"
 # names the library or sh4zam-dce calls that came after the 0.10.0 tag (the version number did not move):
 # (header, name, the first master commit that has it)
 NEEDED = [
@@ -38,15 +42,32 @@ NEEDED = [
 def fix_text(path):
     rel = path
     return (
-        "SH4ZAM is not shipped with this repository, and KallistiOS already includes it: for a Dreamcast build use\n"
-        "KallistiOS's copy (update KallistiOS if its SH4ZAM is older than %d.%d). Host tests only: point SH4ZAM= at the\n"
-        "SH4ZAM tree in your KallistiOS, or get a checkout (master) into third_party:\n"
+        "SH4ZAM is not shipped with this repository. The default is SH4ZAM installed into KallistiOS's ports\n"
+        "($KOS_PORTS/include/sh4zam, $KOS_PORTS/lib/libsh4zam.a; update it if it is older than %d.%d). The host tests\n"
+        "also need its source/sw/shz_xmtrx_sw.c: a symlinked install finds it in its checkout, or get a checkout\n"
+        "(master) into third_party:\n"
         "    git clone %s third_party/sh4zam\n"
         "and keep it current with:  git -C third_party/sh4zam pull\n"
         "(git ignores that folder; never commit it, and do not copy its files into this library).\n"
-        "Or point at a checkout you already have:  make ... SH4ZAM=<checkout>   (looked at: %s)"
+        "Or point at an install prefix or a checkout:  make ... SH4ZAM=<prefix or checkout>   (looked at: %s)"
         % (MIN_VERSION[0], MIN_VERSION[1], REPO, rel)
     )
+
+
+def source_root(path):
+    """The source checkout behind path: path itself, or the checkout its include/sh4zam links to (a symlinked install)."""
+    real = os.path.realpath(os.path.join(path, "include", "sh4zam"))
+    return os.path.dirname(os.path.dirname(real))
+
+
+def default_path():
+    """$SH4ZAM, else $KOS_PORTS when SH4ZAM is installed there, else third_party/sh4zam."""
+    if os.environ.get("SH4ZAM"):
+        return os.environ["SH4ZAM"]
+    ports = os.environ.get("KOS_PORTS")
+    if ports and os.path.isfile(os.path.join(ports, REQUIRED[0])):
+        return ports
+    return os.path.join(ROOT, "third_party", "sh4zam")
 
 
 def git_commit(path):
@@ -77,13 +98,15 @@ def version_of(path):
     return int(major.group(1)), int(minor.group(1))
 
 
-def check(path):
-    """None when usable, else the reason."""
+def check(path, sw=None):
+    """None when usable, else the reason. sw: the software XMTRX source the caller compiles, required when given."""
     if not os.path.isdir(path):
-        return "no SH4ZAM checkout at %s" % path
+        return "no SH4ZAM install or checkout at %s" % path
     missing = [r for r in REQUIRED if not os.path.isfile(os.path.join(path, r))]
     if missing:
-        return "%s is not a SH4ZAM checkout, missing: %s" % (path, ", ".join(missing))
+        return "%s is not a SH4ZAM install or checkout, missing: %s" % (path, ", ".join(missing))
+    if sw is not None and not os.path.isfile(sw):
+        return "no SH4ZAM software XMTRX source (%s) for %s: the host tests need a source checkout" % (sw, path)
     ver = version_of(path)
     if ver is None:
         return "%s: no version in include/sh4zam/shz_version.h" % path
@@ -109,7 +132,7 @@ def self_test():
             ok = False
             print("FAIL %s: %r" % (name, got_bad), file=sys.stderr)
 
-    def make(root, minor, files=REQUIRED, names=True):
+    def make(root, minor, files=REQUIRED + [SW], names=True):
         for rel in files + [n[0] for n in NEEDED]:
             p = os.path.join(root, rel)
             os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -132,8 +155,18 @@ def self_test():
         make(old, 9)
         expect("0.9 too old", check(old), True)
         partial = os.path.join(tmp, "partial")
-        make(partial, 10, REQUIRED[:2])
-        expect("source file missing", check(partial), True)
+        make(partial, 10, REQUIRED[:1])
+        expect("header missing", check(partial), True)
+        ports = os.path.join(tmp, "ports")
+        make(ports, 10, REQUIRED)
+        expect("install prefix, headers only", check(ports), False)
+        expect("install prefix, sw asked, none", check(ports, os.path.join(ports, SW)), True)
+        expect("install prefix, sw from a checkout", check(ports, os.path.join(good, SW)), False)
+        if hasattr(os, "symlink"):
+            linked = os.path.join(tmp, "linked")
+            os.makedirs(os.path.join(linked, "include"))
+            os.symlink(os.path.join(good, "include", "sh4zam"), os.path.join(linked, "include", "sh4zam"))
+            expect("symlinked install finds its checkout", os.path.realpath(source_root(linked)) != os.path.realpath(good), False)
         tag = os.path.join(tmp, "tag")
         make(tag, 10, names=False)
         expect("0.10.0 tag without shz_opaquef", check(tag), True)
@@ -147,16 +180,27 @@ def self_test():
 def main(argv):
     if argv and argv[0] == "--self-test":
         return self_test()
-    path = argv[0] if argv else os.environ.get("SH4ZAM") or os.path.join(ROOT, "third_party", "sh4zam")
-    reason = check(path)
+    sw = None
+    if "--sw" in argv:
+        i = argv.index("--sw")
+        if i + 1 >= len(argv):
+            print("error: --sw needs a file", file=sys.stderr)
+            return 1
+        sw = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+    path = argv[0] if argv else default_path()
+    reason = check(path, sw)
     if reason:
         print("error: " + reason, file=sys.stderr)
         print(fix_text(path), file=sys.stderr)
         return 1
     ver = version_of(path)
-    commit = git_commit(path)
+    src = source_root(path)
+    commit = git_commit(src)
     if commit:
-        print("SH4ZAM %d.%d at %s, git %s (update: git -C %s pull)" % (ver[0], ver[1], path, commit, path))
+        print("SH4ZAM %d.%d at %s, git %s (update: git -C %s pull)" % (ver[0], ver[1], path, commit, src))
+    elif not os.path.isdir(os.path.join(path, "source")):
+        print("SH4ZAM %d.%d installed at %s" % (ver[0], ver[1], path))
     else:
         print("SH4ZAM %d.%d at %s (not a git clone: it cannot follow SH4ZAM's latest; re-clone with git clone %s)"
               % (ver[0], ver[1], path, REPO))

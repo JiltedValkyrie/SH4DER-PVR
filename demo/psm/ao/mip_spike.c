@@ -639,7 +639,15 @@ static void stop(const char *name) {
     pvr_shutdown();
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     unsigned page = 0, pages;
     int redraw = 1;
 

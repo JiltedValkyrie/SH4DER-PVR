@@ -1,12 +1,13 @@
 # SH4DER-PVR (SH4DOW-DC is in this library: src/sh4dow_dc.c, src/sh4dow_foot.c, include/sh4dow_dc.h, include/sh4dow_heightfield.h)
 #
 #   make test                       host check of the plain C path: test/shade_test, test/foot_test, example/example, example/quickstart, example/feet, test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/deform_test, test/pl4nar_test, test/pool_test, test/ramp_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, test/page_test, test/fxlabel_test, test/fakeaf_test, test/ground_test, example/blade
-#   make test-shz SH4ZAM=<checkout> host check of the SH4ZAM path (SH4ZAM's software back-end, 0.10 or later): every test
-#   make dc SH4ZAM=<checkout>       Dreamcast library build/libsh4der_core.a (KallistiOS environment sourced; includes SH4DOW-DC's soft shadows and foot cones)
-#   make bench SH4ZAM=<checkout>    Dreamcast timing program build/bench.elf (bench/bench.c, SH4DOW-DC's three vertex loops); run it on the console
-#   make test-dc SH4ZAM=<checkout>  build/*_test.elf: every test on the Dreamcast path
-#   make demo SH4ZAM=<checkout>     the demo disc out/cdi/sh4der-demo.cdi (KallistiOS environment sourced; needs python and mkdcdisc)
-#   make dc DEMO=1 SH4ZAM=<checkout> the library, and with the flag DEMO=1 the demo disc as well
+#   make test-shz [SH4ZAM=<prefix>]     host check of the SH4ZAM path (SH4ZAM's software back-end, 0.10 or later): every test
+#   make dc [SH4ZAM=<prefix>]           Dreamcast library build/libsh4der_core.a (KallistiOS environment sourced; includes SH4DOW-DC's soft shadows and foot cones)
+#   make bench [SH4ZAM=<prefix>]        Dreamcast timing program build/bench.elf (bench/bench.c, SH4DOW-DC's three vertex loops); run it on the console
+#   make test-dc [SH4ZAM=<prefix>]      build/*_test.elf: every test on the Dreamcast path
+#   make demo [SH4ZAM=<prefix>]         the demo disc out/cdi/sh4der-demo.cdi (KallistiOS environment sourced; needs python and mkdcdisc)
+#   make dc DEMO=1 [SH4ZAM=<prefix>]    the library, and with the flag DEMO=1 the demo disc as well
+#                                       SH4ZAM defaults to the install in $(KOS_PORTS) (include/sh4zam, lib/libsh4zam.a)
 #   make clean
 
 CC      ?= cc
@@ -20,9 +21,19 @@ HDR      = include/sh4der_core.h include/sh4der_menu.h include/sh4der_fakeaf.h i
 # Not named KOS_CC / KOS_AR: the KallistiOS environment already sets those to the bare compiler and archiver.
 DC_CC   ?= kos-cc
 DC_AR   ?= kos-ar
-# SH4ZAM (MIT, Falco Girgis; a git clone of its master, 0.10 or later, kept current with git pull) is not shipped: git ignores third_party/sh4zam, `make check-sh4zam` says how to fetch it.
-# Override SH4ZAM to use another checkout.
-SH4ZAM  ?= third_party/sh4zam
+# SH4ZAM (MIT, Falco Girgis; 0.10 or later) is not shipped. Default: SH4ZAM as installed into KallistiOS's ports, its headers in
+# $(KOS_PORTS)/include/sh4zam and its library in $(KOS_PORTS)/lib/libsh4zam.a. Without an install there, third_party/sh4zam
+# (a git clone of its master; git ignores it). Override SH4ZAM with an install prefix or a source checkout.
+SH4ZAM_PORTS := $(if $(KOS_PORTS),$(if $(wildcard $(KOS_PORTS)/include/sh4zam/shz_sh4zam.h),$(KOS_PORTS)))
+SH4ZAM  ?= $(or $(SH4ZAM_PORTS),third_party/sh4zam)
+# The library: lib/ in an install prefix, build/ in a source checkout. SH4ZAM is mostly inline.
+SH4ZAM_LIB ?= $(firstword $(wildcard $(SH4ZAM)/lib/libsh4zam.a $(SH4ZAM)/build/libsh4zam.a))
+# SH4ZAM's software XMTRX, which the host tests compile: in a source checkout, or in the checkout an installed header folder
+# links to (SH4ZAM's make install symlinks it), or in third_party/sh4zam.
+# The host builds' include folder: the one that holds sh4zam/ (in a symlinked install, the checkout's), so the other ports'
+# headers stay off the host compiler's path.
+SH4ZAM_HOST_INC ?= $(or $(abspath $(dir $(realpath $(SH4ZAM)/include/sh4zam))),$(SH4ZAM)/include)
+SH4ZAM_SW ?= $(firstword $(wildcard $(SH4ZAM)/source/sw/shz_xmtrx_sw.c $(realpath $(SH4ZAM)/include/sh4zam)/../../source/sw/shz_xmtrx_sw.c third_party/sh4zam/source/sw/shz_xmtrx_sw.c))
 # SH4ZAM-DCE (header-only, on top of SH4ZAM) is included in third_party/sh4zam-dce; the ocean demo needs it. Override SH4ZAM_DCE to use another checkout.
 SH4ZAM_DCE ?= third_party/sh4zam-dce
 DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
@@ -48,7 +59,7 @@ check-tuning:
 # The street driving demo (demo/pl4nar): planar reflection, light pools and halos. One script from a clean checkout to an image:
 # it fetches CC0 art, cuts it in Blender, bakes, compiles and runs mkdcdisc. PL4NAR_ARGS: e.g. --rtt --pin (see demo/pl4nar/README.md).
 pl4nar-demo:
-	test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
+	test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM install prefix or checkout"; exit 1; }
 	$(PYTHON) demo/pl4nar/build.py --sh4zam $(SH4ZAM) $(PL4NAR_ARGS)
 
 # The software perspective shadow map demo (demo/psm): host only. Fetches Spot (CC0) once, renders a uniform map and a PSM
@@ -241,7 +252,7 @@ controls_street_drive_F = -DPL4NAR_DRIVE
 controls_map_drive_F    = -DPL4NAR_MAP -DPL4NAR_DRIVE
 controls_hills_drive_F  = -DPL4NAR_MAP -DPL4NAR_HILLS -DPL4NAR_DRIVE
 SNAP_GEN        = demo/pl4nar/build/gen
-SNAP_SW         = $(SH4ZAM)/source/sw/shz_xmtrx_sw.c
+SNAP_SW         = $(SH4ZAM_SW)
 SNAP_TEST       = $(if $(wildcard $(SNAP_GEN)/assets_gen.c),$(if $(wildcard $(SNAP_SW)),$(DEMO_T)/snap_test))
 HERO_STRIP_ZIP ?= demo/pl4nar/assets/_dl/spacekit_2.0.zip
 HERO_STRIP_TEST = $(if $(wildcard $(HERO_STRIP_ZIP)),$(DEMO_T)/hero_strip_test)
@@ -280,7 +291,7 @@ $(addprefix $(DEMO_T)/,$(CONTROLS_TESTS)): demo/pl4nar/host/controls_test.c demo
 	$(DEMO_CC) $($(notdir $@)_F) -Idemo/pl4nar/src $(filter %.c,$^) -lm -o $@
 $(DEMO_T)/snap_test: demo/pl4nar/host/snap_test.c demo/pl4nar/src/demo.c demo/pl4nar/src/gfx.c demo/pl4nar/src/hud.c demo/pl4nar/host/gfx_host.c $(SNAP_GEN)/assets_gen.c $(SNAP_SW) demo/pl4nar/src/demo.h demo/pl4nar/src/heat.h demo/pl4nar/src/controls.h
 	@mkdir -p $(DEMO_T)
-	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DDEMO_HOST -Idemo/pl4nar/src -I$(SNAP_GEN) -Iinclude -I$(SH4ZAM)/include $(filter %.c,$^) -lm -o $@
+	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DDEMO_HOST -Idemo/pl4nar/src -I$(SNAP_GEN) -Iinclude -I$(SH4ZAM_HOST_INC) $(filter %.c,$^) -lm -o $@
 $(DEMO_T)/fx_tables_test: demo/psm/test/fx_tables_test.c include/sh4der_fxlabel.h demo/psm/ao/ao_fx.h demo/psm/hero/hero_fx.h demo/pl4nar/src/pl4nar_fx.h
 	@mkdir -p $(DEMO_T)
 	$(DEMO_CC) $(filter %.c,$^) -lm -o $@
@@ -330,7 +341,7 @@ $(BUILD)/feet: example/feet.c
 .PHONY: bench
 bench: $(BUILD)/bench.elf
 $(BUILD)/bench.elf: bench/bench.c $(BUILD)/libsh4der_core.a
-	@test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
+	@test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM install prefix or checkout"; exit 1; }
 	@mkdir -p $(BUILD)
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) bench/bench.c $(BUILD)/libsh4der_core.a $(SH4ZAM_LIB) -o $@
 
@@ -399,9 +410,9 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS)) $(BUILD)/shz/page_test $(BUILD)/sh
 $(BUILD)/shz/psm_scene_test: demo/psm/psm_scene.h demo/psm/psm_town.h
 $(BUILD)/shz/psm_mapsrc_test: demo/psm/psm_mapsrc.h demo/psm/psm_scene.h demo/psm/psm_town.h
 $(BUILD)/shz/%: test/%.c $(SRC) $(HDR)
-	@$(PYTHON) tools/check_sh4zam.py $(SH4ZAM)
+	@$(PYTHON) tools/check_sh4zam.py $(SH4ZAM) --sw $(or $(SH4ZAM_SW),none)
 	@mkdir -p $(BUILD)/shz
-	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f -DSH4DOW_TEST_TOL=0.0005f -Iinclude -I$(SH4ZAM)/include $(DCE_INC) $(filter %.c,$^) $(SH4ZAM)/source/sw/shz_xmtrx_sw.c -lm -o $@
+	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f -DSH4DOW_TEST_TOL=0.0005f -Iinclude -I$(SH4ZAM_HOST_INC) $(DCE_INC) $(filter %.c,$^) $(SH4ZAM_SW) -lm -o $@
 
 dc: $(BUILD)/libsh4der_core.a
 
@@ -456,7 +467,7 @@ MATCHLIGHT_CDI ?= $(CDI_DIR)/sh4der-matchlight.cdi
 MATCHLIGHT_DISC ?= $(BUILD)/matchlight/disc
 matchlight: $(MATCHLIGHT_CDI)
 $(BUILD)/matchlight/sh4der-matchlight.elf: demo/matchlight/matchlight.c demo/matchlight/matchlight_scene.h src/sh4der_spark.c src/sh4der_motes.c src/sh4der_ca.c $(HDR)
-	@test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
+	@test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM install prefix or checkout"; exit 1; }
 	@mkdir -p $(BUILD)/matchlight
 	$(DC_CC) $(DC_FLAGS) -Werror demo/matchlight/matchlight.c src/sh4der_spark.c src/sh4der_motes.c src/sh4der_ca.c -o $@
 $(MATCHLIGHT_CDI): $(BUILD)/matchlight/sh4der-matchlight.elf
@@ -466,10 +477,8 @@ $(MATCHLIGHT_CDI): $(BUILD)/matchlight/sh4der-matchlight.elf
 
 # The demo disc (demo/): one program that shows the effects, as a .cdi image for a Dreamcast, a GDEMU or an emulator.
 # PYTHON turns the models into a C header; MKDCDISC writes the image (https://gitlab.com/simulant/mkdcdisc).
-# SH4ZAM_LIB is linked when the checkout has been built (build/libsh4zam.a); SH4ZAM is mostly inline.
 PYTHON     ?= python3
 MKDCDISC   ?= mkdcdisc
-SH4ZAM_LIB ?= $(wildcard $(SH4ZAM)/build/libsh4zam.a)
 DEMO_DIR    = $(BUILD)/demo
 DEMO_MODELS = demo/models/dude.obj demo/models/wagon.obj demo/models/jet.obj demo/models/crate.obj demo/models/lamp.obj
 DEMO_SH4DOW = src/sh4dow_dc.c src/sh4dow_foot.c
@@ -495,9 +504,9 @@ endif
 test-dc: $(addprefix $(BUILD)/,$(addsuffix .elf,$(TESTS)))
 
 $(BUILD)/shz/psm_town_test: test/psm_town_test.c $(PSM_TOWN_DEPS) $(SRC) $(HDR)
-	@$(PYTHON) tools/check_sh4zam.py $(SH4ZAM)
+	@$(PYTHON) tools/check_sh4zam.py $(SH4ZAM) --sw $(or $(SH4ZAM_SW),none)
 	@mkdir -p $(BUILD)/shz
-	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f -DSH4DOW_TEST_TOL=0.0005f $(PSM_TOWN_INC) -Iinclude -I$(SH4ZAM)/include $(DCE_INC) $(filter %.c,$^) $(SH4ZAM)/source/sw/shz_xmtrx_sw.c -lm -o $@
+	$(CC) $(CFLAGS) -std=gnu11 -Wall -Wextra -DSH4DER_TEST_TOL=0.0005f -DSH4DOW_TEST_TOL=0.0005f $(PSM_TOWN_INC) -Iinclude -I$(SH4ZAM_HOST_INC) $(DCE_INC) $(filter %.c,$^) $(SH4ZAM_SW) -lm -o $@
 $(BUILD)/psm_town_test.elf: test/psm_town_test.c $(PSM_TOWN_DEPS) $(BUILD)/libsh4der_core.a
 	$(DC_CC) $(DC_FLAGS) $(DCE_INC) -DSH4DER_TEST_TOL=0.0005f -DSH4DOW_TEST_TOL=0.0005f $(PSM_TOWN_INC) $< $(BUILD)/libsh4der_core.a -o $@
 $(BUILD)/%.elf: test/%.c $(BUILD)/libsh4der_core.a

@@ -246,7 +246,8 @@ static int rsqrt_test(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (ring_test() || haze_test() || wobble_test() || clamp_test() || sum_test() || identity_test() || blur_test() || pixel_test() || dither_test() || rsqrt_test())
         return 1;
     printf("warp_test: ok\n");

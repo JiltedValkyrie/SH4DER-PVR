@@ -19,7 +19,8 @@ static ao0_scene_t scene;
 static uint8_t bits[AO0_SIZE * AO0_SIZE], count[AO0_SIZE * AO0_SIZE], edge[AO0_SIZE * AO0_SIZE];
 static uint16_t px[AO0_SIZE * AO0_SIZE];
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     unsigned k, i, x, y;
 
     ao0_small(&scene, 5.0f, 0.0f);

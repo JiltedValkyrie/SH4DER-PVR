@@ -767,7 +767,15 @@ static void probe_draw(int s, unsigned frame) {
     }
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     /* opaque, opaque modifier, translucent, translucent modifier bins on; punch-through off (nothing here uses it) */
     pvr_init_params_t init = {
         { PVR_BINSIZE_16, PVR_BINSIZE_16, PVR_BINSIZE_16, PVR_BINSIZE_16, PVR_BINSIZE_0 },

@@ -34,7 +34,8 @@ static uint32_t old_map(uint32_t p) {                /* main.c's read_pad, as it
 #define CINE_BX DEMO_BTN_CINE                      /* B + X: the fly-by, in both key sets */
 #endif
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
 #if defined(PL4NAR_WET)                            /* Y is the rain there: checked below */
     const uint32_t acted = ~(uint32_t)(DEMO_BTN_TILES | DEMO_BTN_AO | DEMO_BTN_FX | DEMO_BTN_TOD | DEMO_BTN_RAIN);
 #elif defined(PL4NAR_MAP)

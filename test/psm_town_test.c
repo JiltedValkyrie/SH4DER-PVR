@@ -812,7 +812,8 @@ static void readout(void) {
     CHECK(strstr(ln[1], "SLAB 0-13.0") && strstr(ln[5], "cull"));
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     sun();
     mesh();
     cast();

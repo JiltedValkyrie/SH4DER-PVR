@@ -380,7 +380,8 @@ static void sweep(void) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     c4_light_t L;
 
     levels();

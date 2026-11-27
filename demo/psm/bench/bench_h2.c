@@ -1018,7 +1018,15 @@ static void group4(void) {
     pvr_shutdown();
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     static const char *const next[4] = { "START: VRAM by cache", "START: G2 DMA", "START: G2 to VRAM", "(end)" };
     static void (*const group[3])(void) = { group2, group3, group4 };
     unsigned page = 0, pages, held = ~0u, done = 1;

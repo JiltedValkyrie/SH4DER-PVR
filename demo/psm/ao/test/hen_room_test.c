@@ -24,7 +24,8 @@ static int fails;
 static henr_t room, again;
 static const char *const mode_name[HENR_MODES] = { "eyes", "sweep grid, every step", "sweep grid, on the tick", "sweep, no broad phase" };
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static const unsigned counts[3] = { 4u, 16u, 32u };
     hen_cost_t cost;
     hen_sweep_cost_t scost;

@@ -178,7 +178,8 @@ static void random_tri(float s[3][4], unsigned size, int flat, int huge, int sli
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static const unsigned sizes[] = { 64u, 128u, 256u };
     static uint16_t ref[256 * 256], got[256 * 256];
     static uint16_t row_a[ROW_MAX + 8], row_b[ROW_MAX + 8];

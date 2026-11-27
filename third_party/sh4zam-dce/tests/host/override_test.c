@@ -25,7 +25,8 @@
 
 static volatile float vf[2];
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     int k;
 
     /* on by default */

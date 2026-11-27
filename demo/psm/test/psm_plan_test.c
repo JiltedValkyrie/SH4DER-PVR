@@ -29,7 +29,8 @@ static uint32_t send_at(unsigned shed) {                     /* what the real se
     return k.bytes;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     const uint32_t v = 1024u * 1024u, cap = (uint32_t)((float)v * PSM_TA_SHARE), back = (uint32_t)((float)v * PSM_SHED_BACK);
     psm_lazy_t z;
     uint8_t ok[PSM_HK_N];

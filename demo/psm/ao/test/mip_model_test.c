@@ -16,7 +16,8 @@ static int fails;
 
 static uint16_t chain[MIP_BYTES / 2u + 16u];
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     unsigned k, rule;
     uint32_t i, end = 6u;
     float z;

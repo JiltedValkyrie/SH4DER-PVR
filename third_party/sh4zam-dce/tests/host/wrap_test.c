@@ -63,7 +63,8 @@ static float pick(int trial, int lane) {
 
 #define SAME(a, b, what) T_CHECK(t_bits(a) == t_bits(b), "%s: %08x, SH4ZAM's %08x (trial %d)", what, (unsigned)t_bits(a), (unsigned)t_bits(b), trial)
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     int trial;
 
     for (trial = 0; trial < 60000; trial++) {

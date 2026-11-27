@@ -19,7 +19,8 @@
 #define BOUND 4.76837158203125e-07   /* 2^-21 */
 #define N 67
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static float in[N * 8], out[(N + 1) * 8 + 8];   /* out is deliberately used off a multiple of 32: no line allocation on the host anyway */
     static uint8_t codes[N + 4];
     static shz_mat4x4_t m;

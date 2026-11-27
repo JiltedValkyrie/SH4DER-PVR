@@ -595,7 +595,15 @@ static void report(void) {
     for (i = 0; i < auto_done; i++) pg_point(g, (float)i, (float)(auto_tally[i].cyc_pre / (auto_tally[i].steps ? auto_tally[i].steps : 1ul)));
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     unsigned page = 0, pages, held = ~0u;
     int redraw = 1;
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SH4DER-PVR street driving demo: from a clean checkout to a disc image, one script.
 
-    python demo/pl4nar/build.py --sh4zam <checkout> [--tech] [--hills] [--street] [--rtt] [--blender <exe>] [--mkdcdisc <exe>] [--out <dir>] [--pin]
+    python demo/pl4nar/build.py [--sh4zam <prefix or checkout>] [--tech] [--hills] [--street] [--rtt] [--blender <exe>] [--mkdcdisc <exe>] [--out <dir>] [--pin]
     python demo/pl4nar/build.py --dry-run [the same options]      say what would run and what is missing; nothing is
                                                                  fetched, written or built (tools/test_build_dry.py)
 
@@ -86,17 +86,35 @@ def host_cc():
     return None
 
 
+def shz_default():
+    """$SH4ZAM, else $KOS_PORTS when SH4ZAM is installed there (include/sh4zam, lib/libsh4zam.a), else ''."""
+    if os.environ.get("SH4ZAM"):
+        return os.environ["SH4ZAM"]
+    ports = os.environ.get("KOS_PORTS", "")
+    return ports if ports and os.path.isfile(os.path.join(ports, "include", "sh4zam", "shz_sh4zam.h")) else ""
+
+
+def shz_src(sh4zam):
+    """The source checkout behind sh4zam: itself, or the checkout its include/sh4zam links to (a symlinked install)."""
+    return os.path.dirname(os.path.dirname(os.path.realpath(os.path.join(sh4zam, "include", "sh4zam"))))
+
+
 def shz_sw(sh4zam):
     """SH4ZAM's software XMTRX (src/map.c uses it through the headers on the host), or None."""
-    p = os.path.join(sh4zam or "", "source", "sw", "shz_xmtrx_sw.c")
-    return p if sh4zam and os.path.isfile(p) else None
+    if not sh4zam:
+        return None
+    for root in (sh4zam, shz_src(sh4zam)):
+        p = os.path.join(root, "source", "sw", "shz_xmtrx_sw.c")
+        if os.path.isfile(p):
+            return p
+    return None
 
 
 def map_ao_cmd(cc, sh4zam, exe):
     lib = os.path.dirname(os.path.dirname(ROOT))
     j = os.path.join
     return [cc, "-O2", "-std=gnu11", "-Wall", "-Wextra", "-I" + j(ROOT, "src"), "-I" + GEN_MAP, "-I" + j(lib, "include"),
-            "-I" + j(sh4zam, "include"),
+            "-I" + j(shz_src(sh4zam), "include"),
             j(ROOT, "tools", "map_ao.c"), j(ROOT, "src", "map.c"), j(GEN_MAP, "assets_gen.c"), j(GEN_MAP, "map_gen.c"),
             shz_sw(sh4zam), "-lm", "-o", exe]
 
@@ -186,7 +204,7 @@ def fresh(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--sh4zam", default=os.environ.get("SH4ZAM", ""))
+    ap.add_argument("--sh4zam", default=shz_default())
     ap.add_argument("--blender", default=os.environ.get("BLENDER", "blender"))
     ap.add_argument("--mkdcdisc", default=os.environ.get("MKDCDISC", "mkdcdisc"))
     ap.add_argument("--out", default=os.path.normpath(os.path.join(ROOT, "..", "..", "out", "cdi")))
@@ -206,7 +224,7 @@ def main():
         raise SystemExit("no host C compiler: the map_ao step builds tools/map_ao.c for this machine. Put gcc, cc or "
                          "clang on the PATH, or set HOST_CC (kos-cc builds for the Dreamcast and will not do)")
     if not a.sh4zam or not os.path.isdir(os.path.join(a.sh4zam, "include", "sh4zam")):
-        raise SystemExit("--sh4zam: a SH4ZAM checkout (it has include/sh4zam)")
+        raise SystemExit("--sh4zam: a SH4ZAM install prefix or checkout (it has include/sh4zam; none installed in $KOS_PORTS)")
     if not kos_cc():
         raise SystemExit("kos-cc is not on the PATH: source the KallistiOS environment first")
     py = sys.executable
@@ -214,7 +232,7 @@ def main():
     gen = GEN if street else GEN_MAP
     if not street:
         if not shz_sw(a.sh4zam):
-            raise SystemExit("--sh4zam has no source/sw/shz_xmtrx_sw.c: the map_ao step needs SH4ZAM's software XMTRX on the host")
+            raise SystemExit("--sh4zam has no source/sw/shz_xmtrx_sw.c (nor does the checkout an installed include/sh4zam links to): the map_ao step needs SH4ZAM's software XMTRX on the host")
     os.makedirs(GEN, exist_ok=True)
     os.makedirs(gen, exist_ok=True)
     os.makedirs(LOD, exist_ok=True)

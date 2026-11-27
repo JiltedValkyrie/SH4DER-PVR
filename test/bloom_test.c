@@ -371,7 +371,8 @@ static int bad_params(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (shipped() || ramp() || white_structure() || geometry() || flare() || round_disc() || feathered_disc() || ring_glow() || bad_params())
         return 1;
     printf("bloom_test: ok\n");

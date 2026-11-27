@@ -145,7 +145,8 @@ static void t_contours(void) {
     CHECK(lines == 16u);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_index();
     t_c3b();
     t_pack();

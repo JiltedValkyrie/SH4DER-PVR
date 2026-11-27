@@ -362,7 +362,8 @@ static void hostile(void) {
     CHECK(memcmp(q, keep, sizeof(q)) == 0);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     defaults_and_bad();
     stamp();
     refill();

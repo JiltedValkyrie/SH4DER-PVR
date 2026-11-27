@@ -201,7 +201,8 @@ static void targets(unsigned k, int with_hens_m) {
     }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     unsigned which;
 
     printf("ao4 tile bins, ESTIMATE (a model of the TA's binning; not a measurement). Bins of %u words, pool %u overflow blocks a scene.\n", BIN, POOL);

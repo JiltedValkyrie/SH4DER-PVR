@@ -312,7 +312,8 @@ static void planar_batch(uint8_t *out, size_t out_stride, const float *pos, size
 }
 
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static float pts[64 * 8];
     static float M[16], back[16], g1[4], g2[4], t1[3], t2[3];
     static uint8_t out_batch[64 * 4 + 8], out_one[64 * 4 + 8];

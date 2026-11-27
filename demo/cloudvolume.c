@@ -634,7 +634,15 @@ static void cv_setup(void) {
     cv_cloud_header();
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     pvr_init_params_t init = pvr_default_params;
     pvr_stats_t stats;
     uint64_t previous, report, cpu_total = 0, frame_total = 0, render_total = 0, march_total = 0, worst = 0;

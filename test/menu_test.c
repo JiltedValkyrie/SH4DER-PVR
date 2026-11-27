@@ -297,7 +297,8 @@ static void t_place(void) {
     CHECK(m.pos[0].cursor == 9u && m.pos[0].cursor >= m.pos[0].first && m.pos[0].cursor < m.pos[0].first + 4u);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     t_list();
     t_tabs();
     t_scroll();

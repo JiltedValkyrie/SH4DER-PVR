@@ -16,7 +16,8 @@
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     sh4der_split_half_t l, r;
     sh4der_split_step_t s = { 0, 0u };
     unsigned d, x, i;

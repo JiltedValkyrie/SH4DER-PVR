@@ -245,7 +245,15 @@ static void report(void) {
     for (r = 0; r < ROWS; r++) pg_point(g, (float)r, cells[r][2].ok ? (float)mbs10(sizes[2], cells[r][2].best) * 0.1f : 0.0f);
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     unsigned page = 0, pages;
     int redraw = 1;
 

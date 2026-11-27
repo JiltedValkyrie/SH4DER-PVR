@@ -153,7 +153,8 @@ static int glare(void) {
     return 0;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     if (luma_and_average() || eye() || grade() || glare())
         return 1;
     printf("look_test: ok\n");

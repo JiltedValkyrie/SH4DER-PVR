@@ -17,7 +17,8 @@ static int fails;
 static uint16_t fb[SW * SH], tex[HEAT_TW * HEAT_TH];
 static heat_vtx_t m[HEAT_VERTS], m2[HEAT_VERTS];
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     const float none[2] = { 0.0f, 0.0f };
     heat_win_t w;
     unsigned i, j, n;

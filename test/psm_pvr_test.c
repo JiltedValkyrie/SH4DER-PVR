@@ -318,7 +318,8 @@ static void bad_input(void) {
     CHECK(sh4der_psm_pvr_tris(&map, MAP_N, a, a, NULL, out) == 0u);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     caster_tris();
     lookup();
     interpolation_error();

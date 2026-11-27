@@ -234,7 +234,8 @@ static void lag_model(const float L[3], float shift) {
     CHECK(off + vis + hid == 1089u);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     static const float c[3] = { 0.0f, 1.5f, 6.0f }, lo[3] = { 1.0f, 0.0f, 4.0f }, hi[3] = { 1.8f, 1.6f, 4.8f };
     float L[3] = { 0.5f, 0.8f, -0.3f };
     vol_mesh_t sph = { sph_p, sph_t, sph_e, 0, 0, 0 }, box = { box_p, box_t, box_e, 0, 0, 0 };

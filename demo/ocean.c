@@ -233,7 +233,15 @@ static void ocean_input(ocean_settings_t *s,float dt) {
     if(shz_fabsf(st->joyx)>12)s->yaw=shz_clampf(shz_fmaf((float)st->joyx,dt*(1.0f/160.0f),s->yaw),-0.65f,0.65f); /* hand: dt x constant */
     if(shz_fabsf(st->joyy)>12)s->pitch=shz_clampf(shz_fmaf((float)st->joyy,dt*(-1.0f/320.0f),s->pitch),-0.20f,0.08f); /* hand: dt x constant */
 }
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     ocean_settings_t s={0,0,-0.045f,1,1,1,1,1,1};
     pvr_init_params_t init=pvr_default_params;
     uint64_t previous,report,cpu_total=0,frame_total=0,render_total=0;unsigned frames=0,over=0;uint64_t worst=0;

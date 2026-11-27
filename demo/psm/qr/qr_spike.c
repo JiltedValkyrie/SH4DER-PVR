@@ -69,7 +69,15 @@ static void text_pages(void) {
     say("RESULT QR.1 codes the encoder refused: %u of 16", bad);
 }
 
-int main(void) {
+static void cont_reset_btn_callback_(uint8_t addr, uint32_t btns) {
+    (void)addr;
+    (void)btns;
+    arch_exit();
+}
+
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
+    cont_btn_callback(0, CONT_RESET_BUTTONS, cont_reset_btn_callback_);
     static const uint8_t level[3] = { 232, 255, 176 };
     unsigned page = 0, pages, held = ~0u, lv = 0;
     int redraw = 1;
