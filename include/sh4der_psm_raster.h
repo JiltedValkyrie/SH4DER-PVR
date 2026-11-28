@@ -286,7 +286,7 @@ static inline float (*sh4der_psm_raster_clip_(float a[8][4], float b[8][4], unsi
         unsigned m = 0;
 
         for (i = 0; i < cnt; i++) {
-            const float *c = in[i], *d = in[(i + 1u) % cnt];
+            const float *c = in[i], *d = in[i + 1u == cnt ? 0u : i + 1u];   /* the next, round to the first: no % (a __udivsi3 call on the SH-4) */
             const float dc = c[3] + sg * c[ax], dd = d[3] + sg * d[ax];
 
             if (dc >= 0.0f) { for (k = 0; k < 4; k++) out[m][k] = c[k]; m++; }

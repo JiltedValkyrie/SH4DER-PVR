@@ -73,6 +73,7 @@ See `README.md` "Tilecut tuning": `SH4DER_TILECUT_TABLES`, `_MAX`, `_TILES`, `_T
 ## Open
 
 - The refusal when not every table is found, on a console.
+- Single-table per-table state (`sh4der_tilecut_begin_one_at`, `_end_one`, `_other`, `_active`, host tested in `test/tilecut_test.c`): holding the cut on a pass's own table while the screen uses the other, NOT RUN on a console. Holding requires the pass to be every second render (a third render per frame, such as a mirror pass, puts another scene through the held table every other frame); if release is forgotten before a no-pass frame, the screen renders through the cut table so only the pass's few tiles are drawn and the rest of that buffer is stale.
 - The mirror pass in the street demo: the cut with both tables found (PVR-200 had one).
 - Whether the mirror pass walks the screen's tile table at all (Q97, X43).
 

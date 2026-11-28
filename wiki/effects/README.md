@@ -1,7 +1,7 @@
 ---
 title: Effects index
 tags: [effect, index]
-updated: 2026-11-25
+updated: 2026-11-28
 sources: [README.md effect table, README.md:119 versions, include/*.h version lines]
 ---
 # Effects index
@@ -36,6 +36,7 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [Motion blur [trail]](trail.md) | The frame before over this one: motion blur and the TAA blend | v0.10 | no |
 | [Screen overlays [lens]](lens.md) | Vignette, film grain, hit wedges, flash | v0.10 | no |
 | [Fake focus blur [focus]](focus.md) | Fake depth of field through a vertex-alpha mask | v0.10 | no |
+| [Focus pull by texture blur [dofmip]](dofmip.md) | Depth-driven focus blur: a mip bias a polygon from its distance to a focus plane | v0.2 | no |
 | [Screen filters [visor]](visor.md) | Night, amber and thermal visor looks | v0.10 | no |
 | [Screen spotlight [torch]](torch.md) | A flashlight carved on screen, with fog bent to black | v0.50 | no |
 | [Send checks [guard]](guard.md) | Drops zero-area triangles and uncompiled headers | v0.10 | no (the faults were seen on a console) |
@@ -52,9 +53,11 @@ sources: [README.md effect table, README.md:119 versions, include/*.h version li
 | [fxlabel](fxlabel.md) | The effect label line: each effect by its name, who does the work and when | ALPHA v0.4 / v0.5 | yes: VID-016 (eight programs, three discs) |
 | [qrpage](qrpage.md) | The QR test set on result pages, read back from a photograph | ALPHA v0.5 | yes: VID-014 (one run, one phone photograph set) |
 | [Distance ramp [ramp]](ramp.md) | A linear 0..1 ramp between two distances (a helper) | v0.10 | no |
+| [Off-screen skip [viewcull]](viewcull.md) | Leaves out a box or a block of ground that is wholly off the screen before it is placed (a helper) | PROTOTYPE v0.1 | no |
 | [Crash and hang screen [fault]](fault.md) | A report on the screen for an exception or a hang: registers, calls, breadcrumbs | PROTOTYPE v0.1 | no: no run has shown it catching a fault (PVR-183, PVR-208 froze with no HANG screen) |
 | [Split screen [split]](split.md) | A movable divider for a left and a right half (tile columns, held triggers) | ALPHA v0.2 | **yes**: the middle position (PVR-144, PVR-161), one console; moving it OPEN |
 | [Tile-cut pass [tilecut]](tilecut.md) | A render target pass through a tile table its own size | ALPHA v0.5 | **yes**: Full compare chain on a console [c4]; Room shading, four ways [ao4], build h; Glow that meets a wall [d1], build c; Glow that meets a wall, build d (PVR-092, PVR-156, PVR-192, PVR-205), one console |
+| [Moving shadows drawn by the PVR [psm_a]](psm-route-a.md) | Route A as a library pass: four casters, one light, a held 128 map, the tile cut at a row origin | v0.1 | no |
 | [Sun shadow map [psm]](psm.md) | Shadow map placement; the SH-4 and PVR map routes | v0.10 | **yes**: the town demo HUD, one console, 2026-11-25 |
 | [Corner darkening [ao]](ao.md) | Crease darkening (bake) and a screen cavity cue | v0.10 | no |
 | [Baked corner shading [aobake]](aobake.md) | Baked ambient occlusion against exact shapes, at load (the console bake) | ALPHA v0.5 | **yes**: the bake in the scenes of Room shading, four ways (SH4-076, SH4-082), one console |

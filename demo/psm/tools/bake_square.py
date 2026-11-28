@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """Build the walled square (the town's replacement) into the same C header bake_town.py writes, psm_town_mesh.h.
 
-  python -I demo/psm/tools/bake_square.py <kenney_fantasy-town-kit_2.0.zip | -> <out.h> [--json <report.json>]
+  python -I demo/psm/tools/bake_square.py <kenney_fantasy-town-kit_2.0.zip | -> <out.h> [--json <report.json>] [--closed]
+
+--closed (the small world, the turn plan's world step): the square shut all round. The north gate and the south street's
+gap get gates (a door set in the reveal, cast in the map too), the south walls lose their outer faces, and the faces no eye
+in the walk can see are left out of the screen mesh: tops above the eye on the solid pieces, the solid pieces' faces that
+turn away from the whole walk, and whatever outside the walls sits under every line of sight over them. The map's casters
+are all kept (the keep and the towers shade the square). The header then also has PSM_TOWN_CLOSED 1 and the ground that
+can be seen, PSM_TOWN_BOUND_X0 .. ZS1 (story metres: the walls' outer faces), and psm_town.h takes its closed routes.
 
 A walled square open to the sky: stone walls with merlons round the town's walk, gate towers, a colonnade, a dais,
 corner towers, the keep tower where the church tower stood, and in the open the town's own fixed points kept where the
@@ -54,6 +61,13 @@ MER_W, MER_H = 0.75, 0.8                   # a merlon: width, height (one a cell
 XW, XE, ZS, ZN = -12.0, 13.5, -16.5, 12.0
 GATE_N = (-1.5, 1.5)                       # the north gate, story x
 GATE_S = (-3.0, 6.0)                       # the south gap (the street out)
+CLOSED = False                             # --closed: main() sets it before the build
+
+# --closed: the eye (psm_scene.h PSM_EYE_H) and the closed walk (psm_town.h's PSM_TOWN_CLOSED walk area), story metres
+EYE_H = 1.7
+WALK_CLOSED = (-11.4, -15.5, 7.2, 11.4)    # x0, z0, x1, z1
+WALL_LOW = 4.5                             # the lowest wall top (the broken stretch, the gates' lintels): a sight line must clear it
+SOLID = ("wall", "towers", "keep", "gate", "buttresses", "colonnade")   # items made of closed solids (an item's name contains one)
 
 
 # ---- the kit: Kenney's Fantasy Town Kit 2.0 (CC0), read from its zip, never unpacked ------------------------------
@@ -259,6 +273,15 @@ class Square:
         self.kit = kit
         self.pal = bt.Palette()
         self.scr = bt.Screen(self.pal)
+        self.scr.given = []               # a triangle a flag: its normal was given (a face's outward side), not its winding's
+        tri = self.scr.tri
+
+        def given_tri(a, b, c, col, item, n=None):
+            before = len(self.scr.t)
+            tri(a, b, c, col, item, n)
+            if len(self.scr.t) > before:
+                self.scr.given.append(n is not None)
+        self.scr.tri = given_tri
         self.cst = bt.Casters()
         self.named = {}
         self.solid = []                   # story footprints (x0, z0, x1, z1) the walkers must keep off
@@ -394,22 +417,35 @@ class Square:
                 bt.cbox(self.cst, (mc[0], h, mc[2]), (0.8, 0.9, 0.6), ax=(tan, nrm))
         self.foot(cx - hs, cz - hs, cx + hs, cz + hs)
 
-    def door(self, name, P, s0, s1, top):
-        """a door in a wall's gap: planks set back in the reveal, an iron band"""
+    def door(self, name, P, s0, s1, top, cast=False):
+        """a door in a wall's gap: planks set back in the reveal, an iron band. cast: in the map too (a gate that closes
+        a gap the sun would shine through)"""
         self.scr.quad(P(s0, 0.0, 0.6), P(s1, 0.0, 0.6), P(s1, top, 0.6), P(s0, top, 0.6), WOOD_DK, "doors")
         self.scr.quad(P(s0, 1.1, 0.58), P(s1, 1.1, 0.58), P(s1, 1.25, 0.58), P(s0, 1.25, 0.58), IRON, "doors")
+        if cast:
+            along, back = bt.unit(bt.sub(P(1.0, 0.0), P(0.0, 0.0))), bt.unit(bt.sub(P(0.0, 0.0, 1.0), P(0.0, 0.0)))
+            self.cst.begin(name, "doors")
+            bt.cbox(self.cst, P(0.5 * (s0 + s1), 0.0, 0.6), (s1 - s0, top, 0.1), ax=(along, back))
+            a, b = P(s0, 0.0, 0.0), P(s1, 0.0, WT)
+            self.foot(a[0], -a[2], b[0], -b[2])
 
     def build(self):
         S = self
         # ---- the enclosure -------------------------------------------------------------------------------------
         Pn = S.wall("north wall", (XW, ZN), (XE, ZN), "S", gaps=((GATE_N[0] - XW, GATE_N[1] - XW, 4.5), (9.75 - XW, 11.25 - XW, 2.4)))
         S.door("north door", Pn, 9.75 - XW, 11.25 - XW, 2.4)
+        if CLOSED:                                        # the north gate shut: the porter comes in through it
+            S.door("north gate", Pn, GATE_N[0] - XW, GATE_N[1] - XW, 4.5, cast=True)
         Pw = S.wall("west wall", (XW, ZS), (XW, ZN), "E", map_merlons=True, gaps=((-9.75 - ZS, -8.25 - ZS, 2.4), (2.25 - ZS, 3.75 - ZS, 2.4)))
         S.door("west door s", Pw, -9.75 - ZS, -8.25 - ZS, 2.4)
         S.door("west door n", Pw, 2.25 - ZS, 3.75 - ZS, 2.4)
         S.wall("east wall", (XE, ZN), (XE, ZS), "W")
-        S.wall("south wall w", (XW, ZS), (GATE_S[0], ZS), "N", outer=True, broken=(0.0, 6.0, 4.5), map_merlons=True)
-        S.wall("south wall e", (GATE_S[1], ZS), (XE, ZS), "N", outer=True, map_merlons=True)
+        S.wall("south wall w", (XW, ZS), (GATE_S[0], ZS), "N", outer=not CLOSED, broken=(0.0, 6.0, 4.5), map_merlons=True)
+        S.wall("south wall e", (GATE_S[1], ZS), (XE, ZS), "N", outer=not CLOSED, map_merlons=True)
+        if CLOSED:                                        # the street's gap: a wall with a gate under a lintel
+            L = GATE_S[1] - GATE_S[0]
+            Ps = S.wall("south gate wall", (GATE_S[0], ZS), (GATE_S[1], ZS), "N", gaps=((0.0, L, 4.5),), map_merlons=True)
+            S.door("south gate", Ps, 0.0, L, 4.5, cast=True)
         # the north gate: two gate towers either side, the passage's dark far end
         for gx in (GATE_N[0] - 1.0, GATE_N[1] + 1.0):
             c = R(gx, 0.0, ZN - 0.5)
@@ -586,9 +622,77 @@ class Square:
             S.foot(tx - 0.2, tz - 0.2, tx + 0.2, tz + 0.2)
 
 
+# ---- --closed: the faces no eye in the walk can see, left out of the screen mesh ---------------------------------------
+def walk_eyes(step=1.0):
+    """eye points over the closed walk, story (x, z), a grid `step` apart with the edges on it"""
+    x0, z0, x1, z1 = WALK_CLOSED
+    nx, nz = int(math.ceil((x1 - x0) / step)), int(math.ceil((z1 - z0) / step))
+    return [(x0 + (x1 - x0) * i / nx, z0 + (z1 - z0) * j / nz) for i in range(nx + 1) for j in range(nz + 1)]
+
+
+def over_walls(e, p):
+    """1 when the sight line from the eye (story x, z at EYE_H) to the world point p clears the walls: p outside the inner
+    faces, and the line's height where it leaves the courtyard over WALL_LOW (the lowest top; a higher wall only hides more)"""
+    px, py, pz = p[0], p[1], -p[2]
+    if XW <= px <= XE and ZS <= pz <= ZN:
+        return True                                       # inside: not this test's
+    if py <= WALL_LOW:
+        return False
+    dx, dz, t = px - e[0], pz - e[1], 1.0
+    if dx > 1e-9: t = min(t, (XE - e[0]) / dx)
+    if dx < -1e-9: t = min(t, (XW - e[0]) / dx)
+    if dz > 1e-9: t = min(t, (ZN - e[1]) / dz)
+    if dz < -1e-9: t = min(t, (ZS - e[1]) / dz)
+    return EYE_H + (py - EYE_H) * t > WALL_LOW - 0.25      # 0.25 m spare for the eye grid's spacing
+
+
+def cull_closed(scr):
+    """the screen triangles kept, and how many each rule left out: tops (a solid's face up, wholly above the eye: its own
+    body hides it from below), away (a solid's face that turns from every eye: its far side; the walk is convex, so its four
+    corners decide), hidden (outside the walls and under every sight line over them, sampled at its corners, edge middles
+    and middle from eyes a metre apart). The first two only for a face whose outward normal was given: the PVR's culling
+    is off, so a face's winding says nothing about which side is seen."""
+    x0, z0, x1, z1 = WALK_CLOSED
+    corners = [R(x, EYE_H, z) for x in (x0, x1) for z in (z0, z1)]
+    eyes = walk_eyes()
+    kept, out = [], {"tops": 0, "away": 0, "hidden": 0}
+    for t, given in zip(scr.t, scr.given):
+        p = [scr.p[i] for i in t[:3]]
+        n = scr.n[t[0]]
+        solid = given and any(k in t[3] for k in SOLID)
+        if solid and n[1] > 0.9 and min(q[1] for q in p) >= EYE_H + 0.1:
+            out["tops"] += 1
+            continue
+        if solid and all(bt.dot(n, bt.sub(e, q)) < -1e-4 for e in corners for q in p):
+            out["away"] += 1
+            continue
+        inside = [XW <= q[0] <= XE and ZS <= -q[2] <= ZN for q in p]
+        if not any(inside):
+            mids = [bt.mul(bt.add(p[a], p[b]), 0.5) for a, b in ((0, 1), (1, 2), (2, 0))]
+            cen = bt.mul(bt.add(bt.add(p[0], p[1]), p[2]), 1.0 / 3.0)
+            if not any(over_walls(e, q) for q in p + mids + [cen] for e in eyes):
+                out["hidden"] += 1
+                continue
+        kept.append(t)
+    return kept, out
+
+
+def compact(scr, tris):
+    """the screen mesh with only the vertices `tris` use, in their first use order"""
+    remap, p, n, c, t2 = {}, [], [], [], []
+    for t in tris:
+        for i in t[:3]:
+            if i not in remap:
+                remap[i] = len(p)
+                p.append(scr.p[i]); n.append(scr.n[i]); c.append(scr.c[i])
+        t2.append((remap[t[0]], remap[t[1]], remap[t[2]], t[3]))
+    scr.p, scr.n, scr.c, scr.t = p, n, c, t2
+
+
 # ---- the cast's routes, read from psm_town.h (not copied), checked against the solid footprints -----------------------
 def routes():
     src = open(os.path.join(HERE, "..", "psm_town.h"), encoding="utf-8").read()
+    src = src[src.index("PSM_TOWN_CLOSED_ROUTES" if CLOSED else "PSM_TOWN_OPEN_ROUTES"):]   # the closed square's routes, or the open one's
     wp_txt = src[src.index("psm_cast_wp[] = {"):src.index("};", src.index("psm_cast_wp[] = {"))]
     wp = [(float(a), float(b)) for a, b, _ in re.findall(r"\{\s*(-?[\d.]+)f,\s*(-?[\d.]+)f,\s*(-?[\d.]+)f\s*\}", wp_txt)]
     rt_txt = src[src.index("psm_cast_route[PSM_CAST][3] = {"):src.index("};", src.index("psm_cast_route[PSM_CAST][3] = {"))]
@@ -618,11 +722,19 @@ def main(argv):
     if len(argv) < 3:
         print(__doc__)
         return 2
+    global CLOSED
     rep_path = argv[argv.index("--json") + 1] if "--json" in argv else None
+    CLOSED = "--closed" in argv
     kit_zip = argv[1] if argv[1] != "-" and os.path.exists(argv[1]) else None
     kit = FTKit(kit_zip)
     sq = Square(kit)
     sq.build()
+    culled = None
+    if CLOSED:
+        n_t, n_v = len(sq.scr.t), len(sq.scr.p)
+        kept, culled = cull_closed(sq.scr)
+        compact(sq.scr, kept)
+        culled.update({"triangles_before": n_t, "vertices_before": n_v, "triangles": len(sq.scr.t), "vertices": len(sq.scr.p)})
     mv = bt.movers(sq.pal)
     acc = [sq.pal(c) for c in bt.PEOPLE_ACC]
     # the routes keep off every solid footprint (a walker's half width 0.25 m)
@@ -663,6 +775,7 @@ def main(argv):
                    "hen": {"vertices": len(mv[1][0].p), "screen": len(mv[1][0].t), "map": len(mv[1][1]["t"])}},
         "palette": len(sq.pal.cols),
         "route_legs_checked": len(legs),
+        "closed": culled,
     }
     with open(argv[2], "w", encoding="utf-8", newline="\n") as f:
         f.write("/* Generated by demo/psm/tools/bake_square.py. Not in the repository: the build folder.\n")
@@ -672,7 +785,13 @@ def main(argv):
             f.write("   kit %-20s %s\n" % (k, json.dumps(v)))
         for k, v in sorted(items.items()):
             f.write("   %-22s screen %5d  map %4d\n" % (k, v[0], v[1]))
+        if culled:
+            f.write("   closed: screen %(triangles_before)d -> %(triangles)d triangles, %(vertices_before)d -> %(vertices)d vertices"
+                    " (left out: tops %(tops)d, away %(away)d, hidden %(hidden)d)\n" % culled)
         f.write("*/\n#define PSM_TOWN_KIT %d\n#define PSM_TOWN_NAME \"walled square\"\n" % (1 if kit_zip else 0))
+        if CLOSED:                                        # psm_town.h's closed routes and walk; the ground that can be seen
+            f.write("#define PSM_TOWN_CLOSED 1\n#define PSM_TOWN_BOUND_X0 (%.2ff)\n#define PSM_TOWN_BOUND_X1 %.2ff\n"
+                    "#define PSM_TOWN_BOUND_ZS0 (%.2ff)\n#define PSM_TOWN_BOUND_ZS1 %.2ff\n" % (XW - WT, XE + WT, ZS - WT, ZN + WT))
         f.write("#define PSM_TOWN_PAL %du\nstatic const float psm_town_pal[PSM_TOWN_PAL][3] = {\n%s\n};\n" % (len(sq.pal.cols), bt.c_floats(sq.pal.cols)))
         f.write("static const unsigned char psm_town_acc[8] = { %s };   /* the cast's accents, psm_town.h's order */\n" % ", ".join(map(str, acc)))
         bt.write_screen(f, "psm_town", sq.scr, strips)

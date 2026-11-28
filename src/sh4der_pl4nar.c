@@ -27,6 +27,7 @@
 
 #include <kos.h>
 #include "sh4der_pl4nar.h"
+#include "sh4der_pvrx.h"
 
 /* Returns 1 when x is a power of two (the PVR only takes texture sides of 8, 16, ... 1024), else 0 (zero counts as not). */
 static int pl4nar_pow2(unsigned x) { return x && !(x & (x - 1u)); }
@@ -55,8 +56,7 @@ int sh4der_pl4nar_target_init(sh4der_pl4nar_target_t *t, unsigned w, unsigned h)
    call right after the last pass. A NULL t or an already-freed target does nothing. */
 void sh4der_pl4nar_target_free(sh4der_pl4nar_target_t *t) {
     if (!t || !t->tex) return;
-    pvr_wait_ready();               /* the last scene's lists are with the renderer */
-    pvr_wait_render_done();         /* and it has finished reading and writing the target */
+    sh4der_pvrx_wait_idle();   /* the last scene's lists are with the renderer, and it has finished: reading and writing the target (the client's hook decides sleep or poll) */
     pvr_mem_free((pvr_ptr_t)t->tex);
     t->tex = NULL; t->w = t->h = t->bytes = t->pitch = 0u; t->u_scale = 1.0f;
 }
@@ -80,7 +80,7 @@ int sh4der_pl4nar_target_begin(const sh4der_pl4nar_target_t *t) {
 
 /* Closes the render-to-texture scene opened by sh4der_pl4nar_target_begin and hands its lists to the PVR renderer.
    The render runs in the background; the target is readable as a texture once it finishes. */
-void sh4der_pl4nar_target_end(void) { pvr_scene_finish(); }
+void sh4der_pl4nar_target_end(void) { sh4der_pvrx_scene_finish(); }   /* counted when the pvrx hook is on, plain pvr_scene_finish when off */
 
 /* One whole reflection pass: opens the target scene, loads the mirrored view into the matrix registers
    (sh4der_pl4nar_begin), calls draw(view, user) so the caller can submit the mirrored world, then closes the scene.

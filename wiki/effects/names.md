@@ -1,7 +1,7 @@
 ---
 title: "Names: what each module actually is"
 tags: [effects, names, index, migration]
-updated: 2026-11-25
+updated: 2026-11-28
 sources: [include/, src/, test/, README.md "Effects", AGENTS.md "Files"]
 ---
 # Names: what each module actually is
@@ -39,9 +39,11 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | psm | Sun shadow map | Shadow map fitting for a sun or a lamp: uniform or perspective (PSM) | Shadows |
 | psm_raster | Shadow map on the SH-4 | The shadow map drawn into RAM by the main CPU and compared per vertex | Shadows |
 | psm_pvr | Shadow map drawn by the PVR | The shadow map drawn by the graphics chip from the casters' shapes | Shadows |
+| psm_a | Moving shadows drawn by the PVR | A few characters' shadows on a patch of ground: the graphics chip draws their outlines from the light into a small picture and the ground is multiplied by it | Shadows |
 | ao | Corner darkening | Darkens creases and corners: for a bake, and a cue from the picture (ambient occlusion) | Shadows |
 | aobake | Baked corner shading | Corner shading baked into vertex colour at load, against exact shapes | Shadows |
 | fakeaf | Sharper floors at an angle | A floor or road seen at a grazing angle kept sharp across the view, by a mip bias per polygon from its slope | Surfaces and materials |
+| dofmip | Focus pull by texture blur | A camera's focus pull as a mip bias per polygon from its distance to a focus plane: textures go soft, nothing else | Camera and screen |
 | ground | Paving slab texture | A tiling texture of stone slabs made from a seed at load, so a floor needs no file | Surfaces and materials |
 | aomesh | Mesh corner shading | Corner shading baked at load against a whole triangle mesh (walls, buildings), with a byte grid for the ground | Shadows |
 | raytri | A ray against a triangle | One ray-triangle test shared by the mesh bake and the ray bench; no divide where none is needed | Tools and safety |
@@ -73,6 +75,7 @@ Genre guides: [light and glow](../start-here/genre-light-and-glow.md), [water an
 | fxlabel | Effect label line | Each effect by its name, who does the work and when, in small text on a result or live page | Tools and safety |
 | qrpage | QR test set | 16 codes of known payloads, drawn on a result page, to test a photograph reader | Tools and safety |
 | ramp | Distance ramp | A 0 to 1 fade between two distances | Tools and safety |
+| viewcull | Off-screen skip | Leaves out what is wholly off the screen before the SH-4 places it | Tools and safety |
 | split | Split screen | A divider that cuts the screen into two halves | Tools and safety |
 | frame | Frame read | Reads the picture on screen back so other effects can use it | Tools and safety |
 | core | Shared parts | The feather, tube shape, breath tracker and glint that the others share | Tools and safety |
@@ -122,14 +125,17 @@ The "What it actually is" column is also the proposed text for a "What it is" co
 | fxlabel | The effect label line: each effect by its name, who does the work and when | effect label, credits line, feature list | a demo screen's label for each mode | `sh4der_fxlabel.h`; `test/fxlabel_test.c`, `demo/psm/test/fx_tables_test.c` |
 | qrpage | 16 QR codes of known payloads at four module sizes, drawn on a result page | QR test, code test page | a photograph test of the page reader | `sh4der_qrpage.h`; `test/qrpage_test.c` (make test-demo) |
 | ramp | A linear 0..1 ramp between two distances: one call, or prepared for a loop | distance fade, range weight, falloff | a shadow's fade by camera distance, a fake AF range weight | `sh4der_ramp.h`; `test/ramp_test.c` |
+| viewcull | A view cull before placement: a box against the six planes of the view (two dot products a plane), and a grid of points tested a block of cells at a time | frustum culling, view culling, box culling, terrain culling | a ground window or terrain grid while the camera turns, a list of objects with boxes | `sh4der_viewcull.h`; `test/viewcull_test.c` |
 | softfade | A per-vertex fade of a light near planes and rectangles the caller names: a near test, a fit for a quad, a smooth step a vertex | soft halo, soft light edge, wall fade (no depth is read: not the camera depth fade) | a lamp's halo in a corner, a headlight beam at a barrier | `sh4der_softfade.h`; `test/softfade_test.c` |
 | pool | Fading fan decals on a plane: a disc or a wedge of triangles whose vertex alpha fades to nothing | light pool, fake light, blob shadow, projected decal | a street lamp's pool, a headlight beam, a car's shadow | `sh4der_pool.h`; `test/pool_test.c` |
 | psm | Shadow map fitting for a directional light: a uniform map and a perspective shadow map, one world-to-map matrix, the depth key, the bias | shadow map, PSM, perspective shadow map, light space fit | any sun shadow | `sh4der_psm.h`; `test/psm_test.c` |
 | psm_raster | A shadow map rendered on the SH-4 into RAM: caster triangles as 16-bit depth, a compare a receiver vertex | software shadow map, CPU shadow map, depth compare | a shadow at vertex detail with self-shadowing | `sh4der_psm_raster.h`; `test/psm_raster_test.c` |
 | psm_pvr | A shadow map drawn by the PVR: the SH-4 clips the casters for a render target and gives the ground its lookup coordinates; no depth compare | PVR shadow map, silhouette map, projected shadow texture | ground shadows from casters, no self-shadowing | `sh4der_psm_pvr.h`; `test/psm_pvr_test.c` |
+| psm_a | A pass for up to four moving casters over one ground patch: the PVR draws their outlines from the light into a 128 target, the ground is drawn again with it multiplied on; a strength a caster, a held fit, the tile cut at a row origin | moving shadow, character shadow, route A pass | a few characters' shadows without a depth compare | `sh4der_psm_a.h`, `sh4der_psm_a.c`; `test/psm_a_test.c` |
 | ao | Small-scale occlusion: crease darkening from the angle between faces, for a bake, and a screen cavity cue from a small map | ambient occlusion, AO, cavity, crease shading | corners, folds, contact darkening | `sh4der_ao.h`; `test/ao_test.c` |
 | aobake | A baked AO byte a vertex, cast against exact spheres, boxes and a plane, at load | baked ambient occlusion, contact shadow bake, AO bake | static scenery's vertex colour | `sh4der_aobake.h`; `test/aobake_test.c` |
 | fakeaf | Fake anisotropic filtering: a mip D adjust a polygon from its slope, and distance ranges with copies of the texture squashed along the view | anisotropic filtering, mip bias, texture LOD bias, floor blur | a long floor, corridor or road at a grazing angle | `sh4der_fakeaf.h`; `test/fakeaf_test.c` |
+| dofmip | Depth-driven focus blur by texture mip bias: a bias code a polygon or object from its depth along the view, a sharp zone and a strength | depth of field, focus pull, rack focus, mip bias | a cutscene focus, a soft background | `sh4der_dofmip.h`; `test/dofmip_test.c` |
 | ground | A 64 x 64 RGB565 paving slab texture from an integer hash of a seed, tiling both ways | procedural texture, paving, floor tiles, slabs | a square's or a street's ground without a texture file | `sh4der_ground.h`; `test/ground_test.c` |
 | aomesh | A baked AO byte a vertex, cast against a triangle mesh through a cell grid (12 rays), with a byte grid over the ground, at load | baked occlusion over a mesh, mesh AO bake, ground AO grid | static scenery built from triangles, a walled street | `sh4der_aomesh.h`; `test/aomesh_test.c` |
 | aosky | The sky's occlusion drawn as K slid shadows into the sun's shadow target | sky occlusion, sky AO, shadow-target AO | flat ground under props | `sh4der_aosky.h`; `test/aosky_test.c` |

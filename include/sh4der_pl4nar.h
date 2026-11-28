@@ -488,14 +488,17 @@ typedef void (*sh4der_pl4nar_draw_fn)(const sh4der_pl4nar_view_t *view, void *us
     bad size or no memory (tex is NULL, bytes says 0; every call below then does nothing). */
 int sh4der_pl4nar_target_init(sh4der_pl4nar_target_t *t, unsigned w, unsigned h);
 
-/** \brief Wait for the PVR to finish with the target, then free it. */
+/** \brief Wait for the PVR to finish with the target, then free it. The wait is
+    sh4der_pvrx_wait_idle: polled when the client turned the pvrx hook on (and then the client ends its own scenes
+    through sh4der_pvrx_scene_finish or links the wrap), KallistiOS's sleeping waits when the hook is off. */
 void sh4der_pl4nar_target_free(sh4der_pl4nar_target_t *t);
 
 /** \brief Open a scene on the target (pvr_scene_begin_rtt, or pvr_scene_begin_txr). Returns 1, or 0 when there is
     no target or the scene was refused (no scene is open: do not draw, do not call sh4der_pl4nar_target_end). */
 int sh4der_pl4nar_target_begin(const sh4der_pl4nar_target_t *t);
 
-/** \brief Close the scene (pvr_scene_finish). The next scene may sample the target at once. */
+/** \brief Close the scene (sh4der_pvrx_scene_finish: counted for the polled wait when the pvrx hook is on, a plain
+    pvr_scene_finish when off). The next scene may sample the target at once. */
 void sh4der_pl4nar_target_end(void);
 
 /** \brief The whole mirror pass: begin, load the view, call draw (which opens and closes its own lists), end.

@@ -653,7 +653,8 @@ void sh4der_lens_grain_move(sh4der_lens_grain_t *g, unsigned move, unsigned step
    grain is not ready or the rectangle is empty. */
 unsigned sh4der_lens_grain_draw(const sh4der_lens_grain_t *g, uint32_t frame, float x0, float y0, float x1, float y1, float z, float amp, int neutral);
 /* Gives back the video memory the library allocated for g (after waiting for the PVR to finish with it) and marks g
-   not ready. A grain from sh4der_lens_grain_use keeps its texture. */
+   not ready. A grain from sh4der_lens_grain_use keeps its texture. The wait is sh4der_pvrx_wait_idle: polled when the
+   client turned the pvrx hook on (and then ends its scenes through sh4der_pvrx_scene_finish), else KallistiOS's. */
 void sh4der_lens_grain_free(sh4der_lens_grain_t *g);
 /* At a PVR start (the reset clears video memory): marks g not ready without freeing anything. Make it again. */
 void sh4der_lens_grain_forget(sh4der_lens_grain_t *g);

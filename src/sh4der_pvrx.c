@@ -41,6 +41,7 @@ static asic_evt_handler_entry_t rd_prev;
 static volatile uint32_t rd_n;            /* render-done events seen */
 static uint32_t rd_want;                  /* scenes finished since the hook */
 static int rd_hooked;
+static int rd_wake;                       /* hook mode 2: also reschedule at once (thd_schedule), no polling */
 static unsigned long wait_timeouts;
 
 /* Measured: KallistiOS's handler first, then the count. Do not change without re-measuring. */
@@ -48,10 +49,13 @@ static void rd_evt(uint32_t code, void *data) {
     (void)data;
     if (rd_prev.hdl) rd_prev.hdl(code, rd_prev.data);
     rd_n++;
+    if (rd_wake) thd_schedule(true);        /* KallistiOS's handler woke the sleeper (genwait_wake_all) but does not reschedule here, so the wake waited for the next 10 ms tick; its ready-wait handler does reschedule (pvr_irq.c). PROTOTYPE, NOT RUN. */
 }
 
 int sh4der_pvrx_wait_hook(int on) {
+    rd_wake = on != 0;                       /* the polled wait is dropped: any hook is the woken wait (owner, 2026-11-28; the polled results were void, see below) */
     if (on && !rd_hooked) {
+        pvr_wait_render_done();           /* a render still in flight would fire the handler after the counters are zeroed: rd_n one ahead of rd_want for ever, the polled wait then returns at once and the backstop sleeps (found by reading waitpoll_spike's mode change, DERIVED, NOT run). Returns at once when idle. */
         rd_n = 0u; rd_want = 0u; wait_timeouts = 0ul;
         rd_prev = asic_evt_set_handler(ASIC_EVT_PVR_RENDERDONE_TSP, rd_evt, NULL);
         rd_hooked = rd_prev.hdl != NULL;
@@ -63,10 +67,20 @@ int sh4der_pvrx_wait_hook(int on) {
     return rd_hooked;
 }
 
-int sh4der_pvrx_scene_finish(void) {
-    const int r = pvr_scene_finish();
+static int scene_wrapped;                 /* 1 once the link-time wrap (src/sh4der_pvrx_wrap.c) has counted a scene */
 
+/* The wrap's count: every pvr_scene_finish in the program, plain or ours, comes here after the real one. */
+void sh4der_pvrx_scene_noted(void) {
+    scene_wrapped = 1;
     if (rd_hooked) rd_want++;
+}
+
+int sh4der_pvrx_wrapped(void) { return scene_wrapped; }
+
+int sh4der_pvrx_scene_finish(void) {
+    const int r = pvr_scene_finish();       /* with the wrap linked this is the wrapped call, which has counted the scene already */
+
+    if (rd_hooked && !scene_wrapped) rd_want++;
     return r;
 }
 
@@ -81,11 +95,19 @@ int sh4der_pvrx_wait_ready_poll(uint32_t timeout_us) {
 int sh4der_pvrx_wait_render_done_poll(uint32_t timeout_us) {
     uint64_t t0;
 
-    if (!rd_hooked) return pvr_wait_render_done();
+    if (!rd_hooked || rd_wake) return pvr_wait_render_done();   /* mode 2: a sleeping wait, woken at once by the handler */
     t0 = timer_us_gettime64();
     while (sh4der_pvrx_wait_behind(rd_n, rd_want))
         if (timer_us_gettime64() - t0 > timeout_us) { wait_timeouts++; rd_want = rd_n; return -1; }
     return 0;
+}
+
+int sh4der_pvrx_wait_idle(void) {
+    int r = pvr_wait_ready();           /* stays sleeping: a console stall separates ready from render-done */
+
+    if (sh4der_pvrx_wait_render_done_poll(SH4DER_PVRX_WAIT_US) < 0) r = -1;
+    if (pvr_wait_render_done() < 0) r = -1;   /* backstop: returns at once when idle (DERIVED from reading pvr_scene.c, NOT run) */
+    return r;
 }
 
 unsigned long sh4der_pvrx_wait_timeouts(void) { return wait_timeouts; }

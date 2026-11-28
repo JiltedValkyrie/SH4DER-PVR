@@ -5,8 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include "ocean_scene.h"
+#include "sh4der_pvrx.h"
 #ifdef _arch_dreamcast
 #include <kos.h>
+#include "sh4der_suite.h"
+#include "sh4der_waitrun.h"
+static sh4der_waitrun_t wr_run;
 #include <dc/minifont.h>
 #include "sh4der_frame.h"
 #include "sh4der_glow.h"
@@ -217,6 +221,7 @@ static void ocean_input(ocean_settings_t *s,float dt) {
     static uint32_t last=0;
     maple_device_t *dev=maple_enum_type(0,MAPLE_FUNC_CONTROLLER);
     cont_state_t *st=dev?(cont_state_t*)maple_dev_status(dev):NULL;
+    if (st && suite_present() && (st->buttons & SUITE_KEYS_ALL) == SUITE_KEYS_ALL) { sh4der_pvrx_wait_hook(0); suite_exit(SUITE_KEYS); }   /* the test suite disc: A+B+X+Y back to the menu */
     uint32_t down;
     if(!st)return;
     down=st->buttons&~last;last=st->buttons;
@@ -234,7 +239,10 @@ static void ocean_input(ocean_settings_t *s,float dt) {
     if(shz_fabsf(st->joyy)>12)s->pitch=shz_clampf(shz_fmaf((float)st->joyy,dt*(-1.0f/320.0f),s->pitch),-0.20f,0.08f); /* hand: dt x constant */
 }
 int main(void) {
+    suite_init();   /* on the test suite disc: the menu's binary into RAM, before anything else */
+    if (suite_present()) sh4der_waitrun_init(&wr_run, SH4DER_WAITRUN_SECONDS);   /* from the suite's menu: a timed run that ends on a results page */
     ocean_settings_t s={0,0,-0.045f,1,1,1,1,1,1};
+    if (suite_present()) ocean_preset_apply(&s,1);   /* the timed run uses PERFORMANT (about 2,000 water triangles): the QUALITY look is 8 frames a second and hides the wait */
     pvr_init_params_t init=pvr_default_params;
     uint64_t previous,report,cpu_total=0,frame_total=0,render_total=0;unsigned frames=0,over=0;uint64_t worst=0;
     pvr_stats_t stats;
@@ -247,6 +255,10 @@ int main(void) {
     ocean_stage(1,160,0,0,"main");
     init.vertex_buf_size=OCEAN_VERTEX_BUF_KB*1024;init.opb_overflow_count=OCEAN_OPB_OVERFLOW;init.autosort_disabled=1;
     if(pvr_init(&init)<0){printf("ocean: pvr_init FAIL\n");return 1;}
+
+#ifndef WAIT_SLEEP
+    sh4der_pvrx_wait_hook(1);   /* polled render-done wait (PVR-117): every scene below ends through sh4der_pvrx_scene_finish; -DWAIT_SLEEP keeps KallistiOS's sleeping wait for an A/B */
+#endif
     pvr_set_bg_color(0.1f,0.1f,0.2f);
     ocean_stage(2,224,96,0,"pvr_init");
     { float fog[129];
@@ -267,6 +279,7 @@ int main(void) {
     ocean_stage(7,200,0,200,"first submit");
     previous=report=timer_us_gettime64();
     for(;;){
+        if (suite_present() && sh4der_waitrun_frame(&wr_run, timer_us_gettime64())) sh4der_waitrun_show(&wr_run, "OCEAN");
         uint64_t now=timer_us_gettime64(),elapsed=now-previous,cpu_start,work;float dt;
         int ready;
         previous=now;dt=shz_fminf((float)elapsed*1e-6f,0.1f); /* hand: us to s, one product */
@@ -277,7 +290,7 @@ int main(void) {
         /* One elapsed-time clock drives all waves and shadows. */
         cpu_start=timer_us_gettime64();ocean_scene_update(&s);
         work=timer_us_gettime64()-cpu_start;
-        ready=pvr_wait_ready();ready|=pvr_wait_render_done(); /* texture update only after use */
+        ready=sh4der_pvrx_wait_idle(); /* texture update only after use: every frame, so the polled wait (PVR-117) */
         if(pvr_get_stats(&stats)==0)render_total+=stats.rnd_last_time/1000u; /* ns of the frame just rendered, as us */
         if(sky_upload){pvr_txr_load(ocean_environment,env_texture,sizeof(ocean_environment));sky_upload=0;}
         /* KOS times each wait out at 100 ms. Twenty in a row = the PVR never
@@ -314,7 +327,7 @@ int main(void) {
         if(s.bloom&&glow_ok&&frames>0)sh4der_glow_draw_halo(&glow,0,0,640,480,10,0.10f,1.8f,0);
         if(hud)ocean_hud_draw();
         ocean_ta_meter(); /* TR list still open: TA not yet re-armed */
-        pvr_list_finish();pvr_scene_finish();
+        pvr_list_finish();sh4der_pvrx_scene_finish();
         ++total_frames;
         /* Two serial lines total: after the first frame and after ~10 s. */
         if((total_frames==1&&ta_reported==0)||(total_frames>=300&&ta_reported==1)){

@@ -26,6 +26,7 @@
 #include <kos.h>
 #include <string.h>
 #include "sh4der_lens.h"
+#include "sh4der_pvrx.h"
 #include "sh4der_guard.h"
 
 _Static_assert(sizeof(sh4der_lens_grain_t) == 64, "sh4der_lens_grain_t is 64 bytes");
@@ -198,8 +199,7 @@ unsigned sh4der_lens_grain_draw(const sh4der_lens_grain_t *g, uint32_t frame, fl
 void sh4der_lens_grain_free(sh4der_lens_grain_t *g) {
     if (!g) return;
     if (g->owned && g->tex) {
-        pvr_wait_ready();               /* the last scene's lists are with the renderer */
-        pvr_wait_render_done();         /* and it has finished reading the tile */
+        sh4der_pvrx_wait_idle();   /* the last scene's lists are with the renderer, and it has finished: reading the tile (the client's hook decides sleep or poll) */
         pvr_mem_free((pvr_ptr_t)g->tex);
     }
     memset(g, 0, sizeof(*g));

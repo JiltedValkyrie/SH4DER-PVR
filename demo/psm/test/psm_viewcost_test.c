@@ -1,5 +1,7 @@
 /* Host test of demo/psm/psm_viewcost.h: the script's views and frame counts, the statistics (the sampled frames apart, the
-   map's sampled wait out of route A's part, the left-over), a stopped run, and the page text's width. Plain C. */
+   map's sampled wait out of route A's part, the left-over), a stopped run, the page text's width, the run's line on the
+   screen and (VC_PART 8) the graphs' groups and labels. Plain C. */
+#include <string.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -53,6 +55,10 @@ static void fake(vc_frame_t *f, uint64_t *clock, int route_a, int sampled) {
     f->v_all = 30000u; f->v_ground = 8000u; f->v_layer = route_a ? 8000u : 0u; f->v_model = 10000u; f->v_map = 3000u;
     f->vbuf_bytes = 700u * 1024u; f->gvn = 5141u; f->mvis = 8815u;
     f->evt[2] += route_a ? 1u : 0u; f->evt[3] += 1u;                /* a PARAM event a route A frame, an OPB event a frame */
+    f->p0_set = 300u; f->p0_place = 1500u; f->p0_sky = 200u;        /* p0's three steps (they sum to part[0]) */
+    f->redo = sampled;
+    f->t_ground = 7000u; f->t_layer = route_a ? 7000u : 0u; f->t_model = 6000u;
+    f->t_cast = route_a ? 1100u : 1200u; f->t_drawn = route_a ? 1100u : 900u;
     *clock = t;
 }
 
@@ -65,7 +71,51 @@ int main(void) {
 
 #if VC_PART == 0
     CHECK(VC_STAGES == 14u);
+#elif VC_PART == 8
+    CHECK(VC_STAGES == 36u);
+    for (s = 0; s < VC_STAGES; s++) {                                       /* step 0's script: every still view has its forced twin, both routes, f0 and f7 */
+        const vc_stage_t *g = &vc_script[s];
+
+        CHECK((g->opt & ~(VC_FORCE | 7u)) == 0u && ((g->opt & 7u) == 0u || (g->opt & 7u) == 7u) && !(g->turn && (g->opt & VC_FORCE)) && !g->inset);
+        CHECK(s < 18u ? g->route == 1 : g->route == 0);                    /* route B first */
+        if (g->opt & VC_FORCE) {
+            unsigned k2, still = 0, turn = 0;
+
+            for (k2 = 0; k2 < VC_STAGES; k2++) {
+                const vc_stage_t *h = &vc_script[k2];
+
+                if (h->route != g->route || h->pitch != g->pitch || (h->opt & 7u) != (g->opt & 7u) || (h->opt & VC_FORCE)) continue;
+                if (h->turn) turn++; else still++;
+            }
+            CHECK(still == 1u && turn == 1u);
+        }
+    }
+    {                                                                       /* the graphs: a route and view a graph, six stages, labels that fit a group */
+        static const char *const view[3] = { "sky", "boot", "down" };
+        unsigned rt, vw, in;
+
+        for (rt = 0; rt < 2u; rt++)
+            for (vw = 0; vw < 3u; vw++) {
+                for (s = 0, in = 0; s < VC_STAGES; s++) {
+                    if (!vc_stage_at(s, (int)rt, view[vw])) continue;
+                    in++;
+                    CHECK(strlen(vc_short_name(s)) == 5u);                  /* "st f0": 60 pixels of a 75 pixel group at 12 a character */
+                    for (k = 0; k < s; k++) CHECK(!vc_stage_at(k, (int)rt, view[vw]) || strcmp(vc_short_name(k), vc_short_name(s)));
+                }
+                CHECK(in == 6u);
+            }
+    }
 #endif
+    {                                                                       /* the line on the screen while it runs: every stage at its last frame fits */
+        char line[65];                                                     /* psm_dc.c's HUD line: 64 characters */
+
+        vc_start(&r);
+        for (s = 0; s < VC_STAGES; s++) {
+            r.stage = s; r.frame = vc_stage_frames(s) - 1u;
+            vc_status_line(&r, line, sizeof line);
+            CHECK(strlen(line) <= 58u && strstr(line, vc_script[s].name) && strstr(line, "START"));
+        }
+    }
     vc_start(&r);
     memset(&f, 0, sizeof f);
     for (s = 0; s < VC_STAGES; s++) {
@@ -75,7 +125,7 @@ int main(void) {
         for (k = 0; k < n; k++) {
             CHECK(!r.done && r.stage == s && r.frame == k);
             vc_apply(&r, &v);
-            CHECK(v.route == vc_script[s].route && v.inset == vc_script[s].inset && v.pitch == vc_script[s].pitch && v.opt == vc_script[s].opt);
+            CHECK(v.route == vc_script[s].route && v.inset == vc_script[s].inset && v.pitch == vc_script[s].pitch && v.opt == (vc_script[s].opt | VC_SHIP_OPT));
             if (!vc_script[s].turn) CHECK(v.yaw == 0.0f);
             else if (k == 0u) CHECK(v.yaw == 0.0f);
             else if (k == n - 1u) CHECK(fabsf(v.yaw - VC_TURN) < 1e-5f);
@@ -108,6 +158,10 @@ int main(void) {
         CHECK(t[VC_S_RTT].n == (a ? t[VC_S_FRAME].n : 0u) && fabsf(vc_mean(&t[VC_S_SCR]) - 12000.0f) < 1.0f);
         CHECK(vc_mean(&t[VC_V_ALL]) == 30000.0f && vc_mean(&t[VC_KB]) == 700.0f && vc_mean(&t[VC_S_MVIS]) == 8815.0f);
         CHECK(r.evt[s][3] == counted && r.evt[s][2] == (a ? counted : 0u) && r.evt[s][0] == 0u);   /* the counted frames' events only */
+        CHECK(fabsf(vc_mean(&t[VC_P0_SET]) - 300.0f) < 1.0f && fabsf(vc_mean(&t[VC_P0_PLACE]) - 1500.0f) < 1.0f && fabsf(vc_mean(&t[VC_P0_SKY]) - 200.0f) < 1.0f);
+        CHECK(t[VC_REDO].n == counted && vc_mean(&t[VC_REDO]) * (float)counted == (float)t[VC_S_FRAME].n);   /* 1 on the sampled frames, 0 on the rest */
+        CHECK(vc_mean(&t[VC_T_GROUND]) == 7000.0f && vc_mean(&t[VC_T_LAYER]) == (a ? 7000.0f : 0.0f) && vc_mean(&t[VC_T_MODEL]) == 6000.0f);
+        CHECK(vc_mean(&t[VC_T_CAST]) == (a ? 1100.0f : 1200.0f) && vc_mean(&t[VC_T_DRAWN]) == (a ? 1100.0f : 900.0f));
 #if VC_PART == 0
         CHECK(s < 7u ? !a : a);                                              /* route B first */
 #endif
@@ -116,7 +170,12 @@ int main(void) {
     vc_report(&r, say, brk, 256u, 0, 0, 1u, 1, VC_VBUF / 1024u);
     show = 0;
     CHECK(widest <= 64u);                       /* psm_page.h's PG_COLS: no line is wrapped */
+#if VC_PART == 8
+    CHECK(lines == 7u + (VC_SHIP_OPT ? 1u : 0u) + VC_STAGES + 4u + VC_STAGES && breaks == 1u);         /* the times (two pages, a line a stage), then the counts from a page of their own */
+    CHECK(8u + VC_STAGES <= 2u * 22u && 4u + VC_STAGES <= 2u * 22u);
+#else
     CHECK(lines == 22u + 7u * VC_STAGES && breaks == 1u + VC_STAGES / 3u);
+#endif
     printf("pages: %u lines, widest %u, %u breaks\n", lines, widest, breaks);
 
     /* a run a button ends: what ran is kept, the rest has no frames, and the page says where */
@@ -128,7 +187,11 @@ int main(void) {
     CHECK(vc_record(&r, &f) == 1 && r.st[0][VC_FRAME].n == 30u);
     lines = widest = breaks = 0;
     vc_report(&r, say, NULL, 512u, 1, 1, 60u, 2, 1024u);
+#if VC_PART == 8
+    CHECK(widest <= 64u && lines == 7u + (VC_SHIP_OPT ? 1u : 0u) + VC_STAGES + 4u + VC_STAGES);
+#else
     CHECK(widest <= 64u && lines == 22u + 7u * VC_STAGES);
+#endif
 
     printf(failed ? "psm_viewcost_test: %d FAILED\n" : "psm_viewcost_test: ok\n", failed);
     return failed != 0;

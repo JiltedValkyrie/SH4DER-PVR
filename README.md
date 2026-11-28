@@ -40,6 +40,8 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | lens | Overlays that need no frame read: a vignette mesh, mean-neutral film grain, hit direction wedges and a full-screen flash. | Camera look, damage indicators, flashes. | VRAM 8 KB (64 x 64 grain tile); vertex-colour meshes | `sh4der_lens.h` + `sh4der_lens.c` | [section](#the-lens-effect) |
 | look | An eye that adapts to the frame's brightness both ways, a grade (a straight line per channel) and glare in the fog. | Auto exposure and a colour grade for the whole picture. | CPU 4,800 uncached loads + a 64-bin count a frame; VRAM 0; 0 to 6 full-screen quads | `sh4der_look.h` (header only) | [section](#the-look-effect) |
 | motes | A steady field of drifting specks (embers, dust, pollen, ash) with nothing stored per speck. | Ambient floating particles round the player or a source. | RAM no state, 3,072 B collect buffer at 96 sprites; VRAM 512 B mask; at most 96 sprites a frame by default | `sh4der_motes.h` + `sh4der_motes.c` | [section](#the-motes-effect-a-steady-field-of-drifting-specks) |
+| dofmip | Focus blur from distance: each polygon or object gets the texture mip bias its depth from a focus plane asks for (nothing in a sharp zone, up to 2.75 levels past it), so a camera's focus pull is one number a polygon. | A cutscene focus pull or rack focus, a soft background behind a close-up, at no pass and no video memory. | RAM 116 B a frame; VRAM 0; CPU one reciprocal and 4 compares a polygon or object (not measured) | `sh4der_dofmip.h` | [section](#the-dofmip-effect-focus-blur-by-mip-bias) |
+| psm route A | A few moving shadows from one light: up to four characters drawn flat from the light by the PVR into a 128 x 128 target (the pass), the ground patch drawn again as a multiply layer that looks the target up. Each caster has a strength 0 .. 1. | Characters and props on a floor, with no depth compare on the SH-4: no self-shadow. | RAM about 5 KB; VRAM 48 KB (128 map, drawn at tile row 2) or 32 KB at row 0; CPU the casters' vertices through one matrix and a clip; PVR map pass in ra2 (one console, MEASURED): 3.2 ms uncut -> 0.2 ms cut at 128 and 0.8 ms at 256, frame 16.6 -> 20.0 ms; cause (sleeping render-done waits) DERIVED from KallistiOS source, to be tested by ra5; polled waits via pvrx and held single-table cut NOT RUN on a console | `sh4der_psm_a.h`, `sh4der_psm_a.c` | [section](#the-psm-route-a-pass-moving-shadows-the-pvr-draws) |
 | deform | A depth grid for soft ground: feet and wheels press dents in, a rim stands up round them, snow keeps the dent and mud closes it; plus a short list of footprint decals. | Footprints and trails in snow, mud, sand or ash under a ground mesh you already draw. | RAM 25 KB for a 160 x 160 window at 0.25 m (one byte a cell), 644 B for 32 decal prints; VRAM 0; four byte loads a ground vertex; no triangles of its own | `sh4der_deform.h` | [section](#the-deform-effect-ground-that-keeps-a-dent) |
 | mist | A fog bank with a shape: upright translucent sheets one behind the other, each with drifting noise and a top edge that fades out. | Ground fog in a street, a mist bank on water, steam, low cloud: fog that things walk into. | RAM 68 B; VRAM 8 KB for a 64 x 64 noise texture (the caller's); 4 triangles a slice, 48 at the default 12; fill is the cost (not measured) | `sh4der_mist.h` | [section](#the-mist-effect-a-bank-of-slices) |
 | rise | Points of light that sit still, lift off one after another, drift up with a sway, shrink and cool, and come to rest as stars that twinkle. Nothing stored per light. | Candles becoming stars, lanterns released, fireflies leaving a bush, sparks that turn into a night sky. | RAM 84 B parameter block, 0 a light; VRAM 0 of its own; about 50 multiplies and one sine-cosine pair a light a frame; at most N quads on the translucent list, additive (counts, not measured) | `sh4der_rise.h` | header comment |
@@ -50,6 +52,7 @@ Every module in `include/`. Cost is RAM / VRAM / CPU as the section or header st
 | pl4nar | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target and looked up per vertex. | Car paint, glass, chrome, wet roads, polished floors, water. | VRAM 64 KB (256 x 128 render target); 0.92 to 0.97 ms for the player car's 320 looked-up vertices on a console (street demo, one run, PVR-160); 0.43 ms for 1,623 vertices on an emulator, earlier version | `sh4der_pl4nar.h` + `sh4der_pl4nar.c` | [section](#the-pl4nar-effect-planar-reflection) |
 | softfade | Soft edges for light: a glow, a pool or a beam fades out at a wall or a floor the SH-4 knows (planes and rectangles), with no depth read. | Lamp halos near walls, headlight beams and pools that run into a barrier. | CPU only: a dot and a smooth step a surface a vertex; VRAM 0; no PVR pass | `sh4der_softfade.h` (header only) | [section](#the-softfade-effect-soft-edges-for-light) |
 | ramp | A linear 0 .. 1 ramp between two distances, saturated at both ends: one call, or prepared once for a loop. A helper: it draws nothing. | Fading an effect by distance (a shadow, a fake anisotropic filter's range). | CPU only: one reciprocal, then a multiply a point; VRAM 0 | `sh4der_ramp.h` (header only) | [section](#the-ramp-helper) |
+| viewcull | A view cull before placement: is a box wholly outside the view (behind the near plane, past a side of the screen, past a draw distance)? And the same for a grid of points a 4 x 4 block of cells at a time. A helper: it draws nothing. | Ground windows, terrain patches and heightfields whose points are placed again every frame a camera turns. | CPU only: 12 FIPR a box, a pass over the grid's points for the blocks' boxes; VRAM 0 (not measured) | `sh4der_viewcull.h` (header only) | [section](#the-viewcull-helper) |
 | pool | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing (also a dark blob shadow). | Street lamp pools and headlight beams on ground polygons too big to light per vertex. | RAM 16 B a vertex (176 B for a 10 triangle disc); VRAM 0 | `sh4der_pool.h` (header only) | [section](#the-pool-effect-light-pools-on-a-plane) |
 | psm | Where the texels of a shadow map go: a uniform map for a directional light, and a perspective shadow map fitted in the camera's post-projective space so near ground gets more texels. | Sharper shadows near the camera for the same map size; a software renderer or a client with its own depth compare. | RAM 80 B a map description; VRAM 0 | `sh4der_psm.h` (header only) | [section](#the-psm-effect-perspective-shadow-maps) |
 | fault | A report on the screen for an exception, a hang, an assert or an exit: registers, the stack's calls, the last frame's breadcrumbs. | A test image that dies with nothing on screen. | RAM the breadcrumbs and about 3 KB; VRAM 0; CPU about 20 instructions a vblank (ESTIMATE) | `sh4der_fault.h` (the Dreamcast part under `_arch_dreamcast`) | [section](#the-fault-catcher) |
@@ -136,7 +139,10 @@ Start with the blade effect: it has a complete example under [First effect](#fir
 | pl4nar | `sh4der_pl4nar.h` | Real-time planar reflection: the world drawn a second time, mirrored about a plane, into a small render target; a surface near the plane (car paint, glass, chrome) or in it (water, a wet road, a polished floor) looks the target up per vertex and blends it in, weighted by Fresnel. Materials are rows of the caller's table | a 256 x 128 RGB565 render target (64 KB); one translucent layer over the opaque surface, additive or blended, depth test on, write off | v0.10 |
 | softfade | `sh4der_softfade.h` | How much of a light a point keeps near the planes and walls the caller names: a near test, a fit for a 4-vertex halo, and a per-vertex fade for a ring halo, a pool or a beam. Draws nothing | CPU only; no texture, no PVR pass | v0.10 |
 | ramp | `sh4der_ramp.h` | A linear 0 .. 1 ramp between two distances, saturated at both ends: one call, or a prepared ramp for a loop (one reciprocal, then a multiply a point). A helper: draws nothing | CPU only; no tuning macros | v0.10 |
+| viewcull | `sh4der_viewcull.h` | A box against the view's six planes (two FIPR a plane, no corner transforms), and a grid of points tested a block at a time so a caller skips the points and cells no block in view holds. A helper: draws nothing | CPU only; one tuning macro | PROTOTYPE v0.1 |
 | fakeaf | `sh4der_fakeaf.h` | Fake anisotropic filtering: a mip bias per polygon by its slope to the eye (the one that has run on a console, PVR-180) and distance ranges with stretched copies and a ramp between them (helpers) | untextured mesh; the bias adds no pass | ALPHA v0.4 |
+| dofmip | `sh4der_dofmip.h` | Focus blur from distance by texture mip bias: `sh4der_dofmip_prepare` a frame's focus (distance, sharp range, near and far strength, curve, reach), then `sh4der_dofmip_code` the PVR bias code of a polygon or object from its depth; batch by code; `sh4der_dofmip_combine` with fakeaf's floor bias | no pass, no video memory, textures need mip maps | PROTOTYPE v0.2 |
+| psm route A | `sh4der_psm_a.h`, `src/sh4der_psm_a.c` | The route A pass as a library: the held fit over a square patch (`sh4der_psm_a_fit`), the accounting (4 casters, 2,200 triangles, a cap a caster), a caster's colour by strength, a world triangle into the PVR's triangles with the pass's origin in y, the receiver's map coordinates; and, Dreamcast only, the target, the pass (`_begin`, `_caster`, `_end`, `_settle`, `_release`) and the layer's header and vertex. Cuts the tile table through `sh4der_tilecut.h` (`SH4DER_PSM_A_CUT_PASS` with `sh4der_pvrx_wait_render_done_poll` + `sh4der_pvrx_scene_finish`, or `SH4DER_PSM_A_CUT_HOLD` holding the pass's own table) | one 128 x 128 RGB565 target, the casters' world positions | PROTOTYPE v0.2 (ra2 ran per-pass sleeping cut; polled and held cut NOT RUN on a console) |
 | ground | `sh4der_ground.h` | The square's paving slabs: a 64 x 64 RGB565 tiling texture made at load from an integer hash (8 KB, not twiddled) | a texture on the ground mesh | PROTOTYPE v0.1 |
 | pool | `sh4der_pool.h` | The light a lamp throws on the ground as a fan of triangles whose vertex alpha fades to nothing: a disc under a street lamp, a wedge ahead of a headlight, and the same disc, dark, as a blob shadow. For ground polygons too big to light per vertex | untextured vertex-alpha fans on the translucent list: additive for light, blended for shadow | v0.10 |
 | psm | `sh4der_psm.h` | A world-to-map matrix for a directional light, fitted to the receivers inside the view frustum: uniform (orthographic) or warped through the camera's post-projective space (one point L' for the parallel rays, either sign of w), with a virtual near plane for the warp, the depth key (distance along the light), a world-space bias, texel and pixel footprints for the A/B, the frustum corners and a slab clip. The map is the client's: a depth compare in software, a silhouette on the PVR (no depth compare there) | none; a map the client draws and reads | v0.10 |
@@ -1191,6 +1197,23 @@ The two mesh calls return the vertices that still have light (0: do not send the
 
 `include/sh4der_ramp.h`, header only; `test/ramp_test.c` tests it on the host. A linear 0 .. 1 ramp between two distances, saturated at both ends. `sh4der_ramp_in(from, len, d)` is one call (one FSRRA reciprocal through SH4ZAM); for a loop, `sh4der_ramp_make(&r, from, to)` once, then `sh4der_ramp_up` / `sh4der_ramp_down` a point (a multiply and a saturate). It has no tuning macros: the two distances are the caller's. Used by `include/sh4der_fakeaf.h` and `demo/psm/psm_shtile.h` (which still includes it through the forward `demo/psm/psm_ramp.h`). Costs not measured. Moved from `demo/psm/psm_ramp.h` on 2026-11-26; wiki/effects/ramp.md.
 
+## The viewcull helper
+
+`include/sh4der_viewcull.h`, header only; `test/viewcull_test.c` tests it on the host. When the camera turns, a client that keeps last frame's placement has to place everything again: every point through the camera's matrix, every cell's area test. Much of a ground window or a terrain grid is then off the screen. This helper says which parts cannot be on the screen before they are placed. PROTOTYPE v0.1: host tested, NOT RUN on a console.
+
+- **A box.** `sh4der_viewcull_prepare(&vc, rows, znear, zfar)` once a frame, from the camera's world-to-clip rows in column order (the form `sh4der_psm_cam_rows` writes; `zfar` 0 for no draw distance). Then `sh4der_viewcull_box(&vc, lo, hi)`: 0 when the box is wholly behind the near plane, past one side of the screen or past the draw distance; 1 when some of it may be seen. It takes two FIPR a plane (the box's centre and its half size against the plane), not eight corner transforms, and keeps a box within rounding of a side. It does not touch XMTRX.
+- **A grid.** `sh4der_viewcull_grid(&vc, pts, rows, cols, SH4DER_VIEWCULL_BLOCK, seen)` tests a rows x cols grid of world points a block of cells at a time, each block's box made from its own points. `sh4der_viewcull_grid_blocks` gives the number of blocks, and `sh4der_viewcull_grid_index` gives the block of a cell. A block it leaves out holds no cell that could be on the screen, so its points need no transform and its cells no test. Do not read a placed value of a point that was not placed.
+- **Client.** The shadow demo's ground window (`demo/psm/psm_scene.h`, `PSM_PLACE_GROUND`, the turn plan's 1b). On the host the walled square's views (the town's the same) place 0 % of the window's points at the sky pitch, 76 % at the boot view and 72 % looking down (4,078 of 5,335 and 4,381 of 6,111), with the same picture to the pixel (`demo/psm/test/psm_place_cmp.c`, 432 views, the ground option alone and with the other three; host counts, not a console time).
+- **Cost.** Not measured. ESTIMATE: 12 FIPR a box; the grid's boxes are one pass over its points.
+
+### Viewcull tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_VIEWCULL_BLOCK | 4 | Cells a side of a grid's block (4 x 4 cells, 5 x 5 points) |
+
+wiki/effects/viewcull.md.
+
 ## The fakeaf effect (fake anisotropic filtering)
 
 `include/sh4der_fakeaf.h`, header only; `test/fakeaf_test.c` tests it on the host. The PVR has no anisotropic filter: a floor seen at a grazing angle is blurred across the view or shimmers along it. The header has two ways to mend it: a mip bias per polygon by its slope (`faf_bias_code`), and distance ranges with stretched copies and a ramp between them (`faf_table_default`, `faf_table_from`, `faf_stretch`, `faf_piece`, `faf_alpha`, `faf_edges`, `faf_cuts`). The bias has run on a console (PVR-180). The ranges are helpers only. The old path `demo/psm/fakeaf.h` is a forward. Wiki: `wiki/effects/fakeaf.md`.
@@ -1230,6 +1253,78 @@ The two mesh calls return the vertices that still have light (0: do not send the
 - Do: start with the bias; give a sharper bias only to floor polygons at a grazing slope.
 - Do: keep one range to about a doubling of distance. A stretched copy has no mip levels.
 - Do not: count the bias as a proven sharper level on the PVR until the level is read back (OPEN).
+
+## The dofmip effect (focus blur by mip bias)
+
+`include/sh4der_dofmip.h`, header only; `test/dofmip_test.c` tests it on the host. A camera's depth of field as one number a polygon: the PVR adds the polygon header's mip bias (a code of 1 .. 15, a quarter level each; 4 is none) to the mip level it picks, so a code over 4 softens a texture. The header gives each polygon or object the code its distance from a focus plane asks for: none inside a sharp zone, rising on each side to its own strength in levels (a near and a far one, at most 2.75, code 15), along a ramp with its own power (`curve`, 0.1 to 50). The blur follows the change in 1 / z from the focus, as a thin lens's does. It blurs textures only: a flat colour, a silhouette and an edge stay sharp (the frame-wide blur of `sh4der_focus` or a render target is the other route). Nothing has run on a console, and the level the PVR picks for a bias code has never been read back (fakeaf's open item, PVR-180), so it is not proven to blur. Wiki: `wiki/effects/dofmip.md`.
+
+### Calls
+
+1. Once a frame, from the keyed tracks: `sh4der_dofmip_prepare(&d, focus, range, near_strength, far_strength, curve, reach)`. Nothing is kept between frames, so a track that jumps changes the settings in the frame it is given. A 0 return means a number could not be used and the focus blurs nothing.
+2. Per polygon (its middle's depth) or per object (its centre's): `z = sh4der_dofmip_depth(eye, forward, point)`, then `code = sh4der_dofmip_code(&d, z)`. `sh4der_dofmip_levels` gives the blur in levels first, if you want to see it.
+3. A floor that also takes fakeaf's sharper code: `sh4der_dofmip_combine(faf_bias_code(...), code)`.
+4. Batch the polygons by `sh4der_dofmip_bucket(code)` (0 .. 11), one polygon header a bucket. The textures need mip maps.
+
+### Dofmip tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_DOFMIP_CODE_NONE | 4 | The PVR's code for a bias of 1.00: none (the same as fakeaf's FAF_BIAS_NONE) |
+| SH4DER_DOFMIP_CODE_MAX | 15 | The blurriest code the field has (3.75) |
+| SH4DER_DOFMIP_CODES | 12 | The codes this header gives, 4 .. 15 |
+| SH4DER_DOFMIP_LEVELS_MAX | 2.75 | Levels of blur past none at code 15 |
+| SH4DER_DOFMIP_REACH | 1.0 | Share of 1 / focus, in 1 / z, that takes the blur to full (a starting value, ADVISED) |
+| SH4DER_DOFMIP_CURVE | 1.0 | The ramp's power: 1.0 is straight, above 1.0 holds the blur back near the zone, under 1.0 gives it early (a starting value, ADVISED) |
+| SH4DER_DOFMIP_CURVE_MIN | 0.1 | The least power taken |
+| SH4DER_DOFMIP_CURVE_MAX | 50.0 | The most power taken |
+| SH4DER_DOFMIP_STEPS | 11 | The code steps a side has above none: codes 5 .. 15 |
+| SH4DER_DOFMIP_POW_BITS | 14 | Bits of an exponent's fraction the power takes (the power's error is under 0.0006) |
+| SH4DER_DOFMIP_NEAR_MIN | 0.1 | Metres: the sharp zone's near end is never closer than this |
+
+### Dofmip cost
+
+Not measured on a console. ESTIMATE: a polygon or object, one reciprocal (FSRRA), a few multiplies and a search of 4 compares; prepare, once a frame, 22 steps of about 14 square roots each (none with a straight ramp); 116 B of state; no pass, no video memory. The power is the header's own (a whole part by multiplication, a fraction by square roots), because SH4ZAM's `shz_powf`, `shz_expf` and `shz_logf` are coarse near 1 (`shz_powf(0.99, 50)` gives 3.6, the true value is 0.605; host, 2026-11-27). The PVR's cost of a blurrier bias is not known (a sharper one cost +1.0 to +1.5 ms against bilinear in the corridor, PVR-180).
+
+### Do and do not
+
+- Do: batch by code; give the focus from the tracks once a frame; combine with fakeaf's code on a floor.
+- Do not: expect a soft silhouette or a soft flat colour; call the blur proven before the level the PVR picks is read back.
+
+## The psm route A pass (moving shadows the PVR draws)
+
+`include/sh4der_psm_a.h`, `src/sh4der_psm_a.c`; `test/psm_a_test.c` tests the maths on the host and `test/tilecut_test.c` the tile cut (including per-table state). Up to four characters cast a shadow on a patch of ground from one light, with no depth compare on the SH-4: the PVR draws each caster from the light, flat dark on white, into a small render target (the pass), and the ground patch is drawn again with that target as its texture, multiplied over the screen (the layer). A body does not shadow itself, and one map has one light. Each caster has a strength 0 .. 1 (white at 0, the full shadow level at 1). The map is the library's uniform map fitted to the patch and held still, so a moving camera moves no texel. In the town demo this route cost 13.3 to 13.6 ms of SH-4 where the SH-4 depth map cost 40.2 to 43.9 ms (PVR-108 to PVR-113). **PROTOTYPE v0.2: ra2 ran per-pass cut with sleeping waits on one console (PVR fell from 3.2 ms to 0.2 ms at 128 and 0.8 ms at 256, same picture, frame stalled 16.6 -> 20.0 ms); polled waits via `pvrx` and held single-table cut (`SH4DER_PSM_A_CUT_HOLD`) are NOT RUN on a console yet.** Wiki: `wiki/effects/psm-route-a.md`.
+
+### Calls
+
+1. At load, after `pvr_init`: if polling render-done waits (`SH4DER_PSM_A_CUT_PASS` without the 20 ms tick stall, or `SH4DER_PSM_A_CUT_HOLD`), call `sh4der_pvrx_wait_hook(1)` (and again after any later `pvr_init`; call `sh4der_pvrx_wait_hook(0)` before `pvr_shutdown`, AGENTS.md "Call order: pvrx"). Then `sh4der_psm_a_cfg_default(&cfg)` and set `size`, `cut` (`SH4DER_PSM_A_CUT_NONE` = 0, `SH4DER_PSM_A_CUT_PASS` = 1, or `SH4DER_PSM_A_CUT_HOLD` = 2), and, for a screen whose tile table has rows left out, `row`, `rows` and `row0` (a 640 x 360 band showing rows 1 to 13: `row` 2, `rows` 13, `row0` 1); `sh4der_psm_a_target_init(&t, &cfg)` (0: no video memory, draw no shadow); `sh4der_psm_a_init(&a, size, row)`. After any screen scene's render, `sh4der_psm_a_find(&t)` until both tile tables are found (`t.cut.n == t.cut.need`; `sh4der_psm_a_settle` finds the pass's own table after an uncut pass). After a video mode change (the PVR shut down and started again): `sh4der_psm_a_release(&t)` and `sh4der_pvrx_wait_hook(0)` before `pvr_shutdown`, `sh4der_psm_a_target_forget(&t)` (no free: the memory is gone), then `pvr_init`, `sh4der_pvrx_wait_hook(1)` and `sh4der_psm_a_target_init` again.
+2. Each frame: `sh4der_psm_a_begin_frame(&a, shadow)` (the full shadow's level a channel: `sh4der_psm_a_shadow_level(ambient, sun x cosine)`); `sh4der_psm_a_fit(&a, light, centre, half, y_lo, y_hi)` for the patch (light: from the floor toward the light).
+3. `sh4der_psm_a_begin(&t, &a)`; for each caster, strongest first, `sh4der_psm_a_caster(&t, &a, &c)` (0: refused, draw a blob); `sh4der_psm_a_end(&t, &a)` (ends with `sh4der_pvrx_scene_finish`); `sh4der_psm_a_settle(&t)` (other than 0: shut the PVR down and start it again). On a frame without a pass when `SH4DER_PSM_A_CUT_HOLD` is on (or before any other scene that would use the pass's table, or before exit / `pvr_shutdown`), call `sh4der_psm_a_release(&t)` before opening the screen scene.
+4. Then the screen's scene, ended with `sh4der_pvrx_scene_finish()` whenever `sh4der_pvrx_wait_hook(1)` is on (never `pvr_scene_finish()` directly). In its translucent list, after the ground, send `sh4der_psm_a_layer_header(&t)` with `pvr_prim`, then the receiver's triangles with each vertex from `sh4der_psm_a_layer_vertex(&a, world, sx, sy, sz, eol, &v)`; leave out a triangle with no vertex in `sh4der_psm_a_covers`.
+
+### Psm route A tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_PSM_A_SIZE | 128 | The map's side in texels (32 to 1024, a multiple of 32) |
+| SH4DER_PSM_A_SQUARE_M | 8.0 | Metres: the receiver patch's side for a 128 map (the caller's choice; the fit takes the half side) |
+| SH4DER_PSM_A_CASTERS | 4 | Casters a pass |
+| SH4DER_PSM_A_TRIS | 2200 | World triangles a pass (the port's budget: three casters of 400 and one of 1,000) |
+| SH4DER_PSM_A_HOLD_COS | 0.99999 | The light is taken again when it moves about a quarter of a degree (the town demo's value, `PSM_HOLD_LIGHT_COS`) |
+| SH4DER_PSM_A_AREA_MIN | 0.001 | A triangle in the map with less doubled area than this (texels squared) is not sent (the town's value) |
+| SH4DER_PSM_A_CAST_Z | 1.0 | A caster's depth in the target: the white ground is 0.1, the border 2.0 (the town's values) |
+
+### Psm route A cost
+
+Build ra2 (one console, MEASURED): map pass PVR 3.2 ms uncut -> 0.2 ms cut at 128 and 0.8 ms at 256, same picture; frame 16.6 ms uncut -> 20.0 ms cut (worst 25 ms, pass total 19.9 ms). DERIVED from reading KallistiOS's source (to be tested by ra5): the 20.0 ms stall is `SH4DER_PSM_A_CUT_PASS` hitting two sleeping `pvr_wait_render_done` waits on 10 ms scheduler ticks (the same loss as PVR-117). Polled render-done waits (`sh4der_pvrx_wait_render_done_poll`) and held single-table cut (`SH4DER_PSM_A_CUT_HOLD`, cutting only the pass's own table and leaving it cut with no render-done wait in `begin` or `settle`): NOT RUN on a console yet. Town numbers for the route: SH-4 13.3 to 13.6 ms a frame against 40.2 to 43.9 ms for route B on the same scene (PVR-108 to PVR-113). ESTIMATE: 3 vertices (96 B) of TA data a caster triangle after clipping, at most 2,200 x 96 B = 211 KB for a full pass; video memory size x (row x 32 + size) x 2 B (48 KB at row 2, 32 KB at row 0).
+
+### Where the pass sits
+
+A render target scene is drawn from tile row 0. On a screen whose tile table has rows left out (a port that shows a 640 x 360 band inside the 640 x 480 signal and compacts the table to rows 1 to 13) row 0 has no entry, so the pass is drawn at tile row `cfg.row` (y = 32 x row) and the render base is set so the texture is exactly `size` x `size` from there: the render is `row x 32 + size` lines tall, the texture is `base + row x 32 x size x 2` bytes on. KallistiOS sets a render target's pixel clip to the target's own size (`pvr_misc.c`), not the screen's, so a screen clip that was narrowed does not cut the pass. The tile cut writes only the target's tiles (`sh4der_tilecut_begin_at`, `sh4der_tilecut_begin_one_at`, `sh4der_tilecut_init_rows(&c, tw, rows, row0)`: tile (x, row) is entry x x rows + (row - row0), the control words keep their own row numbers). Host tested against a table compacted the way the port compacts it; the compacted table is NOT RUN on a console.
+
+### Do and do not
+
+- Do: send the strongest caster first (an overlap keeps the first at equal depth); keep the receiver one piece a few centimetres above the floor; call `sh4der_psm_a_settle` before the screen's scene; when `sh4der_pvrx_wait_hook(1)` is on, finish every scene with `sh4der_pvrx_scene_finish` and unhook with `sh4der_pvrx_wait_hook(0)` before `pvr_shutdown`; when `SH4DER_PSM_A_CUT_HOLD` is on, call `sh4der_psm_a_release` before any frame without a pass, before another scene that would use the pass's table, at exit, and before `pvr_shutdown` (if forgotten, the screen renders through the cut table so only the pass's few tiles are drawn and the rest of that buffer is stale, and the library sees it only at the next `begin` in `cut_broken`; `SH4DER_PSM_A_CUT_HOLD` also needs the pass to be every second render — a third render per frame, such as a mirror pass, puts another scene through the held table every other frame).
+- Do not: expect self-shadow; run it from a menu screen (RGB888P); send a caster `sh4der_psm_a_caster` refused; call `pvr_scene_finish` directly while `sh4der_pvrx_wait_hook(1)` is on; open a screen scene on a no-pass frame without calling `sh4der_psm_a_release` in held mode; use `SH4DER_PSM_A_CUT_HOLD` in a frame with three renders (such as a mirror pass plus shadow pass plus screen); call polled or held cut proven before a console run.
 
 ## The ground texture (paving slabs)
 
@@ -1335,6 +1430,53 @@ int  sh4der_psm_map(const sh4der_psm_t *p, const float x[3], float *u, float *v,
 | SH4DER_PSM_HOLD_PAD | 2.0 | Texels of room each side of a held fit for the centre's snap |
 | SH4DER_PSM_PVR_MAX_TRIS | 10 | Most triangles one world triangle gives (two parts of up to 5 each) |
 | SH4DER_PSM_PVR_UV_GRID | 5 | The error probe: points a side of the barycentric grid |
+
+### The shadow demo's small world (the closed square)
+
+A walled square needs no world past its walls. The shadow demo (`demo/psm`) can be built as the **closed square**: the same square with its two gaps shut by gates. It then draws only the ground inside the walls. PROTOTYPE, host tested (`demo/psm/test/psm_bound_test.c`, in `make test`), NOT RUN on a console. Its A/B is `turncost-t5-keep` against `turncost-t6-bound`.
+
+- **The bake.** `make ... SQUARE=closed` bakes it with `demo/psm/tools/bake_square.py --closed` into `$(BUILD)/psm_closed`.
+  - Gates (a door in the reveal, also a caster) close the north gate and the south street. The walk ends inside the south wall, and the porter comes and goes by the gates (`psm_town.h` under `PSM_TOWN_CLOSED`).
+  - Faces that no eye in the walk can see are left out: up faces above the eye on the solid pieces, the solid pieces' far sides, and parts outside the walls that sit under every sight line over them. The first two rules apply only to faces whose outward normal was given, because the PVR's culling is off.
+  - Every caster is kept: the keep and the towers shade the square.
+  - The header gets `PSM_TOWN_CLOSED` and the seen ground `PSM_TOWN_BOUND_X0` .. `PSM_TOWN_BOUND_ZS1` (story metres, the walls' outer faces).
+- **The cut.** `PSM_WORLD_BOUND` (`demo/psm/psm_scene.h`, `psm_frame_t.world_opt`; only on a scene with `bound_ok`).
+  - The ground rings end where the window's farthest ray leaves the bound, instead of at `PSM_ROW_END`.
+  - A cell that cannot touch the bound is never placed or sent. A point no kept cell uses is not placed, lit or compared.
+  - The uniform shadow map is fitted to the bound over the route's slab, instead of to the view out to `PSM_FAR`. The perspective (warp) map keeps the view's fit.
+  - The program draws with a little table fog at `PSM_BOUND_DIST_I`.
+- **What it saves** (DERIVED: host counts over 2,016 poses, not console times):
+
+| Item | Open square | Closed square, cut |
+|---|---|---|
+| Static screen triangles / vertices | 6,097 / 8,011 | 5,301 / 6,800 |
+| Ground rings a frame | 97 | 46.1 mean, 67 at most |
+| Ground points placed a frame | 5,400 mean | 1,943 mean, 3,608 at most |
+| Ground cells sent a frame (2 triangles each) | 3,948 mean | 1,185 mean, 2,610 at most |
+| Shadow texel on the ground ahead | 1 | 0.46 mean, 0.57 at most |
+| Caster triangles | 1,686 | 1,764 (the gates) |
+
+| Name | Default | Meaning |
+|---|---|---|
+| `PSM_WORLD_BOUND` | 1 | The bit in `world_opt` that turns the cut on |
+| `PSM_WORLD_DEFAULT` | 0 | `psm_dc.c`: the world options at load (0: off) |
+| `PSM_BOUND_DIST_I` | 10 | DRAW DISTANCE with the cut: `psm_dist_m[10]` = 75 m, the fog quadratic from 0.43 of it (32 m) |
+| `VC_BOUND` | 512 | The view cost test's stage option for the cut and its fog (`demo/psm/turncost/build.py --bound`) |
+
+In the picture: the gates are shut, there is a little fog on the far walls and the keep, and the ground shadows are finer. The ground, its occlusion and its colours inside the walls are the same lattice as before.
+
+### The shadow demo's still camera and cold code (the turn plan's step 4)
+
+Two more switches in the shadow demo, both off by default. PROTOTYPE, host tested, NOT RUN on a console. Their A/B is `turncost-t6-bound` against `turncost-t7-gv` (the seen marks kept and the ground option) and `turncost-t7-gvc` (the same and the cold code).
+
+- **The seen marks kept** (`PSM_PLACE_VIS`, a `place_opt` bit of `demo/psm/psm_scene.h`). The placement marks which model pieces the view sees: it clears the list and tests every piece. With the camera still, those marks cannot change, so the placement keeps them and tests only the moving pieces. It does this only when the piece count and the moving lists are the same as at the last full test. `demo/psm/test/psm_keep_test.c` checks it against the full test: 0 steps differ in 240, and the marks are kept on 120.
+- **The cold code** (`PSM_COLD`, a build flag). The code that runs at load or only when the text changes is marked cold: the scenes' set-up, the HUD's lines, and in `psm_dc.c` the load, the bake, the textures, the scene switch, the text and the result pages. The compiler then puts it in `.text.unlikely`, away from the frame's code. The SH-4's 8 KB instruction cache is direct mapped, so a big function between two hot ones pushes them onto the same lines. This only moves code: it is the same code.
+
+| Name | Default | Meaning |
+|---|---|---|
+| `PSM_PLACE_VIS` | 16 | The `place_opt` bit that keeps the seen marks on a still camera |
+| `PSM_COLD` | 0 | 1 marks the load, text and page code cold (`demo/psm/turncost/build.py --cold`) |
+| `VC_VIS` | 1024 | The view cost test's stage option for `PSM_PLACE_VIS` (`build.py --vis`) |
 
 ## The bolt effect (branching strands that re-roll)
 
@@ -1671,12 +1813,28 @@ once as built and once with the frame buffer's dither off.
 
 `include/sh4der_pvrx.h` and `src/sh4der_pvrx.c`; the effect table above says what it does, `AGENTS.md` "Call order: pvrx" how to call it. `test/pvrx_test.c` tests the header's inline part.
 
+`sh4der_pvrx_wait_idle()` is the one call that replaces `pvr_wait_ready(); pvr_wait_render_done();` (a wait before a texture or render target is rewritten): the polled wait when the hook is on, KallistiOS's two waits when it is off, 0 or -1. `demo/psm/waitpoll/` is its console test (six shapes, sleeping against polled, graphs). The demos and library passes listed in `AGENTS.md` "Waiting for the PVR" call it; the demos keep `-DWAIT_SLEEP` for an A/B. PROTOTYPE, the A/B is NOT RUN until the owner boots `psm-waitpoll-wp4`.
+
 ### Pvrx tuning
 
 | Name | Default | Meaning |
 | --- | --- | --- |
 | SH4DER_PVRX_WAIT_US | 100000 | Microseconds after which a polled wait gives up (the town's a3e-poll value) |
 | SH4DER_PVRX_DMA_US | 200000 | Microseconds after which a download gives up (the benches' limit; 512 KB takes about 14 ms) |
+
+## The waitrun ending (a timed run that ends on a results page)
+
+`include/sh4der_waitrun.h`; `test/waitrun_test.c` tests the statistics on the host. A program that runs for ever (a live demo) started from the test suite's menu calls `sh4der_waitrun_frame` once a frame; after the time is up `sh4der_waitrun_show` shuts the PVR down and shows a text page (mean, best, worst, frames over 20 ms, wait mode, timeouts) and two graphs of the run. It runs the program once, in the woken wait (the pvrx hook; the polled wait was dropped on 2026-11-28). A live scene cannot be replayed from its start for a second mode, so the sleep-against-wake comparison is `demo/psm/waitpoll`, which draws identical frames in each mode. PROTOTYPE: the pages are NOT RUN on a console.
+
+### Waitrun tuning
+
+| Name | Default | Meaning |
+| --- | --- | --- |
+| SH4DER_WAITRUN_SECONDS | 20 | Seconds the run lasts |
+| SH4DER_WAITRUN_SKIP | 20 | Frames at the start left out of the figures |
+| SH4DER_WAITRUN_MAX | 1500 | Frames kept (4 bytes each: 6 KB) |
+| SH4DER_WAITRUN_MODES | 1 | Runs: one, in the woken wait |
+| SH4DER_WAITRUN_SLICES | 64 | Points of the graph: the run in this many slices |
 
 ## The tilecut pass (a render target through its own tiles)
 
@@ -1693,6 +1851,8 @@ if (sh4der_tilecut_begin(&cut, cw, ch)) {     /* 0: refused, nothing written, th
     if (sh4der_tilecut_end(&cut)) { /* words still wrong: shut the PVR down and pvr_init again */ }
 }
 ```
+
+A table with rows left out (a port that compacts it to rows 1 to 13 of 15) is `sh4der_tilecut_init_rows(&cut, 20, 13, 1)`: 13 entries a column, the first row numbered 1, and the control words keep their own row numbers. `sh4der_tilecut_begin_at(&cut, cw, ch, ry)` cuts to the cw x ch tiles whose first row is `ry` (a pass drawn at y = 32 x ry); `sh4der_tilecut_begin` is the same at the table's first row. Per-table state (`tbl_on`, `tbl_cw`, `tbl_ch`, `tbl_ry`) also lets a program cut and hold a single table (`sh4der_tilecut_begin_one_at`, `_begin_one`, `_begin_one_cols`, `_end_one`, `_is_cut_at`, `_index`, `_other`, and Dreamcast `sh4der_tilecut_active` from `PVR_ISP_TILEMAT_ADDR`): with one pass and one screen scene each frame, the pass's own table stays cut and the screen uses the other, with no render-done wait until the order breaks (a frame without a pass, exit, or `pvr_shutdown`). After a video mode change (the PVR shut down and started again) the tables are new and may have moved: `sh4der_tilecut_reset(&cut)` forgets them and any cut that was on, then `sh4der_tilecut_find` takes them again. Host tested against a compacted table and per-table held cuts (`test/tilecut_test.c`); compacted tables and single-table held cuts are NOT RUN on a console. The route A pass (`sh4der_psm_a.h`) uses it.
 
 Rules: no render that reads the table may run while it is cut (wait for render done after every cut pass); cut only when every table is found (with one of two, the street demo lost 3.05 ms: PVR-200); the refusal that needs both tables has not run on a console.
 
@@ -2083,6 +2243,8 @@ There is no `SH4DOW=` variable: SH4DOW-DC is built from this folder's `src` and 
 - `test/taa_test.c`: the Halton values, the jitter centred over a cycle, a known turn's shift in pixels, the weight falling with speed, a cut.
 - `test/look_test.c`: the luma bins and the log average; the eye into light (over-bright, then settled by LIGHT_S) and into dark (darker, then slow); the log and exp series against the C library; every grade layer list against clamp(A x + B) over a ramp; the layer colour; the glare.
 - `test/holo_test.c`: the default weights and table entries, the breath tracker over a breathing chest that then leans, a table that never gets darker with more weight or more breath, the fade, bad params, the glint by depth.
+- `test/psm_a_test.c`: the accounting (four casters, 2,200 triangles, a caster's cap, a refusal counts, nothing before a fit), a caster's colour by strength, the held fit (a patch that moves moves whole texels), a world triangle into the PVR's triangles with the pass's origin, and a box's shadow on an 8 m patch through the whole route against an exact ray at three suns (0.03 % to 0.3 % of ground points wrong). The pass's fill is the test's own, not the PVR's.
+- `test/dofmip_test.c`: the sharp zone gives no blur, the blur rises away from it on each side to the strength and no further, the lens law at infinity and at half the focus distance, reach, a near and a far strength of their own, the curve (every power from 0.1 to 50 against libm, the held ends), the strength clamp and the near end's hold, every refused input, the codes (quarters past none, 4 .. 15) and their buckets, the combine, the depth.
 - `test/fakeaf_test.c`: the default table and the table from a floor's numbers (starts a square root of two apart), the shares of the ranges adding to 1, the 3V alpha and edges and cuts, the piece's ranges, the bias code's limits and steps, the stretched copies, the ramp texels, the fill model.
 - `test/ground_test.c`: the same seed gives the same texels, another seed others, the x and y seams no harder than inside the tile, 24 tones or more, the red mean kept within 15 % of the base.
 

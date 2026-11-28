@@ -62,7 +62,28 @@ typedef struct psm_wp {
 
 /* TOWN_STORY.md's routes for the eight in the square at once (the boy and the friar are out of a1), kept off the pen,
    the counters and the cross. A route walks back to its first point, except the porter's, which leaves by the south street
-   and comes in again behind the arch. */
+   and comes in again behind the arch. The closed square (bake_square.py --closed: PSM_TOWN_CLOSED) has its gates shut: the
+   porter comes in at the north gate and goes out at the south gate, inside the walls. The bake reads the routes after the
+   marker for its build: PSM_TOWN_CLOSED_ROUTES, or PSM_TOWN_OPEN_ROUTES. */
+#ifdef PSM_TOWN_CLOSED
+/* PSM_TOWN_CLOSED_ROUTES */
+static const psm_wp_t psm_cast_wp[] = {
+    { -11.0f, -9.0f, 2.0f }, { -0.6f, -8.2f, 6.0f },                                               /* water girl: door, well */
+    { -11.4f, 3.0f, 5.0f }, { -9.0f, 2.0f, 4.0f },                                                 /* alewife: tavern door, the cup */
+    { -9.0f, 2.0f, 6.0f }, { 8.4f, -6.0f, 4.0f }, { 7.9f, -2.6f, 4.0f }, { 6.9f, 0.5f, 4.0f },     /* ale-conner: every stall */
+    { 8.6f, 6.0f, 4.0f }, { 0.0f, 11.0f, 4.0f },
+    { 11.0f, 2.0f, 8.0f }, { 11.0f, 0.9f, 5.0f },                                                  /* poulterer, under the awning */
+    { 11.0f, 6.0f, 30.0f }, { 11.0f, 7.7f, 0.0f }, { 8.6f, 7.7f, 0.0f }, { 8.6f, 6.2f, 5.0f },     /* clothier: out to the front */
+    { 8.6f, 7.7f, 0.0f }, { 11.0f, 7.7f, 0.0f },
+    { 9.4f, 11.3f, 3.0f }, { 11.6f, 11.3f, 3.0f },                                                 /* sweeper, the doorstep */
+    { 7.4f, 10.6f, 20.0f }, { 7.6f, 9.2f, 5.0f },                                                  /* roofer's mate at the ladder */
+    { 0.0f, 11.4f, 0.0f }, { 0.0f, 10.4f, 0.0f }, { 8.3f, -3.6f, 2.0f }, { 1.5f, -15.6f, 3.0f }    /* porter: north gate, the sacks, the south gate */
+};
+static const unsigned char psm_cast_route[PSM_CAST][3] = {   /* first point, points, 1: open (the last point jumps to the first) */
+    { 0, 2, 0 }, { 2, 2, 0 }, { 4, 6, 0 }, { 10, 2, 0 }, { 12, 6, 0 }, { 18, 2, 0 }, { 20, 2, 0 }, { 22, 4, 1 }
+};
+#else
+/* PSM_TOWN_OPEN_ROUTES */
 static const psm_wp_t psm_cast_wp[] = {
     { -11.0f, -9.0f, 2.0f }, { -0.6f, -8.2f, 6.0f },                                               /* water girl: door, well */
     { -11.4f, 3.0f, 5.0f }, { -9.0f, 2.0f, 4.0f },                                                 /* alewife: tavern door, the cup */
@@ -79,6 +100,7 @@ static const psm_wp_t psm_cast_wp[] = {
 static const unsigned char psm_cast_route[PSM_CAST][3] = {   /* first point, points, 1: open (the last point jumps to the first) */
     { 0, 2, 0 }, { 2, 2, 0 }, { 4, 6, 0 }, { 10, 2, 0 }, { 12, 6, 0 }, { 18, 2, 0 }, { 20, 2, 0 }, { 22, 5, 1 }
 };
+#endif
 static const char *const psm_cast_name[PSM_CAST] = {
     "water girl", "alewife", "ale-conner", "poulterer", "clothier", "sweeper", "roofer's mate", "porter"
 };
@@ -206,7 +228,11 @@ static const psm_town_preset_t psm_town_preset[PSM_TOWN_PRESETS] = {
    and the pen), round the well and the cross. In the world frame. */
 #define PSM_TOWN_X0 (-11.4f)
 #define PSM_TOWN_X1 7.2f
+#ifdef PSM_TOWN_CLOSED
+#define PSM_TOWN_ZS0 (-15.5f)         /* the closed square: no street, the walk stops inside the south wall (bake_square.py WALK_CLOSED) */
+#else
 #define PSM_TOWN_ZS0 (-24.0f)
+#endif
 #define PSM_TOWN_ZS1 11.4f
 
 /* the sky's colour and the fog's, by the clock: one table (TOWN_LOOK.md fills it; a1 has one provisional row, flat) */
@@ -263,7 +289,7 @@ static inline int psm_town_mover_(psm_scene_t *s, unsigned kind, const float (*v
 }
 
 /* The town, once, at load (or when the SCENE row picks it). The cast and the hens start where 14:00 has them. */
-static inline void psm_scene_init_town(psm_scene_t *s) {
+PSM_COLD_ static inline void psm_scene_init_town(psm_scene_t *s) {
     unsigned i, k, o;
 
     psm_scene_rings_(s);
@@ -318,6 +344,10 @@ static inline void psm_scene_init_town(psm_scene_t *s) {
     s->ground_uv = PSM_TOWN_GROUND_UV; s->ground_tex = 1;
     s->look = psm_town_look; s->lookn = PSM_TOWN_LOOK_ROWS;
     s->x0 = PSM_TOWN_X0; s->x1 = PSM_TOWN_X1; s->z0 = -PSM_TOWN_ZS1; s->z1 = -PSM_TOWN_ZS0;
+#ifdef PSM_TOWN_BOUND_X0
+    s->bound_ok = 1;                                                /* the closed square: world z is story -z */
+    s->bnd[0] = PSM_TOWN_BOUND_X0; s->bnd[1] = -PSM_TOWN_BOUND_ZS1; s->bnd[2] = PSM_TOWN_BOUND_X1; s->bnd[3] = -PSM_TOWN_BOUND_ZS0;
+#endif
     psm_scene_obst_(s, -2.0f, 7.0f, 1.0f + PSM_WALK_BODY);          /* the well at story (-2, -7): its roof's half width */
     psm_scene_obst_(s, 4.0f, 0.0f, 1.42f + PSM_WALK_BODY);          /* the cross's step, 2 x 2 m: its half diagonal */
     psm_scene_objects_(s);
@@ -358,7 +388,7 @@ static inline void psm_town_update(psm_scene_t *s, psm_state_t *st, float dt) {
     if (!(dt > 0.0f)) dt = 0.0f;
     st->clock += dt * (float)psm_time_speed[st->tspeed % PSM_TIME_SPEEDS] * (1.0f / 3600.0f);
     if (st->clock > PSM_CLOCK_T1) st->clock = PSM_CLOCK_T0;          /* the sweep round again */
-    if (!st->sun_free) psm_sun_at(st->clock, &st->az, &st->el);
+    if (!st->sun_free) psm_sun_at(st->sun_step > 0.0f ? sh4der_floor_(st->clock * sh4der_recip_pos_(st->sun_step)) * st->sun_step : st->clock, &st->az, &st->el);
     if (!st->freeze) st->cast_t += dt;
     for (i = 0; i < s->movern; i++) {
         psm_mover_t *m = &s->mover[i];

@@ -5,7 +5,7 @@
 
    The town's opaque list, as psm_dc.c sends it (psm_send.h's own walk, its vertices caught here), drawn by a small
    software rasteriser: 640 x 480, the PVR's depth rule (1 / w, greater or equal wins), Gouraud vertex colours, no
-   textures. The same view is drawn with place_opt 0 and with each option set, and the pictures are compared pixel by
+   textures. The same view is drawn with place_opt 0 and with each option set (PSM_PLACE_GROUND among them), and the pictures are compared pixel by
    pixel, colour and depth. A triangle the options leave out is off the screen or has no area, so every pixel must be
    the same. Views: the boot place and two others, twelve headings, three pitches (sky, boot, down), routes A and B,
    DRAW DISTANCE infinite and 30 m. Also counted: the vertices sent and the blocks left out.
@@ -24,6 +24,7 @@
 
 #define W 640
 #define H 480
+#define NOPT 7u                         /* the option sets compared against the plain placement */
 
 static uint32_t img[W * H];
 static float zbuf[W * H];
@@ -137,9 +138,11 @@ static void ppm(const char *dir, const char *name) {
 int main(int argc, char **argv) {
     static const float place[3][2] = { { 0.0f, 0.0f }, { -6.0f, 4.0f }, { 5.0f, -9.0f } };     /* added to the boot place, inside the walk */
     static const float pitch[3] = { -1.25f, PSM_PITCH, PSM_PITCH_DOWN };
-    static const unsigned opts[5] = { PSM_PLACE_AREA, PSM_PLACE_BLOCKS, PSM_PLACE_SIDE, PSM_PLACE_AREA | PSM_PLACE_BLOCKS, PSM_PLACE_AREA | PSM_PLACE_BLOCKS | PSM_PLACE_SIDE };
+    static const unsigned opts[NOPT] = { PSM_PLACE_AREA, PSM_PLACE_BLOCKS, PSM_PLACE_SIDE, PSM_PLACE_AREA | PSM_PLACE_BLOCKS, PSM_PLACE_AREA | PSM_PLACE_BLOCKS | PSM_PLACE_SIDE,
+                                         PSM_PLACE_GROUND, PSM_PLACE_AREA | PSM_PLACE_BLOCKS | PSM_PLACE_SIDE | PSM_PLACE_GROUND };
     static const char *const pname[3] = { "sky", "boot", "down" };
-    unsigned long views = 0, bad_px = 0, v0_sum[3] = { 0, 0, 0 }, v_sum[3][5], cull_sum[3] = { 0, 0, 0 }, n_p[3] = { 0, 0, 0 }, drawn0 = 0, drawn7 = 0;
+    unsigned long views = 0, bad_px = 0, v0_sum[3] = { 0, 0, 0 }, v_sum[3][NOPT], cull_sum[3] = { 0, 0, 0 }, n_p[3] = { 0, 0, 0 }, drawn0 = 0, drawn7 = 0, drawn15 = 0;
+    unsigned long gb_sum[3] = { 0, 0, 0 }, gbc_sum[3] = { 0, 0, 0 }, gv_sum[3] = { 0, 0, 0 }, gvp_sum[3] = { 0, 0, 0 };
     psm_state_t st0, st;
     psm_walk_limits_t lim;
     unsigned p, h, pi, route, dist, o, i;
@@ -168,33 +171,44 @@ int main(int argc, char **argv) {
                         drawn0 += tris_drawn;
                         memcpy(ref_img, img, sizeof img); memcpy(ref_z, zbuf, sizeof zbuf);
                         v0_sum[pi] += v0; n_p[pi]++;
-                        for (o = 0; o < 5u; o++) {
+                        for (o = 0; o < NOPT; o++) {
                             unsigned long d = 0;
                             unsigned v;
 
                             tris_drawn = 0;
+                            if (opts[o] & PSM_PLACE_GROUND)       /* what the ground option leaves unplaced must never be read: poisoned */
+                                for (i = 0; i < PSM_GV_MAX; i++)
+                                    frame.gclip[i][0] = frame.gclip[i][1] = frame.gclip[i][2] = frame.gscr[i][0] = frame.gscr[i][1] = frame.gscr[i][2] = NAN;
                             v = draw(&st, opts[o]);
                             if (o == 4u) drawn7 += tris_drawn;
+                            if (o == 6u) {         /* every option, the ground's blocks among them */
+                                drawn15 += tris_drawn;
+                                gb_sum[pi] += frame.gb_n; gbc_sum[pi] += frame.gb_culled; gv_sum[pi] += frame.gvn; gvp_sum[pi] += frame.gv_placed;
+                            }
                             for (i = 0; i < W * H; i++) d += img[i] != ref_img[i] || zbuf[i] != ref_z[i];
                             if (d) {
                                 if (fails < 10) printf("FAIL: place %u heading %u pitch %s route %c dist %u opt %u: %lu pixels differ\n", p, h * 30u, pname[pi], route ? 'B' : 'A', dist, opts[o], d);
                                 fails++; bad_px += d;
                             }
                             if (v > v0) { fails++; printf("FAIL: more vertices with opt %u\n", opts[o]); }
-                            if (!(opts[o] & (PSM_PLACE_BLOCKS | PSM_PLACE_SIDE)) && v != v0) { fails++; printf("FAIL: the area option alone changed the send\n"); }
+                            if (!(opts[o] & (PSM_PLACE_BLOCKS | PSM_PLACE_SIDE)) && v != v0) { fails++; printf("FAIL: the area or ground option changed the send (opt %u)\n", opts[o]); }
                             v_sum[pi][o] += v;
                             if (o == 4u) cull_sum[pi] += frame.mb_culled;
                         }
                         views++;
                     }
-    printf("%lu views x 5 option sets against the plain placement: %lu pixels differ (colour or depth)\n", views, bad_px);
+    printf("%lu views x %u option sets against the plain placement: %lu pixels differ (colour or depth)\n", views, NOPT, bad_px);
     printf("blocks: %u of at most %u triangles a block\n", frame.mbn, PSM_MB_TRIS);
     for (pi = 0; pi < 3u; pi++)
         printf("  pitch %-4s opaque vertices a view: plain %lu, area %lu, blocks %lu, side %lu, area+blocks %lu, all %lu; blocks left out %lu of %u\n", pname[pi],
                v0_sum[pi] / n_p[pi], v_sum[pi][0] / n_p[pi], v_sum[pi][1] / n_p[pi], v_sum[pi][2] / n_p[pi], v_sum[pi][3] / n_p[pi], v_sum[pi][4] / n_p[pi],
                cull_sum[pi] / n_p[pi], frame.mbn);
-    printf("  triangles that cover a pixel centre: plain %lu, all options %lu (the same ones: nothing on screen was left out)\n", drawn0, drawn7);
-    if (drawn0 != drawn7) { fails++; printf("FAIL: the on-screen triangle counts differ\n"); }
+    for (pi = 0; pi < 3u; pi++)
+        printf("  pitch %-4s ground option (all four on): ground blocks %lu, left out %lu; ground points %lu, placed %lu (%.0f %%)\n", pname[pi],
+               gb_sum[pi] / n_p[pi], gbc_sum[pi] / n_p[pi], gv_sum[pi] / n_p[pi], gvp_sum[pi] / n_p[pi],
+               gv_sum[pi] ? 100.0 * (double)gvp_sum[pi] / (double)gv_sum[pi] : 0.0);
+    printf("  triangles that cover a pixel centre: plain %lu, three options %lu, all four %lu (the same ones: nothing on screen was left out)\n", drawn0, drawn7, drawn15);
+    if (drawn0 != drawn7 || drawn0 != drawn15) { fails++; printf("FAIL: the on-screen triangle counts differ\n"); }
 
     if (argc > 1) {                             /* the boot view, plain and with every option, as pictures */
         st = st0;

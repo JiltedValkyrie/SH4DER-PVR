@@ -1,0 +1,305 @@
+{
+ "note": "wait poll suite: every program that waits for the PVR, polled; the first entry is the sleeping-against-polled test",
+ "tests": [
+  {
+   "name": "waitpoll",
+   "file": "WAITPOLL.BIN",
+   "elf": "build/psm_waitpoll/psm-waitpoll-wp6.elf",
+   "order": 1,
+   "what": "Sleep vs polled wait, 6 shapes, graphs. ~1 min",
+   "read": "photo every page, the graphs especially",
+   "group": "tools",
+   "title": "Sleeping vs polled wait",
+   "shows": "Times the PVR wait two ways, sleeping and polled",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "Times the PVR wait two ways, sleeping and polled, in six shapes, and draws the results as graphs.",
+    "controls": "Automatic run, about one minute. A and B turn the pages, Start on the last page runs it again. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the polled wait in this program."
+   }
+  },
+  {
+   "name": "ocean",
+   "file": "OCEAN.BIN",
+   "elf": "build/wp_suite/ocean/sh4der-ocean.elf",
+   "order": 2,
+   "what": "Ocean, polled wait every frame",
+   "read": "live: frame time; A+B+X+Y back",
+   "group": "tools",
+   "title": "Ocean",
+   "shows": "A sunset sea with waves, reflections and a glow",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A sunset sea with waves, reflections and a glow, rewriting its texture every frame.",
+    "controls": "Left and right pick a row, up and down change it. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the polled wait in this program."
+   }
+  },
+  {
+   "name": "cloud",
+   "file": "CLOUD.BIN",
+   "elf": "build/wp_suite/cloudvolume/sh4der-cloudvolume.elf",
+   "order": 3,
+   "what": "Clouds, polled wait every frame",
+   "read": "live: frame time; A+B+X+Y back",
+   "group": "tools",
+   "title": "Clouds",
+   "shows": "A cloud deck you fly through, drawn from a small",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A cloud deck you fly through, drawn from a small picture the console updates every frame.",
+    "controls": "Stick looks around. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the polled wait in this program."
+   }
+  },
+  {
+   "name": "torch-ab",
+   "file": "TORCHAB.BIN",
+   "elf": "build/wp_suite/torchwalk_ab/sh4der-torchwalk-ab.elf",
+   "order": 4,
+   "what": "Torch walk, polled wait 1 frame in 20",
+   "read": "live: frame time; A+B+X+Y back",
+   "group": "tools",
+   "title": "Torch",
+   "shows": "A walk over a dark floor with a torch that lights",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A walk over a dark floor with a torch that lights a bumpy surface.",
+    "controls": "Stick looks and moves, R fires a light. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the polled wait in this program."
+   }
+  },
+  {
+   "name": "matchlt",
+   "file": "MATCHLT.BIN",
+   "elf": "build/wp_suite/matchlight/sh4der-matchlight.elf",
+   "order": 5,
+   "what": "Match Light film, polled wait, rare",
+   "read": "live: plays 2 min; A+B+X+Y back",
+   "group": "tools",
+   "title": "Film",
+   "shows": "A two minute film of a snowy night street",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A two minute film of a snowy night street.",
+    "controls": "Plays by itself. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the polled wait in this program."
+   }
+  },
+  {
+   "name": "town-ab",
+   "file": "TOWNAB.BIN",
+   "elf": "build/wp_suite/psm_dc/sh4der-psm-ab.elf",
+   "order": 6,
+   "what": "Town shadow A/B, polled wait",
+   "read": "live: A+B+X+Y back",
+   "group": "tools",
+   "title": "Town",
+   "shows": "A walled square with moving shadows, drawn two wa",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A walled square with moving shadows, drawn two ways side by side.",
+    "controls": "Stick moves, X changes rows. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the polled wait in this program."
+   }
+  }
+ ],
+ "menu_groups": [
+  "Driving",
+  "Rooms and light",
+  "Characters",
+  "Town",
+  "Tools"
+ ],
+ "effect_headings": [
+  {
+   "heading": "WAIT FOR THE PVR",
+   "demos": [
+    "waitpoll",
+    "ocean",
+    "cloud",
+    "torch-ab",
+    "matchlt",
+    "town-ab"
+   ]
+  }
+ ],
+ "not_in_menu": {
+  "subtitle": "Not a demo: nothing to run.",
+  "intro": "These effects are in the library, but this menu has no demo for them. Each line says where else the effect is shown.",
+  "items": [
+   {
+    "name": "Shadow map on the SH-4",
+    "also_shown_in": []
+   },
+   {
+    "name": "Shadow map by the PVR",
+    "also_shown_in": []
+   },
+   {
+    "name": "Corner darkening",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mesh corner shading",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft character shadows",
+    "also_shown_in": []
+   },
+   {
+    "name": "Glowing tubes",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen bloom",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen spotlight",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dark shafts of light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft edges for light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sparks and tracers",
+    "also_shown_in": []
+   },
+   {
+    "name": "Lightning",
+    "also_shown_in": []
+   },
+   {
+    "name": "Water waves",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mist bank",
+    "also_shown_in": []
+   },
+   {
+    "name": "Drifting specks",
+    "also_shown_in": []
+   },
+   {
+    "name": "Rising lights",
+    "also_shown_in": []
+   },
+   {
+    "name": "Cloud deck",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dented ground",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sharp floors at an angle",
+    "also_shown_in": []
+   },
+   {
+    "name": "Paving slab texture",
+    "also_shown_in": []
+   },
+   {
+    "name": "Normal map",
+    "also_shown_in": []
+   },
+   {
+    "name": "Texture ripple",
+    "also_shown_in": []
+   },
+   {
+    "name": "Inner light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Exposure and grade",
+    "also_shown_in": []
+   },
+   {
+    "name": "Smooth edges over time",
+    "also_shown_in": []
+   },
+   {
+    "name": "Motion blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen overlays",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen warp",
+    "also_shown_in": []
+   },
+   {
+    "name": "Colour fringe",
+    "also_shown_in": []
+   },
+   {
+    "name": "Old film wear",
+    "also_shown_in": []
+   },
+   {
+    "name": "Tape wobble",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen filters",
+    "also_shown_in": []
+   },
+   {
+    "name": "Fake focus blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Split screen",
+    "also_shown_in": []
+   }
+  ]
+ }
+}

@@ -37,6 +37,10 @@
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
 #include "sh4der_lens.h"
+#include "sh4der_pvrx.h"
+#include "sh4der_suite.h"
+#include "sh4der_waitrun.h"
+static sh4der_waitrun_t wr_run;
 
 /* ---- the screen and the world (world units: 1 wu is about 3 m, as the game) ---- */
 #define SCR_W 640.0f
@@ -1708,7 +1712,7 @@ static void floor_prompt_update(void) {
     if (opt[ROW_SCHEME] == fprompt_shown)
         return;
     fprompt_shown = opt[ROW_SCHEME];
-    pvr_wait_render_done();   /* no frame in flight reads the textures while they are rewritten */
+    sh4der_pvrx_wait_idle();   /* no frame in flight reads the textures while they are rewritten: runs when the scheme row changes, rare (PVR-136: no gain) */
     memset(fprompt_pixels, 0, sizeof(fprompt_pixels));
     text_to_texture(fprompt_pixels, 256, 0, text);
     for (i = 0; i < 256u * 8u; i++)
@@ -1879,6 +1883,7 @@ static void input(float dt) {
     static uint32_t last;
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    if (st && suite_present() && (st->buttons & SUITE_KEYS_ALL) == SUITE_KEYS_ALL) { sh4der_pvrx_wait_hook(0); suite_exit(SUITE_KEYS); }   /* the test suite disc: A+B+X+Y back to the menu */
     uint32_t down, held;
     float mv_f = 0.0f, mv_r = 0.0f, look_x = 0.0f, look_y = 0.0f;
     if (!st)
@@ -1933,6 +1938,8 @@ static void input(float dt) {
 }
 
 int main(void) {
+    suite_init();   /* on the test suite disc: the menu's binary into RAM, before anything else */
+    if (suite_present()) sh4der_waitrun_init(&wr_run, SH4DER_WAITRUN_SECONDS);   /* from the suite's menu: a timed run that ends on a results page */
     pvr_init_params_t init = pvr_default_params;
     uint64_t previous, cpu_t0, waited = 0;   /* waited: us spent blocked on the PVR this frame, not CPU work */
     unsigned frame = 0, stuck = 0, stuck_shown = 0, hud_tick = 0;
@@ -1947,6 +1954,9 @@ int main(void) {
         printf("torchwalk: pvr_init FAIL\n");
         return 1;
     }
+#ifndef WAIT_SLEEP
+    sh4der_pvrx_wait_hook(1);   /* polled render-done wait (PVR-117): every scene ends through sh4der_pvrx_scene_finish; -DWAIT_SLEEP keeps KallistiOS's sleeping wait for an A/B */
+#endif
     pvr_set_bg_color(0.0f, 0.0f, 0.0f);
     hud_mem = pvr_mem_malloc(sizeof(hud_pixels));
     prompt_mem = pvr_mem_malloc(sizeof(prompt_pixels));
@@ -1983,6 +1993,7 @@ int main(void) {
            (unsigned long)(pvr_mem_available() / 1024u));
     previous = win_t0 = timer_us_gettime64();
     for (;;) {
+        if (suite_present() && sh4der_waitrun_frame(&wr_run, timer_us_gettime64())) sh4der_waitrun_show(&wr_run, "TORCH WALK");
         const uint64_t now = timer_us_gettime64();
         const float dt = shz_fminf((float)(now - previous) * 1.0e-6f, 0.1f);
         uint64_t t, t_scene, t_tr = 0, t_torch = 0, t_lens = 0, t_wire = 0;
@@ -2026,7 +2037,7 @@ int main(void) {
         if (++hud_tick >= 20u) {   /* the readout text, every 20 frames: after the last render, so the upload does not tear */
             const uint64_t w0 = timer_us_gettime64();
             hud_tick = 0;
-            pvr_wait_render_done();
+            sh4der_pvrx_wait_idle();   /* the readout upload, one frame in twenty (PVR-136: no gain, same wait as the rest) */
             waited += timer_us_gettime64() - w0;
             ab_label_update();
             if (hud_show) {
@@ -2099,7 +2110,7 @@ int main(void) {
         quad_draw(&hdr_ablabel, SCR_W - 256.0f - 16.0f, 426.0f, 256.0f, 36.0f, 0xffe0e0e0u);   /* the A/B label: four lines, whole texels */
         quad_v1 = 1.0f;
         pvr_list_finish();
-        pvr_scene_finish();
+        sh4der_pvrx_scene_finish();
         {   /* the submit slice is the whole scene minus the effect's and the lens's own parts */
             const uint64_t all = timer_us_gettime64() - t_scene;
             slice_us[SL_SUBMIT] += (uint32_t)(all - t_tr - t_torch - t_lens - t_wire);

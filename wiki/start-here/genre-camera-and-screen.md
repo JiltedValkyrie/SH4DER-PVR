@@ -137,6 +137,17 @@ Three of these work on the picture itself. [look](../effects/look.md) reads the 
 - `SH4DER_FOCUS_TEX_W` = 128 and `SH4DER_FOCUS_TEX_H` = 64 (README.md:601-602): powers of two. ADVISED (the effect page's limits).
 - No figures: no program uses it (maturity.md).
 
+### Focus pull by texture blur [dofmip]
+
+**What it looks like:** Textures soften as things get nearer or farther than the focus distance, so a camera's focus pull or a soft background shows in the textured surfaces. Flat colours and outlines stay sharp.
+**Use it when:** a cutscene or close-up keys a focus distance and you want it to follow distance, with no extra pass and no video memory.
+**Where it is:** [header](../../include/sh4der_dofmip.h) and [effect page](../effects/dofmip.md).
+**Starting settings:**
+- `SH4DER_DOFMIP_REACH` = 1.0 (README.md "Dofmip tuning"): how far in 1 / z the blur takes to be full. ADVISED (invented starting value, not measured).
+- A near and a far strength of 1.0 to 2.0 levels, each at most `SH4DER_DOFMIP_LEVELS_MAX` = 2.75 (the PVR's code 15). ADVISED (no measured number).
+- `SH4DER_DOFMIP_CURVE` = 1.0 (a straight ramp; 0.1 to 50 is taken). ADVISED (invented starting value).
+- No figures: not run on a console, and the level the PVR picks for a bias code has not been read back (OPEN).
+
 ## What it costs
 
 | Effect | Video memory | Triangles or vertices | SH-4 time | Status |

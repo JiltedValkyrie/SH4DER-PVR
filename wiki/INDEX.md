@@ -1,7 +1,7 @@
 ---
 title: Index
 tags: [index]
-updated: 2026-11-26
+updated: 2026-11-28
 sources: [every page's front matter]
 ---
 # Index
@@ -34,6 +34,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [effects/cloudvolume.md](effects/cloudvolume.md) | Cloud deck [cloudvolume] (a cloud slab you fly through) | effect, cloudvolume | 2026-11-26 | how the SH-4 ray-marches a cloud layer into a small buffer that the PVR draws over the sky, and what that is estimated to cost.
 - [effects/core.md](effects/core.md) | Shared parts [core] (the feather, tube shape, breath tracker and glint) | effect, core | 2026-11-26 | what every other effect borrows from `sh4der_core.h`, and what it costs.
 - [effects/deform.md](effects/deform.md) | Dented ground [deform] (ground that keeps a dent) | effect, deform | 2026-11-26 | how feet and wheels press lasting dents into a ground mesh you already draw, and what it costs.
+- [effects/dofmip.md](effects/dofmip.md) | Focus pull by texture blur [dofmip] (depth of field by mip bias) | effect, focus, dofmip, camera, texture, mip | 2026-11-27 | how a camera's focus distance, sharp range and blur strength turn into one number a polygon, what that blurs and what it cannot, and what has and has not been measured.
 - [effects/fakeaf.md](effects/fakeaf.md) | fakeaf (fake anisotropic filtering) | effect, filter, texture, mip, bias, floor | 2026-11-26 | why a floor seen at a grazing angle looks blurred across the view or shimmers along it, how the mip bias per polygon by slope works, what the distance ranges with stretched copies would add, and what has and has not been measured on a console.
 - [effects/fault.md](effects/fault.md) | Crash and hang screen [fault] (the fault catcher) | effect, debug, fault | 2026-11-26 | what the fault catcher puts on the screen when a console program raises an exception, hangs, asserts or exits, and what it does not catch.
 - [effects/film.md](effects/film.md) | Old film wear [film] (old projector wear) | effect, film | 2026-11-26 | what the film effect draws and what it costs.
@@ -54,6 +55,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [effects/page.md](effects/page.md) | page (result pages for console tests) | effect, page, text, graph, result | 2026-11-26 | how a console test prints its numbers on a page that can be photographed and checked, how the CRC line works, what the graphs are for, and what is and is not measured.
 - [effects/pl4nar.md](effects/pl4nar.md) | Planar reflection [pl4nar]: the world mirrored in a floor, car paint or a wet road | effect, pl4nar, reflection | 2026-11-26 | how the world is mirrored into a small render target and looked up per vertex, what it costs in video memory, and which costs are still unmeasured.
 - [effects/pool.md](effects/pool.md) | Light pools [pool] (fading round or wedge-shaped light on a plane) | effect, pool | 2026-11-26 | how a lamp's pool of light or a blob shadow is drawn as a fading fan, and why fill is its cost.
+- [effects/psm-route-a.md](effects/psm-route-a.md) | Moving shadows drawn by the PVR [psm_a] (route A pass) | effect, shadow, psm, psm_a, pvr, render-target, tilecut | 2026-11-27 | how up to four characters get a shadow on a patch of ground from one light, why it is the cheaper way, what it cannot do, and what has and has not been run.
 - [effects/psm.md](effects/psm.md) | Sun shadow map [psm] (shadow map placement and the two map routes) | effect, psm, shadows | 2026-11-26 | what the three psm headers do, which route draws the map, and what the town demo measured on a console.
 - [effects/qrpage.md](effects/qrpage.md) | qrpage (QR result pages, the test set) | effect, qr, page, photograph, test | 2026-11-26 | what the QR test set on a result page is for, which payloads it carries, how the encoder is obtained (it is not in this repository), and what was measured.
 - [effects/ramp.md](effects/ramp.md) | Distance ramp [ramp]: one linear 0..1 ramp between two distances | effect, ramp | 2026-11-26 | how a strength eases in or out between two distances, in the two forms the library offers (one call, or a prepared ramp for a loop), and what each costs.
@@ -73,6 +75,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [effects/torch.md](effects/torch.md) | Screen spotlight [torch] (flashlight) | effect, torch, post | 2026-11-26 | how the torch fakes a flashlight with no light source, and the trap with AA 2X.
 - [effects/trail.md](effects/trail.md) | Motion blur [trail] | effect, trail, post | 2026-11-26 | how motion blur and the TAA blend draw the frame before over this one, and what that needs from the screen setup.
 - [effects/uvwarp.md](effects/uvwarp.md) | Texture ripple [uvwarp] (per-vertex texture offset) | effect, uvwarp | 2026-11-26 | how a small table pushes each vertex's texture coordinate, and how to keep it precise over time.
+- [effects/viewcull.md](effects/viewcull.md) | Off-screen skip [viewcull]: leave out what the camera cannot see before it is placed | effect, viewcull, routine, camera, prototype | 2026-11-28 | how a program can tell, cheaply, that a whole box or a whole patch of ground is off the screen, why that matters most while the camera turns, and what has and has not been proven.
 - [effects/visor.md](effects/visor.md) | Screen filters [visor] | effect, visor, post | 2026-11-26 | how the night, amber and thermal visor looks are built from tables, and what they cost.
 - [effects/warp.md](effects/warp.md) | Screen warp [warp] | effect, warp, post | 2026-11-26 | how the warp bends the frame through a mesh, and what it measured on a console.
 - [effects/water.md](effects/water.md) | Water waves [water] | effect, water | 2026-11-26 | what the water header computes per vertex, and where its numbers come from.
@@ -116,6 +119,7 @@ Generated from each page's front matter. Format: `path | title | tags | updated 
 - [methods/fault-catcher.md](methods/fault-catcher.md) | The fault catcher | method, debug | 2026-11-26 | what the fault catcher shows when a console crashes or hangs, how to read its screen, and what it cannot catch.
 - [methods/host-test-first.md](methods/host-test-first.md) | Host test first | method, test | 2026-11-26 | how code is checked on a PC before it reaches a console, and what a host test can and cannot prove.
 - [methods/sh4zam-rule.md](methods/sh4zam-rule.md) | The SH4ZAM rule | method, sh4 | 2026-11-26 | why all maths goes through SH4ZAM, what to do when SH4ZAM has no call for it, and what counts as "slow".
+- [methods/small-world.md](methods/small-world.md) | Small world [world bound]: draw only what is inside the walls | method, psm, ground, camera, prototype | 2026-11-28 | why a walled place should not draw a world beyond its walls, how the shadow demo cuts its ground, its shadow map and its mesh down to the square, what that saves, and what is still unproven.
 - [methods/suite-12.md](methods/suite-12.md) | Suite 12: what each program tests and what to read | method, suite, run, ledger | 2026-11-25 | what each program on the suite 12 disc shows, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to. IDs BUS-054 to VID-017 (11 rows).
 - [methods/suite-13.md](methods/suite-13.md) | Suite 13: what each program tests and what to read | method, suite, run, ledger | 2026-11-25 | what each program on the suite 13 disc should show, what to film or photograph, which lines on its pages matter, and which ledger row each page goes to. IDs BUS-054 to VID-017 (9 rows).
 - [methods/suite-14.md](methods/suite-14.md) | Suite 14: the menu, the hold of A, and what to look for | method, suite, run, ledger, menu | 2026-11-26 | what is on the suite 14 disc, which programs hold A on the last page, and what to check when the owner runs it

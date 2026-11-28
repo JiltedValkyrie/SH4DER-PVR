@@ -162,6 +162,170 @@ int main(void) {
         for (q = 0; q < SH4DER_TILECUT_VERIFY + 3u; q++) { CHECK(sh4der_tilecut_begin(&d, 4u, 5u), "begin %u", q); CHECK(sh4der_tilecut_end(&d) == 0u, "end %u", q); }
         CHECK(d.verify == 0u && differ() == 0u, "the read-back count");
     }
+    {                                                                       /* a table with rows 1 to 13 kept (a port that shows a 640 x 360 band), cut at a row origin */
+        static uint32_t ctab[2][WORDS + 6u], cref[2][WORDS + 6u];
+        static sh4der_tilecut_t d;
+        const unsigned row0 = 1u, rows = 13u;
+        unsigned t, i, w, kept = 0;
+
+        for (t = 0; t < 2u; t++) {
+            uint32_t *out = ctab[t] + 6u;
+            const uint32_t *full = tab[t] + 6u;
+
+            memcpy(ctab[t], tab[t], sizeof ctab[t]);                        /* the stale words behind the new last entry stay */
+            for (i = 0; i < TW * TH; i++) {
+                const uint32_t *e = full + 6u * i;
+                const unsigned ey = (e[0] >> 8) & 0x3fu;
+
+                if (ey < row0 || ey >= row0 + rows) continue;
+                out[0] = e[0] & ~0x80000000u; out[1] = e[1]; out[2] = e[2]; out[3] = e[3]; out[4] = e[4]; out[5] = e[5];
+                out += 6; kept++;
+            }
+            out[-6] |= 0x80000000u;
+            memcpy(cref[t], ctab[t], sizeof ctab[t]);
+        }
+        kept /= 2u;
+        CHECK(kept == TW * rows, "the compacted table keeps %u entries", kept);
+        sh4der_tilecut_init_rows(&d, TW, rows, row0);
+        CHECK(!sh4der_tilecut_valid(ctab[0], TW, rows) && sh4der_tilecut_valid_rows(ctab[0], TW, rows, row0), "a compacted table's layout test");
+        CHECK(!sh4der_tilecut_valid_rows(ctab[0], TW, rows, 0u) && !sh4der_tilecut_valid_rows(ctab[0], TW, rows, 2u), "a compacted table with the wrong first row");
+        CHECK(sh4der_tilecut_add(&d, ctab[0]) && sh4der_tilecut_add(&d, ctab[1]) && d.n == 2u, "taking the compacted tables");
+        {
+            static const unsigned at[5][3] = { { 4, 4, 2 }, { 8, 8, 2 }, { 4, 4, 9 }, { 2, 3, 1 }, { 4, 4, 10 } };      /* cw, ch, first row */
+
+            for (q = 0; q < 5u; q++) {
+                const unsigned cw = at[q][0], ch = at[q][1], ry = at[q][2];
+
+                CHECK(sh4der_tilecut_begin_at(&d, cw, ch, ry), "compacted cut %u x %u at row %u refused", cw, ch, ry);
+                for (t = 0; t < 2u; t++) {
+                    const uint32_t *e = ctab[t] + 6u;
+                    unsigned n2 = 0, bad = 0, seen2[TW][TH];
+
+                    memset(seen2, 0, sizeof seen2);
+                    for (;;) {
+                        const unsigned ex = (e[0] >> 2) & 63u, ey = (e[0] >> 8) & 63u;
+
+                        if (n2 >= TW * TH || ex >= TW || ey >= TH) { bad++; break; }
+                        seen2[ex][ey]++;
+                        for (i = 0; i < 5u; i++) if (e[1u + i] != list_ptr(t, i, ex, ey)) bad++;
+                        n2++;
+                        if (e[0] & 0x80000000u) break;
+                        e += 6u;
+                    }
+                    CHECK(n2 == cw * ch && bad == 0u, "compacted cut %u x %u at %u, table %u: %u entries, %u wrong", cw, ch, ry, t, n2, bad);
+                    for (x = 0; x < TW; x++) for (y = 0; y < TH; y++)
+                        CHECK(seen2[x][y] == (x < cw && y >= ry && y < ry + ch ? 1u : 0u), "compacted cut %u x %u at %u: tile %u, %u visited %u times", cw, ch, ry, x, y, seen2[x][y]);
+                }
+                CHECK(sh4der_tilecut_end(&d) == 0u, "compacted cut %u: end", q);
+                for (w = 0, t = 0; t < 2u; t++) for (i = 0; i < WORDS + 6u; i++) w += ctab[t][i] != cref[t][i];
+                CHECK(w == 0u, "compacted cut %u x %u at %u: %u words not as before", cw, ch, ry, w);
+            }
+        }
+        CHECK(!sh4der_tilecut_begin_at(&d, 4u, 4u, 0u) && !sh4der_tilecut_begin_at(&d, 4u, 4u, 11u) && !sh4der_tilecut_begin_at(&d, 4u, 14u, 1u)
+              && !sh4der_tilecut_begin_at(&d, 4u, 4u, 14u), "a cut that starts above the table or runs past its end");
+        CHECK(sh4der_tilecut_begin(&d, 4u, 4u) && sh4der_tilecut_end(&d) == 0u, "begin on a compacted table starts at its first row");
+        CHECK(sh4der_tilecut_begin_cols(&d, 4u) && sh4der_tilecut_end(&d) == 0u, "a column cut on a compacted table");
+        for (w = 0, t = 0; t < 2u; t++) for (i = 0; i < WORDS + 6u; i++) w += ctab[t][i] != cref[t][i];
+        CHECK(w == 0u, "the compacted tables are as before");
+    }
+    {                                                                       /* a reset: tables forgotten, layout kept, a cut dropped without a write */
+        static sh4der_tilecut_t r;
+
+        sh4der_tilecut_init_rows(&r, TW, 13u, 1u);
+        r.need = 1u;
+        r.verify = 2u;
+        r.n = 1u; r.on = 1; r.cw = 4u; r.ch = 4u; r.ry = 2u; r.table[0] = tab[0];
+        r.tbl_on[0] = 1; r.tbl_cw[0] = 4u; r.tbl_ch[0] = 4u; r.tbl_ry[0] = 2u;
+        sh4der_tilecut_reset(&r);
+        CHECK(r.n == 0u && r.on == 0 && r.tbl_on[0] == 0 && r.tbl_on[1] == 0 && r.table[0] == 0 && r.table[1] == 0 && r.verify == SH4DER_TILECUT_VERIFY, "the reset state");
+        CHECK(r.tw == TW && r.th == 13u && r.row0 == 1u && r.need == 1u, "the reset keeps the layout");
+        CHECK(!sh4der_tilecut_begin(&r, 4u, 4u) && sh4der_tilecut_end(&r) == 0u && differ() == 0u, "a cut after a reset, before the tables are found again");
+    }
+    {                                                                       /* per-table cut state: index, other, single-table cut and restore, held-cut parity shift */
+        static sh4der_tilecut_t h;
+        unsigned i, d0, d1, f, ta_target = 0u, in_flight = 1u;
+        unsigned breaks = 0u;
+
+        sh4der_tilecut_init(&h, TW, TH);
+        CHECK(sh4der_tilecut_index(&h, tab[0]) == -1 && sh4der_tilecut_other(&h, tab[0]) == -1, "index/other with no tables");
+        CHECK(sh4der_tilecut_add(&h, tab[0]), "add table 0 for per-table test");
+        CHECK(sh4der_tilecut_index(&h, tab[0]) == 0 && sh4der_tilecut_other(&h, tab[0]) == -1, "other refuses with one table");
+        CHECK(!sh4der_tilecut_begin_one_at(&h, 0u, 4u, 4u, 2u) && differ() == 0u, "single-table cut refused before both tables found");
+        h.need = 1u;
+        CHECK(sh4der_tilecut_other(&h, tab[0]) == -1, "other refuses when need is 1");
+        h.need = SH4DER_TILECUT_TABLES;
+        CHECK(sh4der_tilecut_add(&h, tab[1]) && h.n == 2u, "add table 1 for per-table test");
+        CHECK(sh4der_tilecut_index(&h, tab[0]) == 0 && sh4der_tilecut_index(&h, tab[1]) == 1 && sh4der_tilecut_index(&h, NULL) == -1 && sh4der_tilecut_index(&h, tab[0] + 6u) == -1, "index of both tables");
+        CHECK(sh4der_tilecut_other(&h, tab[0]) == 1 && sh4der_tilecut_other(&h, tab[1]) == 0 && sh4der_tilecut_other(&h, NULL) == -1, "other table");
+
+        /* cut table 0 alone: table 1 must stay untouched */
+        CHECK(sh4der_tilecut_begin_one_at(&h, 0u, 4u, 4u, 2u), "single-table cut table 0 at row 2");
+        CHECK(h.on == 1 && h.tbl_on[0] == 1 && h.tbl_on[1] == 0, "per-table flags after cutting table 0");
+        CHECK(sh4der_tilecut_is_cut_at(&h, 0u, 4u, 4u, 2u) && !sh4der_tilecut_is_cut_at(&h, 0u, 4u, 4u, 0u) && !sh4der_tilecut_is_cut_at(&h, 1u, 4u, 4u, 2u), "is_cut_at query");
+        CHECK(!sh4der_tilecut_begin_one_at(&h, 0u, 4u, 4u, 2u) && !sh4der_tilecut_begin_at(&h, 4u, 4u, 2u), "double cut on table 0 or all-table cut while one is cut refused");
+        CHECK(!sh4der_tilecut_begin_one_at(&h, 2u, 4u, 4u, 2u) && !sh4der_tilecut_check(&h), "out-of-range table or full check while cut refused");
+        n = walk(0u, seen, &wrong);
+        CHECK(n == 16u && wrong == 0u, "single-table walk table 0: %u entries, %u wrong", n, wrong);
+        for (x = 0; x < TW; x++) for (y = 0; y < TH; y++) CHECK(seen[x][y] == (x < 4u && y >= 2u && y < 6u ? 1u : 0u), "table 0 tile %u, %u", x, y);
+        for (d1 = 0, i = 0; i < WORDS + 6u; i++) d1 += tab[1][i] != ref[1][i];
+        CHECK(d1 == 0u, "table 1 was touched (%u words) while only table 0 was cut", d1);
+        n = walk(1u, seen, &wrong);
+        CHECK(n == TW * TH && wrong == 0u, "uncut table 1 walk: %u entries, %u wrong", n, wrong);
+
+        /* cut table 1 independently with a different size, then restore table 0 alone: table 1 stays cut */
+        CHECK(sh4der_tilecut_begin_one(&h, 1u, 8u, 8u) && h.tbl_on[0] == 1 && h.tbl_on[1] == 1, "independent cut on table 1");
+        CHECK(sh4der_tilecut_is_cut_at(&h, 0u, 4u, 4u, 2u) && sh4der_tilecut_is_cut_at(&h, 1u, 8u, 8u, 0u), "both tables track their own shape");
+        CHECK(sh4der_tilecut_end_one(&h, 0u) == 0u && h.tbl_on[0] == 0 && h.tbl_on[1] == 1 && h.on == 1, "restore table 0 alone keeps table 1 cut");
+        for (d0 = 0, i = 0; i < WORDS + 6u; i++) d0 += tab[0][i] != ref[0][i];
+        CHECK(d0 == 0u, "table 0 restored cleanly (%u words left)", d0);
+        n = walk(1u, seen, &wrong);
+        CHECK(n == 64u && wrong == 0u, "table 1 stays 8x8 after table 0 restored");
+        CHECK(sh4der_tilecut_end(&h) == 0u && h.on == 0 && h.tbl_on[0] == 0 && h.tbl_on[1] == 0 && differ() == 0u, "end restores remaining cut table");
+        CHECK(sh4der_tilecut_end_one(&h, 0u) == 0u && sh4der_tilecut_end_one(&h, 2u) == 0u, "end_one on uncut or invalid table");
+
+        /* single-table column cut on table 1 alone */
+        CHECK(sh4der_tilecut_begin_one_cols(&h, 1u, 4u) && sh4der_tilecut_is_cut_cols(&h, 1u, 4u) && !sh4der_tilecut_is_cut_cols(&h, 0u, 4u), "single-table cols cut");
+        for (d0 = 0, i = 0; i < WORDS + 6u; i++) d0 += tab[0][i] != ref[0][i];
+        CHECK(d0 == 0u && differ() == 1u, "single-table cols cut wrote 1 word in table 1 only");
+        CHECK(sh4der_tilecut_end_one(&h, 1u) == 0u && h.on == 0 && differ() == 0u, "single-table cols restore");
+
+        /* simulate KallistiOS double-buffered flip with held cut, a released no-pass frame (parity shift), and an order break */
+        for (f = 0; f < 10u; f++) {
+            if (f == 4u) {                                                  /* frame without a pass: release before screen, parity shifts */
+                CHECK(sh4der_tilecut_end(&h) == 0u && differ() == 0u, "release before no-pass frame");
+                in_flight = ta_target; ta_target ^= 1u;                     /* screen renders on ta_target */
+                n = walk(in_flight, seen, &wrong);
+                CHECK(n == TW * TH && wrong == 0u, "no-pass frame screen renders full table");
+                continue;
+            }
+            if (f == 7u) {                                                  /* simulate caller forgetting release on a no-pass frame */
+                in_flight = ta_target; ta_target ^= 1u;
+                continue;
+            }
+            {
+                const int cur = sh4der_tilecut_index(&h, tab[in_flight]);
+                const int next = sh4der_tilecut_other(&h, tab[in_flight]);
+
+                CHECK(cur == (int)in_flight && next == (int)ta_target, "frame %u: other matches ta_target", f);
+                if (h.tbl_on[cur]) {                                        /* order broke: recover by restoring cur */
+                    breaks++;
+                    CHECK(sh4der_tilecut_end_one(&h, (unsigned)cur) == 0u, "frame %u: recover broken table", f);
+                }
+                if (!sh4der_tilecut_is_cut_at(&h, (unsigned)next, 4u, 4u, 2u))
+                    CHECK(sh4der_tilecut_begin_one_at(&h, (unsigned)next, 4u, 4u, 2u), "frame %u: cut pass table %d", f, next);
+                /* pass renders on ta_target */
+                in_flight = ta_target; ta_target ^= 1u;
+                n = walk(in_flight, seen, &wrong);
+                CHECK(n == 16u && wrong == 0u, "frame %u: pass walks 4x4 on table %u", f, in_flight);
+                /* screen renders on next ta_target (the uncut table) */
+                in_flight = ta_target; ta_target ^= 1u;
+                n = walk(in_flight, seen, &wrong);
+                CHECK(n == TW * TH && wrong == 0u, "frame %u: screen walks full table %u", f, in_flight);
+            }
+        }
+        CHECK(breaks == 1u, "order break detected once (got %u)", breaks);
+        CHECK(sh4der_tilecut_end(&h) == 0u && differ() == 0u, "final held-cut restore");
+    }
     if (fails) { printf("tilecut_test: %d FAILED\n", fails); return 1; }
     printf("tilecut_test: all passed\n");
     return 0;

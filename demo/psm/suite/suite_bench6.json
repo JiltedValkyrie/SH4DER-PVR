@@ -1,0 +1,214 @@
+{
+ "note": "benchmark suite 6: the wait spike and one small-town turn run",
+ "tests": [
+  {
+   "name": "waitpoll",
+   "file": "WAITPOLL.BIN",
+   "elf": "build/psm_waitpoll/psm-waitpoll-wp11.elf",
+   "order": 1,
+   "what": "Sleeping wait against woken wait, 6 shapes",
+   "read": "photo every page, the graphs especially",
+   "group": "tools",
+   "title": "Sleeping vs woken wait",
+   "shows": "Times the PVR wait two ways: sleeping, woken",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "Times the PVR wait two ways, sleeping and woken, in six shapes, and draws the results as graphs.",
+    "controls": "Automatic run, about one minute. A and B turn the pages, Start on the last page runs it again. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the woken wait in this program."
+   }
+  },
+  {
+   "name": "turn-gv",
+   "file": "TURNGV.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t7-gv.elf",
+   "order": 2,
+   "what": "Camera turn: turn-gv",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Small town turn cost",
+   "shows": "Closed walled square, fog, all speed steps",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Small town: turn-gv"
+    }
+   ],
+   "card": {
+    "what": "The 36-stage camera turn test on the small closed walled square, with every speed step on: bound world, still-camera visibility, ground culled, sun tables kept.",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  }
+ ],
+ "menu_groups": [
+  "Driving",
+  "Rooms and light",
+  "Characters",
+  "Town",
+  "Tools"
+ ],
+ "effect_headings": [
+  {
+   "heading": "CAMERA TURN COST",
+   "demos": [
+    "turn-gv"
+   ]
+  },
+  {
+   "heading": "WAIT FOR THE PVR",
+   "demos": [
+    "waitpoll"
+   ]
+  }
+ ],
+ "not_in_menu": {
+  "subtitle": "Not a demo: nothing to run.",
+  "intro": "These effects are in the library, but this menu has no demo for them. Each line says where else the effect is shown.",
+  "items": [
+   {
+    "name": "Shadow map on the SH-4",
+    "also_shown_in": []
+   },
+   {
+    "name": "Shadow map by the PVR",
+    "also_shown_in": []
+   },
+   {
+    "name": "Corner darkening",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mesh corner shading",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft character shadows",
+    "also_shown_in": []
+   },
+   {
+    "name": "Glowing tubes",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen bloom",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen spotlight",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dark shafts of light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft edges for light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sparks and tracers",
+    "also_shown_in": []
+   },
+   {
+    "name": "Lightning",
+    "also_shown_in": []
+   },
+   {
+    "name": "Water waves",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mist bank",
+    "also_shown_in": []
+   },
+   {
+    "name": "Drifting specks",
+    "also_shown_in": []
+   },
+   {
+    "name": "Rising lights",
+    "also_shown_in": []
+   },
+   {
+    "name": "Cloud deck",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dented ground",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sharp floors at an angle",
+    "also_shown_in": []
+   },
+   {
+    "name": "Paving slab texture",
+    "also_shown_in": []
+   },
+   {
+    "name": "Normal map",
+    "also_shown_in": []
+   },
+   {
+    "name": "Texture ripple",
+    "also_shown_in": []
+   },
+   {
+    "name": "Inner light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Exposure and grade",
+    "also_shown_in": []
+   },
+   {
+    "name": "Smooth edges over time",
+    "also_shown_in": []
+   },
+   {
+    "name": "Motion blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen overlays",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen warp",
+    "also_shown_in": []
+   },
+   {
+    "name": "Colour fringe",
+    "also_shown_in": []
+   },
+   {
+    "name": "Old film wear",
+    "also_shown_in": []
+   },
+   {
+    "name": "Tape wobble",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen filters",
+    "also_shown_in": []
+   },
+   {
+    "name": "Fake focus blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Split screen",
+    "also_shown_in": []
+   }
+  ]
+ }
+}

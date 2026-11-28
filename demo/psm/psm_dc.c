@@ -48,6 +48,7 @@
 #ifdef _arch_dreamcast
 
 #include <kos.h>
+#include "../../include/sh4der_pvrx.h"
 #include <malloc.h>
 #include <dc/minifont.h>
 #include "sh4der_guard.h"
@@ -69,13 +70,22 @@ static uint64_t vc_w0[4];
 static float vc_x0, vc_z0, vc_yaw0;
 static volatile uint32_t vc_evt[VC_EVT_N];
 static asic_evt_handler_entry_t vc_evt_prev[VC_EVT_N];
+static uint64_t vc_split[2];          /* p0's inner marks: after psm_frame_setup, after psm_place_geo */
+static unsigned vc_place0;            /* frame.place_count before this frame's placement */
+static unsigned vc_pad_held = ~0u;    /* vc_pad_hit's buttons last frame: all held at a start, so nothing held then counts */
 #define VC_T(k) (vc_f.m[k] = timer_us_gettime64())
 #define VC_RDY1(us) (vc_f.rdy1_us = (us))
+#define VC_SPLIT(k) (vc_split[k] = timer_us_gettime64())
 #else
 #define VC_T(k) ((void)0)
 #define VC_RDY1(us) ((void)0)
+#define VC_SPLIT(k) ((void)0)
 #include "../../include/sh4der_suite.h"              /* on the suite disc: back to the menu with A + B + X + Y held */
 static inline void suite_pages_unused_(void) { (void)suite_tick; }   /* the live build has no result pages */
+#endif
+#ifndef PSM_VIEWCOST
+#include "../../include/sh4der_waitrun.h"
+static sh4der_waitrun_t wr_run;   /* the live build, run from the suite's menu: a timed run that ends on a results page */
 #endif
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
@@ -128,6 +138,12 @@ static uint32_t est_now;                  /* this frame's parameter bytes, estim
 #endif
 #ifndef PSM_PLACE_DEFAULT
 #define PSM_PLACE_DEFAULT 0u              /* the walled square's build: 7, all three (f7: -3.6 ms still, -11.8 ms turning, vc-c2) */
+#endif
+#ifndef PSM_KEEP_DEFAULT
+#define PSM_KEEP_DEFAULT 0u               /* PSM_KEEP_SUN (psm_scene.h) and the sun's clock step with it: the turn plan's step 2, NOT RUN */
+#endif
+#ifndef PSM_WORLD_DEFAULT
+#define PSM_WORLD_DEFAULT 0u              /* PSM_WORLD_BOUND (psm_scene.h; the closed square only, SQUARE=closed) and its fog: the world step, NOT RUN */
 #endif
 static int plan_lazy = PSM_PLAN_LAZY;     /* 1: no dry count: SHED from the frame before's own send (psm_send_plan_next). 0, the default: psm_send_plan */
 static uint32_t est_last;                 /* plan_lazy: the last frame's own bytes */
@@ -285,8 +301,7 @@ static void make_target_headers(void) {
 /* The render target at `size`: made once a size, after the PVR has finished with the old one. */
 static void target_fit(unsigned size) {
     if (target_mem && target_size == size) return;
-    pvr_wait_ready();
-    pvr_wait_render_done();
+    sh4der_pvrx_wait_idle();   /* polled when the hook is on (main), KallistiOS's two waits with -DWAIT_SLEEP */
     if (target_mem) pvr_mem_free(target_mem);
     target_mem = pvr_mem_malloc(size * size * 2u);
     target_size = target_mem ? size : 0u;
@@ -296,7 +311,7 @@ static void target_fit(unsigned size) {
 
 /* The ground's 64 x 64 texture: the field's checker (squares of 32 texels, 1 m squares, u and v are metres / 2), or the
    square's paving slabs (sh4der_ground.h; a repeat 3 m, a third of a repeat a metre). Call when the PVR is not reading it. */
-static void ground_texture(void) {
+PSM_COLD_ static void ground_texture(void) {
     unsigned i;
 
     if (scene.ground_tex) psm_ground_slabs(checker_px, 158, 152, 142, 1u);
@@ -327,7 +342,7 @@ static void look_update(void) {
 }
 
 /* The fog registers, written with no render running: call straight after pvr_wait_render_done. */
-static void look_apply(void) {
+PSM_COLD_ static void look_apply(void) {
     const int atmos = state.atmos && sky_mem;
 
     if (!look_pending) return;
@@ -352,7 +367,7 @@ static void look_apply(void) {
    catcher's watchdog quiet over the seconds it takes. */
 static psm_ao_t ao;
 static void ao_tick(void) { sh4der_fault_beat(&fault_crumbs); }
-static void ao_bake(void) {
+PSM_COLD_ static void ao_bake(void) {
     const uint64_t t0 = timer_us_gettime64();
     const int ok = psm_ao_bake(&ao, &scene, ao_tick);
 
@@ -362,9 +377,8 @@ static void ao_bake(void) {
 }
 
 /* The SCENE row changed: the other scene, its walk, its ground; the frame's cached positions and placement are old. */
-static void scene_switch(void) {
-    pvr_wait_ready();
-    pvr_wait_render_done();
+PSM_COLD_ static void scene_switch(void) {
+    sh4der_pvrx_wait_idle();   /* polled when the hook is on (main), KallistiOS's two waits with -DWAIT_SLEEP */
     if (state.scene) psm_scene_init_town(&scene);
     else psm_scene_init(&scene);
     psm_scene_limits(&scene, &walk_lim);
@@ -375,7 +389,7 @@ static void scene_switch(void) {
     fog_dist = 0.0f;
 }
 
-static int load(void) {
+PSM_COLD_ static int load(void) {
     text_mem = pvr_mem_malloc(sizeof text_px);
     inset_mem = pvr_mem_malloc(sizeof inset_px);
     checker_mem = pvr_mem_malloc(sizeof checker_px);
@@ -393,6 +407,10 @@ static int load(void) {
     psm_state_town(&state);
     ao_bake();
     frame.place_opt = PSM_PLACE_DEFAULT;                    /* the placement's options (psm_scene.h, PSM_PLACE_*): the square's build 7 */
+    frame.keep_opt = PSM_KEEP_DEFAULT;                      /* and what the frame keeps (PSM_KEEP_*), the sun stepped with it */
+    state.sun_step = (PSM_KEEP_DEFAULT & PSM_KEEP_SUN) ? PSM_SUN_STEP_H : 0.0f;
+    frame.world_opt = PSM_WORLD_DEFAULT;                    /* and the world's size (PSM_WORLD_*): with the bound, a little fog */
+    if ((PSM_WORLD_DEFAULT & PSM_WORLD_BOUND) && scene.bound_ok) state.dist_i = PSM_BOUND_DIST_I;
     ground_texture();
     ab_stub.f = &frame; ab_stub.s = &scene;
     psm_mapsrc_init(&mapsrc, psm_ab_stub_fill, &ab_stub, 1u, depth_map, depth_map2);
@@ -482,7 +500,7 @@ static int map_pass(void) {
     map_tris = psm_send_map(&sink, &frame, &scene, &state, target_size, out);
     ta_flush();
     pvr_list_finish();
-    pvr_scene_finish();
+    sh4der_pvrx_scene_finish();
     ta_v += sink.verts;
     return 1;
 }
@@ -491,7 +509,7 @@ static int map_pass(void) {
 
 /* The lines into ln_now (psm_hud, the panel when open). 1 when they differ from the lines on the texture: only then is a wait for the PVR
    and an upload worth it. */
-static int text_pending(void) {
+PSM_COLD_ static int text_pending(void) {
     if (state.route == PSM_ROUTE_AB) psm_ab_hud(&state, &frame, &cost, &mapsrc, ln_now);
     else psm_hud(&state, &frame, &cost, ln_now);
     if (state.menu) {                                       /* the settings panel's lines over the readout's */
@@ -505,6 +523,9 @@ static int text_pending(void) {
 
         psm_diag_line(&d, ln_now);
     }
+#ifdef PSM_VIEWCOST
+    vc_status_line(&vc_run, ln_now[11], sizeof ln_now[11]);   /* the frame line, always drawn: the stage and its frame, so a still stage is seen to run */
+#endif
     return memcmp(ln_prev, ln_now, sizeof ln_prev) != 0;
 }
 
@@ -551,8 +572,7 @@ static void inset_update(void) {
 static uint64_t render_wait(void) {
     pvr_stats_t stats;
 
-    pvr_wait_ready();
-    pvr_wait_render_done();
+    sh4der_pvrx_wait_idle();   /* polled when the hook is on (main), KallistiOS's two waits with -DWAIT_SLEEP */
     if (pvr_get_stats(&stats) < 0) return 0;
     return stats.rnd_last_time;
 }
@@ -583,32 +603,60 @@ static void vc_hook(int on) {
     }
 }
 
-/* 1 when a button or a trigger went down (the stick does not count; what is held at the start does not either) */
+/* 1 when Start went down (no other button: an A pressed to see if the run is alive must not end it; Start held at the
+   start does not count either) */
 static int vc_pad_hit(void) {
-    static unsigned held = ~0u;
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
-    const unsigned now = st ? (st->buttons | (st->ltrig > 160 ? 0x10000u : 0u) | (st->rtrig > 160 ? 0x20000u : 0u)) : 0u;
-    const unsigned hit = now & ~held;
+    const unsigned now = st ? (st->buttons & CONT_START) : 0u;
+    const unsigned hit = now & ~vc_pad_held;
 
-    held = now;
+    vc_pad_held = now;
     return hit != 0u;
 }
 
-/* The pages: the numbers, then a graph a route. A / B turn the page; with no controller the pages turn every 20 s. */
-static void vc_pages(void) {
-    unsigned page = 0, pages, r, g, k;
+/* The pages: the numbers, then a graph a route (VC_PART 8: and p0's three steps a route). A / B turn the page; with no
+   controller the pages turn every 20 s. Returns 1 when Start was pressed on the last page: the caller runs the script again. */
+PSM_COLD_ static int vc_pages(void) {
+    unsigned page = 0, pages, r, g, k, prev_buttons = ~0u;
     uint64_t turned;
+#if VC_PART != 8
     char nm[12];
+#endif
 
-    pvr_wait_ready();
-    pvr_wait_render_done();
+    sh4der_pvrx_wait_idle();   /* polled when the hook is on (main), KallistiOS's two waits with -DWAIT_SLEEP */
     vc_hook(0);
+    sh4der_pvrx_wait_hook(0);               /* before pvr_shutdown (Call order: pvrx step 7) */
     pvr_shutdown();
     vid_set_mode(DM_640x480, PM_RGB565);
     pg_init();
+    pg_nlines = 0; pg_nplots = 0;            /* a run again: its own pages only */
     vc_report(&vc_run, pg_say, pg_break, psm_map_size(&state), state.warp, state.movers_only, (unsigned)psm_time_speed[state.tspeed], state.readout,
               VC_VBUF / 1024u);
+#if VC_PART == 8
+    {                                        /* a graph a route and view, route B first as the script: its six stages, labelled st / fp / tn f0 / f7 */
+        static const char *const view[3] = { "sky", "boot", "down" };
+        static const unsigned part[3] = { VC_P0_SET, VC_P0_PLACE, VC_P0_SKY };
+        static const char *const pname[3] = { "p0 setup", "placement", "sky" };
+        char title[PG_COLS + 1u];
+        unsigned v, j;
+
+        for (r = 2u; r-- > 0u;)
+            for (v = 0; v < 3u; v++) {
+                pg_plot_t *p;
+
+                snprintf(title, sizeof title, "route %c, %s: mean ms a stage", r ? 'B' : 'A', view[v]);
+                p = pg_plot(title, "stage", "ms", 1);
+                for (g = 0; g < VC_STAGES; g++) if (vc_stage_at(g, (int)r, view[v])) pg_cat(p, vc_short_name(g));
+                pg_series(p, "frame");
+                for (g = 0, k = 0; g < VC_STAGES; g++) if (vc_stage_at(g, (int)r, view[v])) pg_point(p, (float)k++, vc_mean(&vc_run.st[g][VC_FRAME]) * 1.0e-3f);
+                for (j = 0; j < 3u; j++) {
+                    pg_series(p, pname[j]);
+                    for (g = 0, k = 0; g < VC_STAGES; g++) if (vc_stage_at(g, (int)r, view[v])) pg_point(p, (float)k++, vc_mean(&vc_run.st[g][part[j]]) * 1.0e-3f);
+                }
+            }
+    }
+#else
     for (r = 0; r < 2u; r++) {
         pg_plot_t *p;
 
@@ -632,8 +680,9 @@ static void vc_pages(void) {
             if (vc_script[g].route == (int)r)
                 pg_point(p, (float)k++, (vc_mean(&vc_run.st[g][VC_RDY1]) + vc_mean(&vc_run.st[g][VC_RDY2]) + vc_mean(&vc_run.st[g][VC_FIN])) * 1.0e-3f);
     }
+#endif
     turned = timer_ms_gettime64();
-    pg_draw(page, "TOWN VIEW COST", suite_keys_text("A B turn"));
+    pg_draw(page, "TOWN VIEW COST", suite_keys_text("A B turn, Start on last: rerun"));
     for (;;) {
         maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
         cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
@@ -642,11 +691,27 @@ static void vc_pages(void) {
 
         sh4der_fault_beat(&fault_crumbs);
         pages = pg_pages();
+        if ((now & CONT_START) && !(prev_buttons & CONT_START) && page % pages == pages - 1u) return 1;   /* Start on the last page: the run again */
+        prev_buttons = now;
         if (suite_page(now, &page, pages)) redraw = 1;   /* A next, B before; on the last page hold A 2 s, or A+B+X+Y anywhere: the menu */
         else if (!suite_present() && !st && timer_ms_gettime64() - turned >= 20000u) { page = (page + 1u) % pages; redraw = 1; }
-        if (redraw) { pg_draw(page, "TOWN VIEW COST", suite_keys_text("A B turn")); turned = timer_ms_gettime64(); }
+        if (redraw) { pg_draw(page, "TOWN VIEW COST", suite_keys_text("A B turn, Start on last: rerun")); turned = timer_ms_gettime64(); }
         thd_sleep(20);
     }
+}
+
+/* Start on the last page: what a fresh boot would have, so the second run starts as the first did. The video memory went
+   with pvr_shutdown; the pointers into it are dropped here and load() takes them again after pvr_init. */
+static void vc_again(void) {
+    memset(&frame, 0, sizeof frame);
+    target_mem = text_mem = inset_mem = checker_mem = sky_mem = NULL;
+    target_size = 0; hdr_target_ok = 0; filter_a_hdr = -1; rtt_refused_shown = 0;
+    fog_dist = 0.0f; fog_atmos = -1; look_pending = 0;
+    sky_now[0] = sky_now[1] = sky_now[2] = -1.0f;
+    memset(ln_now, 0, sizeof ln_now); memset(ln_prev, 0, sizeof ln_prev);
+    ta_run_n = 0; shed_now = 0; est_now = est_last = 0; memset(&lazy, 0, sizeof lazy);
+    vbuf_used = vbuf_max = 0; plan_lazy = PSM_PLAN_LAZY;
+    vc_pad_held = ~0u;                      /* Start is still down: it must not end the new run */
 }
 #endif /* PSM_VIEWCOST */
 
@@ -665,12 +730,26 @@ int main(void) {
     init.vertex_buf_size = PSM_TA_VBUF;
     suite_init();                            /* the suite disc: the menu's binary into RAM, before anything else */
 #ifdef PSM_VIEWCOST
+vc_rerun:                                    /* Start on the last result page comes back here (vc_pages, vc_again) */
+    hud_tick = HUD_EVERY; win_frames = 0; win_rnd_ns = 0; win_us[0] = win_us[1] = win_us[2] = win_us[3] = 0;
+#endif
+#ifndef PSM_VIEWCOST
+    if (suite_present()) sh4der_waitrun_init(&wr_run, SH4DER_WAITRUN_SECONDS);
+#endif
+#ifdef PSM_VIEWCOST
     init.vertex_buf_size = VC_VBUF;          /* this test only: room for route A's boot view, so no frame is measured short of its last vertices */
 #endif
     init.opb_overflow_count = PSM_OPB_EXTRA;
     init.autosort_disabled = 1;              /* the translucent list is drawn in the order it is sent: layer, then text */
     if (pvr_init(&init) < 0) { printf("psm: pvr_init FAIL\n"); return 1; }
-    sh4der_fault_init(&fault_crumbs);           /* an exception, a hang or an exit puts a report on the screen (sh4der_fault.h) */
+#ifndef WAIT_SLEEP
+    sh4der_pvrx_wait_hook(1);                /* polled render-done wait (PVR-117): every scene ends through sh4der_pvrx_scene_finish; -DWAIT_SLEEP keeps KallistiOS's sleeping wait for an A/B */
+#endif
+    {
+        static int fault_on;                 /* once: a second init would add a second vblank watchdog and exit hook (a rerun) */
+
+        if (!fault_on) { fault_on = 1; sh4der_fault_init(&fault_crumbs); }   /* an exception, a hang or an exit puts a report on the screen (sh4der_fault.h) */
+    }
     vram0 = pvr_mem_available();
     if (!load()) { printf("psm: texture allocation FAIL\n"); return 1; }
 #ifdef PSM_VIEWCOST
@@ -692,6 +771,9 @@ int main(void) {
            PSM_MAP_MAX_B, PSM_MAP_MAX_B * PSM_MAP_MAX_B * 2u / 1024u);
     previous = win_t0 = timer_us_gettime64();
     for (;;) {
+#ifndef PSM_VIEWCOST
+        if (suite_present() && sh4der_waitrun_frame(&wr_run, timer_us_gettime64())) sh4der_waitrun_show(&wr_run, "TOWN SHADOWS");
+#endif
         const uint64_t now = timer_us_gettime64();
         float dt = (float)(now - previous) * 1.0e-6f;
         uint64_t t0, t1, t2, t3, rnd_rtt = 0, rnd_scr = 0;
@@ -710,7 +792,12 @@ int main(void) {
             if (vc_pad_hit()) { vc_stop(&vc_run); break; }
             vc_apply(&vc_run, &v);
             state.route = v.route; state.inset = v.inset; state.pitch = v.pitch; state.yaw = vc_yaw0 + v.yaw;
-            frame.place_opt = v.opt & 7u;    /* the placement's options this stage (psm_scene.h): the placement is made again on a change */
+            frame.place_opt = (v.opt & 7u) | ((v.opt & VC_GROUND) ? PSM_PLACE_GROUND : 0u) | ((v.opt & VC_VIS) ? PSM_PLACE_VIS : 0u);   /* the placement's options this stage (psm_scene.h): the placement is made again on a change */
+            if (v.opt & VC_FORCE) frame.place_ok = 0;   /* step 0's fp stages: a still camera placed again in full, as a turn is */
+            frame.keep_opt = ((v.opt & VC_KEEP) ? PSM_KEEP_SUN : 0u) | ((v.opt & VC_CAST) ? PSM_KEEP_CAST : 0u);   /* step 2: the light's tables kept, the sun stepped a clock minute; and route B's static map */
+            state.sun_step = (v.opt & VC_KEEP) ? PSM_SUN_STEP_H : 0.0f;
+            frame.world_opt = (v.opt & VC_BOUND) ? PSM_WORLD_BOUND : 0u;   /* the world step: the ground cut to the walls, the fit the square, */
+            state.dist_i = (v.opt & VC_BOUND) && scene.bound_ok ? PSM_BOUND_DIST_I : PSM_DIST_INF;   /* and a little fog */
             plan_lazy = (v.opt & 8u) != 0u;  /* and the send's dry count left out */
             frame.colour_opt = (v.opt >> 4) & 3u;   /* and the colours' options (PSM_COLOUR_*) */
             state.x = vc_x0; state.z = vc_z0; state.menu = 0;
@@ -736,12 +823,31 @@ int main(void) {
         t0 = timer_us_gettime64();
         sh4der_fault_stage(&fault_crumbs, "setup");
         psm_frame_setup(&frame, &scene, &state);
+        VC_SPLIT(0);
+#ifdef PSM_VIEWCOST
+        vc_place0 = frame.place_count;
+#endif
         psm_place_geo(&frame, &scene);       /* the screen placement first: route B compares only the model vertices it sends */
+        VC_SPLIT(1);
         if (state.atmos && sky_mem) psm_sky_build(&sky, &frame, &state);   /* the band, the cap, the hills and the fog colour */
         t1 = timer_us_gettime64();
+#ifdef PSM_VIEWCOST
+        vc_f.p0_set = vc_split[0] - t0; vc_f.p0_place = vc_split[1] - vc_split[0]; vc_f.p0_sky = t1 - vc_split[1];
+        vc_f.redo = frame.place_count != vc_place0;
+#endif
         win_us[0] += t1 - t0;
         sh4der_fault_stage(&fault_crumbs, "map");
-        if (state.route == PSM_ROUTE_B) {
+        if (state.route == PSM_ROUTE_B && (frame.keep_opt & PSM_KEEP_CAST) && frame.gbound && !state.warp && !state.movers_only) {
+            /* PSM_KEEP_CAST: the static casters' map kept in route AB's second buffer (free on route B) at the static
+               sizes; at 512 there is none, so everything is drawn. Its clear and its casters are one part, the casters' */
+            b_ok = psm_frame_b_keep(&frame, &scene, psm_mapbuf_depth(&mapbuf, 0u, depth_map), frame.size <= MAP_MAX ? depth_map2 : NULL);
+            t2 = t1;
+            t3 = timer_us_gettime64();
+            sh4der_fault_stage(&fault_crumbs, "compare");
+            if (b_ok) psm_frame_b_receivers(&frame, &scene, &state);
+            else psm_frame_unshadowed(&frame, &scene);
+            win_us[1] += t2 - t1; win_us[2] += t3 - t2; win_us[3] += timer_us_gettime64() - t3;
+        } else if (state.route == PSM_ROUTE_B) {
             b_ok = psm_frame_b_begin(&frame, &scene, psm_mapbuf_depth(&mapbuf, 0u, depth_map));
             t2 = timer_us_gettime64();
             if (b_ok) psm_frame_b_casters(&frame, &scene, state.movers_only);
@@ -812,7 +918,7 @@ int main(void) {
             want_text = text_pending();
             want_inset = state.inset && state.route != PSM_ROUTE_A && b_ok;
             if (want_text || want_inset || look_pending) {
-                pvr_wait_render_done();
+                sh4der_pvrx_wait_idle();   /* one frame in HUD_EVERY: PVR-136, no gain expected */
                 look_apply();
                 if (want_text) text_upload();
                 if (want_inset) inset_update();
@@ -841,7 +947,7 @@ int main(void) {
         pvr_list_finish();
         VC_T(VC_M_TR);
         sh4der_fault_stage(&fault_crumbs, "finish");
-        pvr_scene_finish();
+        sh4der_pvrx_scene_finish();
         VC_T(VC_M_FIN);
         if (plan_lazy) { est_last = sink.bytes + PSM_TA_BKG; psm_send_plan_next(&lazy, sink.bytes, PSM_TA_VBUF); }
         ta_v += sink.verts;
@@ -870,6 +976,11 @@ int main(void) {
             vc_f.v_ground = sink.kv[PSM_HK_GROUND] + sink.kv[PSM_HK_GROUND_FOG];
             vc_f.v_layer = sink.kv[PSM_HK_LAYER];
             vc_f.v_model = sink.kv[PSM_HK_MODEL] + sink.kv[PSM_HK_MODEL_FOG];
+            vc_f.t_ground = sink.kt[PSM_HK_GROUND] + sink.kt[PSM_HK_GROUND_FOG];
+            vc_f.t_layer = sink.kt[PSM_HK_LAYER];
+            vc_f.t_model = sink.kt[PSM_HK_MODEL] + sink.kt[PSM_HK_MODEL_FOG];
+            vc_f.t_cast = state.route == PSM_ROUTE_A ? map_tris : frame.tris;   /* A: into the target; B: given to the SH-4's map */
+            vc_f.t_drawn = state.route == PSM_ROUTE_A ? map_tris : frame.drawn;
             vc_f.vbuf_bytes = vbuf_used;
             vc_f.gvn = frame.gvn; vc_f.mvis = 0u; vc_f.blk = frame.mb_culled;
             if (sample) for (i = 0; i < scene.mvn; i++) vc_f.mvis += frame.mvis[i];
@@ -901,7 +1012,7 @@ int main(void) {
 #endif
     }
 #ifdef PSM_VIEWCOST
-    vc_pages();
+    if (vc_pages()) { vc_again(); goto vc_rerun; }
 #endif
     return 0;
 }

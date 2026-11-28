@@ -69,6 +69,7 @@ typedef struct psm_sink {
     unsigned verts, strips, hdrs, pieces;
     uint32_t bytes;                       /* the TA's parameter bytes, estimated */
     unsigned kv[PSM_HK_N];                /* vertices by header */
+    unsigned kt[PSM_HK_N];                /* and strip triangles (run - 2 a strip of 3 or more) */
     /* the checks */
     unsigned bad_short, bad_open, bad_coord;
     float max_xy;
@@ -99,6 +100,21 @@ static inline void psm_sink_list_end(psm_sink_t *k) {
     k->pend = -1;
 }
 
+/* PSM_SINK_INLINE (a build flag, the turn plan's step 2 b; 0, the default: as it always was). 1: a vertex's common case (a
+   header already sent, no checks) is forced inline at every send loop, the rest (the header's send, the checks, a strip's
+   end) are out-of-line cold functions, so the loop does not call a 1 KB function a vertex. The same calls in the same order:
+   the bytes sent do not change. NOT RUN on a console. */
+#ifndef PSM_SINK_INLINE
+#define PSM_SINK_INLINE 0
+#endif
+#if PSM_SINK_INLINE && defined(__GNUC__)
+#define PSM_SINK_HOT_  static inline __attribute__((always_inline))
+#define PSM_SINK_COLD_ static __attribute__((noinline, cold, unused))
+#else
+#define PSM_SINK_HOT_  static inline
+#define PSM_SINK_COLD_ static inline
+#endif
+
 static inline void psm_sink_bin_(psm_sink_t *k, float x, float y) {
     psm_bins_t *b = k->bins;
     const unsigned t = k->run - 3u;               /* the strip's triangle index: this vertex closes it */
@@ -124,7 +140,7 @@ static inline void psm_sink_bin_(psm_sink_t *k, float x, float y) {
         }
 }
 
-static inline void psm_sink_chk_(psm_sink_t *k, float x, float y, float z) {
+PSM_SINK_COLD_ void psm_sink_chk_(psm_sink_t *k, float x, float y, float z) {
     const float ax = x < 0.0f ? -x : x, ay = y < 0.0f ? -y : y;
 
     if (!sh4der_finite_(x) || !sh4der_finite_(y) || !sh4der_finite_(z) || !(z > 0.0f)) k->bad_coord++;
@@ -136,19 +152,21 @@ static inline void psm_sink_chk_(psm_sink_t *k, float x, float y, float z) {
 }
 
 /* the strip ends: its pieces and their bytes */
-static inline void psm_sink_eol_(psm_sink_t *k) {
+PSM_SINK_COLD_ void psm_sink_eol_(psm_sink_t *k) {
     if (k->run < 3u) k->bad_short++;
     else {
         const unsigned t = k->run - 2u, p = (t + 5u) / 6u;
 
         k->bytes += 12u * p + (t + 2u * p) * 4u * psm_hk_words[k->kind];
         k->pieces += p;
+        k->kt[k->kind] += t;
     }
     k->strips++;
     k->run = 0;
 }
 
-static inline void psm_sink_vtx(psm_sink_t *k, int eol, float x, float y, float z, float u, float v, uint32_t argb, uint32_t oargb) {
+/* a vertex, every case: the header waiting, no header, the checks */
+PSM_SINK_COLD_ void psm_sink_vtx_all_(psm_sink_t *k, int eol, float x, float y, float z, float u, float v, uint32_t argb, uint32_t oargb) {
     if (k->pend >= 0) {
         if (k->live) PSM_SINK_HDR(k->pend);
         k->kind = k->pend; k->pend = -1; k->hdrs++;
@@ -159,6 +177,18 @@ static inline void psm_sink_vtx(psm_sink_t *k, int eol, float x, float y, float 
     if (k->chk) psm_sink_chk_(k, x, y, z);
     if (eol) psm_sink_eol_(k);
     (void)u; (void)v; (void)argb; (void)oargb;
+}
+
+PSM_SINK_HOT_ void psm_sink_vtx(psm_sink_t *k, int eol, float x, float y, float z, float u, float v, uint32_t argb, uint32_t oargb) {
+#if PSM_SINK_INLINE
+    if (k->pend >= 0 || k->kind < 0 || k->chk) { psm_sink_vtx_all_(k, eol, x, y, z, u, v, argb, oargb); return; }
+    if (k->live) PSM_SINK_VTX(eol, x, y, z, u, v, argb, oargb);
+    k->verts++; k->run++; k->kv[k->kind]++;
+    if (eol) psm_sink_eol_(k);
+    (void)u; (void)v; (void)argb; (void)oargb;
+#else
+    psm_sink_vtx_all_(k, eol, x, y, z, u, v, argb, oargb);
+#endif
 }
 
 static inline void psm_send_quad(psm_sink_t *k, int kind, float x, float y, float w, float h, float z, float u0, float v0, float u1, float v1, uint32_t argb) {

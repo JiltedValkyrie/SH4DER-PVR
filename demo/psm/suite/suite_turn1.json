@@ -1,0 +1,209 @@
+{
+ "note": "camera turn suite: the turn plan's step 0 (vc-g, VC_PART 8), the walled square, with no pad and with the 8 KB pad between mclip and mscr (2a); 1a (f7 default) is off; built by demo/psm/turncost/build.py --elf-only, build t2 (t1 ran on the owner's console: about 8 to 10 min, so the times here are that)",
+ "tests": [
+  {
+   "name": "turn-p0",
+   "file": "TURNP0.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t2-p0.elf",
+   "order": 1,
+   "what": "Camera turn cost, no pad, 36 stages. ~9 min",
+   "read": "photo every page, the graphs especially",
+   "group": "tools",
+   "title": "Camera turn cost",
+   "shows": "Times the square's frame still and turning, two r",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Shadow placement timed still and turning (main)"
+    }
+   ],
+   "card": {
+    "what": "Times the walled square's frame on both shadow routes, at the sky, the start view and looking down, still, still with the placement redone every frame, and turning, and draws the results as graphs.",
+    "controls": "Automatic run, about 8 to 10 minutes; the frame line says the stage (n of 36) and its frame. Start stops the run early. A and B turn the pages, Start on the last page runs it again. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet on this build: t1 ran on the owner's console (no ledger row yet)."
+   }
+  },
+  {
+   "name": "turn-p8k",
+   "file": "TURNP8K.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t2-p8192.elf",
+   "order": 2,
+   "what": "Camera turn cost, 8 KB cache pad. ~9 min",
+   "read": "photo every page; compare with turn-p0",
+   "group": "tools",
+   "title": "Camera turn cost, padded",
+   "shows": "The same test with the two big arrays moved apart",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Cache pad between the shadow arrays (main)"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the camera turn cost test, with 8 KB between the two big arrays the placement fills, so they stop pushing each other out of the cache.",
+    "controls": "Automatic run, about 8 to 10 minutes; the frame line says the stage (n of 36) and its frame. Start stops the run early. A and B turn the pages, Start on the last page runs it again. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet on this build: t1 ran on the owner's console (no ledger row yet)."
+   }
+  }
+ ],
+ "menu_groups": [
+  "Driving",
+  "Rooms and light",
+  "Characters",
+  "Town",
+  "Tools"
+ ],
+ "effect_headings": [
+  {
+   "heading": "CAMERA TURN COST",
+   "demos": [
+    "turn-p0",
+    "turn-p8k"
+   ]
+  }
+ ],
+ "not_in_menu": {
+  "subtitle": "Not a demo: nothing to run.",
+  "intro": "These effects are in the library, but this menu has no demo for them. Each line says where else the effect is shown.",
+  "items": [
+   {
+    "name": "Shadow map on the SH-4",
+    "also_shown_in": []
+   },
+   {
+    "name": "Shadow map by the PVR",
+    "also_shown_in": []
+   },
+   {
+    "name": "Corner darkening",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mesh corner shading",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft character shadows",
+    "also_shown_in": []
+   },
+   {
+    "name": "Glowing tubes",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen bloom",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen spotlight",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dark shafts of light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft edges for light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sparks and tracers",
+    "also_shown_in": []
+   },
+   {
+    "name": "Lightning",
+    "also_shown_in": []
+   },
+   {
+    "name": "Water waves",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mist bank",
+    "also_shown_in": []
+   },
+   {
+    "name": "Drifting specks",
+    "also_shown_in": []
+   },
+   {
+    "name": "Rising lights",
+    "also_shown_in": []
+   },
+   {
+    "name": "Cloud deck",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dented ground",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sharp floors at an angle",
+    "also_shown_in": []
+   },
+   {
+    "name": "Paving slab texture",
+    "also_shown_in": []
+   },
+   {
+    "name": "Normal map",
+    "also_shown_in": []
+   },
+   {
+    "name": "Texture ripple",
+    "also_shown_in": []
+   },
+   {
+    "name": "Inner light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Exposure and grade",
+    "also_shown_in": []
+   },
+   {
+    "name": "Smooth edges over time",
+    "also_shown_in": []
+   },
+   {
+    "name": "Motion blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen overlays",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen warp",
+    "also_shown_in": []
+   },
+   {
+    "name": "Colour fringe",
+    "also_shown_in": []
+   },
+   {
+    "name": "Old film wear",
+    "also_shown_in": []
+   },
+   {
+    "name": "Tape wobble",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen filters",
+    "also_shown_in": []
+   },
+   {
+    "name": "Fake focus blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Split screen",
+    "also_shown_in": []
+   }
+  ]
+ }
+}

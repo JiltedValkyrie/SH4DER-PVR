@@ -225,13 +225,25 @@ static inline int sh4der_pvrx_clip_dummy(float v[3][3]) {
 
 /** \brief Put this layer's handler on the render-done event, KallistiOS's own kept and
     called first; on = 0 puts KallistiOS's back. Call it after pvr_init, and again after any
-    later pvr_init. 1 when the polled wait is live; 0 when there was no handler to chain
+    later pvr_init. on = 1: the polled wait. on = 2 (PROTOTYPE, NOT RUN): the waits stay KallistiOS's sleeping ones, and
+    the handler also calls thd_schedule(true), so the sleeper resumes at once instead of at the next 10 ms tick: no
+    spinning, other threads keep their time. The same hook point and the same forward to KallistiOS's handler (an
+    idea of Falco Girgis, KallistiOS). 1 when the hook is live; 0 when there was no handler to chain
     (the PVR is not started): the waits then fall back to KallistiOS's. */
 int sh4der_pvrx_wait_hook(int on);
 
 /** \brief pvr_scene_finish, counted: the polled wait waits for one render-done event a
     finished scene. Use it for EVERY scene (screen and render target) while the hook is on. */
 int sh4der_pvrx_scene_finish(void);
+
+/** \brief OPTIONAL link-time wrap, so a plain pvr_scene_finish is counted too (PROTOTYPE, NOT RUN on a console until
+    build ra7). Compile src/sh4der_pvrx_wrap.c into the program and link with -Wl,--wrap=pvr_scene_finish: every
+    pvr_scene_finish call in the binary then goes to __wrap_pvr_scene_finish, which calls the real one and counts the
+    scene (sh4der_pvrx_scene_noted). With no wrap flag nothing changes and sh4der_pvrx_scene_finish counts as before. A
+    program that links the wrap file but not the flag, or the flag but not the file, fails to link: it never half works.
+    sh4der_pvrx_wrapped says 1 once the wrap has counted a scene; read it after a scene has finished. */
+void sh4der_pvrx_scene_noted(void);
+int sh4der_pvrx_wrapped(void);
 
 /** \brief Wait until the PVR takes a new scene, spinning on pvr_check_ready.
     0 ready, -1 timed out (counted). */
@@ -241,6 +253,13 @@ int sh4der_pvrx_wait_ready_poll(uint32_t timeout_us);
     0 done, -1 timed out (counted; the count is resynchronised). Not hooked: KallistiOS's
     pvr_wait_render_done and its result. */
 int sh4der_pvrx_wait_render_done_poll(uint32_t timeout_us);
+
+/** \brief The whole "no render is reading or writing now" wait in one call: pvr_wait_ready, the polled render-done
+    wait, then KallistiOS's pvr_wait_render_done as a backstop. Use it where the old code called
+    pvr_wait_ready() + pvr_wait_render_done() (before a texture or tile-table rewrite, before a render target). With
+    the hook off it is KallistiOS's two waits. 0 done, -1 when a wait failed or timed out (what the old
+    `ready = pvr_wait_ready(); ready |= pvr_wait_render_done();` showed as < 0). The client ends its scenes through sh4der_pvrx_scene_finish or the wrap. */
+int sh4der_pvrx_wait_idle(void);
 
 /** \brief Polled waits that timed out since the hook. */
 unsigned long sh4der_pvrx_wait_timeouts(void);

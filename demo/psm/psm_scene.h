@@ -44,6 +44,7 @@
 #include "sh4der_psm_raster.h"
 #include "sh4der_psm_pvr.h"
 #include "sh4der_guard.h"
+#include "sh4der_viewcull.h"
 
 #ifdef PSM_HAVE_COW
 #include "psm_cow.h"
@@ -85,6 +86,18 @@
 #define PSM_MOVERS_MAX   16u          /* the town's eight people and four hens */
 #define PSM_DYN_V_MAX    1536u        /* the movers' screen vertices */
 #define PSM_DYN_CV_MAX   512u         /* the movers' caster vertices */
+/* Two more cache pads, build flags like PSM_PAD_MCLIP (below), both 0 by default (the layout as it was). PSM_PAD_MN: bytes
+   between psm_scene_t's mv and mn, each 9 x 16 KB, so mv[i] and mn[i] fall on one line of the 16 KB direct-mapped operand
+   cache and route B's receiver loop (psm_frame_b_receivers: N.L, then mv + mn x push) throws each out with the other; 8192
+   puts them half the cache apart (the turn plan's 2b). PSM_PAD_LUT: bytes between psm_frame_t's mlut_a and mlut_s (64 KB
+   each), which psm_colour reads in one row at the AO byte and the sun share: the two meet on a line when those bytes are
+   within about 8 (2d; only PSM_COLOUR_TABLE with AO). Both DERIVED from the layout (sh-elf-nm and offsetof), NOT RUN. */
+#ifndef PSM_PAD_MN
+#define PSM_PAD_MN       0u
+#endif
+#ifndef PSM_PAD_LUT
+#define PSM_PAD_LUT      0u
+#endif
 #define PSM_AMBIENT      0.42f        /* the share of the light that is not the sun's */
 #define PSM_NORMAL_PUSH  0.06f        /* a model vertex is compared this far out along its normal, metres */
 #define PSM_TURN         1.2f         /* radians a second at full stick */
@@ -167,7 +180,11 @@ typedef struct psm_mover {
 typedef struct psm_scene {
     float row_r[PSM_ROWS_MAX];
     unsigned rows;                      /* rings */
-    float mv[PSM_MV_MAX][3], mn[PSM_MV_MAX][3];
+    float mv[PSM_MV_MAX][3];
+#if PSM_PAD_MN
+    uint8_t mv_pad_[PSM_PAD_MN];        /* the turn plan's 2b: mv[i] and mn[i] off the same operand cache line (psm_frame_b_receivers) */
+#endif
+    float mn[PSM_MV_MAX][3];
     uint8_t mkind[PSM_MV_MAX];          /* the vertex's colour, an index into pal (the field: 0 a pole, 1 and 2 the cows) */
     uint16_t mt[PSM_MT_MAX][3];         /* in strip order: a strip's triangle i is its vertices i, i + 1, i + 2 */
     uint8_t mstart[PSM_MT_MAX];         /* 1: the triangle starts a strip (the field: every one) */
@@ -195,6 +212,8 @@ typedef struct psm_scene {
     int town;                           /* 0 the field, 1 the town */
     float obst[PSM_OBST_MAX][3];        /* x, z, radius: the eye stays out of each (psm_walk_limit) */
     unsigned obn;
+    int bound_ok;                       /* 1: a closed scene (walls all round): no ground outside bnd can be seen (PSM_WORLD_BOUND) */
+    float bnd[4];                       /* that ground, world x0, z0, x1, z1 (the walls' outer faces) */
 } psm_scene_t;
 
 /* The sky and the fog at `hour` from the scene's table. */
@@ -304,6 +323,20 @@ static inline void psm_scene_cow_(psm_scene_t *s, float x, float z, float size, 
 #endif
 }
 
+/* PSM_COLD (a build flag, 0 by default): what runs at load or only when the text changes (the scenes' set-up, the HUD's
+   lines; psm_dc.c's load, bake, texture, scene switch, text, fog writes and result pages) is marked cold, so the compiler
+   puts it in .text.unlikely, away from the frame's code, and does not inline it into a hot caller: the SH-4's 8 KB
+   instruction cache is direct mapped, and a big function between two hot ones pushes them onto the same lines. The turn
+   plan's step 4 (c). Only a layout change: the same code. PROTOTYPE, NOT RUN on a console. */
+#ifndef PSM_COLD
+#define PSM_COLD 0
+#endif
+#if PSM_COLD && defined(__GNUC__)
+#define PSM_COLD_ __attribute__((cold))
+#else
+#define PSM_COLD_
+#endif
+
 /* The scene cleared and its rings: both scenes have the same ground grid. */
 static inline void psm_scene_rings_(psm_scene_t *s) {
     const float grow = (PSM_ROW_FAR - PSM_ROW_NEAR) / (PSM_FAR - PSM_FIT_NEAR);
@@ -347,7 +380,7 @@ static inline void psm_scene_obj_(psm_scene_t *s, unsigned v0, unsigned t0, unsi
 }
 
 /* The rings, the poles and the cows. Once, at load (or when the SCENE row picks the field). */
-static inline void psm_scene_init(psm_scene_t *s) {
+PSM_COLD_ static inline void psm_scene_init(psm_scene_t *s) {
     unsigned i, v0, t0;
 
     psm_scene_rings_(s);
@@ -669,6 +702,9 @@ typedef struct psm_state {
     float clock;         /* the town's solar time, hours */
     unsigned tspeed;     /* TIME SPEED: psm_time_speed's index */
     int sun_free;        /* 1: the sun was set by hand (azimuth, elevation), off the clock */
+    float sun_step;      /* 0: the sun follows the clock exactly. Over 0: the clock the sun is worked out from is snapped down to this many
+                            hours (PSM_SUN_STEP_H: a clock minute, 0.25 degrees), so the sun is the same bits from step to step and
+                            PSM_KEEP_SUN's tables hold (psm_town_update) */
     int freeze;          /* FREEZE: the people and the hens stand still */
     int send_runs;       /* TA SEND: 1 the vertices into 8 KB of cache lines (MOVCA) and to the TA in store-queue runs, 0 one
                             pvr_dr store-queue write a vertex (psm_dc.c; the host draws nothing) */
@@ -974,11 +1010,61 @@ static inline void psm_input(psm_state_t *st, const psm_walk_limits_t *lim, cons
      BLOCKS  the static models in blocks of whole strips with a box each: a block whose box is outside the view (behind
              the near plane, past one side of the screen, or wholly past DRAW DISTANCE) is not placed, tested or sent.
      SIDE    a model triangle whose three corners are past one side of the screen is not sent (the ground's cells
-             always had this test: psm_cell_seen_). */
+             always had this test: psm_cell_seen_).
+     GROUND  the ground window in blocks of SH4DER_VIEWCULL_BLOCK x SH4DER_VIEWCULL_BLOCK cells (sh4der_viewcull.h): a
+             block whose points' box is outside the view (the same tests as BLOCKS) has its points left unplaced and its
+             cells 0; the rest is placed as before. The turn plan's 1b: with the other three on, the window was still
+             placed in full on a turn (+5 to +9 ms at the boot view, DERIVED from PVR-210 and PVR-211). PROTOTYPE, host
+             tested (demo/psm/test/psm_place_cmp.c), NOT RUN on a console; not in PSM_PLACE_DEFAULT. */
+/* What the frame keeps from one frame to the next (psm_frame_t.keep_opt; 0: everything made every frame, as it always was).
+   PSM_KEEP_SUN: what depends on the light alone is made again only when the light changes:
+     the ground's colour tables (glut, and glut_a and glut_s with AO), keyed on the sun's height, amb, sunc and AO on or off;
+     the static models' N.L (psm_frame_unshadowed's mlit for vertices 0 .. mdyn0), keyed on the sun's direction; the movers'
+       every frame (their normals move); a route B compare writes mlit, so it drops the key;
+     route A's ground map coordinates (psm_frame_a_ground's guv and gok), keyed on the map's matrix, built, the ground
+       positions' generation and their count.
+   With the town's clock the sun moves a little every frame: give the state a sun step (psm_state_t.sun_step, PSM_SUN_STEP_H)
+   so it stays the same between steps. The colours and coordinates are the same bytes as with it off for the same sun
+   (demo/psm/test/psm_keep_test.c). The turn plan's step 2; PROTOTYPE, NOT RUN on a console. */
+#define PSM_KEEP_SUN     1u
+/* PSM_KEEP_CAST: route B's static casters are drawn into the depth map only when the map moves (a sun step, a size, a new
+   buffer), and a copy of that map is kept in a second buffer the client gives (psm_frame_b_keep). On the other frames the
+   texels last frame's movers wrote are copied back from it and the movers alone are drawn. Only with PSM_WORLD_BOUND's fit
+   (it stands still while the camera turns) and the uniform map. The key range is the static casters' and the bound's box
+   over the slab, so it does not move with the movers. The same depth map as drawing every caster with that range
+   (demo/psm/test/psm_keep_test.c). The turn plan's B step after t6; PROTOTYPE, NOT RUN on a console. */
+#define PSM_KEEP_CAST    2u
+#define PSM_CK_RECTS     16u           /* PSM_KEEP_CAST: the movers' texel boxes kept (one a mover; more share the last) */
+#define PSM_SUN_STEP_H   (1.0f / 60.0f)  /* a clock minute: the sun turns 0.25 degrees */
+/* The world's size (psm_frame_t.world_opt; 0: as it always was). PSM_WORLD_BOUND, for a closed scene only (psm_scene_t
+   bound_ok: the closed square, bake_square.py --closed, walls all round, so no ground outside bnd can be seen):
+     the rings end where the window's farthest ray leaves bnd (they went to PSM_ROW_END, 92 m, whatever the walls);
+     a cell whose four corners' box misses bnd is never placed or sent, and a point no kept cell uses is not placed or lit;
+     the shadow map's fit is bnd itself (its eight corners over the route's slab), not the view to PSM_FAR: a smaller map
+       over the ground that can be seen, and it stands still while the camera turns;
+   and the client draws with a little distance fog (PSM_BOUND_DIST: the PVR's fog table, no cost a vertex). The turn plan's
+   world step; PROTOTYPE, host tested (demo/psm/test/psm_bound_test.c), NOT RUN on a console. */
+#define PSM_WORLD_BOUND  1u
+#define PSM_BOUND_DIST_I 10u          /* DRAW DISTANCE 75 m (psm_dist_m): fog from 32 m; the farthest point, the keep's top, is 64 m from the walk */
 #define PSM_PLACE_AREA   1u
 #define PSM_PLACE_BLOCKS 2u
 #define PSM_PLACE_SIDE   4u
+#define PSM_PLACE_GROUND 8u
+/* PSM_PLACE_VIS: on a frame with no whole placement (a still camera) the models' seen marks (mvis: what route B compares
+   and PSM_COLOUR_SEEN colours) are made again for the movers alone; the static part's are last frame's, which nothing has
+   changed. The turn plan's step 4; the same bytes as without it (demo/psm/test/psm_keep_test.c). PROTOTYPE, NOT RUN. */
+#define PSM_PLACE_VIS    16u
+#define PSM_GB_MAX       (((PSM_ROWS_MAX + SH4DER_VIEWCULL_BLOCK - 1u) / SH4DER_VIEWCULL_BLOCK) * ((PSM_COLS + SH4DER_VIEWCULL_BLOCK - 1u) / SH4DER_VIEWCULL_BLOCK))
 #define PSM_MB_TRIS      48u          /* a block closes at the first strip end at or past this many triangles */
+/* Bytes between mclip and mscr in psm_frame_t, a build flag (the turn plan's 2a, Q71). Each array is PSM_MV_MAX x 12 B =
+   9 x 16 KB, so with no pad mclip[i] and mscr[i] fall on the same line of the SH-4's 16 KB direct-mapped operand cache
+   (SH4-010) and psm_place_pt_'s two writes throw each other out; 8192, the default, puts them half the cache apart. The
+   owner's console A/B (turncost t2, p8192 against p0, one console, ledger row to come): route B 6 to 8 ms and route A 2 to
+   4 ms shorter on the turning and forced-placement stages. -DPSM_PAD_MCLIP=0u is the layout as it was, for an A/B. Nothing
+   else moves but the fields after mclip. */
+#ifndef PSM_PAD_MCLIP
+#define PSM_PAD_MCLIP    8192u
+#endif
 #define PSM_MB_MAX       320u
 
 typedef struct psm_mblock {
@@ -1030,6 +1116,9 @@ typedef struct psm_frame {
     uint32_t glut[256];         /* the ground's colour by its shadow level */
     uint8_t cell[PSM_ROWS_MAX * PSM_COLS];   /* 1: both triangles of the cell have area, every corner is in front, and it is not wholly off one side of the screen */
     float mclip[PSM_MV_MAX][3];
+#if PSM_PAD_MCLIP
+    uint8_t mclip_pad_[PSM_PAD_MCLIP];   /* the turn plan's 2a: mclip[i] and mscr[i] off the same operand cache line */
+#endif
     float mscr[PSM_MV_MAX][3];
     uint32_t mcol[PSM_MV_MAX];
     uint8_t mtri[PSM_MT_MAX];   /* 1: the triangle is in front and has screen area; 2: it crosses the near plane (psm_clip_near cuts it) */
@@ -1059,7 +1148,45 @@ typedef struct psm_frame {
     uint8_t gao[PSM_GV_MAX];
     uint32_t glut_a[256], glut_s[256];     /* the ground's ambient part by its byte, its sun part by its shadow level */
     uint32_t mlut_a[PSM_PAL_MAX][256];     /* PSM_COLOUR_TABLE with mao: a model vertex's ambient part by its palette entry and its byte */
+#if PSM_PAD_LUT
+    uint8_t mlut_pad_[PSM_PAD_LUT];        /* the turn plan's 2d: mlut_a[k][x] and mlut_s[k][y] off the same cache line when x and y are near */
+#endif
     uint32_t mlut_s[PSM_PAL_MAX][256];     /* and its sun part by its palette entry and its sun share */
+    unsigned place_count;       /* whole placements made (psm_place_geo, either way): the view cost test reads it a frame */
+    /* PSM_PLACE_GROUND: the ground window's blocks this placement (sh4der_viewcull_grid) */
+    uint8_t gseen[PSM_GB_MAX];  /* 1: the block may be in view and its points were placed */
+    uint8_t gplaced[PSM_GV_MAX];   /* 1: the ground point was placed in this placement */
+    unsigned gb_n, gb_culled;   /* blocks, and blocks left out */
+    unsigned gv_placed;         /* ground points placed */
+    /* PSM_KEEP_SUN: what is kept, and what it was made for (0 _ok: nothing kept) */
+    unsigned keep_opt;          /* this frame's PSM_KEEP_* */
+    int glut_ok, glut_ao;       /* glut (and glut_a, glut_s when glut_ao) are made for glut_key */
+    float glut_key[7];          /* sun[1], amb, sunc */
+    int unsh_ok;                /* mlit[0 .. unsh_n) is the static models' N.L for unsh_sun */
+    unsigned unsh_n, unsh_mvn;
+    float unsh_sun[3];
+    int guv_ok, guv_built;      /* guv and gok are made for guv_m, guv_built, guv_gen and guv_n */
+    unsigned guv_gen, guv_n;
+    float guv_m[16];
+    /* PSM_WORLD_BOUND: the ground window cut to the walls (psm_frame_setup) */
+    unsigned world_opt;         /* this frame's PSM_WORLD_* */
+    int gbound;                 /* the window is cut this frame: gcin and gneed hold */
+    int gpos_bound;             /* gbound the positions (and gcin, gneed) were made for */
+    unsigned gneed_n;           /* ground points some kept cell uses */
+    uint8_t gcin[PSM_ROWS_MAX * PSM_COLS];   /* 1: the cell (r, c) can touch the ground inside bnd; 0: never placed, never sent */
+    uint8_t gneed[PSM_GV_MAX];  /* 1: a kept cell uses the point; 0: not placed, not lit */
+    /* PSM_PLACE_VIS: the static vertices' marks in mvis were made for place_count vis_count */
+    int vis_keep;
+    unsigned vis_count, vis_mvn, vis_mtn;
+    /* PSM_KEEP_CAST: ck_keep holds the static casters' map for ck_m, ck_light, ck_size and ck_depth (0 ck_ok: nothing) */
+    int ck_ok;
+    float ck_m[16], ck_light[3];
+    unsigned ck_size, ck_cdyn0, ck_con;
+    const uint16_t *ck_depth, *ck_keep;
+    unsigned ck_tris, ck_drawn, ck_cull_objs, ck_cull_tris;   /* the static casters' counts when they were drawn */
+    unsigned ck_rn;             /* boxes of texels last frame's movers may have written: one a mover, the last holds the rest */
+    int16_t ck_rect[PSM_CK_RECTS][4];   /* x0, y0, x1, y1 (x1, y1 past the end) */
+    unsigned ck_hits;           /* frames the kept map was used (the host test reads it) */
 } psm_frame_t;
 
 static const float psm_probe_m[4] = { 4.0f, 10.0f, 25.0f, 60.0f };
@@ -1098,6 +1225,71 @@ static inline unsigned psm_window_half(float pitch) {
     return k < PSM_COLS / 2u ? k : PSM_COLS / 2u;
 }
 
+/* PSM_WORLD_BOUND: the rings the window needs inside the scene's bnd, from the grid's centre (cx, cz) inside it. The
+   farthest ground in the window is where one of its edge spokes leaves bnd, or a corner of bnd between them (the
+   distance to a box's edge along a turning ray is largest at an end or at a corner). The rings go to the first one at
+   or past that (and a quarter metre more: a cell's outer edge is a chord), at least two. */
+static inline unsigned psm_bound_rows_(const psm_scene_t *s, float cx, float cz, int k0, unsigned cols) {
+    const float *b = s->bnd;
+    float far = 0.0f, d[2][2];
+    unsigned k, r;
+
+    for (k = 0; k < 2u; k++) {
+        float sn, cs, t = 1e30f;
+
+        sh4der_sincos_((float)(k0 + (k ? (int)cols - 1 : 0)) * PSM_COL_STEP, &sn, &cs);
+        d[k][0] = sn; d[k][1] = -cs;
+        float u;
+
+        if (sn > 1e-6f && (u = sh4der_div_(b[2] - cx, sn)) < t) t = u;
+        if (sn < -1e-6f && (u = sh4der_div_(b[0] - cx, sn)) < t) t = u;
+        if (-cs > 1e-6f && (u = sh4der_div_(b[3] - cz, -cs)) < t) t = u;
+        if (-cs < -1e-6f && (u = sh4der_div_(b[1] - cz, -cs)) < t) t = u;
+        if (t > far) far = t;
+    }
+    for (k = 0; k < 4u; k++) {
+        const float vx = b[(k & 1u) ? 2 : 0] - cx, vz = b[(k & 2u) ? 3 : 1] - cz;
+
+        if (d[0][0] * vz - d[0][1] * vx >= 0.0f && vx * d[1][1] - vz * d[1][0] >= 0.0f) {   /* between the edge spokes */
+            const float l = sh4der_sqrt_(vx * vx + vz * vz);
+
+            if (l > far) far = l;
+        }
+    }
+    for (r = 0; r + 1u < s->rows && s->row_r[r] < far + 0.25f; r++) {}
+    return r + 1u < 2u ? 2u : r + 1u;
+}
+
+/* PSM_WORLD_BOUND: the cells that can touch bnd (their four corners' box meets it: a cell is drawn as its chords, so the
+   corners are the whole of it) and the points those cells use. Made with the positions. */
+static inline void psm_bound_cells_(psm_frame_t *f, const psm_scene_t *s) {
+    const float *b = s->bnd;
+    unsigned r, c;
+
+    memset(f->gneed, 0, f->gvn);
+    for (r = 0; r + 1u < f->grows; r++)
+        for (c = 0; c + 1u < f->gcols; c++) {
+            const unsigned a = r * f->gcols + c, q[4] = { a, a + 1u, a + f->gcols, a + f->gcols + 1u };
+            float x0 = 1e30f, x1 = -1e30f, z0 = 1e30f, z1 = -1e30f;
+            unsigned k;
+            uint8_t in;
+
+            for (k = 0; k < 4u; k++) {
+                const float *p = f->gpos[q[k]];
+
+                if (p[0] < x0) x0 = p[0];
+                if (p[0] > x1) x1 = p[0];
+                if (p[2] < z0) z0 = p[2];
+                if (p[2] > z1) z1 = p[2];
+            }
+            in = (uint8_t)!(x1 < b[0] || x0 > b[2] || z1 < b[1] || z0 > b[3]);
+            f->gcin[r * PSM_COLS + c] = in;
+            if (in) for (k = 0; k < 4u; k++) f->gneed[q[k]] = 1u;
+        }
+    f->gneed_n = 0u;
+    for (r = 0; r < f->gvn; r++) f->gneed_n += f->gneed[r];
+}
+
 /* The camera, the sun, this frame's ground vertices, the map (the warp, or the uniform one) and the texel-over-pixel line. */
 static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const psm_state_t *st) {
     const float up[3] = { 0.0f, 1.0f, 0.0f }, gx[3] = { 1.0f, 0.0f, 0.0f }, gz[3] = { 0.0f, 0.0f, 1.0f };
@@ -1106,7 +1298,7 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
     int k0;
 
     unsigned half;
-    int ix, iz;
+    int ix, iz, bound;
 
     sh4der_sincos_(st->yaw, &sy, &cy);
     sh4der_sincos_(st->pitch, &sp, &cp);
@@ -1133,9 +1325,13 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
     half = psm_window_half(st->pitch);
     k0 = (int)(st->yaw * (1.0f / PSM_COL_STEP) + 0.5f) - (int)half;
     f->grows = s->rows; f->gcols = 2u * half + 1u;
-    f->gvn = f->grows * f->gcols;
     f->gc[0] = (float)ix * PSM_SNAP; f->gc[1] = (float)iz * PSM_SNAP;
-    if (!f->gpos_ok || f->gpos_k0 != k0 || f->gpos_rows != f->grows || f->gpos_cols != f->gcols || f->gpos_ix != ix || f->gpos_iz != iz) {
+    bound = (f->world_opt & PSM_WORLD_BOUND) && s->bound_ok && f->gc[0] > s->bnd[0] && f->gc[0] < s->bnd[2] && f->gc[1] > s->bnd[1] && f->gc[1] < s->bnd[3];
+    if (bound) f->grows = psm_bound_rows_(s, f->gc[0], f->gc[1], k0, f->gcols);
+    f->gbound = bound;
+    f->gvn = f->grows * f->gcols;
+    if (!f->gpos_ok || f->gpos_k0 != k0 || f->gpos_rows != f->grows || f->gpos_cols != f->gcols || f->gpos_ix != ix || f->gpos_iz != iz
+        || f->gpos_bound != bound) {
         for (c = 0; c < f->gcols; c++) {
             float sn, cs;
 
@@ -1147,13 +1343,21 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
             }
         }
         f->gpos_ok = 1; f->gpos_k0 = k0; f->gpos_rows = f->grows; f->gpos_cols = f->gcols; f->gpos_ix = ix; f->gpos_iz = iz; f->gpos_gen++;
+        f->gpos_bound = bound;
+        if (bound) psm_bound_cells_(f, s);
     }
 
     f->size = psm_map_size(st);
     f->built = 0; f->head_on = 0;
+    if (st->route != PSM_ROUTE_B) f->ck_ok = 0;        /* PSM_KEEP_CAST: route AB fills and reads the buffers itself */
     n = 0;
     f->slab = s->slab[st->route != PSM_ROUTE_A ? 1 : 0];          /* route B's slab for AB too: it compares the models */
-    if (sh4der_psm_frustum(&f->cam, PSM_FIT_NEAR, PSM_FAR, corners))
+    if (bound && !st->warp) {                                     /* PSM_WORLD_BOUND: the fit is the ground that can be seen, over the slab
+                                                                     (the warp's points must be in the view: it keeps the view's) */
+        for (n = 0; n < 8u; n++) {
+            pts[n][0] = s->bnd[(n & 1u) ? 2 : 0]; pts[n][1] = (n & 2u) ? f->slab : 0.0f; pts[n][2] = s->bnd[(n & 4u) ? 3 : 1];
+        }
+    } else if (sh4der_psm_frustum(&f->cam, PSM_FIT_NEAR, PSM_FAR, corners))
         n = sh4der_psm_slab_pts((const float (*)[3])corners, up, 0.0f, f->slab, pts);
     {
         const unsigned key = 1u | (f->size << 1) | ((unsigned)(st->warp != 0) << 12) | ((unsigned)st->route << 13) | ((unsigned)(st->scene != 0) << 16)
@@ -1187,10 +1391,15 @@ static inline void psm_frame_setup(psm_frame_t *f, const psm_scene_t *s, const p
 
 /* Everything lit: a frame with no map, and what route A's models start from. */
 static inline void psm_frame_unshadowed(psm_frame_t *f, const psm_scene_t *s) {
-    unsigned i;
+    const unsigned n0 = s->mdyn0 < s->mvn ? s->mdyn0 : s->mvn;   /* the static vertices: their normals never move */
+    unsigned i = 0;
 
     memset(f->glit, 255, f->gvn);
-    for (i = 0; i < s->mvn; i++) {
+    if (f->keep_opt & PSM_KEEP_SUN) {                  /* PSM_KEEP_SUN: the static N.L only when the sun moved */
+        if (f->unsh_ok && f->unsh_n == n0 && f->unsh_mvn == s->mvn && !memcmp(f->unsh_sun, f->sun, sizeof f->unsh_sun)) i = n0;
+        else { memcpy(f->unsh_sun, f->sun, sizeof f->unsh_sun); f->unsh_n = n0; f->unsh_mvn = s->mvn; f->unsh_ok = 1; }
+    } else f->unsh_ok = 0;
+    for (; i < s->mvn; i++) {
         const float ndl = sh4der_sat_(sh4der_dot3_(s->mn[i], f->sun));
 
         f->mlit[i] = (uint8_t)(ndl * 255.0f + 0.5f);
@@ -1201,6 +1410,7 @@ static inline void psm_frame_unshadowed(psm_frame_t *f, const psm_scene_t *s) {
 static inline int psm_frame_b_begin(psm_frame_t *f, const psm_scene_t *s, uint16_t *depth) {
     float lo, hi;
 
+    f->ck_ok = 0;                                        /* the depth map is drawn whole: a kept copy no longer matches it */
     if (!f->built || !sh4der_psm_raster_key_range(f->map.light, &s->cv[0][0], 3u * sizeof(float), s->cvn, &lo, &hi)) return 0;
     return sh4der_psm_raster_begin(&f->raster, &f->map, depth, f->size, lo - 0.25f, hi + 0.25f);
 }
@@ -1258,13 +1468,166 @@ static inline void psm_frame_b_casters(psm_frame_t *f, const psm_scene_t *s, int
     f->tris = given; f->drawn = f->raster.drawn;
 }
 
+/* Copy texels x0 .. x1 - 1 of rows y0 .. y1 - 1 (a size-wide map) from src to dst. Whole rows of 32-byte aligned maps go as
+   one block through SH4ZAM's memory-to-memory copy (shz_memcpy32), the rest a row at a time. */
+static inline void psm_depth_copy_(uint16_t *dst, const uint16_t *src, unsigned size, int x0, int y0, int x1, int y1) {
+    const size_t at = (size_t)y0 * size;
+    int y;
+
+    if (x1 <= x0 || y1 <= y0) return;
+    if (x0 == 0 && x1 == (int)size) {
+        const size_t bytes = (size_t)(y1 - y0) * size * sizeof(uint16_t);
+
+#ifndef SH4DER_CORE_NO_SH4ZAM
+        if (!(((uintptr_t)(dst + at) | (uintptr_t)(src + at) | bytes) & 31u)) { shz_memcpy32(dst + at, src + at, bytes); return; }
+        shz_memcpy(dst + at, src + at, bytes);
+#else
+        memcpy(dst + at, src + at, bytes);
+#endif
+        return;
+    }
+    for (y = y0; y < y1; y++) {
+        const size_t o = (size_t)y * size + (size_t)x0, bytes = (size_t)(x1 - x0) * sizeof(uint16_t);
+
+#ifndef SH4DER_CORE_NO_SH4ZAM
+        shz_memcpy(dst + o, src + o, bytes);
+#else
+        memcpy(dst + o, src + o, bytes);
+#endif
+    }
+}
+
+/* Route B, steps 1 and 2 with PSM_KEEP_CAST (in place of psm_frame_b_begin and psm_frame_b_casters): the map into `depth`
+   (size x size), the static casters' part kept in `keep` (the same size; NULL: everything drawn every frame with the same
+   key range, the reference). The caller asks for it only on a frame with PSM_WORLD_BOUND's fit and the uniform map
+   (f->gbound and no warp), and never with CASTERS movers only. 0: no map (draw unshadowed). */
+static inline int psm_frame_b_keep(psm_frame_t *f, const psm_scene_t *s, uint16_t *depth, uint16_t *keep) {
+    const unsigned c0 = s->cdyn0 < s->cvn ? s->cdyn0 : s->cvn;
+    psm_xf_t xf;
+    unsigned i, k, given = 0, objs = 0, otris = 0;
+    float lo, hi, half;
+    int hit;
+
+    if (!f->built || !depth) { f->ck_ok = 0; return 0; }
+    hit = keep && f->ck_ok && f->ck_depth == depth && f->ck_keep == keep && f->ck_size == f->size && f->ck_cdyn0 == c0
+       && f->ck_con == s->con && !memcmp(f->ck_m, f->map.m, sizeof f->ck_m) && !memcmp(f->ck_light, f->map.light, sizeof f->ck_light);
+    if (!hit) {
+        f->ck_ok = 0;
+        if (!sh4der_psm_raster_key_range(f->map.light, &s->cv[0][0], 3u * sizeof(float), c0 ? c0 : s->cvn, &lo, &hi)) return 0;
+        for (i = 0; i < 8u; i++) {                       /* and the bound's box over the slab: where a mover can stand */
+            const float p[3] = { s->bnd[(i & 1u) ? 2 : 0], (i & 2u) ? f->slab : 0.0f, s->bnd[(i & 4u) ? 3 : 1] };
+            const float kk = sh4der_dot3_(f->map.light, p);
+
+            if (kk < lo) lo = kk;
+            if (kk > hi) hi = kk;
+        }
+        if (!sh4der_psm_raster_begin(&f->raster, &f->map, depth, f->size, lo - 0.25f, hi + 0.25f)) return 0;
+        psm_frame_cull_(f, s);
+        psm_xf_load(&xf, f->raster.m);
+        for (i = 0; i < c0; i++) psm_xf_apply(&xf, s->cv[i], f->mh[i]);
+        for (k = 0; k < s->con; k++) {
+            if (s->co[k].mover) continue;
+            for (i = s->co[k].t0; i < s->co[k].t0 + s->co[k].tn; i++) {
+                given++;
+                if (f->con[k]) sh4der_psm_raster_tri_h(&f->raster, f->mh[s->ct[i][0]], f->mh[s->ct[i][1]], f->mh[s->ct[i][2]]);
+            }
+            if (!f->con[k]) { objs++; otris += s->co[k].tn; }
+        }
+        f->ck_tris = given; f->ck_drawn = f->raster.drawn; f->ck_cull_objs = objs; f->ck_cull_tris = otris;
+        if (keep) {                                      /* the static map, kept until the map moves */
+            psm_depth_copy_(keep, depth, f->size, 0, 0, (int)f->size, (int)f->size);
+            memcpy(f->ck_m, f->map.m, sizeof f->ck_m); memcpy(f->ck_light, f->map.light, sizeof f->ck_light);
+            f->ck_size = f->size; f->ck_cdyn0 = c0; f->ck_con = s->con; f->ck_depth = depth; f->ck_keep = keep; f->ck_ok = 1;
+        }
+    } else {                                             /* last frame's movers out: their texels from the kept map */
+        for (k = 0; k < f->ck_rn; k++)
+            psm_depth_copy_(depth, keep, f->size, f->ck_rect[k][0], f->ck_rect[k][1], f->ck_rect[k][2], f->ck_rect[k][3]);
+        psm_xf_load(&xf, f->raster.m);
+        f->ck_hits++;
+    }
+    /* the movers, every frame */
+    f->raster.tris = f->raster.drawn = 0u;
+    f->ck_rn = 0u;
+    objs = f->ck_cull_objs; otris = f->ck_cull_tris; given = 0;
+    half = 0.5f * (float)f->size;
+    for (i = c0; i < s->cvn; i++) psm_xf_apply(&xf, s->cv[i], f->mh[i]);
+    for (k = 0; k < s->con; k++) {
+        float sx0 = 1e30f, sy0 = 1e30f, sx1 = -1e30f, sy1 = -1e30f;
+        int full = 0, b[4];
+
+        if (!s->co[k].mover) continue;
+        f->con[k] = (uint8_t)psm_box_in_map(&f->map, s->co[k].lo, s->co[k].hi);
+        if (!f->con[k]) { objs++; otris += s->co[k].tn; continue; }
+        for (i = s->co[k].v0; i < s->co[k].v0 + s->co[k].vn; i++) {   /* the texels it can write: its vertices' box */
+            const float *h = f->mh[i];
+
+            if (!(h[3] > SH4DER_PSM_TRI_EPS) || !sh4der_finite_(h[0]) || !sh4der_finite_(h[1])) { full = 1; continue; }
+            {
+                const float iw = sh4der_recip_pos_(h[3]), x = h[0] * iw, y = h[1] * iw;
+
+                if (x < sx0) sx0 = x;
+                if (x > sx1) sx1 = x;
+                if (y < sy0) sy0 = y;
+                if (y > sy1) sy1 = y;
+            }
+        }
+        for (i = s->co[k].t0; i < s->co[k].t0 + s->co[k].tn; i++) {
+            given++;
+            sh4der_psm_raster_tri_h(&f->raster, f->mh[s->ct[i][0]], f->mh[s->ct[i][1]], f->mh[s->ct[i][2]]);
+        }
+        if (full) { b[0] = b[1] = 0; b[2] = b[3] = (int)f->size; }   /* a corner at the light's point: the whole map */
+        else if (sx1 < sx0) continue;
+        else {                                           /* in texels, two more each side, held to the map */
+            const float ax = (sx0 + 1.0f) * half - 2.0f, bx = (sx1 + 1.0f) * half + 2.0f;
+            const float ay = (sy0 + 1.0f) * half - 2.0f, by = (sy1 + 1.0f) * half + 2.0f;
+
+            b[0] = ax > 0.0f ? (ax < (float)f->size ? (int)ax : (int)f->size) : 0;
+            b[1] = ay > 0.0f ? (ay < (float)f->size ? (int)ay : (int)f->size) : 0;
+            b[2] = bx > 0.0f ? (bx < (float)f->size ? (int)bx + 1 : (int)f->size) : 0;
+            b[3] = by > 0.0f ? (by < (float)f->size ? (int)by + 1 : (int)f->size) : 0;
+            if (b[2] <= b[0] || b[3] <= b[1]) continue;
+        }
+        if (f->ck_rn < PSM_CK_RECTS) {
+            int16_t *q = f->ck_rect[f->ck_rn++];
+
+            q[0] = (int16_t)b[0]; q[1] = (int16_t)b[1]; q[2] = (int16_t)b[2]; q[3] = (int16_t)b[3];
+        } else {                                         /* more movers than boxes: the last box grows round them */
+            int16_t *q = f->ck_rect[PSM_CK_RECTS - 1u];
+
+            if (b[0] < q[0]) q[0] = (int16_t)b[0];
+            if (b[1] < q[1]) q[1] = (int16_t)b[1];
+            if (b[2] > q[2]) q[2] = (int16_t)b[2];
+            if (b[3] > q[3]) q[3] = (int16_t)b[3];
+        }
+    }
+    f->cull_objs = objs; f->cull_tris = otris;
+    f->tris = f->ck_tris + given; f->drawn = f->ck_drawn + f->raster.drawn;
+    f->raster.tris = f->tris; f->raster.drawn = f->drawn;
+    return 1;
+}
+
 /* Route B, step 3: the compare. The ground through the plane compare (its axes are x and z); a model vertex that
    faces the sun at a point a little out along its normal, one that faces away gets no sun and no lookup. */
 static inline void psm_frame_b_receivers(psm_frame_t *f, const psm_scene_t *s, const psm_state_t *st) {
     const float gx[3] = { 1.0f, 0.0f, 0.0f }, gz[3] = { 0.0f, 0.0f, 1.0f };
     unsigned i;
 
-    sh4der_psm_raster_lit_n(&f->raster, &f->gpos[0][0], 3u * sizeof(float), f->gvn, gx, gz, st->bias_a, st->bias_b, st->pcf, f->glit, 1u);
+    if (f->gbound) {                                     /* PSM_WORLD_BOUND: a ring's span of points a kept cell uses */
+        unsigned r, c0, c1;
+
+        memset(f->glit, 255, f->gvn);
+        for (r = 0; r < f->grows; r++) {
+            const uint8_t *nd = f->gneed + r * f->gcols;
+
+            for (c0 = 0; c0 < f->gcols && !nd[c0]; c0++) {}
+            if (c0 == f->gcols) continue;
+            for (c1 = f->gcols; !nd[c1 - 1u]; c1--) {}
+            sh4der_psm_raster_lit_n(&f->raster, &f->gpos[r * f->gcols + c0][0], 3u * sizeof(float), c1 - c0, gx, gz, st->bias_a, st->bias_b,
+                                    st->pcf, f->glit + r * f->gcols + c0, 1u);
+        }
+    } else
+        sh4der_psm_raster_lit_n(&f->raster, &f->gpos[0][0], 3u * sizeof(float), f->gvn, gx, gz, st->bias_a, st->bias_b, st->pcf, f->glit, 1u);
+    f->unsh_ok = 0;                                      /* mlit is the shadowed sun's now: psm_frame_unshadowed's keep is gone */
     for (i = 0; i < s->mvn; i++) {
         const float ndl = sh4der_dot3_(s->mn[i], f->sun);
         float p[3];
@@ -1284,12 +1647,17 @@ static inline void psm_frame_a_ground(psm_frame_t *f) {
     psm_xf_t xf;
     unsigned i;
 
+    if (f->keep_opt & PSM_KEEP_SUN) {                  /* PSM_KEEP_SUN: the same map over the same ground positions gives the same coordinates */
+        if (f->guv_ok && f->guv_built == f->built && f->guv_gen == f->gpos_gen && f->guv_n == f->gvn && !memcmp(f->guv_m, f->map.m, sizeof f->guv_m)) return;
+        f->guv_ok = 1; f->guv_built = f->built; f->guv_gen = f->gpos_gen; f->guv_n = f->gvn;
+        memcpy(f->guv_m, f->map.m, sizeof f->guv_m);
+    } else f->guv_ok = 0;
     psm_xf_load(&xf, f->map.m);
     for (i = 0; i < f->gvn; i++) {
         float h[4], iw;
 
         f->gok[i] = 0u; f->guv[i][0] = f->guv[i][1] = 0.0f;
-        if (!f->built) continue;
+        if (!f->built || (f->gbound && !f->gneed[i])) continue;   /* PSM_WORLD_BOUND: no kept cell uses the point */
         psm_xf_apply(&xf, f->gpos[i], h);                       /* the map's homogeneous point; sh4der_psm_map's rule */
         if (!sh4der_finite_(h[3]) || !(h[3] > SH4DER_PSM_TRI_EPS)) continue;
         iw = sh4der_recip_pos_(h[3]);   /* h[3] > TRI_EPS (the guard above) */
@@ -1465,13 +1833,55 @@ static inline void psm_place_geo_opt_(psm_frame_t *f, const psm_scene_t *s) {
 
     psm_xf_load(&xf, f->rows);
     f->mb_culled = f->mb_culled_tris = 0u;
-    if (opt & PSM_PLACE_AREA) for (i = 0; i < f->gvn; i++) f->gbad[i] = psm_place_pt_bad_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
+    f->gb_n = f->gb_culled = 0u; f->gv_placed = f->gvn;
+    if (opt & PSM_PLACE_GROUND) {              /* the ground window a block at a time; a block out of view is not placed */
+        const unsigned bs = SH4DER_VIEWCULL_BLOCK;
+        sh4der_viewcull_t vc;
+        unsigned nbr, nbc, br, bc;
+
+        f->gb_n = sh4der_viewcull_grid_blocks(f->grows, f->gcols, bs, &nbr, &nbc);
+        sh4der_viewcull_prepare(&vc, f->rows, PSM_NEAR, f->dist);   /* FIPR only: the rows stay in XMTRX */
+        f->gb_culled = f->gb_n - sh4der_viewcull_grid(&vc, (const float (*)[3])f->gpos, f->grows, f->gcols, bs, f->gseen);
+        memset(f->gplaced, 0, f->gvn);
+        f->gv_placed = 0u;
+        for (br = 0; br < nbr; br++)
+            for (bc = 0; bc < nbc; bc++) {
+                const unsigned r0 = br * bs, c0 = bc * bs;
+                const unsigned r1 = r0 + bs < f->grows - 1u ? r0 + bs : f->grows - 1u, c1 = c0 + bs < f->gcols - 1u ? c0 + bs : f->gcols - 1u;
+
+                if (!f->gseen[br * nbc + bc]) continue;
+                for (r = r0; r <= r1; r++)
+                    for (c = c0; c <= c1; c++) {
+                        const unsigned v = r * f->gcols + c;
+
+                        if (f->gplaced[v] || (f->gbound && !f->gneed[v])) continue;
+                        f->gplaced[v] = 1u; f->gv_placed++;
+                        if (opt & PSM_PLACE_AREA) f->gbad[v] = psm_place_pt_bad_(&xf, f->gpos[v], f->gclip[v], f->gscr[v]);
+                        else psm_place_pt_(&xf, f->gpos[v], f->gclip[v], f->gscr[v]);
+                    }
+            }
+    } else if (f->gbound) {                    /* PSM_WORLD_BOUND: the points a kept cell uses */
+        f->gv_placed = 0u;
+        for (i = 0; i < f->gvn; i++) {
+            if (!f->gneed[i]) continue;
+            f->gv_placed++;
+            if (opt & PSM_PLACE_AREA) f->gbad[i] = psm_place_pt_bad_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
+            else psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
+        }
+    } else if (opt & PSM_PLACE_AREA) for (i = 0; i < f->gvn; i++) f->gbad[i] = psm_place_pt_bad_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
     else for (i = 0; i < f->gvn; i++) psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
     for (r = 0; r + 1u < f->grows; r++)
         for (c = 0; c + 1u < f->gcols; c++) {
             const unsigned a = r * f->gcols + c, b = a + 1u, d = a + f->gcols, e = d + 1u;
-            const int front = f->gclip[a][2] > PSM_NEAR && f->gclip[b][2] > PSM_NEAR && f->gclip[d][2] > PSM_NEAR && f->gclip[e][2] > PSM_NEAR;
-            int ok = front && psm_cell_seen_(f->gclip[a], f->gclip[b], f->gclip[d], f->gclip[e]);
+            int front, ok;
+
+            if (f->gbound && !f->gcin[r * PSM_COLS + c]) { f->cell[r * PSM_COLS + c] = 0u; continue; }   /* outside the walls */
+            if ((opt & PSM_PLACE_GROUND) && !f->gseen[sh4der_viewcull_grid_index(r, c, SH4DER_VIEWCULL_BLOCK, (f->gcols - 2u) / SH4DER_VIEWCULL_BLOCK + 1u)]) {
+                f->cell[r * PSM_COLS + c] = 0u;    /* its corners were not placed: nothing of it can be on the screen */
+                continue;
+            }
+            front = f->gclip[a][2] > PSM_NEAR && f->gclip[b][2] > PSM_NEAR && f->gclip[d][2] > PSM_NEAR && f->gclip[e][2] > PSM_NEAR;
+            ok = front && psm_cell_seen_(f->gclip[a], f->gclip[b], f->gclip[d], f->gclip[e]);
 
             if (ok && (opt & PSM_PLACE_AREA))
                 ok = psm_area_ok_(f->gclip[d], f->gclip[a], f->gclip[e], f->gscr[d][2], f->gscr[a][2], f->gscr[e][2], (unsigned)f->gbad[d] | f->gbad[a] | f->gbad[e])
@@ -1511,6 +1921,7 @@ static inline void psm_place_geo_opt_(psm_frame_t *f, const psm_scene_t *s) {
     }
     f->place_ok = 1; f->place_gen = f->gpos_gen; memcpy(f->place_rows, f->rows, sizeof f->rows); f->place_dist = f->dist;
     f->place_opt_done = opt;
+    f->place_count++;
 }
 
 /* This frame's place on the screen. The ground and the models go through the camera's rows once each: clip and screen
@@ -1528,13 +1939,15 @@ static inline void psm_place_geo(psm_frame_t *f, const psm_scene_t *s) {
                || f->place_opt_done != f->place_opt) {
         f->place_opt_done = 0u; f->mb_culled = f->mb_culled_tris = 0u;
         psm_xf_load(&xf, f->rows);
-        for (i = 0; i < f->gvn; i++) psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
+        if (f->gbound) { for (i = 0; i < f->gvn; i++) if (f->gneed[i]) psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]); }   /* PSM_WORLD_BOUND */
+        else for (i = 0; i < f->gvn; i++) psm_place_pt_(&xf, f->gpos[i], f->gclip[i], f->gscr[i]);
         for (i = 0; i < s->mvn; i++) psm_place_pt_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
         /* a strip sends, for the cell (ring r, spoke c), the triangles (d, a, e) and (a, e, b): a = (r, c), b = (r, c + 1), d = (r + 1, c), e = (r + 1, c + 1) */
         for (r = 0; r + 1u < f->grows; r++)
             for (c = 0; c + 1u < f->gcols; c++) {
                 const unsigned a = r * f->gcols + c, b = a + 1u, d = a + f->gcols, e = d + 1u;
-                const int front = f->gclip[a][2] > PSM_NEAR && f->gclip[b][2] > PSM_NEAR && f->gclip[d][2] > PSM_NEAR && f->gclip[e][2] > PSM_NEAR;
+                const int front = (!f->gbound || f->gcin[r * PSM_COLS + c])
+                               && f->gclip[a][2] > PSM_NEAR && f->gclip[b][2] > PSM_NEAR && f->gclip[d][2] > PSM_NEAR && f->gclip[e][2] > PSM_NEAR;
 
                 f->cell[r * PSM_COLS + c] = (uint8_t)(front && psm_cell_seen_(f->gclip[a], f->gclip[b], f->gclip[d], f->gclip[e])
                     && sh4der_tri_area_ok(f->gclip[d], f->gclip[a], f->gclip[e], PSM_NEAR, SH4DER_GUARD_MIN_AREA2)
@@ -1550,15 +1963,25 @@ static inline void psm_place_geo(psm_frame_t *f, const psm_scene_t *s) {
                         f->cell[r * PSM_COLS + c] = 0u;
                 }
         f->place_ok = 1; f->place_gen = f->gpos_gen; memcpy(f->place_rows, f->rows, sizeof f->rows); f->place_dist = f->dist;
+        f->place_count++;
     } else if (s->mdyn0 < s->mvn) {                              /* the movers: every frame */
         psm_xf_load(&xf, f->rows);
         if (f->place_opt & PSM_PLACE_AREA) for (i = s->mdyn0; i < s->mvn; i++) f->mbad[i] = psm_place_pt_bad_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
         else for (i = s->mdyn0; i < s->mvn; i++) psm_place_pt_(&xf, s->mv[i], f->mclip[i], f->mscr[i]);
         for (i = s->tdyn0; i < s->mtn; i++) psm_place_tri_(f, s, i);
     }
-    memset(f->mvis, 0, s->mvn);
-    for (i = 0; i < s->mtn; i++)
-        if (f->mtri[i]) f->mvis[s->mt[i][0]] = f->mvis[s->mt[i][1]] = f->mvis[s->mt[i][2]] = 1u;
+    if ((f->place_opt & PSM_PLACE_VIS) && f->vis_keep && f->vis_count == f->place_count && f->vis_mvn == s->mvn && f->vis_mtn == s->mtn) {
+        /* PSM_PLACE_VIS: no whole placement this frame, so the static triangles' flags are last frame's: their vertices'
+           marks stand, and only the movers' (their own vertices and triangles) are made again */
+        memset(f->mvis + s->mdyn0, 0, s->mvn - s->mdyn0);
+        for (i = s->tdyn0; i < s->mtn; i++)
+            if (f->mtri[i]) f->mvis[s->mt[i][0]] = f->mvis[s->mt[i][1]] = f->mvis[s->mt[i][2]] = 1u;
+    } else {
+        memset(f->mvis, 0, s->mvn);
+        for (i = 0; i < s->mtn; i++)
+            if (f->mtri[i]) f->mvis[s->mt[i][0]] = f->mvis[s->mt[i][1]] = f->mvis[s->mt[i][2]] = 1u;
+        f->vis_keep = (f->place_opt & PSM_PLACE_VIS) != 0u; f->vis_count = f->place_count; f->vis_mvn = s->mvn; f->vis_mtn = s->mtn;
+    }
     f->vis_ok = 1;
 }
 
@@ -1609,15 +2032,19 @@ static inline uint32_t psm_rgb_add_(uint32_t a, uint32_t b) {
    part is multiplied by the vertex's byte: colour = albedo x (ambient x ao + sun x direct). */
 static inline void psm_colour(psm_frame_t *f, const psm_scene_t *s) {
     const int seen = (f->colour_opt & PSM_COLOUR_SEEN) && f->vis_ok;
+    const float key[7] = { f->sun[1], s->amb[0], s->amb[1], s->amb[2], s->sunc[0], s->sunc[1], s->sunc[2] };
+    const int kept = (f->keep_opt & PSM_KEEP_SUN) && f->glut_ok && f->glut_ao == (f->gao_on != 0) && !memcmp(f->glut_key, key, sizeof key);
     unsigned i, r;
 
-    for (r = 0; r < 256u; r++) {
+    for (r = 0; r < 256u && !kept; r++) {               /* PSM_KEEP_SUN: the tables only when the light changed */
         const float d = f->sun[1] * (float)r * (1.0f / 255.0f);
 
         f->glut[r] = psm_pack_rgb(psm_light_c(s, 0u, d), psm_light_c(s, 1u, d), psm_light_c(s, 2u, d));
     }
+    f->glut_ok = (f->keep_opt & PSM_KEEP_SUN) != 0u; f->glut_ao = f->gao_on != 0;
+    memcpy(f->glut_key, key, sizeof key);
     if (f->gao_on) {
-        for (r = 0; r < 256u; r++) {
+        for (r = 0; r < 256u && !kept; r++) {
             const float a = (float)r * (1.0f / 255.0f), d = f->sun[1] * a;
 
             f->glut_a[r] = psm_pack_rgb(s->amb[0] * a, s->amb[1] * a, s->amb[2] * a);
@@ -1783,7 +2210,7 @@ static inline const char *psm_kind_name(int kind) {
 /* The eleven lines: 0 the title, 1 texel over pixel and the fit's slab, 2 .. 5 the readout (4: the sun and the camera, the
    town's clock; 5: the map's casters and the objects culled), 6 the cost label, 7 the split of the SH-4's time, 8 the menu's
    row (torchwalk's line), 9 the controls, 10 the draw distance (with the readout; the town: the placeholders). */
-static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const psm_cost_t *c, char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u]) {
+PSM_COLD_ static inline void psm_hud(const psm_state_t *st, const psm_frame_t *f, const psm_cost_t *c, char ln[PSM_HUD_LINES][PSM_HUD_COLS + 1u]) {
     const unsigned kb = (f->size * f->size * 2u + 1023u) / 1024u;
     char a[4][16], big[192], v[48];
     unsigned i;

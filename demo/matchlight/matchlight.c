@@ -61,6 +61,10 @@
 #include "sh4der_film.h"
 #include "sh4der_ca.h"
 #include "sh4der_taa.h"
+#include "sh4der_pvrx.h"
+#include "sh4der_suite.h"
+#include "sh4der_waitrun.h"
+static sh4der_waitrun_t wr_run;
 
 KOS_INIT_FLAGS(INIT_DEFAULT);
 
@@ -2165,7 +2169,7 @@ static void lens_resolve(void) {
     }
     ta_meter();                                          /* this is the heavy scene (the whole picture): count it while its list is open */
     pvr_list_finish();
-    pvr_scene_finish();
+    sh4der_pvrx_scene_finish();
     while (pvr_wait_ready() < 0 && ++tries < STUCK_WAITS) {   /* the texture's render must be done before it is drawn (KallistiOS times a wait out at 100 ms) */
     }
     pvr_scene_begin();
@@ -2553,6 +2557,7 @@ NOINLINE static void pad_read(void) {
     static uint32_t last;
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    if (st && suite_present() && (st->buttons & SUITE_KEYS_ALL) == SUITE_KEYS_ALL) { sh4der_pvrx_wait_hook(0); suite_exit(SUITE_KEYS); }   /* the test suite disc: A+B+X+Y back to the menu */
     uint32_t down;
 
     if (!st) {
@@ -2767,6 +2772,8 @@ NOINLINE static void frame_draw(const ml_where_t *w, int lens) {
 }
 
 int main(void) {
+    suite_init();   /* on the test suite disc: the menu's binary into RAM, before anything else */
+    if (suite_present()) sh4der_waitrun_init(&wr_run, SH4DER_WAITRUN_SECONDS);   /* from the suite's menu: a timed run that ends on a results page */
     pvr_init_params_t init = pvr_default_params;
     uint64_t previous, window_start, window_total = 0, window_worst = 0;
     unsigned window_frames = 0, stuck = 0;
@@ -2790,6 +2797,9 @@ int main(void) {
         printf("matchlight: pvr_init FAIL\n");
         return 1;
     }
+#ifndef WAIT_SLEEP
+    sh4der_pvrx_wait_hook(1);   /* polled render-done wait (PVR-117): every scene ends through sh4der_pvrx_scene_finish; -DWAIT_SLEEP keeps KallistiOS's sleeping wait for an A/B */
+#endif
     PVR_SET(PVR_PT_ALPHA_REF, PT_ALPHA_REF);             /* the falling snow goes down the punch-through list */
     boot_stage(2, 224, 96, 0, "pvr_init");
     pvr_set_bg_color(ML_SKY_NIGHT_R, ML_SKY_NIGHT_G, ML_SKY_NIGHT_B);
@@ -2841,6 +2851,7 @@ int main(void) {
 
     previous = window_start = timer_us_gettime64();
     for (;;) {
+        if (suite_present() && sh4der_waitrun_frame(&wr_run, timer_us_gettime64())) sh4der_waitrun_show(&wr_run, "MATCH LIGHT");
         const uint64_t now = timer_us_gettime64();
         const uint64_t elapsed = now - previous;
         float dt;
@@ -2891,7 +2902,7 @@ int main(void) {
         hud_age += dt;
         if (hud_on && hud_age >= HUD_REFRESH_S) {
             hud_age = 0.0f;
-            (void)pvr_wait_render_done();                 /* the readout texture is rewritten: the PVR must be done reading it */
+            (void)sh4der_pvrx_wait_idle();                /* the readout texture is rewritten: the PVR must be done reading it */
             hud_build(w.shot, w.clock);
         }
         if (fog_shot != w.shot) {                         /* a new shot: its fog range into the fog table (128 entries, once a shot) */
@@ -2902,7 +2913,7 @@ int main(void) {
             fog_shot = w.shot;
         }
         if (cap_on && cap_shot != w.shot) {
-            (void)pvr_wait_render_done();                 /* the caption texture is rewritten: the PVR must be done reading it */
+            (void)sh4der_pvrx_wait_idle();                /* the caption texture is rewritten: the PVR must be done reading it */
             caption_build(w.shot);
             cap_shot = w.shot;
         }
@@ -2914,7 +2925,7 @@ int main(void) {
                 pvr_scene_begin();
             }
             frame_draw(&w, lens);
-            pvr_scene_finish();
+            sh4der_pvrx_scene_finish();
         }
         total_frames++;
         /* Two serial lines about the TA: after the first frame and after about 10 s. */

@@ -1,0 +1,502 @@
+{
+ "note": "benchmark suite 3: the wait spike (sleep against wake, identical frames), the demos' timed runs, five camera turn runs",
+ "tests": [
+  {
+   "name": "waitpoll",
+   "file": "WAITPOLL.BIN",
+   "elf": "build/psm_waitpoll/psm-waitpoll-wp11.elf",
+   "order": 1,
+   "what": "Sleeping wait against woken wait, 6 shapes",
+   "read": "photo every page, the graphs especially",
+   "group": "tools",
+   "title": "Sleeping vs woken wait",
+   "shows": "Times the PVR wait two ways: sleeping, woken",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "Times the PVR wait two ways, sleeping and woken, in six shapes, and draws the results as graphs.",
+    "controls": "Automatic run, about one minute. A and B turn the pages, Start on the last page runs it again. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the woken wait in this program."
+   }
+  },
+  {
+   "name": "ocean",
+   "file": "OCEAN.BIN",
+   "elf": "build/wp_suite/ocean/sh4der-ocean.elf",
+   "order": 2,
+   "what": "Ocean, woken wait every frame",
+   "read": "live: frame time; A+B+X+Y back",
+   "group": "tools",
+   "title": "Ocean",
+   "shows": "A sunset sea with waves, reflections and a glow",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A sunset sea with waves, reflections and a glow, rewriting its texture every frame.",
+    "controls": "Left and right pick a row, up and down change it. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the woken wait in this program."
+   }
+  },
+  {
+   "name": "cloud",
+   "file": "CLOUD.BIN",
+   "elf": "build/wp_suite/cloudvolume/sh4der-cloudvolume.elf",
+   "order": 3,
+   "what": "Clouds, woken wait every frame",
+   "read": "live: frame time; A+B+X+Y back",
+   "group": "tools",
+   "title": "Clouds",
+   "shows": "A cloud deck you fly through, drawn from a small",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A cloud deck you fly through, drawn from a small picture the console updates every frame.",
+    "controls": "Stick looks around. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the woken wait in this program."
+   }
+  },
+  {
+   "name": "torch-ab",
+   "file": "TORCHAB.BIN",
+   "elf": "build/wp_suite/torchwalk_ab/sh4der-torchwalk-ab.elf",
+   "order": 4,
+   "what": "Torch walk, woken wait 1 frame in 20",
+   "read": "live: frame time; A+B+X+Y back",
+   "group": "tools",
+   "title": "Torch",
+   "shows": "A walk over a dark floor with a torch that lights",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A walk over a dark floor with a torch that lights a bumpy surface.",
+    "controls": "Stick looks and moves, R fires a light. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the woken wait in this program."
+   }
+  },
+  {
+   "name": "matchlt",
+   "file": "MATCHLT.BIN",
+   "elf": "build/wp_suite/matchlight/sh4der-matchlight.elf",
+   "order": 5,
+   "what": "Match Light film, woken wait, rare",
+   "read": "live: plays 2 min; A+B+X+Y back",
+   "group": "tools",
+   "title": "Film",
+   "shows": "A two minute film of a snowy night street",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A two minute film of a snowy night street.",
+    "controls": "Plays by itself. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the woken wait in this program."
+   }
+  },
+  {
+   "name": "town-ab",
+   "file": "TOWNAB.BIN",
+   "elf": "build/wp_suite/psm_dc/sh4der-psm-ab.elf",
+   "order": 6,
+   "what": "Town shadow A/B, woken wait",
+   "read": "live: A+B+X+Y back",
+   "group": "tools",
+   "title": "Town",
+   "shows": "A walled square with moving shadows, drawn two wa",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "WAIT FOR THE PVR",
+     "text": "Polled wait for the PVR (main)"
+    }
+   ],
+   "card": {
+    "what": "A walled square with moving shadows, drawn two ways side by side.",
+    "controls": "Stick moves, X changes rows. A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of the woken wait in this program."
+   }
+  },
+  {
+   "name": "turn-t3",
+   "file": "TURN3.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t3-p8192.elf",
+   "order": 7,
+   "what": "Camera turn, 8 KB pad (t3 base)",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: 8 KB pad",
+   "shows": "Pad 8192 only: the base of this set",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: turn-t3"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the other camera turn runs, with one speed change: The base for the next three: pad 8192 only.",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  },
+  {
+   "name": "turn-2b",
+   "file": "TURN2B.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t3-p8192-mn8192.elf",
+   "order": 8,
+   "what": "Camera turn, 2b pad on route B",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: 2b pad",
+   "shows": "Plus a pad inside the scene arrays (route B)",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: turn-2b"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the other camera turn runs, with one speed change: Base plus a pad between the model position and normal arrays (route B).",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  },
+  {
+   "name": "turn-ship",
+   "file": "TURNSHIP.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t4-ship.elf",
+   "order": 9,
+   "what": "Camera turn, shipping setup",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: shipping",
+   "shows": "Lazy plan, colour table: the real base frame",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: turn-ship"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the other camera turn runs, with one speed change: Lazy plan, colour table and seen on: the real base frame.",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  },
+  {
+   "name": "turn-keep",
+   "file": "TURNKEEP.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t5-keep.elf",
+   "order": 10,
+   "what": "Camera turn, sun tables kept",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: sun kept",
+   "shows": "Plus sun tables kept; the sun steps 0.25 deg",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: turn-keep"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the other camera turn runs, with one speed change: Ship setup plus tables kept until the sun moves (sun steps 0.25 deg).",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  },
+  {
+   "name": "turn-inl",
+   "file": "TURNINL.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t5-keep-inl.elf",
+   "order": 11,
+   "what": "Camera turn, vertex send inline",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: send inline",
+   "shows": "Plus the vertex send inline, cold code out",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: turn-inl"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the other camera turn runs, with one speed change: Keep plus the vertex send hot path inline, cold paths out.",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  },
+  {
+   "name": "turn-bound",
+   "file": "TURNBND.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t6-bound.elf",
+   "order": 12,
+   "what": "Camera turn, world bound to the w",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: small world",
+   "shows": "Walls, fog, ground cut to the square, map fit",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: bound to the walls"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages with the world cut to the closed walled square: ground only inside the walls, gates shut, a little fog, the shadow map fitted to the square. Sun steps 0.25 deg.",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  },
+  {
+   "name": "turn-gv",
+   "file": "TURNGV.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t7-gv.elf",
+   "order": 13,
+   "what": "Camera turn: turn-gv",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: still + ground",
+   "shows": "Still camera keeps visibility; ground culled",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: turn-gv"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the other camera turn runs. Small world plus still-camera visibility kept and the ground view-culled. Sun steps 0.25 deg.",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  },
+  {
+   "name": "turn-gvc",
+   "file": "TURNGVC.BIN",
+   "elf": "build/psm_turncost/psm-turncost-turncost-t7-gvc.elf",
+   "order": 14,
+   "what": "Camera turn: turn-gvc",
+   "read": "photo every page; compare with the other turn runs",
+   "group": "tools",
+   "title": "Turn cost: cold layout",
+   "shows": "Same plus cold code placed apart",
+   "menu_group": "Tools",
+   "effects": [
+    {
+     "heading": "CAMERA TURN COST",
+     "text": "Town speed step: turn-gvc"
+    }
+   ],
+   "card": {
+    "what": "The same 36 stages as the other camera turn runs. The same plus load, bake and HUD code moved out of the hot code. Sun steps 0.25 deg.",
+    "controls": "Automatic run, about 8 to 10 minutes; a stage counter shows how far. Start stops it early. A and B turn the result pages, A held 2 s on the last page or A+B+X+Y goes back to the menu.",
+    "cost": "Not measured yet: this disc is the first console run of this test."
+   }
+  }
+ ],
+ "menu_groups": [
+  "Driving",
+  "Rooms and light",
+  "Characters",
+  "Town",
+  "Tools"
+ ],
+ "effect_headings": [
+  {
+   "heading": "CAMERA TURN COST",
+   "demos": [
+    "turn-t3",
+    "turn-2b",
+    "turn-ship",
+    "turn-keep",
+    "turn-inl",
+    "turn-bound",
+    "turn-gv",
+    "turn-gvc"
+   ]
+  },
+  {
+   "heading": "WAIT FOR THE PVR",
+   "demos": [
+    "waitpoll",
+    "ocean",
+    "cloud",
+    "torch-ab",
+    "matchlt",
+    "town-ab"
+   ]
+  }
+ ],
+ "not_in_menu": {
+  "subtitle": "Not a demo: nothing to run.",
+  "intro": "These effects are in the library, but this menu has no demo for them. Each line says where else the effect is shown.",
+  "items": [
+   {
+    "name": "Shadow map on the SH-4",
+    "also_shown_in": []
+   },
+   {
+    "name": "Shadow map by the PVR",
+    "also_shown_in": []
+   },
+   {
+    "name": "Corner darkening",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mesh corner shading",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft character shadows",
+    "also_shown_in": []
+   },
+   {
+    "name": "Glowing tubes",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen bloom",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen spotlight",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dark shafts of light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Soft edges for light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sparks and tracers",
+    "also_shown_in": []
+   },
+   {
+    "name": "Lightning",
+    "also_shown_in": []
+   },
+   {
+    "name": "Water waves",
+    "also_shown_in": []
+   },
+   {
+    "name": "Mist bank",
+    "also_shown_in": []
+   },
+   {
+    "name": "Drifting specks",
+    "also_shown_in": []
+   },
+   {
+    "name": "Rising lights",
+    "also_shown_in": []
+   },
+   {
+    "name": "Cloud deck",
+    "also_shown_in": []
+   },
+   {
+    "name": "Dented ground",
+    "also_shown_in": []
+   },
+   {
+    "name": "Sharp floors at an angle",
+    "also_shown_in": []
+   },
+   {
+    "name": "Paving slab texture",
+    "also_shown_in": []
+   },
+   {
+    "name": "Normal map",
+    "also_shown_in": []
+   },
+   {
+    "name": "Texture ripple",
+    "also_shown_in": []
+   },
+   {
+    "name": "Inner light",
+    "also_shown_in": []
+   },
+   {
+    "name": "Exposure and grade",
+    "also_shown_in": []
+   },
+   {
+    "name": "Smooth edges over time",
+    "also_shown_in": []
+   },
+   {
+    "name": "Motion blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen overlays",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen warp",
+    "also_shown_in": []
+   },
+   {
+    "name": "Colour fringe",
+    "also_shown_in": []
+   },
+   {
+    "name": "Old film wear",
+    "also_shown_in": []
+   },
+   {
+    "name": "Tape wobble",
+    "also_shown_in": []
+   },
+   {
+    "name": "Screen filters",
+    "also_shown_in": []
+   },
+   {
+    "name": "Fake focus blur",
+    "also_shown_in": []
+   },
+   {
+    "name": "Split screen",
+    "also_shown_in": []
+   }
+  ]
+ }
+}

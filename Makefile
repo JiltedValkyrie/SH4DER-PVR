@@ -1,6 +1,6 @@
 # SH4DER-PVR (SH4DOW-DC is in this library: src/sh4dow_dc.c, src/sh4dow_foot.c, include/sh4dow_dc.h, include/sh4dow_heightfield.h)
 #
-#   make test                       host check of the plain C path: test/shade_test, test/foot_test, example/example, example/quickstart, example/feet, test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/deform_test, test/pl4nar_test, test/pool_test, test/ramp_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, test/page_test, test/fxlabel_test, test/fakeaf_test, test/ground_test, example/blade
+#   make test                       host check of the plain C path: test/shade_test, test/foot_test, example/example, example/quickstart, example/feet, test/core_test, test/blade_test, test/holo_test, test/bloom_test, test/look_test, test/taa_test, test/frame_test, test/glow_test, test/warp_test, test/trail_test, test/lens_test, test/focus_test, test/visor_test, test/torch_test, test/ao_test, test/guard_test, test/sss_test, test/spark_test, test/bolt_test, test/motes_test, test/deform_test, test/pl4nar_test, test/pool_test, test/ramp_test, test/viewcull_test, test/psm_test, test/psm_raster_test, test/psm_pvr_test, test/page_test, test/fxlabel_test, test/fakeaf_test, test/ground_test, example/blade
 #   make test-shz SH4ZAM=<checkout> host check of the SH4ZAM path (SH4ZAM's software back-end, 0.10 or later): every test
 #   make dc SH4ZAM=<checkout>       Dreamcast library build/libsh4der_core.a (KallistiOS environment sourced; includes SH4DOW-DC's soft shadows and foot cones)
 #   make bench SH4ZAM=<checkout>    Dreamcast timing program build/bench.elf (bench/bench.c, SH4DOW-DC's three vertex loops); run it on the console
@@ -13,8 +13,8 @@ CC      ?= cc
 CFLAGS  ?= -O3
 WARN     = -std=c99 -Wall -Wextra
 BUILD    = build
-SRC      = src/sh4dow_dc.c src/sh4dow_foot.c src/sh4der_core.c src/sh4der_blade.c src/sh4der_holo.c src/sh4der_bloom.c src/sh4der_glow.c src/sh4der_frame.c src/sh4der_warp.c src/sh4der_trail.c src/sh4der_lens.c src/sh4der_focus.c src/sh4der_visor.c src/sh4der_torch.c src/sh4der_ca.c src/sh4der_shafts.c src/sh4der_spark.c src/sh4der_pl4nar.c src/sh4der_bolt.c src/sh4der_motes.c src/sh4der_pvrx.c
-HDR      = include/sh4der_core.h include/sh4der_menu.h include/sh4der_fakeaf.h include/sh4der_ground.h include/sh4der_hexheat.h include/sh4der_pvrx.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_tilecut.h include/sh4der_split.h include/sh4der_fault.h include/sh4der_aobake.h include/sh4der_aosky.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_pl4nar.h include/sh4der_pool.h include/sh4der_ramp.h include/sh4der_psm.h include/sh4der_psm_raster.h include/sh4der_psm_pvr.h include/sh4der_bolt.h include/sh4der_motes.h include/sh4der_deform.h include/sh4der_mist.h include/sh4der_rise.h include/sh4der_film.h include/sh4der_timebase.h include/sh4der_cloudvolume.h include/sh4dow_dc.h include/sh4dow_heightfield.h demo/matchlight/matchlight_scene.h include/sh4der_aomesh.h include/sh4der_raytri.h include/sh4der_bump.h include/sh4der_fxlabel.h include/sh4der_page.h include/sh4der_qrpage.h include/sh4der_softfade.h include/sh4der_suite.h include/sh4der_water.h
+SRC      = src/sh4dow_dc.c src/sh4dow_foot.c src/sh4der_core.c src/sh4der_blade.c src/sh4der_holo.c src/sh4der_bloom.c src/sh4der_glow.c src/sh4der_frame.c src/sh4der_warp.c src/sh4der_trail.c src/sh4der_lens.c src/sh4der_focus.c src/sh4der_visor.c src/sh4der_torch.c src/sh4der_ca.c src/sh4der_shafts.c src/sh4der_spark.c src/sh4der_pl4nar.c src/sh4der_bolt.c src/sh4der_motes.c src/sh4der_pvrx.c src/sh4der_psm_a.c
+HDR      = include/sh4der_core.h include/sh4der_menu.h include/sh4der_fakeaf.h include/sh4der_ground.h include/sh4der_hexheat.h include/sh4der_pvrx.h include/sh4der_blade.h include/sh4der_holo.h include/sh4der_bloom.h include/sh4der_look.h include/sh4der_taa.h include/sh4der_frame.h include/sh4der_glow.h include/sh4der_warp.h include/sh4der_trail.h include/sh4der_lens.h include/sh4der_focus.h include/sh4der_visor.h include/sh4der_torch.h include/sh4der_ao.h include/sh4der_ca.h include/sh4der_shafts.h include/sh4der_guard.h include/sh4der_tilecut.h include/sh4der_split.h include/sh4der_fault.h include/sh4der_aobake.h include/sh4der_aosky.h include/sh4der_uvwarp.h include/sh4der_sss.h include/sh4der_spark.h include/sh4der_pl4nar.h include/sh4der_pool.h include/sh4der_ramp.h include/sh4der_viewcull.h include/sh4der_psm.h include/sh4der_psm_raster.h include/sh4der_psm_pvr.h include/sh4der_psm_a.h include/sh4der_bolt.h include/sh4der_motes.h include/sh4der_deform.h include/sh4der_mist.h include/sh4der_rise.h include/sh4der_film.h include/sh4der_timebase.h include/sh4der_cloudvolume.h include/sh4dow_dc.h include/sh4dow_heightfield.h demo/matchlight/matchlight_scene.h include/sh4der_aomesh.h include/sh4der_raytri.h include/sh4der_bump.h include/sh4der_fxlabel.h include/sh4der_page.h include/sh4der_qrpage.h include/sh4der_softfade.h include/sh4der_suite.h include/sh4der_water.h
 
 # kos-cc and kos-ar are the KallistiOS wrappers: they add its flags, its include paths and, when linking, its libraries.
 # Not named KOS_CC / KOS_AR: the KallistiOS environment already sets those to the bare compiler and archiver.
@@ -27,8 +27,8 @@ SH4ZAM  ?= third_party/sh4zam
 SH4ZAM_DCE ?= third_party/sh4zam-dce
 DCE_INC  = $(if $(SH4ZAM_DCE),-I$(SH4ZAM_DCE)/include)
 # SH4DOW-DC is in this repository (src/sh4dow_dc.c, src/sh4dow_foot.c; the column feather every effect here uses is include/sh4dow_dc.h)
-DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4ZAM)/include -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
-TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test softfade_test ramp_test psm_test psm_raster_test psm_pvr_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test aobake_test aomesh_test aosky_test fakeaf_test ground_test shade_test foot_test suite_test raytri_test menu_test
+DC_FLAGS = -O3 -Wall -Wextra -Iinclude -I$(SH4ZAM)/include $(DCE_INC) -ffast-math -ffp-contract=fast -mfsrra -mfsca -fno-math-errno
+TESTS    = core_test blade_test holo_test bloom_test look_test taa_test frame_test glow_test warp_test trail_test lens_test focus_test visor_test torch_test ao_test ca_test shafts_test guard_test tilecut_test split_test pvrx_test uvwarp_test water_test ocean_scene_test sss_test spark_test pl4nar_test pool_test softfade_test ramp_test viewcull_test psm_test psm_raster_test psm_pvr_test psm_a_test psm_scene_test psm_mapsrc_test psm_town_test fault_test bolt_test motes_test deform_test mist_test rise_test film_test timebase_test hexheat_test cloudvolume_test matchlight_scene_test aobake_test aomesh_test aosky_test fakeaf_test dofmip_test ground_test shade_test foot_test suite_test raytri_test menu_test waitrun_test
 # SH4DOW-DC examples (make test builds and runs them; defined before the test: rule reads it)
 EXAMPLES_SH4DOW = $(BUILD)/example $(BUILD)/quickstart $(BUILD)/feet
 
@@ -99,8 +99,10 @@ test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade $(BU
 	$(BUILD)/menu_test
 	$(BUILD)/aosky_test
 	$(BUILD)/fakeaf_test
+	$(BUILD)/dofmip_test
 	$(BUILD)/ground_test
 	$(BUILD)/pvrx_test
+	$(BUILD)/waitrun_test
 	$(BUILD)/water_test
 	$(BUILD)/ocean_scene_test
 	$(BUILD)/sss_test
@@ -110,9 +112,11 @@ test: check-tuning test-demo $(addprefix $(BUILD)/,$(TESTS)) $(BUILD)/blade $(BU
 	$(BUILD)/pool_test
 	$(BUILD)/softfade_test
 	$(BUILD)/ramp_test
+	$(BUILD)/viewcull_test
 	$(BUILD)/psm_test
 	$(BUILD)/psm_raster_test
 	$(BUILD)/psm_pvr_test
+	$(BUILD)/psm_a_test
 	$(BUILD)/psm_scene_test
 	$(BUILD)/psm_mapsrc_test
 	$(BUILD)/psm_town_test
@@ -167,8 +171,10 @@ $(BUILD)/page_test: test/page_test.c include/sh4der_page.h
 $(BUILD)/fxlabel_test: test/fxlabel_test.c include/sh4der_fxlabel.h
 $(BUILD)/aosky_test: test/aosky_test.c include/sh4der_aosky.h
 $(BUILD)/fakeaf_test: test/fakeaf_test.c include/sh4der_fakeaf.h include/sh4der_ramp.h
+$(BUILD)/dofmip_test: test/dofmip_test.c include/sh4der_dofmip.h
 $(BUILD)/ground_test: test/ground_test.c include/sh4der_ground.h
 $(BUILD)/pvrx_test: test/pvrx_test.c include/sh4der_pvrx.h
+$(BUILD)/waitrun_test: test/waitrun_test.c include/sh4der_waitrun.h
 $(BUILD)/water_test: test/water_test.c include/sh4der_water.h include/sh4der_sss.h include/sh4dow_heightfield.h
 $(BUILD)/sss_test: test/sss_test.c include/sh4der_sss.h
 $(BUILD)/uvwarp_test: test/uvwarp_test.c
@@ -177,9 +183,11 @@ $(BUILD)/pl4nar_test: test/pl4nar_test.c include/sh4der_water.h include/sh4der_s
 $(BUILD)/pool_test: test/pool_test.c include/sh4der_pool.h include/sh4der_ramp.h
 $(BUILD)/softfade_test: test/softfade_test.c include/sh4der_softfade.h include/sh4der_pool.h include/sh4der_ramp.h
 $(BUILD)/ramp_test: test/ramp_test.c include/sh4der_ramp.h
+$(BUILD)/viewcull_test: test/viewcull_test.c include/sh4der_viewcull.h include/sh4der_psm.h
 $(BUILD)/psm_test: test/psm_test.c
 $(BUILD)/psm_raster_test: test/psm_raster_test.c include/sh4der_psm_raster.h
 $(BUILD)/psm_pvr_test: test/psm_pvr_test.c include/sh4der_psm_pvr.h include/sh4der_psm_raster.h
+$(BUILD)/psm_a_test: test/psm_a_test.c include/sh4der_psm_a.h include/sh4der_psm_pvr.h include/sh4der_psm.h include/sh4der_psm_raster.h
 $(BUILD)/psm_scene_test: test/psm_scene_test.c demo/psm/psm_scene.h demo/psm/psm_town.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h
 $(BUILD)/psm_mapsrc_test: test/psm_mapsrc_test.c demo/psm/psm_mapsrc.h demo/psm/psm_scene.h demo/psm/psm_town.h include/sh4der_psm_pvr.h include/sh4der_psm_raster.h include/sh4der_guard.h
 $(BUILD)/fault_test: test/fault_test.c include/sh4der_fault.h
@@ -193,10 +201,19 @@ $(BUILD)/fault_test: test/fault_test.c include/sh4der_fault.h
 SQUARE       ?= town
 PSM_DC_EXTRA ?=
 PSM_SQUARE_ZIP ?= demo/psm/assets/_dl/kenney_fantasy-town-kit_2.0.zip
+# SQUARE=closed: the same square shut all round (bake_square.py --closed: gates, the faces no eye in the walk sees left
+# out, the ground that can be seen in the header), into $(BUILD)/psm_closed; psm_dc.c's PSM_WORLD_BOUND then has its bound.
+PSM_TOWN_BAKE_ARGS =
 ifeq ($(SQUARE),square)
 PSM_TOWN_ZIP  = $(PSM_SQUARE_ZIP)
 PSM_TOWN_DIR  = $(BUILD)/psm_square
 PSM_TOWN_BAKE = demo/psm/tools/bake_square.py
+PSM_SQUARE_FLAGS = -DPSM_PLAN_LAZY=1 -DPSM_PLACE_DEFAULT=7u
+else ifeq ($(SQUARE),closed)
+PSM_TOWN_ZIP  = $(PSM_SQUARE_ZIP)
+PSM_TOWN_DIR  = $(BUILD)/psm_closed
+PSM_TOWN_BAKE = demo/psm/tools/bake_square.py
+PSM_TOWN_BAKE_ARGS = --closed
 PSM_SQUARE_FLAGS = -DPSM_PLAN_LAZY=1 -DPSM_PLACE_DEFAULT=7u
 else
 PSM_TOWN_ZIP  = demo/psm/assets/_dl/modular_village_collection.zip
@@ -212,7 +229,12 @@ PSM_TOWN_DEPS = demo/psm/psm_scene.h demo/psm/psm_town.h demo/psm/psm_sky.h demo
 PSM_TOWN_INC  = -DPSM_HAVE_TOWN -I$(PSM_TOWN_DIR) -I$(BUILD)/psm_sky
 $(PSM_TOWN_H): $(PSM_TOWN_BAKE) demo/psm/tools/bake_town.py $(wildcard $(PSM_TOWN_ZIP))
 	@mkdir -p $(PSM_TOWN_DIR)
-	$(PYTHON) -I $(PSM_TOWN_BAKE) $(if $(wildcard $(PSM_TOWN_ZIP)),$(PSM_TOWN_ZIP),-) $@ --json $(PSM_TOWN_DIR)/psm_town_mesh.json
+	$(PYTHON) -I $(PSM_TOWN_BAKE) $(if $(wildcard $(PSM_TOWN_ZIP)),$(PSM_TOWN_ZIP),-) $@ --json $(PSM_TOWN_DIR)/psm_town_mesh.json $(PSM_TOWN_BAKE_ARGS)
+# the closed square for its host test (psm_bound_test), whatever SQUARE is: stand-in boxes when the kit's zip is missing
+PSM_CLOSED_H  = $(BUILD)/psm_closed_test/psm_town_mesh.h
+$(PSM_CLOSED_H): demo/psm/tools/bake_square.py demo/psm/tools/bake_town.py demo/psm/psm_town.h $(wildcard $(PSM_SQUARE_ZIP))
+	@mkdir -p $(BUILD)/psm_closed_test
+	$(PYTHON) -I demo/psm/tools/bake_square.py $(if $(wildcard $(PSM_SQUARE_ZIP)),$(PSM_SQUARE_ZIP),-) $@ --json $(BUILD)/psm_closed_test/psm_town_mesh.json --closed
 $(PSM_SKY_H): demo/psm/tools/bake_sky.py $(wildcard $(PSM_SKY_HDR))
 	@mkdir -p $(BUILD)/psm_sky
 	$(PYTHON) -I demo/psm/tools/bake_sky.py $(if $(wildcard $(PSM_SKY_HDR)),$(PSM_SKY_HDR),-) $@ --json $(BUILD)/psm_sky/psm_sky_tex.json
@@ -231,7 +253,7 @@ $(BUILD)/psm_town_test: test/psm_town_test.c $(PSM_TOWN_DEPS) $(SRC) $(HDR)
 # line says so. The street layout only. psm_place_cmp draws 432 pictures: about 20 s.
 DEMO_T          = $(BUILD)/demo_test
 DEMO_CC         = $(CC) $(CFLAGS) $(WARN) -DSH4DER_CORE_NO_SH4ZAM -Iinclude
-DEMO_TESTS      = heat_test heat_hex_test suite_ui_test suite_view_test psm_viewcost_test psm_colour_test psm_plan_test psm_ao_test psm_place_cmp ao_bake_test fx_tables_test
+DEMO_TESTS      = heat_test heat_hex_test suite_ui_test suite_view_test psm_viewcost_test psm_viewcost8_test psm_viewcost8s_test psm_colour_test psm_plan_test psm_plan_inline_test psm_keep_test psm_bound_test psm_ao_test psm_place_cmp ao_bake_test fx_tables_test
 CONTROLS_TESTS  = controls_street controls_map controls_hills controls_wet controls_street_drive controls_map_drive controls_hills_drive
 controls_street_F       =
 controls_map_F          = -DPL4NAR_MAP
@@ -255,7 +277,12 @@ test-demo: $(addprefix $(DEMO_T)/,$(DEMO_TESTS) $(CONTROLS_TESTS)) $(HERO_STRIP_
 	$(DEMO_T)/suite_view_test
 	$(DEMO_T)/psm_colour_test
 	$(DEMO_T)/psm_plan_test
+	$(DEMO_T)/psm_plan_inline_test
+	$(DEMO_T)/psm_keep_test
+	$(DEMO_T)/psm_bound_test
 	$(DEMO_T)/psm_viewcost_test
+	$(DEMO_T)/psm_viewcost8_test
+	$(DEMO_T)/psm_viewcost8s_test
 	$(DEMO_T)/psm_ao_test
 	$(DEMO_T)/psm_place_cmp
 	$(DEMO_T)/ao_bake_test
@@ -275,6 +302,12 @@ $(DEMO_T)/heat_test $(DEMO_T)/heat_hex_test $(DEMO_T)/suite_ui_test $(DEMO_T)/su
 $(DEMO_T)/psm_viewcost_test: demo/psm/test/psm_viewcost_test.c demo/psm/psm_viewcost.h
 	@mkdir -p $(DEMO_T)
 	$(DEMO_CC) -Idemo/psm $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/psm_viewcost8_test: demo/psm/test/psm_viewcost_test.c demo/psm/psm_viewcost.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) -DVC_PART=8 -Idemo/psm $(filter %.c,$^) -lm -o $@   # the turn plan's step 0 script (vc-g)
+$(DEMO_T)/psm_viewcost8s_test: demo/psm/test/psm_viewcost_test.c demo/psm/psm_viewcost.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) -DVC_PART=8 -DVC_SHIP_OPT=56u -Idemo/psm $(filter %.c,$^) -lm -o $@   # the same with the shipping options (turncost --ship)
 $(addprefix $(DEMO_T)/,$(CONTROLS_TESTS)): demo/pl4nar/host/controls_test.c demo/pl4nar/src/controls.h demo/pl4nar/src/demo.h
 	@mkdir -p $(DEMO_T)
 	$(DEMO_CC) $($(notdir $@)_F) -Idemo/pl4nar/src $(filter %.c,$^) -lm -o $@
@@ -289,11 +322,18 @@ $(DEMO_T)/qrpage_test: test/qrpage_test.c include/sh4der_page.h include/sh4der_q
 	$(DEMO_CC) -Idemo/psm/assets/_dl $(filter %.c,$^) -lm -o $@
 $(DEMO_T)/psm_colour_test: demo/psm/test/psm_colour_test.c
 $(DEMO_T)/psm_plan_test: demo/psm/test/psm_plan_test.c
+$(DEMO_T)/psm_keep_test: demo/psm/test/psm_keep_test.c
 $(DEMO_T)/psm_ao_test: demo/psm/test/psm_ao_test.c demo/psm/psm_ao.h include/sh4der_aomesh.h include/sh4der_raytri.h
 $(DEMO_T)/psm_place_cmp: demo/psm/test/psm_place_cmp.c
-$(DEMO_T)/psm_colour_test $(DEMO_T)/psm_plan_test $(DEMO_T)/psm_ao_test $(DEMO_T)/psm_place_cmp: src/sh4der_core.c $(PSM_TOWN_DEPS) include/sh4der_core.h
+$(DEMO_T)/psm_colour_test $(DEMO_T)/psm_plan_test $(DEMO_T)/psm_keep_test $(DEMO_T)/psm_ao_test $(DEMO_T)/psm_place_cmp: src/sh4der_core.c $(PSM_TOWN_DEPS) include/sh4der_core.h
 	@mkdir -p $(DEMO_T)
 	$(DEMO_CC) $(PSM_TOWN_INC) $(filter %.c,$^) -lm -o $@
+$(DEMO_T)/psm_bound_test: demo/psm/test/psm_bound_test.c src/sh4der_core.c demo/psm/psm_scene.h demo/psm/psm_town.h $(PSM_CLOSED_H) $(PSM_SKY_H) include/sh4der_core.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) -DPSM_HAVE_TOWN -I$(BUILD)/psm_closed_test -I$(BUILD)/psm_sky $(filter %.c,$^) -lm -o $@   # the closed square: PSM_WORLD_BOUND
+$(DEMO_T)/psm_plan_inline_test: demo/psm/test/psm_plan_test.c src/sh4der_core.c $(PSM_TOWN_DEPS) include/sh4der_core.h
+	@mkdir -p $(DEMO_T)
+	$(DEMO_CC) -DPSM_SINK_INLINE=1 -DPSM_COLD=1 $(PSM_TOWN_INC) $(filter %.c,$^) -lm -o $@   # the sink's hot path inline and the cold marks (the turn plan's 2 b, 4 c): the same counts
 $(DEMO_T)/ao_bake_test: test/ao_bake_test.c tools/ao_bake_core.h demo/psm/ao/room_data.h
 	@mkdir -p $(DEMO_T)/room
 	$(PYTHON) demo/psm/ao/build.py --room-only --out $(DEMO_T)/room
@@ -364,6 +404,7 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS)) $(BUILD)/shz/page_test $(BUILD)/sh
 	$(BUILD)/shz/menu_test
 	$(BUILD)/shz/aosky_test
 	$(BUILD)/shz/fakeaf_test
+	$(BUILD)/shz/dofmip_test
 	$(BUILD)/shz/ground_test
 	$(BUILD)/shz/pvrx_test
 	$(BUILD)/shz/water_test
@@ -375,9 +416,11 @@ test-shz: $(addprefix $(BUILD)/shz/,$(TESTS)) $(BUILD)/shz/page_test $(BUILD)/sh
 	$(BUILD)/shz/pool_test
 	$(BUILD)/shz/softfade_test
 	$(BUILD)/shz/ramp_test
+	$(BUILD)/shz/viewcull_test
 	$(BUILD)/shz/psm_test
 	$(BUILD)/shz/psm_raster_test
 	$(BUILD)/shz/psm_pvr_test
+	$(BUILD)/shz/psm_a_test
 	$(BUILD)/shz/psm_scene_test
 	$(BUILD)/shz/psm_mapsrc_test
 	$(BUILD)/shz/psm_town_test
@@ -425,9 +468,10 @@ $(BUILD)/libsh4der_core.a: $(SRC) $(HDR)
 	$(DC_CC) $(DC_FLAGS) -c src/sh4der_pl4nar.c -o $(BUILD)/sh4der_pl4nar.o
 	$(DC_CC) $(DC_FLAGS) -c src/sh4der_spark.c -o $(BUILD)/sh4der_spark.o
 	$(DC_CC) $(DC_FLAGS) -c src/sh4der_pvrx.c -o $(BUILD)/sh4der_pvrx.o
+	$(DC_CC) $(DC_FLAGS) -c src/sh4der_psm_a.c -o $(BUILD)/sh4der_psm_a.o
 	$(DC_CC) $(DC_FLAGS) -c src/sh4dow_dc.c -o $(BUILD)/sh4dow_dc.o
 	$(DC_CC) $(DC_FLAGS) -c src/sh4dow_foot.c -o $(BUILD)/sh4dow_foot.o
-	$(DC_AR) rcs $@ $(BUILD)/sh4dow_dc.o $(BUILD)/sh4dow_foot.o $(BUILD)/sh4der_ca.o $(BUILD)/sh4der_shafts.o $(BUILD)/sh4der_frame.o $(BUILD)/sh4der_core.o $(BUILD)/sh4der_blade.o $(BUILD)/sh4der_holo.o $(BUILD)/sh4der_bloom.o $(BUILD)/sh4der_glow.o $(BUILD)/sh4der_warp.o $(BUILD)/sh4der_trail.o $(BUILD)/sh4der_lens.o $(BUILD)/sh4der_focus.o $(BUILD)/sh4der_visor.o $(BUILD)/sh4der_torch.o $(BUILD)/sh4der_spark.o $(BUILD)/sh4der_pl4nar.o $(BUILD)/sh4der_pvrx.o
+	$(DC_AR) rcs $@ $(BUILD)/sh4dow_dc.o $(BUILD)/sh4dow_foot.o $(BUILD)/sh4der_ca.o $(BUILD)/sh4der_shafts.o $(BUILD)/sh4der_frame.o $(BUILD)/sh4der_core.o $(BUILD)/sh4der_blade.o $(BUILD)/sh4der_holo.o $(BUILD)/sh4der_bloom.o $(BUILD)/sh4der_glow.o $(BUILD)/sh4der_warp.o $(BUILD)/sh4der_trail.o $(BUILD)/sh4der_lens.o $(BUILD)/sh4der_focus.o $(BUILD)/sh4der_visor.o $(BUILD)/sh4der_torch.o $(BUILD)/sh4der_spark.o $(BUILD)/sh4der_pl4nar.o $(BUILD)/sh4der_pvrx.o $(BUILD)/sh4der_psm_a.o
 
 # Every disc image a build writes goes to CDI_DIR (out/cdi at the top of the repository; git ignores it).
 CDI_DIR ?= out/cdi
@@ -455,10 +499,10 @@ MATCHLIGHT_CDI ?= $(CDI_DIR)/sh4der-matchlight.cdi
 # The sound files (demo/matchlight/tools/audio.py writes them here); the image is made without sound when the folder is not there.
 MATCHLIGHT_DISC ?= $(BUILD)/matchlight/disc
 matchlight: $(MATCHLIGHT_CDI)
-$(BUILD)/matchlight/sh4der-matchlight.elf: demo/matchlight/matchlight.c demo/matchlight/matchlight_scene.h src/sh4der_spark.c src/sh4der_motes.c src/sh4der_ca.c $(HDR)
+$(BUILD)/matchlight/sh4der-matchlight.elf: demo/matchlight/matchlight.c demo/matchlight/matchlight_scene.h src/sh4der_spark.c src/sh4der_motes.c src/sh4der_ca.c src/sh4der_pvrx.c $(HDR)
 	@test -n "$(SH4ZAM)" || { echo "set SH4ZAM to your SH4ZAM checkout"; exit 1; }
 	@mkdir -p $(BUILD)/matchlight
-	$(DC_CC) $(DC_FLAGS) -Werror demo/matchlight/matchlight.c src/sh4der_spark.c src/sh4der_motes.c src/sh4der_ca.c -o $@
+	$(DC_CC) $(DC_FLAGS) -Werror demo/matchlight/matchlight.c src/sh4der_spark.c src/sh4der_motes.c src/sh4der_ca.c src/sh4der_pvrx.c -o $@
 $(MATCHLIGHT_CDI): $(BUILD)/matchlight/sh4der-matchlight.elf
 	@test ! -e "$@" || { echo "refuse existing image: $@"; exit 1; }
 	@mkdir -p $(dir $@)

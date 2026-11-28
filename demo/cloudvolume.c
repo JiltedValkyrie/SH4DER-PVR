@@ -40,6 +40,10 @@
 #include <dc/vblank.h>
 #include "sh4der_water.h"
 #include "sh4der_guard.h"
+#include "sh4der_pvrx.h"
+#include "sh4der_suite.h"
+#include "sh4der_waitrun.h"
+static sh4der_waitrun_t wr_run;
 
 /* The sea under the clouds is the ocean demo's water (ocean_scene.h), with two things of its own, set before the include:
  * its sky colours (so the water mirrors THIS sky) and its wave table. */
@@ -278,6 +282,7 @@ static void cv_input(float dt) {
     static uint32_t last;
     maple_device_t *dev = maple_enum_type(0, MAPLE_FUNC_CONTROLLER);
     cont_state_t *st = dev ? (cont_state_t *)maple_dev_status(dev) : NULL;
+    if (st && suite_present() && (st->buttons & SUITE_KEYS_ALL) == SUITE_KEYS_ALL) { sh4der_pvrx_wait_hook(0); suite_exit(SUITE_KEYS); }   /* the test suite disc: A+B+X+Y back to the menu */
     uint32_t down;
     float trig;
 
@@ -635,6 +640,8 @@ static void cv_setup(void) {
 }
 
 int main(void) {
+    suite_init();   /* on the test suite disc: the menu's binary into RAM, before anything else */
+    if (suite_present()) sh4der_waitrun_init(&wr_run, SH4DER_WAITRUN_SECONDS);   /* from the suite's menu: a timed run that ends on a results page */
     pvr_init_params_t init = pvr_default_params;
     pvr_stats_t stats;
     uint64_t previous, report, cpu_total = 0, frame_total = 0, render_total = 0, march_total = 0, worst = 0;
@@ -649,6 +656,10 @@ int main(void) {
     cv_stage(1, 160, 0, 0, "main");
     init.vertex_buf_size = 1024 * 1024; init.opb_overflow_count = 4; init.autosort_disabled = 1;
     if (pvr_init(&init) < 0) { printf("cloudvolume: pvr_init FAIL\n"); return 1; }
+
+#ifndef WAIT_SLEEP
+    sh4der_pvrx_wait_hook(1);   /* polled render-done wait (PVR-117): every scene below ends through sh4der_pvrx_scene_finish; -DWAIT_SLEEP keeps KallistiOS's sleeping wait for an A/B */
+#endif
     pvr_set_bg_color(0.47f, 0.57f, 0.66f);
     vblank_handler_add(cv_vblank, NULL);
     cv_stage(2, 224, 96, 0, "pvr_init");
@@ -685,6 +696,7 @@ int main(void) {
     previous = report = timer_us_gettime64();
     vbl_last = vbl_count;
     for (;;) {
+        if (suite_present() && sh4der_waitrun_frame(&wr_run, timer_us_gettime64())) sh4der_waitrun_show(&wr_run, "CLOUDS");
         const uint64_t now = timer_us_gettime64(), elapsed = now - previous;
         uint64_t cpu_start, march_us = 0, work;
         const int lock = val[ROW_LOCK] == LOCK_AUTO ? auto_n : val[ROW_LOCK] == LOCK_FREE ? 0 : val[ROW_LOCK] + 1;   /* fields a frame; 0 = as fast as it goes */
@@ -740,7 +752,7 @@ int main(void) {
         else if (auto_n > 2 && work + 5000u < (uint64_t)(auto_n - 1) * CV_VBL_US) { if (++auto_calm > 120 / auto_n) { auto_n--; auto_calm = 0; } }
         else auto_calm = 0;
 
-        ready = pvr_wait_ready(); ready |= pvr_wait_render_done();      /* textures change only after the PVR has used them */
+        ready = sh4der_pvrx_wait_idle();      /* textures change only after the PVR has used them: every frame, so the polled wait (PVR-117) */
         if (pvr_get_stats(&stats) == 0) render_total += stats.rnd_last_time / 1000u;
         if (val[ROW_OUTPUT] == OUTP_PAL8) pvr_txr_load(tex8, tex8_vram, (size_t)(buf_tex() * buf_tex()));
         else pvr_txr_load(tex16, tex16_vram, (size_t)(buf_tex() * buf_tex() * 2));
@@ -768,7 +780,7 @@ int main(void) {
         cv_cloud_quad(cr, sr);
         cv_sun(cr, sr);
         if (hud) cv_hud_draw();
-        pvr_list_finish(); pvr_scene_finish();
+        pvr_list_finish(); sh4der_pvrx_scene_finish();
         ++total_frames;
 
         cpu_total += work + timer_us_gettime64() - cpu_start;

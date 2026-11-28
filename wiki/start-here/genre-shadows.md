@@ -34,6 +34,15 @@ Four headers (psm, psm_raster, psm_pvr and ao) have no RECOMMENDED block yet ([t
 - `warp_near` 4 m, the argument to `sh4der_psm_build_warp`, raised above the render's 0.3 m near plane (README, "The psm effect"). ADVISED.
 - Not an infinite draw distance: give the shadow a range and keep casters inside the map's square. An infinite range with all casters missed 30 fps in the town scene (PVR-108 to PVR-113). PROVEN that it misses; the remedy is ADVISED ([recommended limits](../limits/recommended-limits.md)).
 
+### Moving shadows drawn by the PVR [psm_a]
+
+**What it looks like:** a few characters' shadows on a patch of ground from one sun or lamp, each able to fade in or out; no shadow of a body on itself.
+**Use it when:** up to four people or animals move on a floor and the main CPU has little to spare.
+**Where it is:** [header](../../include/sh4der_psm_a.h) and [effect page](../effects/psm-route-a.md).
+**Starting settings:**
+- `SH4DER_PSM_A_SIZE` 128, `SH4DER_PSM_A_CASTERS` 4, `SH4DER_PSM_A_TRIS` 2200, `SH4DER_PSM_A_SQUARE_M` 8.0 (include/sh4der_psm_a.h; the port's budget). ADVISED: no console number backs the pass yet.
+- In the town the same route cost 13.3 to 13.6 ms of main-CPU time a frame against 40.2 to 43.9 ms for the depth-compare route (PVR-108 to PVR-113, MEASURED, one console). This pass has not run on a console.
+
 ### Shadow map on the SH-4 [psm_raster]
 
 **What it looks like:** a shadow that falls on the model itself as well as on the ground, with one light value a vertex.

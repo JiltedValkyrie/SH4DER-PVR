@@ -1,8 +1,8 @@
 ---
 title: "Genre guide: tools and safety"
 tags: [start, guide, safety, tools, pvr, hardware]
-updated: 2026-11-26
-sources: [include/sh4der_guard.h, include/sh4der_fault.h, include/sh4der_tilecut.h, include/sh4der_pvrx.h, include/sh4der_ramp.h, include/sh4der_split.h, include/sh4der_frame.h, src/sh4der_frame.c, include/sh4der_core.h, tools/ao_bake_core.h, README.md (the tuning tables and "Real hardware notes"), AGENTS.md (Call order: pvrx), wiki/effects/names.md, wiki/effects/guard.md, fault.md, tilecut.md, ramp.md, split.md, frame.md, core.md, ao-bake.md, wiki/start-here/what-do-you-want.md, call-orders.md, wiki/glossary.md, wiki/limits/header-recommended.md, recommended-limits.md, wiki/hardware/ledger-pvr.md, ledger-sh4.md, ledger-bus-dma.md, ledger-video.md, wiki/status/maturity.md, wiki/open-questions.md, wiki/methods/fault-catcher.md, Makefile]
+updated: 2026-11-28
+sources: [include/sh4der_guard.h, include/sh4der_fault.h, include/sh4der_tilecut.h, include/sh4der_pvrx.h, include/sh4der_ramp.h, include/sh4der_viewcull.h, include/sh4der_split.h, include/sh4der_frame.h, src/sh4der_frame.c, include/sh4der_core.h, tools/ao_bake_core.h, README.md (the tuning tables and "Real hardware notes"), AGENTS.md (Call order: pvrx), wiki/effects/names.md, wiki/effects/guard.md, fault.md, tilecut.md, ramp.md, viewcull.md, split.md, frame.md, core.md, ao-bake.md, wiki/start-here/what-do-you-want.md, call-orders.md, wiki/glossary.md, wiki/limits/header-recommended.md, recommended-limits.md, wiki/hardware/ledger-pvr.md, ledger-sh4.md, ledger-bus-dma.md, ledger-video.md, wiki/status/maturity.md, wiki/open-questions.md, wiki/methods/fault-catcher.md, Makefile]
 ---
 # Genre guide: tools and safety
 
@@ -75,6 +75,27 @@ Status: the header says "nothing here has run on a console AS THIS LAYER". Its c
 - Do not use it for a strength the PVR must work out per pixel from a texture (header "Do not"). ADVISED.
 
 Status: ADVISED, no figures. To prove it: the same view faded against a hard step, timed for PVR and frame. This part has no row on the [maturity](../status/maturity.md) page.
+
+### Off-screen skip [viewcull]
+**What it looks like:** nothing on screen. Turning the camera should cost the SH-4 less, because ground or objects wholly off the screen are left out before their points are placed.
+**Use it when:** a ground window, a terrain grid or a list of boxed objects is placed again every frame the camera turns.
+**Where it is:** [header](../../include/sh4der_viewcull.h) and [effect page](../effects/viewcull.md).
+**Starting settings:**
+- `SH4DER_VIEWCULL_BLOCK` = 4 (README "Viewcull tuning"): 4 x 4 cells a block. ADVISED: no console run has tried another size.
+- Prepare the view once a frame with `sh4der_viewcull_prepare`, then test a grid with `sh4der_viewcull_grid` or a box with `sh4der_viewcull_box` (header block). ADVISED.
+- Never read a placed value of a point in a block that was left out (header "Do not"). ADVISED.
+
+Status: PROTOTYPE v0.1, host tested, NOT RUN on a console. On the host the walled square's ground window places 0 % of its points looking at the sky, 76 % at the boot view and 72 % looking down, with the same picture to the pixel (DERIVED, host counts). This part has no row on the [maturity](../status/maturity.md) page.
+
+### Small world [world bound]
+**What it looks like:** the shadow demo's square with its gates shut, a light fog on the far walls, and sharper ground shadows. The ground inside the walls is unchanged.
+**Use it when:** your level is a closed place, and its ground or shadow map reaches past the walls where nobody can see.
+**Where it is:** the shadow demo (`demo/psm/psm_scene.h`, `PSM_WORLD_BOUND`; `demo/psm/tools/bake_square.py --closed`) and [method page](../methods/small-world.md).
+**Starting settings:**
+- `PSM_WORLD_BOUND` = 1 (the bit in `world_opt`), `PSM_WORLD_DEFAULT` = 0 (off at load), `PSM_BOUND_DIST_I` = 10 (fog to 75 m, rising from 32 m) (README "The shadow demo's small world"). ESTIMATE: no console run.
+- Build with `SQUARE=closed`. The cut does nothing on a scene without walls all round. ADVISED.
+
+Status: PROTOTYPE, host tested, NOT RUN on a console. On the host the ground points placed a frame fall from 5,400 to 1,943 on average, the ground cells sent from 3,948 to 1,185, and the shadow texel to 0.46 of its old size (DERIVED, host counts). This part has no row on the [maturity](../status/maturity.md) page.
 
 ### Split screen [split]
 **What it looks like:** the screen is cut in two by a divider, and each half shows its own look.

@@ -1,7 +1,7 @@
 ---
 title: What do you want to make?
 tags: [start, guide, effect]
-updated: 2026-11-26
+updated: 2026-11-28
 sources: [wiki/effects/names.md section 0, wiki/effects/README.md, README.md effect table, demo/psm/suite/suite_13.json]
 ---
 # What do you want to make?
@@ -26,6 +26,7 @@ Pick the thing you want to see. Each row names the effect in plain words first, 
 | Clouds you fly through | Cloud deck [cloudvolume] | [Water and weather](genre-water-and-weather.md) |
 | Footprints or tyre tracks in snow or mud | Dented ground [deform] | [Water and weather](genre-water-and-weather.md) |
 | A sun shadow or a lamp shadow on the ground | Sun shadow map [psm] | [Shadows and depth](genre-shadows.md) |
+| A few characters' shadows on the ground, fading in and out | Moving shadows drawn by the PVR [psm_a] | [Shadows and depth](genre-shadows.md) |
 | Darker corners and creases, without a bake tool | Corner darkening [ao] | [Shadows and depth](genre-shadows.md) |
 | Corner shading baked into the scenery at load | Baked corner shading [aobake] | [Shadows and depth](genre-shadows.md) |
 | Light glowing through a thin ear, a leaf or wax | Light through thin parts [sss] | [Surfaces and materials](genre-surfaces-and-materials.md) |
@@ -40,11 +41,14 @@ Pick the thing you want to see. Each row names the effect in plain words first, 
 | Night vision, thermal or an amber display | Screen filters [visor] | [Camera and screen](genre-camera-and-screen.md) |
 | Old film, or a video tape that wobbles | Old film wear [film], Tape wobble [timebase] | [Camera and screen](genre-camera-and-screen.md) |
 | Blur that keeps one band of the picture sharp | Fake focus blur [focus] | [Camera and screen](genre-camera-and-screen.md) |
+| A focus pull, a soft background behind a close-up | Focus pull by texture blur [dofmip] | [Camera and screen](genre-camera-and-screen.md) |
 | Smoother edges on a still or slow camera | Smooth edges over time [taa] | [Camera and screen](genre-camera-and-screen.md) |
 | A colour fringe at the lens edge | Colour fringe [ca] | [Camera and screen](genre-camera-and-screen.md) |
 | A split screen for comparing two looks | Split screen [split] | [Tools and safety](genre-tools-and-safety.md) |
 | A crash or hang screen while you develop | Crash and hang screen [fault] | [Tools and safety](genre-tools-and-safety.md) |
 | Fewer wasted triangles in a render target | Tile-cut pass [tilecut] | [Tools and safety](genre-tools-and-safety.md) |
+| Less SH-4 work when the camera turns over a big ground or terrain | Off-screen skip [viewcull] | [Tools and safety](genre-tools-and-safety.md) |
+| A walled place (a courtyard, an arena, a room) that draws nothing past its walls | Small world [world bound] | [Tools and safety](genre-tools-and-safety.md) |
 | A racing game: the car, its shadow, its reflection and its lights, as one recipe | Planar reflection [pl4nar], Light pools [pool], Sun shadow map [psm] | [Racing game recipe](../guides/racing-game.md) |
 
 ## Before you start
